@@ -1,0 +1,711 @@
+// =====================================================
+// QMS - Bir Sabia Charity
+// Prisma Schema - ISO 9001:2015 Compliant
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// AUTH & USERS
+// =====================================================
+
+enum Role {
+  SUPER_ADMIN      // مسؤول النظام
+  QUALITY_MANAGER  // مدير الجودة
+  COMMITTEE_MEMBER // عضو لجنة الجودة
+  DEPT_MANAGER     // مسؤول قسم
+  EMPLOYEE         // موظف
+  GUEST_AUDITOR    // مدقق ضيف (قراءة فقط)
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(EMPLOYEE)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  phone        String?
+  jobTitle     String?
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // relations
+  createdObjectives   Objective[]   @relation("ObjCreator")
+  ownedObjectives     Objective[]   @relation("ObjOwner")
+  createdRisks        Risk[]        @relation("RiskCreator")
+  ownedRisks          Risk[]        @relation("RiskOwner")
+  complaints          Complaint[]   @relation("ComplaintAssignee")
+  ncrsReported        NCR[]         @relation("NCRReporter")
+  ncrsAssigned        NCR[]         @relation("NCRAssignee")
+  auditsLead          Audit[]       @relation("AuditLead")
+  supplierEvals       SupplierEval[]
+  donationEvals       DonationEval[]
+  documentsCreated    Document[]    @relation("DocCreator")
+  documentsApproved   Document[]    @relation("DocApprover")
+  acks                Ack[]
+  signatures          Signature[]
+  trainingRecords     TrainingRecord[]
+  auditLogs           AuditLog[]
+  refreshTokens       RefreshToken[]
+
+  @@index([email])
+  @@index([departmentId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// =====================================================
+// ORGANIZATION
+// =====================================================
+
+model Department {
+  id          String  @id @default(cuid())
+  code        String  @unique  // e.g. "QM", "HR", "FIN"
+  name        String              // الاسم بالعربية
+  nameEn      String?
+  parentId    String?
+  parent      Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DeptHierarchy")
+  manager     String?             // اسم المسؤول
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  objectives  Objective[]
+  risks       Risk[]
+  ncrs        NCR[]
+  documents   Document[]
+}
+
+// =====================================================
+// CLAUSE 6.2 - QUALITY OBJECTIVES
+// =====================================================
+
+enum ObjectiveStatus {
+  PLANNED
+  IN_PROGRESS
+  ACHIEVED
+  DELAYED
+  CANCELLED
+}
+
+model Objective {
+  id           String   @id @default(cuid())
+  code         String   @unique  // OBJ-2026-001
+  title        String
+  description  String?
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  kpi          String              // مؤشر الأداء
+  baseline     Float?
+  target       Float
+  unit         String?             // %, عدد, ريال
+  currentValue Float?
+  startDate    DateTime
+  dueDate      DateTime
+  status       ObjectiveStatus @default(PLANNED)
+  progress     Int      @default(0)  // 0-100
+  ownerId      String?
+  owner        User?    @relation("ObjOwner", fields: [ownerId], references: [id])
+  createdById  String
+  createdBy    User     @relation("ObjCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+}
+
+// =====================================================
+// CLAUSE 6.1 - RISKS & OPPORTUNITIES
+// =====================================================
+
+enum RiskType {
+  RISK
+  OPPORTUNITY
+}
+
+enum RiskStatus {
+  IDENTIFIED
+  UNDER_TREATMENT
+  MITIGATED
+  ACCEPTED
+  CLOSED
+}
+
+model Risk {
+  id             String    @id @default(cuid())
+  code           String    @unique  // RSK-2026-001
+  type           RiskType  @default(RISK)
+  title          String
+  description    String?
+  source         String?             // مصدر الخطر
+  departmentId   String?
+  department     Department? @relation(fields: [departmentId], references: [id])
+  probability    Int                 // 1-5
+  impact         Int                 // 1-5
+  score          Int                 // probability * impact
+  level          String              // منخفض / متوسط / مرتفع / حرج
+  treatment      String?             // خطة المعالجة
+  treatmentType  String?             // تجنب/تخفيف/نقل/قبول
+  ownerId        String?
+  owner          User?     @relation("RiskOwner", fields: [ownerId], references: [id])
+  status         RiskStatus @default(IDENTIFIED)
+  reviewDate     DateTime?
+  createdById    String
+  createdBy      User      @relation("RiskCreator", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([level])
+}
+
+// =====================================================
+// CLAUSE 9.1.2 - CUSTOMER COMPLAINTS
+// =====================================================
+
+enum ComplaintSource {
+  BENEFICIARY    // مستفيد
+  DONOR          // متبرع
+  VOLUNTEER      // متطوع
+  EMPLOYEE       // موظف
+  PARTNER        // جهة شريكة
+  OTHER
+}
+
+enum ComplaintChannel {
+  PHONE
+  EMAIL
+  WEBSITE
+  IN_PERSON
+  WHATSAPP
+  SOCIAL
+  OTHER
+}
+
+enum ComplaintStatus {
+  NEW
+  UNDER_REVIEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+model Complaint {
+  id            String   @id @default(cuid())
+  code          String   @unique  // CMP-2026-001
+  source        ComplaintSource
+  channel       ComplaintChannel
+  complainantName  String?
+  complainantPhone String?
+  complainantEmail String?
+  subject       String
+  description   String
+  receivedAt    DateTime @default(now())
+  severity      String   // منخفضة / متوسطة / مرتفعة
+  assigneeId    String?
+  assignee      User?    @relation("ComplaintAssignee", fields: [assigneeId], references: [id])
+  rootCause     String?
+  resolution    String?
+  resolvedAt    DateTime?
+  satisfaction  Int?     // 1-5
+  status        ComplaintStatus @default(NEW)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([source])
+}
+
+// =====================================================
+// CLAUSE 10.2 - NON-CONFORMITY & CORRECTIVE ACTION
+// =====================================================
+
+enum NCRStatus {
+  OPEN
+  ROOT_CAUSE
+  ACTION_PLANNED
+  IN_PROGRESS
+  VERIFICATION
+  CLOSED
+}
+
+model NCR {
+  id              String   @id @default(cuid())
+  code            String   @unique  // NCR-2026-001
+  title           String
+  description     String
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  detectedAt      DateTime @default(now())
+  reporterId      String
+  reporter        User     @relation("NCRReporter", fields: [reporterId], references: [id])
+  assigneeId      String?
+  assignee        User?    @relation("NCRAssignee", fields: [assigneeId], references: [id])
+  severity        String   // منخفضة / متوسطة / مرتفعة
+  rootCause       String?
+  correction      String?  // التصحيح الفوري
+  correctiveAction String? // الإجراء التصحيحي
+  dueDate         DateTime?
+  verifiedAt      DateTime?
+  verifiedNote    String?
+  effective       Boolean?
+  status          NCRStatus @default(OPEN)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([departmentId])
+}
+
+// =====================================================
+// CLAUSE 9.2 - INTERNAL AUDITS
+// =====================================================
+
+enum AuditType {
+  INTERNAL
+  EXTERNAL
+  SUPPLIER
+  FOLLOWUP
+}
+
+enum AuditStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Audit {
+  id          String   @id @default(cuid())
+  code        String   @unique  // AUD-2026-001
+  title       String
+  type        AuditType @default(INTERNAL)
+  scope       String
+  criteria    String?  // ISO 9001:2015 clauses
+  plannedDate DateTime
+  actualDate  DateTime?
+  leadAuditorId String?
+  leadAuditor User?    @relation("AuditLead", fields: [leadAuditorId], references: [id])
+  team        String?
+  findings    String?  // JSON array
+  strengths   String?
+  weaknesses  String?
+  reportUrl   String?
+  status      AuditStatus @default(PLANNED)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+// =====================================================
+// CLAUSE 8.4 - SUPPLIERS
+// =====================================================
+
+enum SupplierType {
+  GOODS
+  SERVICES
+  IN_KIND_DONOR    // مورد تبرعات عينية
+  TRANSPORT
+  CONSULTING
+  OTHER
+}
+
+enum SupplierStatus {
+  PENDING
+  APPROVED
+  CONDITIONAL
+  REJECTED
+  SUSPENDED
+  BLACKLISTED
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  code          String   @unique  // SUP-001
+  name          String
+  type          SupplierType
+  category      String?  // فئة
+  crNumber      String?  // سجل تجاري
+  vatNumber     String?
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?
+  status        SupplierStatus @default(PENDING)
+  overallRating Float?   // avg of evals
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  evaluations   SupplierEval[]
+
+  @@index([status])
+  @@index([type])
+}
+
+model SupplierEval {
+  id           String   @id @default(cuid())
+  code         String   @unique  // REG-004-2026-VAL-001
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  evaluatedAt  DateTime @default(now())
+  evaluatorId  String
+  evaluator    User     @relation(fields: [evaluatorId], references: [id])
+  period       String?  // مدة التقييم
+  criteriaJson String   // JSON: { quality: 20, delivery: 15, ... }
+  totalScore   Float
+  maxScore     Float
+  percentage   Float
+  grade        String   // ممتاز/جيد جداً/جيد/مقبول/ضعيف
+  decision     String   // معتمد/مشروط/مرفوض
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  @@index([supplierId])
+}
+
+// =====================================================
+// DONATIONS (Charity-specific)
+// =====================================================
+
+enum DonationType {
+  CASH          // نقدي
+  IN_KIND       // عيني
+  SERVICE       // خدمة
+}
+
+enum DonationStatus {
+  RECEIVED
+  VERIFIED
+  DISTRIBUTED
+  REJECTED
+}
+
+model Donation {
+  id          String   @id @default(cuid())
+  code        String   @unique  // DON-2026-0001
+  type        DonationType
+  donorName   String
+  donorPhone  String?
+  donorEmail  String?
+  donorType   String?  // فرد / شركة / جهة
+  itemName    String?  // للعيني
+  quantity    Float?
+  unit        String?
+  amount      Float?   // للنقدي
+  currency    String?  @default("SAR")
+  receivedAt  DateTime @default(now())
+  receivedBy  String?
+  status      DonationStatus @default(RECEIVED)
+  notes       String?
+  evaluations DonationEval[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+}
+
+model DonationEval {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  donationId    String
+  donation      Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  evaluatorId   String
+  evaluator     User     @relation(fields: [evaluatorId], references: [id])
+  evaluatedAt   DateTime @default(now())
+  conformity    Boolean  // مطابقة المواصفات
+  quality       Int      // 1-5
+  usability     Int      // 1-5
+  expiryCheck   Boolean?
+  score         Float
+  decision      String   // قبول/قبول مشروط/رفض
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([donationId])
+}
+
+// =====================================================
+// BENEFICIARIES (Charity-specific)
+// =====================================================
+
+enum BeneficiaryCategory {
+  ORPHAN         // يتيم
+  WIDOW          // أرملة
+  POOR_FAMILY    // أسرة فقيرة
+  DISABLED       // ذو إعاقة
+  ELDERLY        // مسن
+  STUDENT        // طالب
+  OTHER
+}
+
+enum BeneficiaryStatus {
+  APPLICANT
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  REJECTED
+}
+
+model Beneficiary {
+  id            String   @id @default(cuid())
+  code          String   @unique  // BEN-2026-0001
+  fullName      String
+  nationalId    String?  @unique
+  category      BeneficiaryCategory
+  gender        String?
+  birthDate     DateTime?
+  phone         String?
+  city          String?
+  district      String?
+  familySize    Int?
+  monthlyIncome Float?
+  status        BeneficiaryStatus @default(APPLICANT)
+  appliedAt     DateTime @default(now())
+  approvedAt    DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
+
+// =====================================================
+// PROGRAMS (Charity-specific)
+// =====================================================
+
+model Program {
+  id           String   @id @default(cuid())
+  code         String   @unique  // PRG-2026-001
+  name         String
+  description  String?
+  category     String?  // كفالة/كسوة/إفطار/زكاة
+  startDate    DateTime
+  endDate      DateTime?
+  budget       Float?
+  spent        Float?   @default(0)
+  beneficiariesCount Int @default(0)
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// =====================================================
+// CLAUSE 9.1.2 - SATISFACTION SURVEYS
+// =====================================================
+
+enum SurveyTarget {
+  BENEFICIARY
+  DONOR
+  VOLUNTEER
+  EMPLOYEE
+  PARTNER
+}
+
+model Survey {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  target      SurveyTarget
+  period      String?
+  responses   Int      @default(0)
+  avgScore    Float?
+  questionsJson String  // JSON array
+  resultsJson String?  // JSON
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =====================================================
+// CLAUSE 7.5 - DOCUMENT CONTROL
+// =====================================================
+
+enum DocCategory {
+  MANUAL        // دليل الجودة
+  POLICY        // سياسة
+  PROCEDURE     // إجراء
+  WORK_INSTRUCTION // تعليمات عمل
+  FORM          // نموذج
+  RECORD        // سجل
+  EXTERNAL      // مستند خارجي
+}
+
+enum DocStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
+  OBSOLETE
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  code         String   @unique  // QMS-MAN-001
+  title        String
+  category     DocCategory
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  currentVersion String @default("1.0")
+  status       DocStatus @default(DRAFT)
+  effectiveDate DateTime?
+  reviewDate   DateTime?
+  retentionYears Int?   @default(5)
+  isoClause    String?  // e.g. "7.5"
+  createdById  String
+  createdBy    User     @relation("DocCreator", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?    @relation("DocApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  versions     DocVersion[]
+  acks         Ack[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model DocVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version    String
+  filePath   String
+  fileSize   Int?
+  mimeType   String?
+  changeLog  String?
+  uploadedAt DateTime @default(now())
+
+  @@index([documentId])
+}
+
+model Ack {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ackedAt    DateTime @default(now())
+  version    String
+
+  @@unique([documentId, userId, version])
+  @@index([userId])
+}
+
+// =====================================================
+// E-SIGNATURES
+// =====================================================
+
+model Signature {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityType  String   // "NCR", "SupplierEval", ...
+  entityId    String
+  purpose     String   // "approve", "review", "submit"
+  signatureData String // base64 PNG
+  signedAt    DateTime @default(now())
+  ipAddress   String?
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+// =====================================================
+// CLAUSE 7.2 - TRAINING & COMPETENCE
+// =====================================================
+
+model Training {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String?
+  trainer     String?
+  date        DateTime
+  duration    Float?   // hours
+  location    String?
+  category    String?
+  createdAt   DateTime @default(now())
+
+  records     TrainingRecord[]
+}
+
+model TrainingRecord {
+  id         String   @id @default(cuid())
+  trainingId String
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attended   Boolean  @default(false)
+  score      Float?
+  effective  Boolean?
+  certUrl    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([trainingId, userId])
+  @@index([userId])
+}
+
+// =====================================================
+// AUDIT TRAIL (Mandatory ISO requirement)
+// =====================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, PRINT
+  entityType String?  // model name
+  entityId   String?
+  changesJson String? // { before: {}, after: {} }
+  ipAddress  String?
+  userAgent  String?
+  at         DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([at])
+}
+
+// =====================================================
+// SYSTEM SETTINGS
+// =====================================================
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

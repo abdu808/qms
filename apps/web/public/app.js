@@ -1,0 +1,610 @@
+// =====================================================
+// QMS Frontend - Alpine.js SPA
+// =====================================================
+
+const API = '/api';
+
+// -------------- Module definitions --------------
+const MODULES = {
+  objectives: {
+    endpoint: 'objectives',
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'الهدف' },
+      { key: 'kpi', label: 'المؤشر' },
+      { key: 'target', label: 'المستهدف' },
+      { key: 'currentValue', label: 'الحالي' },
+      { key: 'progress', label: 'الإنجاز %' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'عنوان الهدف', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'kpi', label: 'مؤشر الأداء', required: true },
+      { key: 'baseline', label: 'نقطة البداية', type: 'number' },
+      { key: 'target', label: 'القيمة المستهدفة', type: 'number', required: true },
+      { key: 'currentValue', label: 'القيمة الحالية', type: 'number' },
+      { key: 'unit', label: 'وحدة القياس' },
+      { key: 'progress', label: 'نسبة الإنجاز %', type: 'number' },
+      { key: 'startDate', label: 'تاريخ البداية', type: 'date', required: true },
+      { key: 'dueDate',   label: 'التاريخ المستهدف', type: 'date', required: true },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PLANNED',     l: 'مخطط' },
+        { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'ACHIEVED',    l: 'محقق' },
+        { v: 'DELAYED',     l: 'متأخر' },
+        { v: 'CANCELLED',   l: 'ملغى' },
+      ]},
+    ],
+  },
+  risks: {
+    endpoint: 'risks',
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'الخطر/الفرصة' },
+      { key: 'type', label: 'النوع' },
+      { key: 'probability', label: 'الاحتمالية' },
+      { key: 'impact', label: 'الأثر' },
+      { key: 'score', label: 'الدرجة' },
+      { key: 'level', label: 'المستوى', type: 'level' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'type', label: 'النوع', type: 'select', options: [
+        { v: 'RISK', l: 'خطر' }, { v: 'OPPORTUNITY', l: 'فرصة' },
+      ]},
+      { key: 'source', label: 'المصدر' },
+      { key: 'probability', label: 'الاحتمالية (1-5)', type: 'number' },
+      { key: 'impact', label: 'الأثر (1-5)', type: 'number' },
+      { key: 'treatment', label: 'خطة المعالجة', type: 'textarea' },
+      { key: 'treatmentType', label: 'نوع المعالجة', type: 'select', options: [
+        { v: 'تجنب', l: 'تجنب' }, { v: 'تخفيف', l: 'تخفيف' },
+        { v: 'نقل', l: 'نقل' }, { v: 'قبول', l: 'قبول' },
+      ]},
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'IDENTIFIED',       l: 'محدد' },
+        { v: 'UNDER_TREATMENT',  l: 'قيد المعالجة' },
+        { v: 'MITIGATED',        l: 'خُفف' },
+        { v: 'ACCEPTED',         l: 'مقبول' },
+        { v: 'CLOSED',           l: 'مغلق' },
+      ]},
+    ],
+  },
+  complaints: {
+    endpoint: 'complaints',
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'subject', label: 'الموضوع' },
+      { key: 'source', label: 'الجهة' },
+      { key: 'severity', label: 'الأهمية' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'subject', label: 'الموضوع', required: true },
+      { key: 'description', label: 'التفاصيل', type: 'textarea', required: true },
+      { key: 'source', label: 'الجهة', type: 'select', options: [
+        { v: 'BENEFICIARY', l: 'مستفيد' }, { v: 'DONOR', l: 'متبرع' },
+        { v: 'VOLUNTEER', l: 'متطوع' }, { v: 'EMPLOYEE', l: 'موظف' },
+        { v: 'PARTNER', l: 'شريك' }, { v: 'OTHER', l: 'أخرى' },
+      ]},
+      { key: 'channel', label: 'قناة الاستقبال', type: 'select', options: [
+        { v: 'PHONE', l: 'هاتف' }, { v: 'EMAIL', l: 'بريد' },
+        { v: 'WEBSITE', l: 'موقع' }, { v: 'IN_PERSON', l: 'حضوري' },
+        { v: 'WHATSAPP', l: 'واتساب' }, { v: 'SOCIAL', l: 'تواصل اجتماعي' },
+      ]},
+      { key: 'complainantName', label: 'اسم المشتكي' },
+      { key: 'complainantPhone', label: 'الجوال' },
+      { key: 'complainantEmail', label: 'البريد' },
+      { key: 'severity', label: 'الأهمية', type: 'select', options: [
+        { v: 'منخفضة', l: 'منخفضة' }, { v: 'متوسطة', l: 'متوسطة' }, { v: 'مرتفعة', l: 'مرتفعة' },
+      ]},
+      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea' },
+      { key: 'resolution', label: 'الحل', type: 'textarea' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'NEW', l: 'جديد' }, { v: 'UNDER_REVIEW', l: 'قيد الدراسة' },
+        { v: 'IN_PROGRESS', l: 'قيد المعالجة' }, { v: 'RESOLVED', l: 'تمت المعالجة' },
+        { v: 'CLOSED', l: 'مغلق' }, { v: 'REJECTED', l: 'مرفوض' },
+      ]},
+    ],
+  },
+  ncr: {
+    endpoint: 'ncr',
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'العنوان' },
+      { key: 'severity', label: 'الأهمية' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea', required: true },
+      { key: 'severity', label: 'الأهمية', type: 'select', options: [
+        { v: 'منخفضة', l: 'منخفضة' }, { v: 'متوسطة', l: 'متوسطة' }, { v: 'مرتفعة', l: 'مرتفعة' },
+      ]},
+      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea' },
+      { key: 'correction', label: 'التصحيح الفوري', type: 'textarea' },
+      { key: 'correctiveAction', label: 'الإجراء التصحيحي', type: 'textarea' },
+      { key: 'dueDate', label: 'تاريخ الاستحقاق', type: 'date' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'OPEN', l: 'مفتوح' }, { v: 'ROOT_CAUSE', l: 'تحليل السبب' },
+        { v: 'ACTION_PLANNED', l: 'خطة إجراء' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'VERIFICATION', l: 'تحقق' }, { v: 'CLOSED', l: 'مغلق' },
+      ]},
+    ],
+  },
+  audits: {
+    endpoint: 'audits',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
+      { key: 'type', label: 'النوع' }, { key: 'plannedDate', label: 'التاريخ المخطط', type: 'date' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'type', label: 'النوع', type: 'select', options: [
+        { v: 'INTERNAL', l: 'داخلي' }, { v: 'EXTERNAL', l: 'خارجي' },
+        { v: 'SUPPLIER', l: 'موردين' }, { v: 'FOLLOWUP', l: 'متابعة' },
+      ]},
+      { key: 'scope', label: 'النطاق', type: 'textarea', required: true },
+      { key: 'criteria', label: 'المعايير' },
+      { key: 'plannedDate', label: 'تاريخ التخطيط', type: 'date', required: true },
+      { key: 'actualDate', label: 'التاريخ الفعلي', type: 'date' },
+      { key: 'findings', label: 'النتائج', type: 'textarea' },
+      { key: 'strengths', label: 'نقاط القوة', type: 'textarea' },
+      { key: 'weaknesses', label: 'نقاط التحسين', type: 'textarea' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'COMPLETED', l: 'مكتمل' }, { v: 'CANCELLED', l: 'ملغى' },
+      ]},
+    ],
+  },
+  suppliers: {
+    endpoint: 'suppliers',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'name', label: 'الاسم' },
+      { key: 'type', label: 'النوع' }, { key: 'overallRating', label: 'التقييم' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'name', label: 'الاسم', required: true },
+      { key: 'type', label: 'النوع', type: 'select', options: [
+        { v: 'GOODS', l: 'بضائع' }, { v: 'SERVICES', l: 'خدمات' },
+        { v: 'IN_KIND_DONOR', l: 'مورد تبرعات عينية' }, { v: 'TRANSPORT', l: 'نقل' },
+        { v: 'CONSULTING', l: 'استشارات' }, { v: 'OTHER', l: 'أخرى' },
+      ]},
+      { key: 'crNumber', label: 'السجل التجاري' },
+      { key: 'vatNumber', label: 'الرقم الضريبي' },
+      { key: 'contactPerson', label: 'الشخص المسؤول' },
+      { key: 'phone', label: 'الجوال' },
+      { key: 'email', label: 'البريد', type: 'email' },
+      { key: 'address', label: 'العنوان' },
+      { key: 'city', label: 'المدينة' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PENDING', l: 'قيد المراجعة' }, { v: 'APPROVED', l: 'معتمد' },
+        { v: 'CONDITIONAL', l: 'مشروط' }, { v: 'REJECTED', l: 'مرفوض' },
+        { v: 'SUSPENDED', l: 'موقوف' }, { v: 'BLACKLISTED', l: 'مستبعد' },
+      ]},
+    ],
+  },
+  donations: {
+    endpoint: 'donations',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'donorName', label: 'المتبرع' },
+      { key: 'type', label: 'النوع' }, { key: 'amount', label: 'المبلغ' },
+      { key: 'itemName', label: 'الصنف' }, { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'donorName', label: 'اسم المتبرع', required: true },
+      { key: 'donorPhone', label: 'الجوال' },
+      { key: 'donorEmail', label: 'البريد' },
+      { key: 'type', label: 'نوع التبرع', type: 'select', options: [
+        { v: 'CASH', l: 'نقدي' }, { v: 'IN_KIND', l: 'عيني' }, { v: 'SERVICE', l: 'خدمة' },
+      ]},
+      { key: 'itemName', label: 'اسم الصنف (للعيني)' },
+      { key: 'quantity', label: 'الكمية', type: 'number' },
+      { key: 'unit', label: 'الوحدة' },
+      { key: 'amount', label: 'المبلغ (للنقدي)', type: 'number' },
+      { key: 'receivedBy', label: 'استلم بواسطة' },
+      { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'RECEIVED', l: 'مستلم' }, { v: 'VERIFIED', l: 'مدقق' },
+        { v: 'DISTRIBUTED', l: 'موزع' }, { v: 'REJECTED', l: 'مرفوض' },
+      ]},
+    ],
+  },
+  beneficiaries: {
+    endpoint: 'beneficiaries',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'fullName', label: 'الاسم' },
+      { key: 'category', label: 'الفئة' }, { key: 'city', label: 'المدينة' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'fullName', label: 'الاسم الكامل', required: true },
+      { key: 'nationalId', label: 'الهوية الوطنية' },
+      { key: 'category', label: 'الفئة', type: 'select', options: [
+        { v: 'ORPHAN', l: 'يتيم' }, { v: 'WIDOW', l: 'أرملة' },
+        { v: 'POOR_FAMILY', l: 'أسرة فقيرة' }, { v: 'DISABLED', l: 'ذو إعاقة' },
+        { v: 'ELDERLY', l: 'مسن' }, { v: 'STUDENT', l: 'طالب' }, { v: 'OTHER', l: 'أخرى' },
+      ]},
+      { key: 'gender', label: 'الجنس', type: 'select', options: [
+        { v: 'ذكر', l: 'ذكر' }, { v: 'أنثى', l: 'أنثى' },
+      ]},
+      { key: 'birthDate', label: 'تاريخ الميلاد', type: 'date' },
+      { key: 'phone', label: 'الجوال' },
+      { key: 'city', label: 'المدينة' },
+      { key: 'district', label: 'الحي' },
+      { key: 'familySize', label: 'عدد أفراد الأسرة', type: 'number' },
+      { key: 'monthlyIncome', label: 'الدخل الشهري', type: 'number' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'APPLICANT', l: 'متقدم' }, { v: 'ACTIVE', l: 'نشط' },
+        { v: 'INACTIVE', l: 'غير نشط' }, { v: 'GRADUATED', l: 'تخرج' },
+        { v: 'REJECTED', l: 'مرفوض' },
+      ]},
+    ],
+  },
+  programs: {
+    endpoint: 'programs',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'name', label: 'البرنامج' },
+      { key: 'category', label: 'الفئة' }, { key: 'budget', label: 'الميزانية' },
+      { key: 'beneficiariesCount', label: 'المستفيدون' },
+    ],
+    fields: [
+      { key: 'name', label: 'اسم البرنامج', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'category', label: 'الفئة' },
+      { key: 'startDate', label: 'تاريخ البداية', type: 'date', required: true },
+      { key: 'endDate', label: 'تاريخ النهاية', type: 'date' },
+      { key: 'budget', label: 'الميزانية', type: 'number' },
+      { key: 'spent', label: 'المصروف', type: 'number' },
+      { key: 'beneficiariesCount', label: 'عدد المستفيدين', type: 'number' },
+    ],
+  },
+  documents: {
+    endpoint: 'documents',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
+      { key: 'category', label: 'النوع' }, { key: 'currentVersion', label: 'الإصدار' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'category', label: 'الفئة', type: 'select', options: [
+        { v: 'MANUAL', l: 'دليل' }, { v: 'POLICY', l: 'سياسة' },
+        { v: 'PROCEDURE', l: 'إجراء' }, { v: 'WORK_INSTRUCTION', l: 'تعليمات عمل' },
+        { v: 'FORM', l: 'نموذج' }, { v: 'RECORD', l: 'سجل' }, { v: 'EXTERNAL', l: 'خارجي' },
+      ]},
+      { key: 'currentVersion', label: 'الإصدار' },
+      { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة', type: 'date' },
+      { key: 'isoClause', label: 'البند ISO' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'DRAFT', l: 'مسودة' }, { v: 'UNDER_REVIEW', l: 'قيد المراجعة' },
+        { v: 'APPROVED', l: 'معتمد' }, { v: 'PUBLISHED', l: 'منشور' },
+        { v: 'OBSOLETE', l: 'ملغى' },
+      ]},
+    ],
+  },
+  training: {
+    endpoint: 'training',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'title', label: 'الدورة' },
+      { key: 'trainer', label: 'المدرب' }, { key: 'date', label: 'التاريخ', type: 'date' },
+    ],
+    fields: [
+      { key: 'title', label: 'عنوان الدورة', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'trainer', label: 'المدرب' },
+      { key: 'date', label: 'التاريخ', type: 'date', required: true },
+      { key: 'duration', label: 'المدة (ساعات)', type: 'number' },
+      { key: 'location', label: 'المكان' },
+      { key: 'category', label: 'الفئة' },
+    ],
+  },
+  users: {
+    endpoint: 'users',
+    cols: [
+      { key: 'name', label: 'الاسم' }, { key: 'email', label: 'البريد' },
+      { key: 'role', label: 'الدور' }, { key: 'active', label: 'نشط', type: 'bool' },
+    ],
+    fields: [
+      { key: 'name', label: 'الاسم', required: true },
+      { key: 'email', label: 'البريد', type: 'email', required: true },
+      { key: 'password', label: 'كلمة المرور (جديدة)', type: 'password' },
+      { key: 'role', label: 'الدور', type: 'select', options: [
+        { v: 'SUPER_ADMIN', l: 'مسؤول النظام' },
+        { v: 'QUALITY_MANAGER', l: 'مدير الجودة' },
+        { v: 'COMMITTEE_MEMBER', l: 'عضو لجنة جودة' },
+        { v: 'DEPT_MANAGER', l: 'مسؤول قسم' },
+        { v: 'EMPLOYEE', l: 'موظف' },
+        { v: 'GUEST_AUDITOR', l: 'مدقق ضيف' },
+      ]},
+      { key: 'phone', label: 'الجوال' },
+      { key: 'jobTitle', label: 'المسمى الوظيفي' },
+    ],
+  },
+  departments: {
+    endpoint: 'departments',
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'name', label: 'الاسم' },
+      { key: 'manager', label: 'المسؤول' }, { key: 'active', label: 'نشط', type: 'bool' },
+    ],
+    fields: [
+      { key: 'code', label: 'الرمز', required: true },
+      { key: 'name', label: 'الاسم', required: true },
+      { key: 'nameEn', label: 'الاسم بالإنجليزية' },
+      { key: 'manager', label: 'المسؤول' },
+    ],
+  },
+};
+
+// -------------- Alpine root --------------
+function app() {
+  return {
+    user: null,
+    token: null,
+    refreshToken: null,
+    loginForm: { email: '', password: '' },
+    loginError: '',
+    loading: false,
+    page: 'dashboard',
+    search: '',
+    items: [],
+    auditLog: [],
+    dashKpis: null,
+    dashChart: null,
+
+    modal: { open: false, mode: 'create', data: {} },
+
+    menu: [
+      { id: 'dashboard',    label: 'لوحة المعلومات',      icon: '📊' },
+      { id: 'objectives',   label: 'الأهداف والمؤشرات',    icon: '🎯' },
+      { id: 'risks',        label: 'المخاطر والفرص',       icon: '⚠️' },
+      { id: 'complaints',   label: 'الشكاوى',              icon: '📢' },
+      { id: 'ncr',          label: 'عدم المطابقة',         icon: '🔧' },
+      { id: 'audits',       label: 'التدقيق الداخلي',      icon: '🔍' },
+      { id: 'suppliers',    label: 'الموردون',             icon: '🏭' },
+      { id: 'donations',    label: 'التبرعات',             icon: '🎁' },
+      { id: 'beneficiaries',label: 'المستفيدون',           icon: '👥' },
+      { id: 'programs',     label: 'البرامج',              icon: '📋' },
+      { id: 'documents',    label: 'الوثائق والسجلات',     icon: '📄' },
+      { id: 'training',     label: 'التدريب',              icon: '🎓' },
+      { id: 'users',        label: 'المستخدمون',           icon: '👤' },
+      { id: 'departments',  label: 'الإدارات',             icon: '🏢' },
+      { id: 'audit-log',    label: 'سجل التدقيق',          icon: '🗂️' },
+    ],
+
+    // ------ lifecycle ------
+    async init() {
+      this.token = localStorage.getItem('qms_token');
+      this.refreshToken = localStorage.getItem('qms_refresh');
+      if (this.token) {
+        try {
+          const me = await this.api('GET', '/auth/me');
+          this.user = me.user;
+          this.goto('dashboard');
+        } catch {
+          this.token = null;
+          localStorage.removeItem('qms_token');
+        }
+      }
+    },
+
+    // ------ auth ------
+    async login() {
+      this.loading = true; this.loginError = '';
+      try {
+        const r = await this.api('POST', '/auth/login', this.loginForm, false);
+        this.token = r.token; this.refreshToken = r.refreshToken; this.user = r.user;
+        localStorage.setItem('qms_token', r.token);
+        localStorage.setItem('qms_refresh', r.refreshToken);
+        this.goto('dashboard');
+      } catch (e) {
+        this.loginError = e.message || 'فشل تسجيل الدخول';
+      } finally { this.loading = false; }
+    },
+    async logout() {
+      try { await this.api('POST', '/auth/logout', { refreshToken: this.refreshToken }); } catch {}
+      localStorage.removeItem('qms_token'); localStorage.removeItem('qms_refresh');
+      this.user = null; this.token = null;
+    },
+
+    // ------ navigation ------
+    async goto(id) {
+      this.page = id; this.search = '';
+      if (id === 'dashboard') await this.loadDashboard();
+      else if (id === 'audit-log') await this.loadAuditLog();
+      else await this.loadList();
+    },
+
+    // ------ data loading ------
+    get currentModule() { return MODULES[this.page]; },
+    get currentCols()   { return this.currentModule?.cols || []; },
+    get currentFields() { return this.currentModule?.fields || []; },
+
+    async loadList() {
+      if (!this.currentModule) return;
+      const q = this.search ? `?q=${encodeURIComponent(this.search)}&limit=100` : '?limit=100';
+      const r = await this.api('GET', `/${this.currentModule.endpoint}${q}`);
+      this.items = r.items || [];
+    },
+
+    async loadDashboard() {
+      const r = await this.api('GET', '/dashboard');
+      this.dashKpis = r.kpis;
+      this.$nextTick(() => this.renderChart());
+    },
+
+    async loadAuditLog() {
+      const r = await this.api('GET', '/audit-log?limit=100');
+      this.auditLog = r.items || [];
+    },
+
+    get dashCards() {
+      const k = this.dashKpis;
+      if (!k) return [];
+      return [
+        { label: 'أهداف محققة',      value: `${k.objectives.achievementRate}%`, sub: `${k.objectives.achieved}/${k.objectives.total}`, color: 'text-green-600' },
+        { label: 'مخاطر حرجة',        value: k.risks.critical,                    sub: `من ${k.risks.total} إجمالي`,                   color: 'text-red-600' },
+        { label: 'شكاوى مفتوحة',      value: k.complaints.open,                   sub: `معدل المعالجة ${k.complaints.resolutionRate}%`, color: 'text-orange-600' },
+        { label: 'عدم مطابقة',        value: k.ncr.open,                          sub: `مغلق: ${k.ncr.closed}`,                        color: 'text-amber-600' },
+        { label: 'تدقيقات مخططة',     value: k.audits.planned,                    sub: `مكتمل: ${k.audits.completed}`,                  color: 'text-blue-600' },
+        { label: 'موردون معتمدون',    value: k.suppliers.approved,                sub: `من ${k.suppliers.total}`,                       color: 'text-indigo-600' },
+        { label: 'مستفيدون نشطون',    value: k.beneficiaries.active,              sub: '',                                              color: 'text-teal-600' },
+        { label: 'وثائق منشورة',       value: k.documents.published,               sub: '',                                              color: 'text-gray-700' },
+      ];
+    },
+
+    renderChart() {
+      const el = document.getElementById('dashChart');
+      if (!el || !this.dashKpis) return;
+      if (this.dashChart) this.dashChart.destroy();
+      const k = this.dashKpis;
+      this.dashChart = new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: ['أهداف', 'مخاطر', 'شكاوى', 'عدم مطابقة', 'تدقيقات', 'موردون'],
+          datasets: [{
+            label: 'الإجمالي',
+            data: [k.objectives.total, k.risks.total, k.complaints.total, k.ncr.open+k.ncr.closed, k.audits.planned+k.audits.completed, k.suppliers.total],
+            backgroundColor: '#2e8b57',
+          }],
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } },
+      });
+    },
+
+    // ------ CRUD ------
+    openCreate() {
+      this.modal = { open: true, mode: 'create', data: {} };
+    },
+    openEdit(item) {
+      const data = { ...item };
+      // convert dates for input[type=date]
+      for (const f of this.currentFields) {
+        if (f.type === 'date' && data[f.key]) data[f.key] = data[f.key].split('T')[0];
+      }
+      this.modal = { open: true, mode: 'edit', data };
+    },
+    async save() {
+      const mod = this.currentModule;
+      const payload = { ...this.modal.data };
+      // numeric coercion
+      for (const f of this.currentFields) {
+        if (f.type === 'number' && payload[f.key] != null && payload[f.key] !== '') payload[f.key] = Number(payload[f.key]);
+        if (f.type === 'date' && payload[f.key]) payload[f.key] = new Date(payload[f.key]).toISOString();
+      }
+      try {
+        if (this.modal.mode === 'edit') {
+          await this.api('PUT', `/${mod.endpoint}/${payload.id}`, payload);
+        } else {
+          await this.api('POST', `/${mod.endpoint}`, payload);
+        }
+        this.modal.open = false;
+        await this.loadList();
+      } catch (e) { alert(e.message || 'فشل الحفظ'); }
+    },
+    async remove(id) {
+      if (!confirm('هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+      try {
+        await this.api('DELETE', `/${this.currentModule.endpoint}/${id}`);
+        await this.loadList();
+      } catch (e) { alert(e.message || 'فشل الحذف'); }
+    },
+
+    // ------ rendering helpers ------
+    renderCell(item, col) {
+      let v = item[col.key];
+      if (v === null || v === undefined || v === '') return '<span class="text-gray-300">—</span>';
+      if (col.type === 'date')  v = this.fmtDate(v);
+      if (col.type === 'bool')  return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
+      if (col.type === 'status') return `<span class="px-2 py-0.5 rounded text-xs ${this.statusColor(v)}">${this.statusLabel(v)}</span>`;
+      if (col.type === 'level')  return `<span class="px-2 py-0.5 rounded text-xs ${this.levelColor(v)}">${v}</span>`;
+      return this.escape(String(v));
+    },
+    escape(s) { return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },
+    fmtDate(v) { try { return new Date(v).toLocaleDateString('ar-SA'); } catch { return v; } },
+    today() { return new Date().toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); },
+
+    statusLabel(v) {
+      const map = {
+        PLANNED:'مخطط', IN_PROGRESS:'قيد التنفيذ', ACHIEVED:'محقق', DELAYED:'متأخر', CANCELLED:'ملغى',
+        IDENTIFIED:'محدد', UNDER_TREATMENT:'قيد المعالجة', MITIGATED:'خُفف', ACCEPTED:'مقبول', CLOSED:'مغلق',
+        NEW:'جديد', UNDER_REVIEW:'قيد الدراسة', RESOLVED:'تم حله', REJECTED:'مرفوض',
+        OPEN:'مفتوح', ROOT_CAUSE:'تحليل السبب', ACTION_PLANNED:'خطة إجراء', VERIFICATION:'تحقق',
+        COMPLETED:'مكتمل', PENDING:'قيد المراجعة', APPROVED:'معتمد', CONDITIONAL:'مشروط', SUSPENDED:'موقوف', BLACKLISTED:'مستبعد',
+        RECEIVED:'مستلم', VERIFIED:'مدقق', DISTRIBUTED:'موزع', APPLICANT:'متقدم', ACTIVE:'نشط', INACTIVE:'غير نشط', GRADUATED:'تخرج',
+        DRAFT:'مسودة', PUBLISHED:'منشور', OBSOLETE:'ملغى',
+      };
+      return map[v] || v;
+    },
+    statusColor(v) {
+      const green = ['ACHIEVED','MITIGATED','RESOLVED','CLOSED','COMPLETED','APPROVED','PUBLISHED','ACTIVE','VERIFIED','DISTRIBUTED','GRADUATED'];
+      const red   = ['DELAYED','CANCELLED','REJECTED','BLACKLISTED','SUSPENDED','OBSOLETE'];
+      const amber = ['IN_PROGRESS','UNDER_TREATMENT','UNDER_REVIEW','ROOT_CAUSE','ACTION_PLANNED','VERIFICATION','CONDITIONAL','APPLICANT','DRAFT','RECEIVED'];
+      if (green.includes(v)) return 'bg-green-100 text-green-700';
+      if (red.includes(v))   return 'bg-red-100 text-red-700';
+      if (amber.includes(v)) return 'bg-amber-100 text-amber-700';
+      return 'bg-blue-100 text-blue-700';
+    },
+    levelColor(v) {
+      if (v === 'حرج')   return 'bg-red-100 text-red-700';
+      if (v === 'مرتفع') return 'bg-orange-100 text-orange-700';
+      if (v === 'متوسط') return 'bg-yellow-100 text-yellow-700';
+      return 'bg-green-100 text-green-700';
+    },
+    roleLabel(r) {
+      return ({
+        SUPER_ADMIN: 'مسؤول النظام', QUALITY_MANAGER: 'مدير الجودة',
+        COMMITTEE_MEMBER: 'عضو لجنة جودة', DEPT_MANAGER: 'مسؤول قسم',
+        EMPLOYEE: 'موظف', GUEST_AUDITOR: 'مدقق ضيف',
+      })[r] || r;
+    },
+
+    // ------ API helper ------
+    async api(method, path, body = null, authRequired = true) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authRequired && this.token) headers.Authorization = `Bearer ${this.token}`;
+      const res = await fetch(API + path, {
+        method, headers, credentials: 'include',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (res.status === 401 && authRequired && this.refreshToken) {
+        // try refresh once
+        try {
+          const r = await fetch(API + '/auth/refresh', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken: this.refreshToken }),
+          });
+          if (r.ok) {
+            const data = await r.json();
+            this.token = data.token;
+            localStorage.setItem('qms_token', data.token);
+            headers.Authorization = `Bearer ${data.token}`;
+            const retry = await fetch(API + path, {
+              method, headers, credentials: 'include',
+              body: body ? JSON.stringify(body) : undefined,
+            });
+            return this._handle(retry);
+          }
+        } catch {}
+        this.logout();
+      }
+      return this._handle(res);
+    },
+    async _handle(res) {
+      let data = null;
+      try { data = await res.json(); } catch {}
+      if (!res.ok) {
+        const msg = data?.error?.message || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    },
+  };
+}
+
+window.app = app;

@@ -1,0 +1,82 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
+
+import { config } from './config.js';
+import { notFound, errorHandler } from './middleware/errorHandler.js';
+import { authenticate, denyReadOnly } from './middleware/auth.js';
+import { auditTrail } from './middleware/audit.js';
+
+import authRoutes from './routes/auth.js';
+import usersRoutes from './routes/users.js';
+import deptsRoutes from './routes/departments.js';
+import objectivesRoutes from './routes/objectives.js';
+import risksRoutes from './routes/risks.js';
+import complaintsRoutes from './routes/complaints.js';
+import ncrRoutes from './routes/ncr.js';
+import auditsRoutes from './routes/audits.js';
+import suppliersRoutes from './routes/suppliers.js';
+import supplierEvalsRoutes from './routes/supplierEvals.js';
+import donationsRoutes from './routes/donations.js';
+import donationEvalsRoutes from './routes/donationEvals.js';
+import beneficiariesRoutes from './routes/beneficiaries.js';
+import programsRoutes from './routes/programs.js';
+import surveysRoutes from './routes/surveys.js';
+import documentsRoutes from './routes/documents.js';
+import trainingRoutes from './routes/training.js';
+import signaturesRoutes from './routes/signatures.js';
+import auditLogRoutes from './routes/auditLog.js';
+import dashboardRoutes from './routes/dashboard.js';
+
+const app = express();
+
+app.set('trust proxy', 1);
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({ origin: config.corsOrigin, credentials: true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
+app.use('/api/', apiLimiter);
+
+// Health
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
+});
+
+// Public
+app.use('/api/auth', authRoutes);
+
+// Authenticated
+app.use('/api', authenticate, denyReadOnly, auditTrail());
+app.use('/api/dashboard',     dashboardRoutes);
+app.use('/api/users',         usersRoutes);
+app.use('/api/departments',   deptsRoutes);
+app.use('/api/objectives',    objectivesRoutes);
+app.use('/api/risks',         risksRoutes);
+app.use('/api/complaints',    complaintsRoutes);
+app.use('/api/ncr',           ncrRoutes);
+app.use('/api/audits',        auditsRoutes);
+app.use('/api/suppliers',     suppliersRoutes);
+app.use('/api/supplier-evals', supplierEvalsRoutes);
+app.use('/api/donations',     donationsRoutes);
+app.use('/api/donation-evals', donationEvalsRoutes);
+app.use('/api/beneficiaries', beneficiariesRoutes);
+app.use('/api/programs',      programsRoutes);
+app.use('/api/surveys',       surveysRoutes);
+app.use('/api/documents',     documentsRoutes);
+app.use('/api/training',      trainingRoutes);
+app.use('/api/signatures',    signaturesRoutes);
+app.use('/api/audit-log',     auditLogRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
+
+app.listen(config.port, () => {
+  console.log(`[qms-api] listening on :${config.port} (${config.env})`);
+});
