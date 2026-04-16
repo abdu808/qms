@@ -29,12 +29,11 @@ RUN npm install --omit=dev && npx prisma generate
 # Copy source
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p /app/uploads && chown -R node:node /app
+# Create uploads directory and make startup script executable
+RUN mkdir -p /app/uploads && chmod +x /app/startup.sh && chown -R node:node /app
 
 USER node
 
 EXPOSE 3000
 
-# Run migrations + seed + start
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/seed-if-empty.js && node src/server.js"]
+CMD ["/app/startup.sh"]

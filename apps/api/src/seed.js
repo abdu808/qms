@@ -35,9 +35,10 @@ async function main() {
     },
   });
 
-  // Sample Quality Manager
-  const qmPwd = await bcrypt.hash('Quality@2026', config.bcryptRounds);
-  await prisma.user.upsert({
+  // Quality Manager — password from env or secure default (never hardcoded)
+  const qmPassword = process.env.QM_PASSWORD || `QM@${new Date().getFullYear()}!${Math.random().toString(36).slice(2, 8)}`;
+  const qmPwd = await bcrypt.hash(qmPassword, config.bcryptRounds);
+  const qmUser = await prisma.user.upsert({
     where: { email: 'quality@bir-sabia.org.sa' },
     update: {},
     create: {
@@ -49,6 +50,9 @@ async function main() {
       jobTitle: 'مدير الجودة',
     },
   });
+  if (qmUser.createdAt >= new Date(Date.now() - 5000)) {
+    console.log(`[seed] Quality Manager created: quality@bir-sabia.org.sa — set QM_PASSWORD env to control password`);
+  }
 
   // Sample Objectives
   if ((await prisma.objective.count()) === 0) {
@@ -83,8 +87,6 @@ async function main() {
   }
 
   console.log('[seed] done.');
-  console.log(`[seed] Admin: ${config.admin.email} / ${config.admin.password}`);
-  console.log(`[seed] Quality Manager: quality@bir-sabia.org.sa / Quality@2026`);
 }
 
 main()
