@@ -30,6 +30,7 @@ import trainingRoutes from './routes/training.js';
 import signaturesRoutes from './routes/signatures.js';
 import auditLogRoutes from './routes/auditLog.js';
 import dashboardRoutes from './routes/dashboard.js';
+import exportsRoutes from './routes/exports.js';
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/api/documents',     documentsRoutes);
 app.use('/api/training',      trainingRoutes);
 app.use('/api/signatures',    signaturesRoutes);
 app.use('/api/audit-log',     auditLogRoutes);
+app.use('/api/exports',       exportsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

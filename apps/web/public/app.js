@@ -4,10 +4,18 @@
 
 const API = '/api';
 
-// -------------- Module definitions --------------
 const MODULES = {
   objectives: {
     endpoint: 'objectives',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PLANNED', l: 'مخطط' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+      { v: 'ACHIEVED', l: 'محقق' },
+      { v: 'DELAYED', l: 'متأخر' },
+      { v: 'CANCELLED', l: 'ملغى' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'الهدف' },
@@ -29,16 +37,23 @@ const MODULES = {
       { key: 'startDate', label: 'تاريخ البداية', type: 'date', required: true },
       { key: 'dueDate',   label: 'التاريخ المستهدف', type: 'date', required: true },
       { key: 'status', label: 'الحالة', type: 'select', options: [
-        { v: 'PLANNED',     l: 'مخطط' },
-        { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
-        { v: 'ACHIEVED',    l: 'محقق' },
-        { v: 'DELAYED',     l: 'متأخر' },
-        { v: 'CANCELLED',   l: 'ملغى' },
+        { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'ACHIEVED', l: 'محقق' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
     ],
   },
+
   risks: {
     endpoint: 'risks',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'IDENTIFIED', l: 'محدد' },
+      { v: 'UNDER_TREATMENT', l: 'قيد المعالجة' },
+      { v: 'MITIGATED', l: 'خُفف' },
+      { v: 'ACCEPTED', l: 'مقبول' },
+      { v: 'CLOSED', l: 'مغلق' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'الخطر/الفرصة' },
@@ -64,16 +79,24 @@ const MODULES = {
         { v: 'نقل', l: 'نقل' }, { v: 'قبول', l: 'قبول' },
       ]},
       { key: 'status', label: 'الحالة', type: 'select', options: [
-        { v: 'IDENTIFIED',       l: 'محدد' },
-        { v: 'UNDER_TREATMENT',  l: 'قيد المعالجة' },
-        { v: 'MITIGATED',        l: 'خُفف' },
-        { v: 'ACCEPTED',         l: 'مقبول' },
-        { v: 'CLOSED',           l: 'مغلق' },
+        { v: 'IDENTIFIED', l: 'محدد' }, { v: 'UNDER_TREATMENT', l: 'قيد المعالجة' },
+        { v: 'MITIGATED', l: 'خُفف' }, { v: 'ACCEPTED', l: 'مقبول' }, { v: 'CLOSED', l: 'مغلق' },
       ]},
     ],
   },
+
   complaints: {
     endpoint: 'complaints',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'NEW', l: 'جديد' },
+      { v: 'UNDER_REVIEW', l: 'قيد الدراسة' },
+      { v: 'IN_PROGRESS', l: 'قيد المعالجة' },
+      { v: 'RESOLVED', l: 'تم الحل' },
+      { v: 'CLOSED', l: 'مغلق' },
+      { v: 'REJECTED', l: 'مرفوض' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'subject', label: 'الموضوع' },
@@ -109,8 +132,20 @@ const MODULES = {
       ]},
     ],
   },
+
   ncr: {
     endpoint: 'ncr',
+    exportable: true,
+    sigAction: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'OPEN', l: 'مفتوح' },
+      { v: 'ROOT_CAUSE', l: 'تحليل السبب' },
+      { v: 'ACTION_PLANNED', l: 'خطة إجراء' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+      { v: 'VERIFICATION', l: 'تحقق' },
+      { v: 'CLOSED', l: 'مغلق' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'العنوان' },
@@ -134,8 +169,18 @@ const MODULES = {
       ]},
     ],
   },
+
   audits: {
     endpoint: 'audits',
+    exportable: true,
+    sigAction: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PLANNED', l: 'مخطط' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+      { v: 'COMPLETED', l: 'مكتمل' },
+      { v: 'CANCELLED', l: 'ملغى' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
       { key: 'type', label: 'النوع' }, { key: 'plannedDate', label: 'التاريخ المخطط', type: 'date' },
@@ -160,8 +205,20 @@ const MODULES = {
       ]},
     ],
   },
+
   suppliers: {
     endpoint: 'suppliers',
+    exportable: true,
+    evalAction: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PENDING', l: 'قيد المراجعة' },
+      { v: 'APPROVED', l: 'معتمد' },
+      { v: 'CONDITIONAL', l: 'مشروط' },
+      { v: 'REJECTED', l: 'مرفوض' },
+      { v: 'SUSPENDED', l: 'موقوف' },
+      { v: 'BLACKLISTED', l: 'مستبعد' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'name', label: 'الاسم' },
       { key: 'type', label: 'النوع' }, { key: 'overallRating', label: 'التقييم' },
@@ -188,8 +245,17 @@ const MODULES = {
       ]},
     ],
   },
+
   donations: {
     endpoint: 'donations',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'RECEIVED', l: 'مستلم' },
+      { v: 'VERIFIED', l: 'مدقق' },
+      { v: 'DISTRIBUTED', l: 'موزع' },
+      { v: 'REJECTED', l: 'مرفوض' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'donorName', label: 'المتبرع' },
       { key: 'type', label: 'النوع' }, { key: 'amount', label: 'المبلغ' },
@@ -214,8 +280,18 @@ const MODULES = {
       ]},
     ],
   },
+
   beneficiaries: {
     endpoint: 'beneficiaries',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'APPLICANT', l: 'متقدم' },
+      { v: 'ACTIVE', l: 'نشط' },
+      { v: 'INACTIVE', l: 'غير نشط' },
+      { v: 'GRADUATED', l: 'تخرج' },
+      { v: 'REJECTED', l: 'مرفوض' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'fullName', label: 'الاسم' },
       { key: 'category', label: 'الفئة' }, { key: 'city', label: 'المدينة' },
@@ -245,6 +321,7 @@ const MODULES = {
       ]},
     ],
   },
+
   programs: {
     endpoint: 'programs',
     cols: [
@@ -263,8 +340,17 @@ const MODULES = {
       { key: 'beneficiariesCount', label: 'عدد المستفيدين', type: 'number' },
     ],
   },
+
   documents: {
     endpoint: 'documents',
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'DRAFT', l: 'مسودة' },
+      { v: 'UNDER_REVIEW', l: 'قيد المراجعة' },
+      { v: 'APPROVED', l: 'معتمد' },
+      { v: 'PUBLISHED', l: 'منشور' },
+      { v: 'OBSOLETE', l: 'ملغى' },
+    ],
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
       { key: 'category', label: 'النوع' }, { key: 'currentVersion', label: 'الإصدار' },
@@ -288,8 +374,10 @@ const MODULES = {
       ]},
     ],
   },
+
   training: {
     endpoint: 'training',
+    exportable: true,
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'title', label: 'الدورة' },
       { key: 'trainer', label: 'المدرب' }, { key: 'date', label: 'التاريخ', type: 'date' },
@@ -304,6 +392,7 @@ const MODULES = {
       { key: 'category', label: 'الفئة' },
     ],
   },
+
   users: {
     endpoint: 'users',
     cols: [
@@ -326,6 +415,7 @@ const MODULES = {
       { key: 'jobTitle', label: 'المسمى الوظيفي' },
     ],
   },
+
   departments: {
     endpoint: 'departments',
     cols: [
@@ -357,24 +447,58 @@ function app() {
     dashKpis: null,
     dashChart: null,
 
+    // Pagination
+    currentPage: 1,
+    perPage: 20,
+    totalItems: 0,
+
+    // Filter
+    filterStatus: '',
+
+    // Modals
     modal: { open: false, mode: 'create', data: {} },
+
+    evalModal: {
+      open: false,
+      supplier: null,
+      period: '',
+      notes: '',
+      criteria: [
+        { key: 'quality',       label: 'جودة المنتجات / الخدمات',    max: 30, score: 0 },
+        { key: 'delivery',      label: 'الالتزام بالمواعيد',          max: 25, score: 0 },
+        { key: 'communication', label: 'التواصل والاستجابة',          max: 20, score: 0 },
+        { key: 'pricing',       label: 'الأسعار والشروط التجارية',   max: 15, score: 0 },
+        { key: 'compliance',    label: 'الامتثال والوثائق',          max: 10, score: 0 },
+      ],
+    },
+
+    sigModal: {
+      open: false,
+      entityType: '',
+      entityId: '',
+      purpose: 'approve',
+    },
+
+    _sigCanvas: null,
+    _sigCtx: null,
+    _sigInited: false,
 
     menu: [
       { id: 'dashboard',    label: 'لوحة المعلومات',      icon: '📊' },
-      { id: 'objectives',   label: 'الأهداف والمؤشرات',    icon: '🎯' },
-      { id: 'risks',        label: 'المخاطر والفرص',       icon: '⚠️' },
-      { id: 'complaints',   label: 'الشكاوى',              icon: '📢' },
-      { id: 'ncr',          label: 'عدم المطابقة',         icon: '🔧' },
-      { id: 'audits',       label: 'التدقيق الداخلي',      icon: '🔍' },
-      { id: 'suppliers',    label: 'الموردون',             icon: '🏭' },
-      { id: 'donations',    label: 'التبرعات',             icon: '🎁' },
-      { id: 'beneficiaries',label: 'المستفيدون',           icon: '👥' },
-      { id: 'programs',     label: 'البرامج',              icon: '📋' },
-      { id: 'documents',    label: 'الوثائق والسجلات',     icon: '📄' },
-      { id: 'training',     label: 'التدريب',              icon: '🎓' },
-      { id: 'users',        label: 'المستخدمون',           icon: '👤' },
-      { id: 'departments',  label: 'الإدارات',             icon: '🏢' },
-      { id: 'audit-log',    label: 'سجل التدقيق',          icon: '🗂️' },
+      { id: 'objectives',   label: 'الأهداف والمؤشرات',   icon: '🎯' },
+      { id: 'risks',        label: 'المخاطر والفرص',      icon: '⚠️' },
+      { id: 'complaints',   label: 'الشكاوى',             icon: '📢' },
+      { id: 'ncr',          label: 'عدم المطابقة',        icon: '🔧' },
+      { id: 'audits',       label: 'التدقيق الداخلي',     icon: '🔍' },
+      { id: 'suppliers',    label: 'الموردون',            icon: '🏭' },
+      { id: 'donations',    label: 'التبرعات',            icon: '🎁' },
+      { id: 'beneficiaries',label: 'المستفيدون',          icon: '👥' },
+      { id: 'programs',     label: 'البرامج',             icon: '📋' },
+      { id: 'documents',    label: 'الوثائق والسجلات',    icon: '📄' },
+      { id: 'training',     label: 'التدريب',             icon: '🎓' },
+      { id: 'users',        label: 'المستخدمون',          icon: '👤' },
+      { id: 'departments',  label: 'الإدارات',            icon: '🏢' },
+      { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
     ],
 
     // ------ lifecycle ------
@@ -406,6 +530,7 @@ function app() {
         this.loginError = e.message || 'فشل تسجيل الدخول';
       } finally { this.loading = false; }
     },
+
     async logout() {
       try { await this.api('POST', '/auth/logout', { refreshToken: this.refreshToken }); } catch {}
       localStorage.removeItem('qms_token'); localStorage.removeItem('qms_refresh');
@@ -414,7 +539,11 @@ function app() {
 
     // ------ navigation ------
     async goto(id) {
-      this.page = id; this.search = '';
+      this.page = id;
+      this.search = '';
+      this.filterStatus = '';
+      this.currentPage = 1;
+      this.totalItems = 0;
       if (id === 'dashboard') await this.loadDashboard();
       else if (id === 'audit-log') await this.loadAuditLog();
       else await this.loadList();
@@ -424,12 +553,26 @@ function app() {
     get currentModule() { return MODULES[this.page]; },
     get currentCols()   { return this.currentModule?.cols || []; },
     get currentFields() { return this.currentModule?.fields || []; },
+    get totalPages()    { return Math.max(1, Math.ceil(this.totalItems / this.perPage)); },
 
-    async loadList() {
+    async loadList(page = null) {
       if (!this.currentModule) return;
-      const q = this.search ? `?q=${encodeURIComponent(this.search)}&limit=100` : '?limit=100';
-      const r = await this.api('GET', `/${this.currentModule.endpoint}${q}`);
+      if (page !== null) this.currentPage = page;
+      const params = new URLSearchParams();
+      params.set('page', this.currentPage);
+      params.set('limit', this.perPage);
+      if (this.search)       params.set('q', this.search);
+      if (this.filterStatus) params.set('filter[status]', this.filterStatus);
+      const r = await this.api('GET', `/${this.currentModule.endpoint}?${params}`);
       this.items = r.items || [];
+      this.totalItems = r.total || 0;
+    },
+
+    async prevPage() {
+      if (this.currentPage > 1) await this.loadList(this.currentPage - 1);
+    },
+    async nextPage() {
+      if (this.currentPage < this.totalPages) await this.loadList(this.currentPage + 1);
     },
 
     async loadDashboard() {
@@ -447,14 +590,14 @@ function app() {
       const k = this.dashKpis;
       if (!k) return [];
       return [
-        { label: 'أهداف محققة',      value: `${k.objectives.achievementRate}%`, sub: `${k.objectives.achieved}/${k.objectives.total}`, color: 'text-green-600' },
-        { label: 'مخاطر حرجة',        value: k.risks.critical,                    sub: `من ${k.risks.total} إجمالي`,                   color: 'text-red-600' },
-        { label: 'شكاوى مفتوحة',      value: k.complaints.open,                   sub: `معدل المعالجة ${k.complaints.resolutionRate}%`, color: 'text-orange-600' },
-        { label: 'عدم مطابقة',        value: k.ncr.open,                          sub: `مغلق: ${k.ncr.closed}`,                        color: 'text-amber-600' },
-        { label: 'تدقيقات مخططة',     value: k.audits.planned,                    sub: `مكتمل: ${k.audits.completed}`,                  color: 'text-blue-600' },
-        { label: 'موردون معتمدون',    value: k.suppliers.approved,                sub: `من ${k.suppliers.total}`,                       color: 'text-indigo-600' },
-        { label: 'مستفيدون نشطون',    value: k.beneficiaries.active,              sub: '',                                              color: 'text-teal-600' },
-        { label: 'وثائق منشورة',       value: k.documents.published,               sub: '',                                              color: 'text-gray-700' },
+        { label: 'أهداف محققة',    value: `${k.objectives.achievementRate}%`, sub: `${k.objectives.achieved}/${k.objectives.total}`, color: 'text-green-600' },
+        { label: 'مخاطر حرجة',     value: k.risks.critical,                   sub: `من ${k.risks.total} إجمالي`,                   color: 'text-red-600' },
+        { label: 'شكاوى مفتوحة',   value: k.complaints.open,                  sub: `معدل المعالجة ${k.complaints.resolutionRate}%`, color: 'text-orange-600' },
+        { label: 'عدم مطابقة',     value: k.ncr.open,                         sub: `مغلق: ${k.ncr.closed}`,                        color: 'text-amber-600' },
+        { label: 'تدقيقات مخططة',  value: k.audits.planned,                   sub: `مكتمل: ${k.audits.completed}`,                  color: 'text-blue-600' },
+        { label: 'موردون معتمدون', value: k.suppliers.approved,               sub: `من ${k.suppliers.total}`,                       color: 'text-indigo-600' },
+        { label: 'مستفيدون نشطون', value: k.beneficiaries.active,             sub: '',                                              color: 'text-teal-600' },
+        { label: 'وثائق منشورة',   value: k.documents.published,              sub: '',                                              color: 'text-gray-700' },
       ];
     },
 
@@ -477,13 +620,34 @@ function app() {
       });
     },
 
+    // ------ Export ------
+    async exportExcel() {
+      if (!this.currentModule?.exportable) return;
+      try {
+        const res = await fetch(`${API}/exports/${this.page}`, {
+          headers: { Authorization: `Bearer ${this.token}` },
+        });
+        if (!res.ok) { alert('فشل التصدير'); return; }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.page}-${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert(e.message || 'فشل التصدير');
+      }
+    },
+
     // ------ CRUD ------
     openCreate() {
       this.modal = { open: true, mode: 'create', data: {} };
     },
     openEdit(item) {
       const data = { ...item };
-      // convert dates for input[type=date]
       for (const f of this.currentFields) {
         if (f.type === 'date' && data[f.key]) data[f.key] = data[f.key].split('T')[0];
       }
@@ -492,7 +656,6 @@ function app() {
     async save() {
       const mod = this.currentModule;
       const payload = { ...this.modal.data };
-      // numeric coercion
       for (const f of this.currentFields) {
         if (f.type === 'number' && payload[f.key] != null && payload[f.key] !== '') payload[f.key] = Number(payload[f.key]);
         if (f.type === 'date' && payload[f.key]) payload[f.key] = new Date(payload[f.key]).toISOString();
@@ -515,12 +678,137 @@ function app() {
       } catch (e) { alert(e.message || 'فشل الحذف'); }
     },
 
+    // ------ Supplier Evaluation ------
+    openEval(supplier) {
+      this.evalModal.supplier = supplier;
+      this.evalModal.period = '';
+      this.evalModal.notes = '';
+      this.evalModal.criteria.forEach(c => c.score = 0);
+      this.evalModal.open = true;
+    },
+
+    evalTotal() {
+      return this.evalModal.criteria.reduce((s, c) => s + Math.min(c.max, Math.max(0, Number(c.score) || 0)), 0);
+    },
+    evalPct() { return this.evalTotal(); },
+    evalGrade() {
+      const p = this.evalPct();
+      if (p >= 90) return 'ممتاز ⭐⭐⭐⭐⭐';
+      if (p >= 80) return 'جيد جداً ⭐⭐⭐⭐';
+      if (p >= 70) return 'جيد ⭐⭐⭐';
+      if (p >= 60) return 'مقبول ⭐⭐';
+      return 'ضعيف ⭐';
+    },
+    evalDecision() {
+      const p = this.evalPct();
+      if (p >= 80) return 'معتمد ✅';
+      if (p >= 60) return 'مشروط ⚠️';
+      return 'مرفوض ❌';
+    },
+
+    async submitEval() {
+      const total = this.evalTotal();
+      const criteriaJson = JSON.stringify(
+        Object.fromEntries(this.evalModal.criteria.map(c => [c.key, { label: c.label, max: c.max, score: Number(c.score) || 0 }]))
+      );
+      try {
+        await this.api('POST', '/supplier-evals', {
+          supplierId: this.evalModal.supplier.id,
+          totalScore: total,
+          maxScore: 100,
+          criteriaJson,
+          period: this.evalModal.period,
+          notes: this.evalModal.notes,
+        });
+        this.evalModal.open = false;
+        alert(`✅ تم حفظ التقييم\nالنتيجة: ${total}/100 — ${this.evalGrade()}\nالقرار: ${this.evalDecision()}`);
+        await this.loadList();
+      } catch (e) { alert(e.message || 'فشل حفظ التقييم'); }
+    },
+
+    // ------ Digital Signature ------
+    openSig(item) {
+      const typeMap = { ncr: 'NCR', audits: 'Audit', 'supplier-evals': 'SupplierEval' };
+      this.sigModal.entityType = typeMap[this.page] || this.page;
+      this.sigModal.entityId = item.id;
+      this.sigModal.purpose = 'approve';
+      this.sigModal.open = true;
+      this.$nextTick(() => this.initSigCanvas());
+    },
+
+    initSigCanvas() {
+      const canvas = document.getElementById('sigCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (this._sigInited) { this._sigCanvas = canvas; this._sigCtx = ctx; return; }
+      this._sigInited = true;
+
+      let drawing = false, lx = 0, ly = 0;
+      const getXY = (e) => {
+        const r = canvas.getBoundingClientRect();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        return [(cx - r.left) * canvas.width / r.width, (cy - r.top) * canvas.height / r.height];
+      };
+
+      canvas.addEventListener('mousedown', e => { drawing = true; [lx, ly] = getXY(e); });
+      canvas.addEventListener('mousemove', e => {
+        if (!drawing) return;
+        const [x, y] = getXY(e);
+        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(x, y);
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.stroke();
+        [lx, ly] = [x, y];
+      });
+      ['mouseup', 'mouseleave'].forEach(ev => canvas.addEventListener(ev, () => drawing = false));
+      canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; [lx, ly] = getXY(e); }, { passive: false });
+      canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (!drawing) return;
+        const [x, y] = getXY(e);
+        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(x, y);
+        ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.stroke();
+        [lx, ly] = [x, y];
+      }, { passive: false });
+      canvas.addEventListener('touchend', () => drawing = false);
+
+      this._sigCanvas = canvas;
+      this._sigCtx = ctx;
+    },
+
+    clearSig() {
+      if (this._sigCanvas && this._sigCtx) {
+        this._sigCtx.clearRect(0, 0, this._sigCanvas.width, this._sigCanvas.height);
+      }
+    },
+
+    async submitSig() {
+      if (!this._sigCanvas) return;
+      const data = this._sigCanvas.toDataURL('image/png');
+      const blank = document.createElement('canvas');
+      blank.width = this._sigCanvas.width; blank.height = this._sigCanvas.height;
+      if (data === blank.toDataURL('image/png')) { alert('الرجاء رسم توقيعك أولاً'); return; }
+      try {
+        await this.api('POST', '/signatures', {
+          entityType: this.sigModal.entityType,
+          entityId: this.sigModal.entityId,
+          purpose: this.sigModal.purpose,
+          signatureData: data,
+        });
+        this.sigModal.open = false;
+        alert('✅ تم حفظ التوقيع بنجاح');
+      } catch (e) { alert(e.message || 'فشل حفظ التوقيع'); }
+    },
+
     // ------ rendering helpers ------
     renderCell(item, col) {
       let v = item[col.key];
       if (v === null || v === undefined || v === '') return '<span class="text-gray-300">—</span>';
-      if (col.type === 'date')  v = this.fmtDate(v);
-      if (col.type === 'bool')  return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
+      if (col.type === 'date')   v = this.fmtDate(v);
+      if (col.type === 'bool')   return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
       if (col.type === 'status') return `<span class="px-2 py-0.5 rounded text-xs ${this.statusColor(v)}">${this.statusLabel(v)}</span>`;
       if (col.type === 'level')  return `<span class="px-2 py-0.5 rounded text-xs ${this.levelColor(v)}">${v}</span>`;
       return this.escape(String(v));
@@ -535,8 +823,10 @@ function app() {
         IDENTIFIED:'محدد', UNDER_TREATMENT:'قيد المعالجة', MITIGATED:'خُفف', ACCEPTED:'مقبول', CLOSED:'مغلق',
         NEW:'جديد', UNDER_REVIEW:'قيد الدراسة', RESOLVED:'تم حله', REJECTED:'مرفوض',
         OPEN:'مفتوح', ROOT_CAUSE:'تحليل السبب', ACTION_PLANNED:'خطة إجراء', VERIFICATION:'تحقق',
-        COMPLETED:'مكتمل', PENDING:'قيد المراجعة', APPROVED:'معتمد', CONDITIONAL:'مشروط', SUSPENDED:'موقوف', BLACKLISTED:'مستبعد',
-        RECEIVED:'مستلم', VERIFIED:'مدقق', DISTRIBUTED:'موزع', APPLICANT:'متقدم', ACTIVE:'نشط', INACTIVE:'غير نشط', GRADUATED:'تخرج',
+        COMPLETED:'مكتمل', PENDING:'قيد المراجعة', APPROVED:'معتمد', CONDITIONAL:'مشروط',
+        SUSPENDED:'موقوف', BLACKLISTED:'مستبعد',
+        RECEIVED:'مستلم', VERIFIED:'مدقق', DISTRIBUTED:'موزع',
+        APPLICANT:'متقدم', ACTIVE:'نشط', INACTIVE:'غير نشط', GRADUATED:'تخرج',
         DRAFT:'مسودة', PUBLISHED:'منشور', OBSOLETE:'ملغى',
       };
       return map[v] || v;
@@ -573,7 +863,6 @@ function app() {
         body: body ? JSON.stringify(body) : undefined,
       });
       if (res.status === 401 && authRequired && this.refreshToken) {
-        // try refresh once
         try {
           const r = await fetch(API + '/auth/refresh', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },

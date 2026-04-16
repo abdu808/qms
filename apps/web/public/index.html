@@ -113,10 +113,19 @@
           <!-- GENERIC LIST PAGE -->
           <template x-if="page !== 'dashboard' && page !== 'audit-log'">
             <div>
-              <div class="flex items-center gap-3 mb-4">
-                <input x-model="search" @input.debounce.400ms="loadList()" placeholder="🔍 بحث..." class="border rounded-lg px-3 py-2 flex-1 max-w-md" />
+              <!-- Toolbar -->
+              <div class="flex items-center gap-2 mb-4 flex-wrap">
+                <input x-model="search" @input.debounce.400ms="loadList(1)" placeholder="🔍 بحث..." class="border rounded-lg px-3 py-2 flex-1 min-w-[160px] max-w-xs" />
+                <select x-show="currentModule?.statusOptions" x-model="filterStatus" @change="loadList(1)" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                  <template x-for="o in (currentModule?.statusOptions||[])" :key="o.v">
+                    <option :value="o.v" x-text="o.l"></option>
+                  </template>
+                </select>
                 <button @click="openCreate()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة</button>
+                <button x-show="currentModule?.exportable" @click="exportExcel()" class="border border-green-600 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg text-sm font-medium">⬇️ Excel</button>
               </div>
+
+              <!-- Table -->
               <div class="bg-white border rounded-xl overflow-hidden">
                 <table class="w-full text-sm">
                   <thead class="bg-gray-50 text-right">
@@ -135,7 +144,9 @@
                         </template>
                         <td class="px-3 py-2 whitespace-nowrap">
                           <button @click="openEdit(item)" class="text-blue-600 hover:underline text-xs ml-2">✏️ تعديل</button>
-                          <button @click="remove(item.id)" class="text-red-600 hover:underline text-xs">🗑️ حذف</button>
+                          <button @click="remove(item.id)" class="text-red-600 hover:underline text-xs ml-2">🗑️ حذف</button>
+                          <button x-show="currentModule?.evalAction" @click="openEval(item)" class="text-indigo-600 hover:underline text-xs ml-2">📊 تقييم</button>
+                          <button x-show="currentModule?.sigAction" @click="openSig(item)" class="text-purple-600 hover:underline text-xs">✍️ توقيع</button>
                         </td>
                       </tr>
                     </template>
@@ -144,6 +155,15 @@
                     </tr>
                   </tbody>
                 </table>
+
+                <!-- Pagination -->
+                <div x-show="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm">
+                  <span class="text-gray-500" x-text="`${totalItems} سجل — صفحة ${currentPage} من ${totalPages}`"></span>
+                  <div class="flex gap-2">
+                    <button @click="prevPage()" :disabled="currentPage===1" class="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-100">→ السابق</button>
+                    <button @click="nextPage()" :disabled="currentPage>=totalPages" class="px-3 py-1 border rounded-lg disabled:opacity-40 hover:bg-gray-100">التالي ←</button>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
@@ -173,6 +193,83 @@
                   </template>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUPPLIER EVAL MODAL -->
+        <div x-show="evalModal.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="evalModal.open=false">
+          <div class="bg-white rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="evalModal.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-brand-700">📊 تقييم أداء المورد</h3>
+                <div class="text-sm text-gray-500 mt-0.5" x-text="evalModal.supplier?.name"></div>
+              </div>
+              <button @click="evalModal.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4 space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">الفترة التقييمية</label>
+                <input x-model="evalModal.period" placeholder="مثال: الربع الأول 2026" class="w-full border rounded-lg px-3 py-2" />
+              </div>
+              <div class="space-y-3">
+                <template x-for="c in evalModal.criteria" :key="c.key">
+                  <div class="bg-gray-50 rounded-lg p-3 border">
+                    <div class="flex justify-between items-center mb-2">
+                      <label class="text-sm font-medium" x-text="c.label"></label>
+                      <span class="text-xs text-gray-500 font-medium" x-text="`${c.score || 0} / ${c.max}`"></span>
+                    </div>
+                    <input type="range" x-model="c.score" :min="0" :max="c.max" step="1" class="w-full accent-brand-500" />
+                    <div class="h-1.5 bg-gray-200 rounded mt-1">
+                      <div class="h-1.5 bg-brand-500 rounded transition-all" :style="`width:${Math.min(100,(c.score||0)/c.max*100)}%`"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <div class="bg-brand-50 border border-brand-200 rounded-xl p-4 text-center">
+                <div class="text-4xl font-bold text-brand-700" x-text="evalTotal() + ' / 100'"></div>
+                <div class="text-lg font-semibold mt-1" x-text="evalGrade()" :class="evalPct()>=80?'text-green-600':evalPct()>=60?'text-amber-600':'text-red-600'"></div>
+                <div class="text-sm text-gray-600 mt-1 font-medium" x-text="'القرار: ' + evalDecision()"></div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">ملاحظات</label>
+                <textarea x-model="evalModal.notes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+              </div>
+              <div class="flex gap-2 pt-2 border-t">
+                <button @click="submitEval()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg flex-1 font-medium">💾 حفظ التقييم</button>
+                <button @click="evalModal.open=false" class="border px-4 py-2 rounded-lg text-gray-600">إلغاء</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SIGNATURE MODAL -->
+        <div x-show="sigModal.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="sigModal.open=false">
+          <div class="bg-white rounded-xl w-full max-w-lg shadow-2xl" @click.outside="sigModal.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <h3 class="font-bold text-brand-700">✍️ التوقيع الإلكتروني</h3>
+              <button @click="sigModal.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4 space-y-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">الغرض من التوقيع</label>
+                <select x-model="sigModal.purpose" class="w-full border rounded-lg px-3 py-2 bg-white">
+                  <option value="approve">اعتماد</option>
+                  <option value="review">مراجعة</option>
+                  <option value="submit">إرسال</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">ارسم توقيعك في المربع أدناه:</label>
+                <canvas id="sigCanvas" width="500" height="160"
+                  class="border-2 border-dashed border-gray-300 rounded-lg w-full bg-white touch-none cursor-crosshair"></canvas>
+                <p class="text-xs text-gray-400 mt-1 text-center">استخدم الماوس أو إصبعك للتوقيع</p>
+              </div>
+              <div class="flex gap-2 pt-2 border-t">
+                <button @click="submitSig()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg flex-1 font-medium">💾 حفظ التوقيع</button>
+                <button @click="clearSig()" class="border border-gray-300 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50">🗑️ مسح</button>
+                <button @click="sigModal.open=false" class="border px-4 py-2 rounded-lg text-gray-600">إلغاء</button>
+              </div>
             </div>
           </div>
         </div>
