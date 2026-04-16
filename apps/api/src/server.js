@@ -50,6 +50,9 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
 });
 
+// Redirect root to frontend login (Coolify may route / to this service)
+app.get('/', (req, res) => res.redirect('/login'));
+
 // Public
 app.use('/api/auth', authRoutes);
 
