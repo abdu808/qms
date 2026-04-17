@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 import { config } from './config.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
@@ -98,6 +100,15 @@ app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
 app.use('/api/iso-readiness',            isoReadinessRoutes);
+
+// Serve frontend statically in development (for local testing)
+if (config.env !== 'production') {
+  const __dir = dirname(fileURLToPath(import.meta.url));
+  const webPath = join(__dir, '..', '..', '..', 'web', 'public');
+  app.use(express.static(webPath));
+  app.get('/login', (req, res) => res.sendFile(join(webPath, 'index.html')));
+  console.log(`[qms-api] serving frontend from ${webPath}`);
+}
 
 app.use(notFound);
 app.use(errorHandler);
