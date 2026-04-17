@@ -157,6 +157,42 @@ const CONFIGS = {
       { key: 'receivedAt', label: 'تاريخ الاستلام', type: 'date' },
     ],
   },
+  strategicGoals: {
+    label: 'الخطة الاستراتيجية',
+    fetch: () => prisma.strategicGoal.findMany({ orderBy: { createdAt: 'desc' } }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'perspective', label: 'المحور' },
+      { key: 'title', label: 'الهدف الاستراتيجي' },
+      { key: 'kpi', label: 'مؤشر النجاح' },
+      { key: 'baseline', label: 'الوضع الراهن' },
+      { key: 'target', label: 'المستهدف' },
+      { key: 'initiatives', label: 'المبادرات' },
+      { key: 'responsible', label: 'الجهة المسؤولة' },
+      { key: 'startYear', label: 'سنة البداية' },
+      { key: 'endYear', label: 'سنة النهاية' },
+      { key: 'progress', label: 'الإنجاز %' },
+      { key: 'status', label: 'الحالة' },
+    ],
+  },
+  operationalActivities: {
+    label: 'الخطة التشغيلية',
+    fetch: () => prisma.operationalActivity.findMany({ orderBy: { createdAt: 'desc' } }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'النشاط' },
+      { key: 'perspective', label: 'المحور' },
+      { key: 'department', label: 'الإدارة' },
+      { key: 'responsible', label: 'المسؤول' },
+      { key: 'year', label: 'السنة' },
+      { key: 'startDate', label: 'تاريخ البداية', type: 'date' },
+      { key: 'endDate', label: 'تاريخ الانتهاء', type: 'date' },
+      { key: 'budget', label: 'الميزانية' },
+      { key: 'spent', label: 'المصروف' },
+      { key: 'progress', label: 'الإنجاز %' },
+      { key: 'status', label: 'الحالة' },
+    ],
+  },
 };
 
 router.get('/:model', asyncHandler(async (req, res) => {

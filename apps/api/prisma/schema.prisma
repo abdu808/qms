@@ -701,6 +701,58 @@ model AuditLog {
 }
 
 // =====================================================
+// STRATEGIC PLAN (الخطة الاستراتيجية)
+// =====================================================
+
+model StrategicGoal {
+  id           String   @id @default(cuid())
+  code         String   @unique  // STR-2026-001
+  title        String
+  perspective  String?  // المحور: مالي / مستفيدون / داخلي / تعلم ونمو
+  kpi          String?  // مؤشر قياس النجاح
+  baseline     String?  // الوضع الراهن
+  target       String?  // المستهدف
+  initiatives  String?  // المبادرات الاستراتيجية
+  responsible  String?  // الجهة المسؤولة
+  startYear    Int?
+  endYear      Int?
+  progress     Int      @default(0)  // 0-100
+  status       String   @default("PLANNED")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+}
+
+// =====================================================
+// OPERATIONAL PLAN (الخطة التشغيلية)
+// =====================================================
+
+model OperationalActivity {
+  id           String   @id @default(cuid())
+  code         String   @unique  // ACT-2026-001
+  title        String
+  description  String?
+  perspective  String?  // المحور الاستراتيجي المرتبط
+  department   String?  // الإدارة المنفذة
+  responsible  String?  // المسؤول
+  year         Int?
+  startDate    DateTime?
+  endDate      DateTime?
+  budget       Float?   // الميزانية المرصودة
+  spent        Float?   @default(0)
+  progress     Int      @default(0)  // 0-100
+  status       String   @default("PLANNED")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([year])
+}
+
+// =====================================================
 // SYSTEM SETTINGS
 // =====================================================
 

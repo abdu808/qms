@@ -31,6 +31,8 @@ import signaturesRoutes from './routes/signatures.js';
 import auditLogRoutes from './routes/auditLog.js';
 import dashboardRoutes from './routes/dashboard.js';
 import exportsRoutes from './routes/exports.js';
+import strategicGoalsRoutes from './routes/strategicGoals.js';
+import operationalActivitiesRoutes from './routes/operationalActivities.js';
 
 const app = express();
 
@@ -77,7 +79,9 @@ app.use('/api/documents',     documentsRoutes);
 app.use('/api/training',      trainingRoutes);
 app.use('/api/signatures',    signaturesRoutes);
 app.use('/api/audit-log',     auditLogRoutes);
-app.use('/api/exports',       exportsRoutes);
+app.use('/api/exports',                  exportsRoutes);
+app.use('/api/strategic-goals',          strategicGoalsRoutes);
+app.use('/api/operational-activities',   operationalActivitiesRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

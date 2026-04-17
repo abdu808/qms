@@ -5,6 +5,98 @@
 const API = '/api';
 
 const MODULES = {
+  strategicGoals: {
+    endpoint: 'strategic-goals',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PLANNED', l: 'مخطط' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+      { v: 'ACHIEVED', l: 'محقق' },
+      { v: 'DELAYED', l: 'متأخر' },
+      { v: 'CANCELLED', l: 'ملغى' },
+    ],
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'perspective', label: 'المحور' },
+      { key: 'title', label: 'الهدف الاستراتيجي' },
+      { key: 'kpi', label: 'المؤشر' },
+      { key: 'target', label: 'المستهدف' },
+      { key: 'progress', label: 'الإنجاز %' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'الهدف الاستراتيجي', required: true },
+      { key: 'perspective', label: 'المحور', type: 'select', options: [
+        { v: 'مالي واستدامي', l: 'مالي واستدامي' },
+        { v: 'المستفيدون والمجتمع', l: 'المستفيدون والمجتمع' },
+        { v: 'العمليات الداخلية', l: 'العمليات الداخلية' },
+        { v: 'التعلم والنمو', l: 'التعلم والنمو' },
+        { v: 'الحوكمة والامتثال', l: 'الحوكمة والامتثال' },
+      ]},
+      { key: 'kpi', label: 'مؤشر قياس النجاح' },
+      { key: 'baseline', label: 'الوضع الراهن (الخط الأساسي)' },
+      { key: 'target', label: 'المستهدف' },
+      { key: 'initiatives', label: 'المبادرات الاستراتيجية', type: 'textarea' },
+      { key: 'responsible', label: 'الجهة المسؤولة' },
+      { key: 'startYear', label: 'سنة البداية', type: 'number' },
+      { key: 'endYear', label: 'سنة النهاية', type: 'number' },
+      { key: 'progress', label: 'نسبة الإنجاز %', type: 'number' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'ACHIEVED', l: 'محقق' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
+      ]},
+      { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ],
+  },
+
+  operationalActivities: {
+    endpoint: 'operational-activities',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PLANNED', l: 'مخطط' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+      { v: 'COMPLETED', l: 'مكتمل' },
+      { v: 'DELAYED', l: 'متأخر' },
+      { v: 'CANCELLED', l: 'ملغى' },
+    ],
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'النشاط' },
+      { key: 'perspective', label: 'المحور' },
+      { key: 'department', label: 'الإدارة' },
+      { key: 'responsible', label: 'المسؤول' },
+      { key: 'budget', label: 'الميزانية' },
+      { key: 'progress', label: 'الإنجاز %' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'عنوان النشاط', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'perspective', label: 'المحور الاستراتيجي', type: 'select', options: [
+        { v: 'مالي واستدامي', l: 'مالي واستدامي' },
+        { v: 'المستفيدون والمجتمع', l: 'المستفيدون والمجتمع' },
+        { v: 'العمليات الداخلية', l: 'العمليات الداخلية' },
+        { v: 'التعلم والنمو', l: 'التعلم والنمو' },
+        { v: 'الحوكمة والامتثال', l: 'الحوكمة والامتثال' },
+      ]},
+      { key: 'department', label: 'الإدارة المنفذة' },
+      { key: 'responsible', label: 'المسؤول' },
+      { key: 'year', label: 'السنة', type: 'number' },
+      { key: 'startDate', label: 'تاريخ البداية', type: 'date' },
+      { key: 'endDate', label: 'تاريخ الانتهاء', type: 'date' },
+      { key: 'budget', label: 'الميزانية المرصودة (ريال)', type: 'number' },
+      { key: 'spent', label: 'المبلغ المصروف (ريال)', type: 'number' },
+      { key: 'progress', label: 'نسبة الإنجاز %', type: 'number' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
+        { v: 'COMPLETED', l: 'مكتمل' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
+      ]},
+      { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ],
+  },
+
   objectives: {
     endpoint: 'objectives',
     exportable: true,
@@ -484,9 +576,11 @@ function app() {
     _sigInited: false,
 
     menu: [
-      { id: 'dashboard',    label: 'لوحة المعلومات',      icon: '📊' },
-      { id: 'objectives',   label: 'الأهداف والمؤشرات',   icon: '🎯' },
-      { id: 'risks',        label: 'المخاطر والفرص',      icon: '⚠️' },
+      { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
+      { id: 'strategicGoals',         label: 'الخطة الاستراتيجية',  icon: '🏆' },
+      { id: 'operationalActivities',  label: 'الخطة التشغيلية',     icon: '📅' },
+      { id: 'objectives',             label: 'الأهداف والمؤشرات',   icon: '🎯' },
+      { id: 'risks',                  label: 'المخاطر والفرص',      icon: '⚠️' },
       { id: 'complaints',   label: 'الشكاوى',             icon: '📢' },
       { id: 'ncr',          label: 'عدم المطابقة',        icon: '🔧' },
       { id: 'audits',       label: 'التدقيق الداخلي',     icon: '🔍' },
@@ -819,7 +913,7 @@ function app() {
 
     statusLabel(v) {
       const map = {
-        PLANNED:'مخطط', IN_PROGRESS:'قيد التنفيذ', ACHIEVED:'محقق', DELAYED:'متأخر', CANCELLED:'ملغى',
+        PLANNED:'مخطط', IN_PROGRESS:'قيد التنفيذ', ACHIEVED:'محقق', DELAYED:'متأخر', CANCELLED:'ملغى', COMPLETED:'مكتمل',
         IDENTIFIED:'محدد', UNDER_TREATMENT:'قيد المعالجة', MITIGATED:'خُفف', ACCEPTED:'مقبول', CLOSED:'مغلق',
         NEW:'جديد', UNDER_REVIEW:'قيد الدراسة', RESOLVED:'تم حله', REJECTED:'مرفوض',
         OPEN:'مفتوح', ROOT_CAUSE:'تحليل السبب', ACTION_PLANNED:'خطة إجراء', VERIFICATION:'تحقق',
