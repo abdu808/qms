@@ -57,10 +57,15 @@
 
   <!-- APP SHELL -->
   <template x-if="user">
-    <div class="flex min-h-screen">
-      <!-- SIDEBAR -->
-      <aside class="w-64 bg-white border-l shadow-sm flex flex-col">
-        <div class="p-4 border-b bg-brand-500 text-white">
+    <div class="min-h-screen bg-gradient-to-bl from-gray-100 to-gray-200" x-data="{ sidebarOpen: false }">
+      <!-- MOBILE OVERLAY -->
+      <div x-show="sidebarOpen" x-cloak @click="sidebarOpen=false"
+           class="fixed inset-0 bg-black/40 z-30 md:hidden"></div>
+
+      <!-- SIDEBAR (floating card — visually separated from body) -->
+      <aside :class="sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'"
+             class="fixed top-4 right-4 bottom-4 w-60 bg-white rounded-2xl shadow-xl ring-1 ring-black/5 flex flex-col z-40 transition-transform duration-200 md:transition-none overflow-hidden">
+        <div class="p-4 bg-gradient-to-l from-brand-600 to-brand-500 text-white flex items-center justify-between flex-shrink-0">
           <div class="flex items-center gap-2">
             <span class="text-2xl">🕊️</span>
             <div>
@@ -68,31 +73,35 @@
               <div class="text-xs opacity-80">جمعية البر بصبيا</div>
             </div>
           </div>
+          <button @click="sidebarOpen=false" class="md:hidden text-white text-xl">✖</button>
         </div>
         <nav class="flex-1 p-2 overflow-y-auto text-sm">
           <template x-for="item in menu" :key="item.id">
-            <button @click="goto(item.id)" :class="page===item.id ? 'bg-brand-50 text-brand-700 font-semibold' : 'hover:bg-gray-50'"
+            <button @click="goto(item.id); sidebarOpen=false" :class="page===item.id ? 'bg-brand-500 text-white font-semibold shadow-sm' : 'hover:bg-gray-100 text-gray-700'"
               class="w-full text-right px-3 py-2 rounded-lg mb-1 flex items-center gap-2 transition">
               <span x-text="item.icon"></span>
               <span x-text="item.label"></span>
             </button>
           </template>
         </nav>
-        <div class="p-3 border-t text-xs">
+        <div class="p-3 border-t text-xs bg-gray-50 flex-shrink-0">
           <div class="font-semibold" x-text="user.name"></div>
           <div class="text-gray-500" x-text="roleLabel(user.role)"></div>
           <button @click="logout()" class="mt-2 w-full text-red-600 hover:bg-red-50 rounded px-2 py-1">تسجيل الخروج</button>
         </div>
       </aside>
 
-      <!-- MAIN -->
-      <main class="flex-1 overflow-y-auto">
-        <header class="bg-white border-b px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-          <h2 class="text-lg font-bold" x-text="menu.find(m=>m.id===page)?.label || 'لوحة المعلومات'"></h2>
+      <!-- MAIN (offset by sidebar width + gap; scrolls independently) -->
+      <main class="md:mr-[17rem] md:ml-4 md:py-4 min-h-screen flex flex-col">
+        <header class="bg-white rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0 mt-4 md:mt-0 px-4 md:px-6 py-3 flex items-center justify-between sticky top-4 z-20">
+          <div class="flex items-center gap-3">
+            <button @click="sidebarOpen=true" class="md:hidden text-2xl text-brand-600 hover:bg-gray-100 rounded p-1" aria-label="فتح القائمة">☰</button>
+            <h2 class="text-lg font-bold" x-text="menu.find(m=>m.id===page)?.label || 'لوحة المعلومات'"></h2>
+          </div>
           <div class="text-xs text-gray-500" x-text="today()"></div>
         </header>
 
-        <div class="p-6">
+        <div class="p-4 md:p-6">
           <!-- DASHBOARD -->
           <div x-show="page==='dashboard'">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -111,10 +120,10 @@
           </div>
 
           <!-- GENERIC LIST PAGE -->
-          <template x-if="page !== 'dashboard' && page !== 'audit-log' && page !== 'iso-readiness'">
+          <template x-if="page !== 'dashboard' && page !== 'audit-log' && page !== 'iso-readiness' && page !== 'surveys'">
             <div>
-              <!-- Toolbar -->
-              <div class="flex items-center gap-2 mb-4 flex-wrap">
+              <!-- Toolbar (sticky — stays visible while scrolling table) -->
+              <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0 flex items-center gap-2 flex-wrap">
                 <input x-model="search" @input.debounce.400ms="loadList(1)" placeholder="🔍 بحث..." class="border rounded-lg px-3 py-2 flex-1 min-w-[160px] max-w-xs" />
                 <select x-show="currentModule?.statusOptions" x-model="filterStatus" @change="loadList(1)" class="border rounded-lg px-3 py-2 text-sm bg-white">
                   <template x-for="o in (currentModule?.statusOptions||[])" :key="o.v">
@@ -123,12 +132,13 @@
                 </select>
                 <button @click="openCreate()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة</button>
                 <button x-show="currentModule?.exportable" @click="exportExcel()" class="border border-green-600 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg text-sm font-medium">⬇️ Excel</button>
+                <span class="text-xs text-gray-500 mr-auto" x-show="totalItems" x-text="'الإجمالي: ' + totalItems"></span>
               </div>
 
               <!-- Table -->
-              <div class="bg-white border rounded-xl overflow-hidden">
+              <div class="bg-white border rounded-xl">
                 <table class="w-full text-sm">
-                  <thead class="bg-gray-50 text-right">
+                  <thead class="bg-gray-100 text-right">
                     <tr>
                       <template x-for="col in currentCols" :key="col.key">
                         <th class="px-3 py-2 font-semibold text-gray-600" x-text="col.label"></th>
@@ -147,6 +157,11 @@
                           <button @click="remove(item.id)" class="text-red-600 hover:underline text-xs ml-2">🗑️ حذف</button>
                           <button x-show="currentModule?.evalAction" @click="openEval(item)" class="text-indigo-600 hover:underline text-xs ml-2">📊 تقييم</button>
                           <button x-show="currentModule?.evalAction" @click="requestEvalLink(item)" class="text-teal-600 hover:underline text-xs ml-2">🔗 رابط خارجي</button>
+                          <button x-show="page==='documents' && item.status==='UNDER_REVIEW'" @click="approveDoc(item, false)" class="text-green-600 hover:underline text-xs ml-2">✅ اعتماد</button>
+                          <button x-show="page==='documents' && item.status==='APPROVED'" @click="approveDoc(item, true)" class="text-emerald-600 hover:underline text-xs ml-2">📢 نشر</button>
+                          <button x-show="page==='documents' && ['DRAFT','APPROVED','PUBLISHED'].includes(item.status)" @click="obsoleteDoc(item)" class="text-amber-600 hover:underline text-xs ml-2">🗑️ سحب</button>
+                          <button x-show="page==='qualityPolicy' && !item.active" @click="activatePolicy(item)" class="text-green-600 hover:underline text-xs ml-2">✅ تفعيل</button>
+                          <button x-show="page==='training'" @click="openTrainingRecords(item)" class="text-teal-600 hover:underline text-xs ml-2">👥 الحضور والفعالية</button>
                           <button x-show="currentModule?.sigAction" @click="openSig(item)" class="text-purple-600 hover:underline text-xs">✍️ توقيع</button>
                         </td>
                       </tr>
@@ -231,6 +246,61 @@
             <div x-show="!isoReport" class="text-center text-gray-400 py-20">جار التحميل...</div>
           </div>
 
+          <!-- SURVEYS (custom module) -->
+          <div x-show="page==='surveys'" x-cloak>
+            <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0 flex justify-between items-center flex-wrap gap-2">
+              <div>
+                <h2 class="text-xl font-bold">📝 استبيانات رضا العملاء (ISO 9.1.2)</h2>
+                <div class="text-sm text-gray-500">قياس رضا المستفيدين والشركاء عبر روابط عامة قابلة للمشاركة</div>
+              </div>
+              <button @click="openSurveyCreate()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg">➕ استبيان جديد</button>
+            </div>
+
+            <div class="bg-white border rounded-xl overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-right">
+                  <tr>
+                    <th class="px-3 py-2">الرمز</th>
+                    <th class="px-3 py-2">العنوان</th>
+                    <th class="px-3 py-2">الفئة</th>
+                    <th class="px-3 py-2 text-center">المشاركات</th>
+                    <th class="px-3 py-2 text-center">المتوسط</th>
+                    <th class="px-3 py-2 text-center">الحالة</th>
+                    <th class="px-3 py-2 text-center">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="s in surveysList" :key="s.id">
+                    <tr class="border-t hover:bg-gray-50">
+                      <td class="px-3 py-2 font-mono text-xs" x-text="s.code"></td>
+                      <td class="px-3 py-2 font-medium" x-text="s.title"></td>
+                      <td class="px-3 py-2" x-text="({BENEFICIARY:'المستفيدون',DONOR:'المتبرعون',VOLUNTEER:'المتطوعون',EMPLOYEE:'الموظفون',PARTNER:'الشركاء'})[s.target] || s.target"></td>
+                      <td class="px-3 py-2 text-center" x-text="s.responses || 0"></td>
+                      <td class="px-3 py-2 text-center">
+                        <span x-show="s.avgScore !== null" x-text="(s.avgScore || 0).toFixed(2) + ' ⭐'" class="font-semibold text-amber-600"></span>
+                        <span x-show="s.avgScore === null" class="text-gray-400">—</span>
+                      </td>
+                      <td class="px-3 py-2 text-center">
+                        <span x-show="s.active" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">نشط</span>
+                        <span x-show="!s.active" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">مغلق</span>
+                      </td>
+                      <td class="px-3 py-2 text-center whitespace-nowrap">
+                        <button @click="copySurveyLink(s)" class="text-blue-600 hover:underline text-xs mx-1" title="نسخ الرابط العام">🔗 رابط</button>
+                        <button @click="shareWhatsappSurvey(s)" class="text-green-600 hover:underline text-xs mx-1" title="مشاركة واتساب">💬 واتساب</button>
+                        <button @click="viewSurveySummary(s)" class="text-purple-600 hover:underline text-xs mx-1">📊 النتائج</button>
+                        <button @click="openSurveyEdit(s)" class="text-brand-600 hover:underline text-xs mx-1">✏️</button>
+                        <button @click="deleteSurvey(s)" class="text-red-600 hover:underline text-xs mx-1">🗑️</button>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="!surveysList.length">
+                    <td colspan="7" class="text-center py-10 text-gray-400">لا توجد استبيانات — ابدأ بإنشاء استبيان جديد</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <!-- AUDIT LOG -->
           <div x-show="page==='audit-log'">
             <div class="bg-white border rounded-xl overflow-hidden">
@@ -275,17 +345,26 @@
                 <label class="block text-sm font-medium mb-1">الفترة التقييمية</label>
                 <input x-model="evalModal.period" placeholder="مثال: الربع الأول 2026" class="w-full border rounded-lg px-3 py-2" />
               </div>
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-[11px] text-amber-900 leading-relaxed">
+                💡 <b>دليل الدرجات:</b> ممتاز (90%+) · جيد جداً (75%+) · مقبول (60%+) · ضعيف (أقل).
+                <div class="text-red-700 mt-0.5">⚠️ فشل معيار حرج (أقل من 50%) = رفض تلقائي</div>
+              </div>
               <div class="space-y-3">
                 <template x-for="c in evalModal.criteria" :key="c.key">
-                  <div class="bg-gray-50 rounded-lg p-3 border">
-                    <div class="flex justify-between items-center mb-2">
-                      <label class="text-sm font-medium" x-text="c.label"></label>
+                  <div class="rounded-lg p-3 border" :class="c.critical ? 'bg-red-50 border-red-200' : 'bg-gray-50'">
+                    <div class="flex justify-between items-center mb-2 gap-2 flex-wrap">
+                      <label class="text-sm font-medium flex items-center gap-1" >
+                        <span x-text="c.label"></span>
+                        <span x-show="c.critical" class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">⚠️ حرج</span>
+                      </label>
                       <span class="text-xs text-gray-500 font-medium" x-text="`${c.score || 0} / ${c.max}`"></span>
                     </div>
                     <input type="range" x-model="c.score" :min="0" :max="c.max" step="1" class="w-full accent-brand-500" />
                     <div class="h-1.5 bg-gray-200 rounded mt-1">
-                      <div class="h-1.5 bg-brand-500 rounded transition-all" :style="`width:${Math.min(100,(c.score||0)/c.max*100)}%`"></div>
+                      <div class="h-1.5 rounded transition-all" :class="c.critical && (Number(c.score)||0) < c.max*0.5 ? 'bg-red-500' : 'bg-brand-500'" :style="`width:${Math.min(100,(c.score||0)/c.max*100)}%`"></div>
                     </div>
+                    <input type="text" x-model="c.note" maxlength="300" placeholder="ملاحظة (اختياري)..."
+                      class="w-full border rounded px-2 py-1 text-xs mt-2 bg-white" />
                   </div>
                 </template>
               </div>
@@ -296,7 +375,24 @@
                 <div class="text-sm text-gray-600 mt-1 font-medium" x-text="'القرار: ' + evalDecision()"></div>
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1">ملاحظات</label>
+                <label class="block text-sm font-medium mb-2">🎯 التوصية النهائية</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm" :class="evalModal.recommendation==='approved' ? 'bg-green-50 border-green-500' : 'bg-gray-50'">
+                    <input type="radio" x-model="evalModal.recommendation" value="approved" class="accent-brand-500"> ✅ معتمد
+                  </label>
+                  <label class="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm" :class="evalModal.recommendation==='conditional' ? 'bg-amber-50 border-amber-500' : 'bg-gray-50'">
+                    <input type="radio" x-model="evalModal.recommendation" value="conditional" class="accent-brand-500"> ⚠️ معتمد مشروط
+                  </label>
+                  <label class="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm" :class="evalModal.recommendation==='watch' ? 'bg-blue-50 border-blue-500' : 'bg-gray-50'">
+                    <input type="radio" x-model="evalModal.recommendation" value="watch" class="accent-brand-500"> 🔄 قيد المراقبة
+                  </label>
+                  <label class="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm" :class="evalModal.recommendation==='rejected' ? 'bg-red-50 border-red-500' : 'bg-gray-50'">
+                    <input type="radio" x-model="evalModal.recommendation" value="rejected" class="accent-brand-500"> ❌ غير معتمد
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">ملاحظات عامة وتوصيات للتحسين</label>
                 <textarea x-model="evalModal.notes" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
               </div>
               <div class="flex gap-2 pt-2 border-t">
@@ -381,6 +477,230 @@
                   👁️ معاينة
                 </a>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRAINING RECORDS MODAL -->
+        <div x-show="trainingRecords.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="trainingRecords.open=false">
+          <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="trainingRecords.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-brand-700">👥 سجلات الحضور والفعالية (ISO 7.2)</h3>
+                <p class="text-sm text-gray-500 mt-0.5" x-text="trainingRecords.training?.title"></p>
+              </div>
+              <button @click="trainingRecords.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4 space-y-4">
+              <!-- Stats -->
+              <div x-show="trainingRecords.stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                  <div class="text-2xl font-bold text-blue-700" x-text="trainingRecords.stats?.total || 0"></div>
+                  <div class="text-xs text-gray-600">إجمالي المسجلين</div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                  <div class="text-2xl font-bold text-green-700" x-text="(trainingRecords.stats?.attendanceRate || 0) + '%'"></div>
+                  <div class="text-xs text-gray-600" x-text="trainingRecords.stats?.attended + ' حضور'"></div>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+                  <div class="text-2xl font-bold text-purple-700" x-text="(trainingRecords.stats?.effectivenessRate || 0) + '%'"></div>
+                  <div class="text-xs text-gray-600">فعالية التدريب</div>
+                </div>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                  <div class="text-2xl font-bold text-amber-700" x-text="trainingRecords.stats?.avgScore !== null ? trainingRecords.stats?.avgScore : '—'"></div>
+                  <div class="text-xs text-gray-600">متوسط الدرجات</div>
+                </div>
+              </div>
+
+              <!-- Add/update record -->
+              <div class="bg-gray-50 border rounded-lg p-3">
+                <div class="font-bold text-sm mb-2">➕ تسجيل/تحديث مشارك</div>
+                <div class="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
+                  <div class="md:col-span-2">
+                    <label class="block text-xs text-gray-600 mb-1">الموظف</label>
+                    <select x-model="trainingRecords.newRecord.userId" class="w-full border rounded px-2 py-1.5 text-sm">
+                      <option value="">— اختر —</option>
+                      <template x-for="u in trainingRecords.users" :key="u.id">
+                        <option :value="u.id" x-text="u.name + (u.jobTitle ? ' — ' + u.jobTitle : '')"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" x-model="trainingRecords.newRecord.attended" class="accent-brand-500">
+                    <span>حضر</span>
+                  </label>
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1">الدرجة (0-100)</label>
+                    <input type="number" x-model="trainingRecords.newRecord.score" min="0" max="100" class="w-full border rounded px-2 py-1.5 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-600 mb-1">الفعالية</label>
+                    <select x-model="trainingRecords.newRecord.effective" class="w-full border rounded px-2 py-1.5 text-sm">
+                      <option value="">—</option>
+                      <option value="true">فعّال ✅</option>
+                      <option value="false">غير فعّال ❌</option>
+                    </select>
+                  </div>
+                  <button @click="saveTrainingRecord(trainingRecords.newRecord)" class="bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded text-sm font-medium">💾 حفظ</button>
+                </div>
+              </div>
+
+              <!-- Records table -->
+              <div class="border rounded-lg overflow-hidden">
+                <table class="w-full text-sm">
+                  <thead class="bg-gray-50 text-right">
+                    <tr>
+                      <th class="px-3 py-2">الموظف</th>
+                      <th class="px-3 py-2 text-center">الحضور</th>
+                      <th class="px-3 py-2 text-center">الدرجة</th>
+                      <th class="px-3 py-2 text-center">الفعالية</th>
+                      <th class="px-3 py-2">الشهادة</th>
+                      <th class="px-3 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="r in trainingRecords.records" :key="r.id">
+                      <tr class="border-t">
+                        <td class="px-3 py-2 font-medium" x-text="r.user?.name"></td>
+                        <td class="px-3 py-2 text-center">
+                          <span x-show="r.attended" class="text-green-600">✅ حضر</span>
+                          <span x-show="!r.attended" class="text-gray-400">—</span>
+                        </td>
+                        <td class="px-3 py-2 text-center" x-text="r.score !== null && r.score !== undefined ? r.score : '—'"></td>
+                        <td class="px-3 py-2 text-center">
+                          <span x-show="r.effective === true" class="text-green-600">✅ فعّال</span>
+                          <span x-show="r.effective === false" class="text-red-600">❌ غير فعّال</span>
+                          <span x-show="r.effective === null || r.effective === undefined" class="text-gray-400">لم يُقيَّم</span>
+                        </td>
+                        <td class="px-3 py-2">
+                          <a x-show="r.certUrl" :href="r.certUrl" target="_blank" class="text-blue-600 hover:underline text-xs">📜 عرض</a>
+                          <span x-show="!r.certUrl" class="text-gray-400 text-xs">—</span>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                          <button @click="deleteTrainingRecord(r.userId)" class="text-red-500 hover:text-red-700 text-xs">🗑️</button>
+                        </td>
+                      </tr>
+                    </template>
+                    <tr x-show="!trainingRecords.records.length">
+                      <td colspan="6" class="text-center py-8 text-gray-400">لا توجد سجلات — ابدأ بإضافة مشارك</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SURVEY BUILDER MODAL -->
+        <div x-show="surveyModal.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="surveyModal.open=false">
+          <div class="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="surveyModal.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <h3 class="font-bold text-brand-700" x-text="surveyModal.mode==='edit' ? '✏️ تعديل استبيان' : '➕ استبيان جديد'"></h3>
+              <button @click="surveyModal.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4 space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium mb-1">عنوان الاستبيان *</label>
+                  <input x-model="surveyModal.title" class="w-full border rounded-lg px-3 py-2" placeholder="مثال: استبيان رضا المستفيدين 2026" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">الفترة</label>
+                  <input x-model="surveyModal.period" class="w-full border rounded-lg px-3 py-2" placeholder="مثال: الربع الأول 2026" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">الفئة المستهدفة</label>
+                  <select x-model="surveyModal.target" class="w-full border rounded-lg px-3 py-2">
+                    <option value="BENEFICIARY">المستفيدون</option>
+                    <option value="DONOR">المتبرعون</option>
+                    <option value="VOLUNTEER">المتطوعون</option>
+                    <option value="EMPLOYEE">الموظفون</option>
+                    <option value="PARTNER">الشركاء</option>
+                  </select>
+                </div>
+                <div class="flex items-end">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" x-model="surveyModal.active" class="accent-brand-500 w-5 h-5">
+                    <span class="text-sm font-medium">الاستبيان نشط (يقبل مشاركات)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="border-t pt-4">
+                <div class="flex justify-between items-center mb-2">
+                  <label class="font-bold text-sm">📝 الأسئلة</label>
+                  <button @click="addSurveyQuestion()" class="bg-brand-500 hover:bg-brand-600 text-white text-xs px-3 py-1.5 rounded">➕ إضافة سؤال</button>
+                </div>
+                <div class="space-y-2">
+                  <template x-for="(q, idx) in surveyModal.questions" :key="idx">
+                    <div class="bg-gray-50 border rounded-lg p-3">
+                      <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-500" x-text="'سؤال ' + (idx + 1)"></span>
+                        <button @click="removeSurveyQuestion(idx)" class="text-red-500 hover:text-red-700 text-xs">🗑️ حذف</button>
+                      </div>
+                      <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <input x-model="q.key" placeholder="معرف (مثل q1)" class="border rounded px-2 py-1 text-sm font-mono">
+                        <input x-model="q.label" placeholder="نص السؤال" class="border rounded px-2 py-1 text-sm md:col-span-1">
+                        <select x-model="q.type" class="border rounded px-2 py-1 text-sm">
+                          <option value="rating">تقييم (1-5 ⭐)</option>
+                          <option value="yesno">نعم / لا</option>
+                          <option value="text">إجابة نصية</option>
+                        </select>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="!surveyModal.questions.length" class="text-center text-gray-400 text-sm py-6">لا توجد أسئلة — أضف سؤالاً للبدء</div>
+                </div>
+              </div>
+
+              <div class="flex gap-2 pt-2 border-t">
+                <button @click="saveSurvey()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg flex-1 font-medium">💾 حفظ الاستبيان</button>
+                <button @click="surveyModal.open=false" class="border px-4 py-2 rounded-lg text-gray-600">إلغاء</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SURVEY RESULTS MODAL -->
+        <div x-show="surveySummary.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="surveySummary.open=false">
+          <div class="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="surveySummary.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-brand-700">📊 نتائج الاستبيان</h3>
+                <p class="text-sm text-gray-500 mt-0.5" x-text="surveySummary.survey?.title"></p>
+              </div>
+              <button @click="surveySummary.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4 space-y-3" x-show="surveySummary.data">
+              <div class="bg-brand-50 border border-brand-200 rounded-lg p-4 text-center">
+                <div class="text-3xl font-bold text-brand-700" x-text="surveySummary.data?.totalResponses + ' مشاركة'"></div>
+                <div class="text-xs text-gray-500 mt-1">المجموع الكلي للمشاركات</div>
+              </div>
+              <template x-for="st in (surveySummary.data?.stats || [])" :key="st.key">
+                <div class="border rounded-lg p-3 bg-gray-50">
+                  <div class="font-semibold text-sm mb-2" x-text="st.label"></div>
+                  <template x-if="st.type==='rating'">
+                    <div>
+                      <div class="text-2xl font-bold text-amber-600" x-text="(st.avgScore || 0).toFixed(2) + ' ⭐'"></div>
+                      <div class="text-xs text-gray-500" x-text="st.responsesCount + ' مشاركة'"></div>
+                    </div>
+                  </template>
+                  <template x-if="st.type==='yesno'">
+                    <div class="flex gap-4">
+                      <div class="text-green-700"><span class="font-bold" x-text="st.yes"></span> ✅ نعم</div>
+                      <div class="text-red-700"><span class="font-bold" x-text="st.no"></span> ❌ لا</div>
+                    </div>
+                  </template>
+                  <template x-if="st.type==='text'">
+                    <div class="space-y-1 max-h-40 overflow-y-auto">
+                      <template x-for="(ans, i) in st.textAnswers" :key="i">
+                        <div class="text-xs bg-white border rounded px-2 py-1" x-text="ans"></div>
+                      </template>
+                      <div x-show="!st.textAnswers?.length" class="text-xs text-gray-400">لا توجد إجابات نصية</div>
+                    </div>
+                  </template>
+                </div>
+              </template>
             </div>
           </div>
         </div>

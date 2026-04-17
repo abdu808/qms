@@ -429,6 +429,7 @@ const MODULES = {
         { v: 'PHONE', l: 'هاتف' }, { v: 'EMAIL', l: 'بريد' },
         { v: 'WEBSITE', l: 'موقع' }, { v: 'IN_PERSON', l: 'حضوري' },
         { v: 'WHATSAPP', l: 'واتساب' }, { v: 'SOCIAL', l: 'تواصل اجتماعي' },
+        { v: 'OTHER', l: 'أخرى' },
       ]},
       { key: 'complainantName', label: 'اسم المشتكي' },
       { key: 'complainantPhone', label: 'الجوال' },
@@ -443,6 +444,17 @@ const MODULES = {
         { v: 'IN_PROGRESS', l: 'قيد المعالجة' }, { v: 'RESOLVED', l: 'تمت المعالجة' },
         { v: 'CLOSED', l: 'مغلق' }, { v: 'REJECTED', l: 'مرفوض' },
       ]},
+      // ISO 9.1.2 — قياس رضا العميل بعد الحل
+      { key: 'satisfaction', label: '⭐ رضا المشتكي عن الحل (1-5)', type: 'select', options: [
+        { v: '',  l: '— لم يُقيَّم —' },
+        { v: '5', l: '⭐⭐⭐⭐⭐ راضٍ تماماً' },
+        { v: '4', l: '⭐⭐⭐⭐ راضٍ' },
+        { v: '3', l: '⭐⭐⭐ محايد' },
+        { v: '2', l: '⭐⭐ غير راضٍ' },
+        { v: '1', l: '⭐ غير راضٍ إطلاقاً' },
+      ]},
+      { key: 'receivedAt', label: 'تاريخ الاستلام', type: 'date' },
+      { key: 'resolvedAt', label: 'تاريخ الحل', type: 'date' },
     ],
   },
 
@@ -475,11 +487,21 @@ const MODULES = {
       { key: 'correction', label: 'التصحيح الفوري', type: 'textarea' },
       { key: 'correctiveAction', label: 'الإجراء التصحيحي', type: 'textarea' },
       { key: 'dueDate', label: 'تاريخ الاستحقاق', type: 'date' },
+      { key: 'assigneeId', label: 'المسؤول عن التنفيذ', type: 'relation', rel: 'users' },
+      { key: 'departmentId', label: 'القسم المعني', type: 'relation', rel: 'departments' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'OPEN', l: 'مفتوح' }, { v: 'ROOT_CAUSE', l: 'تحليل السبب' },
         { v: 'ACTION_PLANNED', l: 'خطة إجراء' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'VERIFICATION', l: 'تحقق' }, { v: 'CLOSED', l: 'مغلق' },
       ]},
+      // ISO 10.2 — التحقق من فعالية الإجراء التصحيحي (مطلوب للإغلاق)
+      { key: 'verifiedAt', label: '📋 تاريخ التحقق من الفعالية', type: 'date' },
+      { key: 'effective', label: '✅ هل الإجراء فعّال؟', type: 'select', options: [
+        { v: '', l: '— لم يُقيَّم —' },
+        { v: 'true',  l: 'نعم — فعّال' },
+        { v: 'false', l: 'لا — يحتاج إعادة معالجة' },
+      ]},
+      { key: 'verifiedNote', label: 'ملاحظات التحقق', type: 'textarea' },
     ],
   },
 
@@ -509,9 +531,12 @@ const MODULES = {
       { key: 'criteria', label: 'المعايير' },
       { key: 'plannedDate', label: 'تاريخ التخطيط', type: 'date', required: true },
       { key: 'actualDate', label: 'التاريخ الفعلي', type: 'date' },
+      { key: 'leadAuditorId', label: 'رئيس فريق التدقيق', type: 'relation', rel: 'users' },
+      { key: 'team', label: 'فريق التدقيق (الأسماء مفصولة بفواصل)' },
       { key: 'findings', label: 'النتائج', type: 'textarea' },
       { key: 'strengths', label: 'نقاط القوة', type: 'textarea' },
       { key: 'weaknesses', label: 'نقاط التحسين', type: 'textarea' },
+      { key: 'reportUrl', label: 'رابط التقرير' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'COMPLETED', l: 'مكتمل' }, { v: 'CANCELLED', l: 'ملغى' },
@@ -541,6 +566,7 @@ const MODULES = {
       { key: 'name', label: 'الاسم', required: true },
       { key: 'type', label: 'النوع', type: 'select', options: [
         { v: 'GOODS', l: 'بضائع' }, { v: 'SERVICES', l: 'خدمات' },
+        { v: 'CONSTRUCTION', l: 'مقاولات وبناء' }, { v: 'IT_SERVICES', l: 'خدمات تقنية المعلومات' },
         { v: 'IN_KIND_DONOR', l: 'مورد تبرعات عينية' }, { v: 'TRANSPORT', l: 'نقل' },
         { v: 'CONSULTING', l: 'استشارات' }, { v: 'OTHER', l: 'أخرى' },
       ]},
@@ -677,14 +703,19 @@ const MODULES = {
         { v: 'FORM', l: 'نموذج' }, { v: 'RECORD', l: 'سجل' }, { v: 'EXTERNAL', l: 'خارجي' },
       ]},
       { key: 'currentVersion', label: 'الإصدار' },
+      { key: 'departmentId', label: 'الإدارة', type: 'relation', rel: 'departments' },
       { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
-      { key: 'reviewDate', label: 'تاريخ المراجعة', type: 'date' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة التالية', type: 'date' },
+      { key: 'retentionYears', label: 'مدة الاحتفاظ (سنوات)', type: 'number' },
       { key: 'isoClause', label: 'البند ISO' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'DRAFT', l: 'مسودة' }, { v: 'UNDER_REVIEW', l: 'قيد المراجعة' },
-        { v: 'APPROVED', l: 'معتمد' }, { v: 'PUBLISHED', l: 'منشور' },
         { v: 'OBSOLETE', l: 'ملغى' },
-      ]},
+      ], hint: 'الاعتماد والنشر يتم من خلال زر الاعتماد الرسمي' },
+    ],
+    rowActions: [
+      { action: 'approveDoc', label: '✅ اعتماد', condition: (it) => it.status === 'UNDER_REVIEW' },
+      { action: 'publishDoc', label: '📢 نشر',    condition: (it) => it.status === 'APPROVED' },
     ],
   },
 
@@ -776,6 +807,7 @@ function app() {
       supplier: null,
       period: '',
       notes: '',
+      recommendation: '',
       criteria: [
         { key: 'quality',       label: 'جودة المنتجات / الخدمات',    max: 30, score: 0 },
         { key: 'delivery',      label: 'الالتزام بالمواعيد',          max: 25, score: 0 },
@@ -807,6 +839,16 @@ function app() {
     // Eval link modal
     evalLinkModal: { open: false, url: '', supplier: null, copied: false },
 
+    trainingRecords: { open: false, training: null, records: [], stats: null, users: [], newRecord: { userId: '', attended: false, score: null, effective: '', certUrl: '' } },
+
+    surveysList: [],
+    surveyModal: {
+      open: false, mode: 'create', id: null,
+      title: '', target: 'BENEFICIARY', period: '', active: true,
+      questions: [],
+    },
+    surveySummary: { open: false, data: null, survey: null },
+
     menu: [
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
@@ -830,6 +872,7 @@ function app() {
       { id: 'programs',     label: 'البرامج',             icon: '📋' },
       { id: 'documents',    label: 'الوثائق والسجلات',    icon: '📄' },
       { id: 'training',     label: 'التدريب',             icon: '🎓' },
+      { id: 'surveys',      label: 'استبيانات الرضا',     icon: '📝' },
       { id: 'users',        label: 'المستخدمون',          icon: '👤' },
       { id: 'departments',  label: 'الإدارات',            icon: '🏢' },
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
@@ -881,6 +924,7 @@ function app() {
       if (id === 'dashboard') await this.loadDashboard();
       else if (id === 'audit-log') await this.loadAuditLog();
       else if (id === 'iso-readiness') await this.loadIsoReadiness();
+      else if (id === 'surveys') await this.loadSurveys();
       else await this.loadList();
     },
 
@@ -892,6 +936,155 @@ function app() {
         this.isoReport = null;
         alert(e.message || 'فشل تحميل تقرير الجاهزية');
       }
+    },
+
+    // ─── Document workflow ─────────────────────────────────────────────
+    async approveDoc(item, publish) {
+      const action = publish ? 'نشر' : 'اعتماد';
+      if (!confirm(`تأكيد ${action} الوثيقة "${item.title}"؟`)) return;
+      try {
+        await this.api('POST', `/documents/${item.id}/approve`, { publish: !!publish });
+        alert(`✅ تم ${action} الوثيقة بنجاح`);
+        await this.loadList();
+      } catch (e) { alert(e.message || `فشل ${action} الوثيقة`); }
+    },
+    async obsoleteDoc(item) {
+      if (!confirm(`سحب الوثيقة "${item.title}" (سحبها يلغي إقرارات المستخدمين)؟`)) return;
+      try {
+        await this.api('POST', `/documents/${item.id}/obsolete`);
+        await this.loadList();
+      } catch (e) { alert(e.message || 'فشل السحب'); }
+    },
+
+    // ─── Training records (attendance & effectiveness) ─────────────────
+    async openTrainingRecords(training) {
+      try {
+        const [recs, users] = await Promise.all([
+          this.api('GET', `/training/${training.id}/records`),
+          this.api('GET', '/users?limit=200'),
+        ]);
+        this.trainingRecords = {
+          open: true,
+          training,
+          records: recs.records || [],
+          stats: recs.stats,
+          users: users.items || [],
+          newRecord: { userId: '', attended: false, score: null, effective: '', certUrl: '' },
+        };
+      } catch (e) { alert(e.message || 'فشل تحميل السجلات'); }
+    },
+    async saveTrainingRecord(rec) {
+      const payload = {
+        userId: rec.userId || rec.user?.id,
+        attended: !!rec.attended,
+        score: rec.score === '' ? null : rec.score,
+        effective: rec.effective === '' ? null : rec.effective,
+        certUrl: rec.certUrl || null,
+      };
+      if (!payload.userId) return alert('اختر الموظف أولاً');
+      try {
+        await this.api('POST', `/training/${this.trainingRecords.training.id}/records`, payload);
+        // Refresh
+        const recs = await this.api('GET', `/training/${this.trainingRecords.training.id}/records`);
+        this.trainingRecords.records = recs.records;
+        this.trainingRecords.stats = recs.stats;
+        this.trainingRecords.newRecord = { userId: '', attended: false, score: null, effective: '', certUrl: '' };
+      } catch (e) { alert(e.message || 'فشل الحفظ'); }
+    },
+    async deleteTrainingRecord(userId) {
+      if (!confirm('حذف هذا السجل؟')) return;
+      try {
+        await this.api('DELETE', `/training/${this.trainingRecords.training.id}/records/${userId}`);
+        const recs = await this.api('GET', `/training/${this.trainingRecords.training.id}/records`);
+        this.trainingRecords.records = recs.records;
+        this.trainingRecords.stats = recs.stats;
+      } catch (e) { alert(e.message || 'فشل الحذف'); }
+    },
+
+    // ─── Quality Policy activation ─────────────────────────────────────
+    async activatePolicy(item) {
+      if (!confirm(`تفعيل سياسة الجودة إصدار ${item.version}؟\nسيتم إيقاف الإصدارات السابقة تلقائياً.`)) return;
+      try {
+        await this.api('POST', `/quality-policy/${item.id}/activate`);
+        alert('✅ تم تفعيل السياسة');
+        await this.loadList();
+      } catch (e) { alert(e.message || 'فشل التفعيل'); }
+    },
+
+    // ─── Surveys (custom module) ───────────────────────────────────────
+    async loadSurveys() {
+      try {
+        const r = await this.api('GET', '/surveys');
+        this.surveysList = r.items || [];
+      } catch (e) { alert(e.message || 'فشل تحميل الاستبيانات'); }
+    },
+    openSurveyCreate() {
+      this.surveyModal = {
+        open: true, mode: 'create', id: null,
+        title: '', target: 'BENEFICIARY', period: '', active: true,
+        questions: [
+          { key: 'overall', label: 'تقييمك العام للخدمة', type: 'rating' },
+        ],
+      };
+    },
+    async openSurveyEdit(s) {
+      const questions = (() => { try { return JSON.parse(s.questionsJson || '[]'); } catch { return []; } })();
+      this.surveyModal = {
+        open: true, mode: 'edit', id: s.id,
+        title: s.title, target: s.target, period: s.period || '', active: s.active,
+        questions,
+      };
+    },
+    addSurveyQuestion() {
+      const i = this.surveyModal.questions.length + 1;
+      this.surveyModal.questions.push({ key: `q${i}`, label: 'سؤال جديد', type: 'rating' });
+    },
+    removeSurveyQuestion(idx) {
+      this.surveyModal.questions.splice(idx, 1);
+    },
+    async saveSurvey() {
+      const m = this.surveyModal;
+      if (!m.title) return alert('أدخل عنوان الاستبيان');
+      if (!m.questions.length) return alert('أضف سؤالاً واحداً على الأقل');
+      for (const [i, q] of m.questions.entries()) {
+        if (!q.key || !q.label) return alert(`السؤال رقم ${i + 1} ينقصه المفتاح أو النص`);
+      }
+      const payload = {
+        title: m.title, target: m.target, period: m.period || null, active: !!m.active,
+        questionsJson: JSON.stringify(m.questions),
+      };
+      try {
+        if (m.mode === 'create') await this.api('POST', '/surveys', payload);
+        else await this.api('PUT', `/surveys/${m.id}`, payload);
+        this.surveyModal.open = false;
+        await this.loadSurveys();
+      } catch (e) { alert(e.message || 'فشل الحفظ'); }
+    },
+    async deleteSurvey(s) {
+      if (!confirm(`حذف الاستبيان "${s.title}"؟`)) return;
+      try {
+        await this.api('DELETE', `/surveys/${s.id}`);
+        await this.loadSurveys();
+      } catch (e) { alert(e.message || 'فشل الحذف'); }
+    },
+    async viewSurveySummary(s) {
+      try {
+        const r = await this.api('GET', `/surveys/${s.id}/summary`);
+        this.surveySummary = { open: true, data: r, survey: s };
+      } catch (e) { alert(e.message || 'فشل جلب النتائج'); }
+    },
+    copySurveyLink(s) {
+      const url = s.publicUrl || `${window.location.origin}/survey/${s.id}`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert(`✅ تم نسخ الرابط\n${url}`);
+      }).catch(() => {
+        prompt('انسخ الرابط:', url);
+      });
+    },
+    shareWhatsappSurvey(s) {
+      const url = s.publicUrl || `${window.location.origin}/survey/${s.id}`;
+      const msg = encodeURIComponent(`مرحباً، نرجو مشاركتنا رأيك عبر الاستبيان:\n${s.title}\n${url}`);
+      window.open(`https://wa.me/?text=${msg}`, '_blank');
     },
 
     async loadRelations() {
@@ -1074,56 +1267,86 @@ function app() {
       this.evalModal.supplier = supplier;
       this.evalModal.period = '';
       this.evalModal.notes = '';
+      this.evalModal.recommendation = '';
       // Load criteria based on supplier type
       this.evalModal.criteria = this.criteriaForType(supplier.type);
-      this.evalModal.criteria.forEach(c => c.score = 0);
+      this.evalModal.criteria.forEach(c => { c.score = 0; c.note = ''; });
       this.evalModal.open = true;
     },
 
     criteriaForType(type) {
-      const sets = {
+      // Common criteria — applied to all supplier types
+      const common = [
+        { key: 'transparency',   label: 'الشفافية ومكافحة الفساد',        max: 8, critical: true,  score: 0 },
+        { key: 'saudization',    label: 'نسبة السعودة وتوطين الوظائف',    max: 5, critical: false, score: 0 },
+        { key: 'sustainability', label: 'الاستدامة والمسؤولية الاجتماعية', max: 5, critical: false, score: 0 },
+        { key: 'financial_stab', label: 'الاستقرار المالي وموثوقية المورد', max: 5, critical: false, score: 0 },
+      ];
+      const core = {
         GOODS: [
-          { key: 'product_quality', label: 'جودة المنتجات ومطابقة المواصفات', max: 35, score: 0 },
-          { key: 'delivery',        label: 'الالتزام بمواعيد التسليم',          max: 25, score: 0 },
-          { key: 'packaging',       label: 'التعبئة والتغليف والحفظ',           max: 15, score: 0 },
-          { key: 'pricing',         label: 'الأسعار والشروط التجارية',          max: 15, score: 0 },
-          { key: 'communication',   label: 'الاستجابة والتواصل',                max: 10, score: 0 },
+          { key: 'product_quality', label: 'جودة المنتجات ومطابقة المواصفات', max: 25, critical: true,  score: 0 },
+          { key: 'delivery',        label: 'الالتزام بمواعيد التسليم',         max: 18, critical: false, score: 0 },
+          { key: 'packaging',       label: 'التعبئة والتغليف والحفظ',          max: 10, critical: false, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والشروط التجارية',         max: 12, critical: false, score: 0 },
+          { key: 'communication',   label: 'الاستجابة والتواصل',               max: 7,  critical: false, score: 0 },
+          { key: 'after_sale',      label: 'خدمات ما بعد البيع والضمان',       max: 5,  critical: false, score: 0 },
         ],
         SERVICES: [
-          { key: 'service_quality', label: 'جودة الخدمة المقدمة',              max: 30, score: 0 },
-          { key: 'professionalism', label: 'الكفاءة والاحترافية',               max: 25, score: 0 },
-          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',           max: 20, score: 0 },
-          { key: 'communication',   label: 'التواصل والاستجابة',                max: 15, score: 0 },
-          { key: 'pricing',         label: 'الأسعار والقيمة المقدمة',           max: 10, score: 0 },
+          { key: 'service_quality', label: 'جودة الخدمة المقدمة',             max: 22, critical: true,  score: 0 },
+          { key: 'professionalism', label: 'الكفاءة والاحترافية للفريق',       max: 18, critical: false, score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',          max: 15, critical: false, score: 0 },
+          { key: 'communication',   label: 'التواصل والاستجابة',               max: 12, critical: false, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والقيمة المقدمة',          max: 10, critical: false, score: 0 },
+        ],
+        CONSTRUCTION: [
+          { key: 'spec_compliance', label: 'الالتزام بالمواصفات الفنية والمخططات', max: 14, critical: true,  score: 0 },
+          { key: 'work_quality',    label: 'جودة التنفيذ ومطابقة المعايير الهندسية', max: 13, critical: true,  score: 0 },
+          { key: 'schedule',        label: 'الالتزام بالجدول الزمني ومراحل التسليم', max: 12, critical: false, score: 0 },
+          { key: 'hse_safety',      label: 'السلامة المهنية وتطبيق اشتراطات HSE',  max: 12, critical: true,  score: 0 },
+          { key: 'workforce',       label: 'كفاءة العمالة والكوادر الفنية',         max: 8,  critical: false, score: 0 },
+          { key: 'materials',       label: 'جودة المواد المستخدمة',                max: 8,  critical: false, score: 0 },
+          { key: 'warranty',        label: 'فترة الضمان وخدمات ما بعد التسليم',    max: 5,  critical: false, score: 0 },
+          { key: 'permits',         label: 'الالتزام بالأنظمة البلدية والتراخيص',   max: 5,  critical: true,  score: 0 },
+        ],
+        IT_SERVICES: [
+          { key: 'solution_quality',label: 'جودة الحل التقني ومطابقة المتطلبات', max: 18, critical: true,  score: 0 },
+          { key: 'sla_response',    label: 'وقت الاستجابة والالتزام بـ SLA',      max: 15, critical: true,  score: 0 },
+          { key: 'support',         label: 'الدعم الفني وتوفره عند الحاجة',       max: 12, critical: false, score: 0 },
+          { key: 'data_security',   label: 'أمن المعلومات وحماية البيانات',       max: 12, critical: true,  score: 0 },
+          { key: 'compatibility',   label: 'التوافقية مع الأنظمة القائمة',        max: 8,  critical: false, score: 0 },
+          { key: 'documentation',   label: 'التوثيق والتدريب',                   max: 7,  critical: false, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والقيمة المقدمة',            max: 5,  critical: false, score: 0 },
         ],
         TRANSPORT: [
-          { key: 'safety',           label: 'سلامة النقل وحماية البضاعة',       max: 30, score: 0 },
-          { key: 'delivery',         label: 'الالتزام بالمواعيد',               max: 30, score: 0 },
-          { key: 'vehicle_condition',label: 'حالة المركبات والمعدات',           max: 20, score: 0 },
-          { key: 'communication',    label: 'التواصل والاستجابة',               max: 10, score: 0 },
-          { key: 'pricing',          label: 'الأسعار والتنافسية',               max: 10, score: 0 },
+          { key: 'safety',           label: 'سلامة النقل وحماية البضاعة',       max: 22, critical: true,  score: 0 },
+          { key: 'delivery',         label: 'الالتزام بالمواعيد',               max: 22, critical: false, score: 0 },
+          { key: 'vehicle_condition',label: 'حالة المركبات والمعدات',           max: 15, critical: false, score: 0 },
+          { key: 'driver_conduct',   label: 'سلوك وكفاءة السائقين',             max: 10, critical: false, score: 0 },
+          { key: 'communication',    label: 'التواصل والاستجابة',               max: 5,  critical: false, score: 0 },
+          { key: 'pricing',          label: 'الأسعار والتنافسية',               max: 3,  critical: false, score: 0 },
         ],
         CONSULTING: [
-          { key: 'output_quality',  label: 'جودة التقارير والمخرجات',           max: 30, score: 0 },
-          { key: 'expertise',       label: 'الخبرة والكفاءة التخصصية',          max: 25, score: 0 },
-          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',           max: 20, score: 0 },
-          { key: 'communication',   label: 'التواصل والاستجابة',                max: 15, score: 0 },
-          { key: 'pricing',         label: 'الأسعار والقيمة المقابلة',          max: 10, score: 0 },
+          { key: 'output_quality',  label: 'جودة التقارير والمخرجات',           max: 22, critical: true,  score: 0 },
+          { key: 'expertise',       label: 'الخبرة والكفاءة التخصصية',          max: 18, critical: true,  score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',           max: 15, critical: false, score: 0 },
+          { key: 'communication',   label: 'التواصل والاستجابة',                max: 12, critical: false, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والقيمة المقابلة',          max: 10, critical: false, score: 0 },
         ],
         IN_KIND_DONOR: [
-          { key: 'spec_conformity', label: 'مطابقة المواصفات المطلوبة',         max: 40, score: 0 },
-          { key: 'product_quality', label: 'جودة المواد / البضائع',             max: 30, score: 0 },
-          { key: 'delivery',        label: 'الالتزام بالمواعيد',               max: 20, score: 0 },
-          { key: 'compliance',      label: 'الامتثال والوثائق (صلاحية - شهادات)', max: 10, score: 0 },
+          { key: 'spec_conformity', label: 'مطابقة المواصفات المطلوبة',         max: 28, critical: true,  score: 0 },
+          { key: 'product_quality', label: 'جودة المواد / البضائع',             max: 22, critical: true,  score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالمواعيد',               max: 15, critical: false, score: 0 },
+          { key: 'compliance',      label: 'الامتثال والوثائق (صلاحية - شهادات)', max: 12, critical: true,  score: 0 },
         ],
       };
-      return sets[type] || [
-        { key: 'quality',       label: 'جودة المنتج / الخدمة',              max: 30, score: 0 },
-        { key: 'delivery',      label: 'الالتزام بالمواعيد',                max: 25, score: 0 },
-        { key: 'communication', label: 'التواصل والاستجابة',                max: 20, score: 0 },
-        { key: 'pricing',       label: 'الأسعار والشروط التجارية',          max: 15, score: 0 },
-        { key: 'compliance',    label: 'الامتثال والوثائق',                 max: 10, score: 0 },
+      const fallback = [
+        { key: 'quality',       label: 'جودة المنتج / الخدمة',              max: 22, critical: true,  score: 0 },
+        { key: 'delivery',      label: 'الالتزام بالمواعيد',                max: 18, critical: false, score: 0 },
+        { key: 'communication', label: 'التواصل والاستجابة',                max: 15, critical: false, score: 0 },
+        { key: 'pricing',       label: 'الأسعار والشروط التجارية',          max: 12, critical: false, score: 0 },
+        { key: 'compliance',    label: 'الامتثال والوثائق',                 max: 10, critical: false, score: 0 },
       ];
+      return [ ...(core[type] || fallback), ...common ];
     },
 
     evalTotal() {
@@ -1144,18 +1367,29 @@ function app() {
       if (p >= 60) return 'مقبول ⭐⭐';
       return 'ضعيف ⭐';
     },
+    evalCriticalFailed() {
+      return this.evalModal.criteria.some(c => c.critical && (Number(c.score) || 0) < (c.max * 0.5));
+    },
     evalDecision() {
+      if (this.evalCriticalFailed()) return 'مرفوض (فشل معيار حرج) ⛔';
       const p = this.evalPct();
-      if (p >= 80) return 'معتمد ✅';
-      if (p >= 60) return 'مشروط ⚠️';
+      if (p >= 85) return 'معتمد ✅';
+      if (p >= 70) return 'معتمد مشروط ⚠️';
+      if (p >= 50) return 'قيد المراقبة 🔄';
       return 'مرفوض ❌';
     },
 
     async submitEval() {
       const total = this.evalTotal();
-      const criteriaJson = JSON.stringify(
-        Object.fromEntries(this.evalModal.criteria.map(c => [c.key, { label: c.label, max: c.max, score: Number(c.score) || 0 }]))
-      );
+      const criteriaPayload = {
+        criteria: Object.fromEntries(this.evalModal.criteria.map(c => [c.key, {
+          label: c.label, max: c.max, score: Number(c.score) || 0,
+          critical: !!c.critical, note: (c.note || '').trim() || null,
+        }])),
+        criticalFailed: this.evalCriticalFailed(),
+        recommendation: this.evalModal.recommendation || null,
+      };
+      const criteriaJson = JSON.stringify(criteriaPayload);
       try {
         const maxTotal = this.evalMaxTotal();
         const pct = this.evalPct();

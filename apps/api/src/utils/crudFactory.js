@@ -72,9 +72,20 @@ export function crudRouter(opts) {
     res.status(201).json({ ok: true, item });
   }));
 
+  // Protected fields that must never be updated via client payload
+  const stripProtected = (data) => {
+    delete data.id;
+    delete data.createdAt;
+    delete data.updatedAt;
+    delete data.code;            // auto-generated sequential code
+    delete data.createdById;     // creator ownership
+    delete data.reporterId;      // NCR reporter
+    delete data.evaluatorId;     // evaluation owner
+    return data;
+  };
+
   router.put('/:id', asyncHandler(async (req, res) => {
-    let data = { ...req.body };
-    delete data.id; delete data.createdAt;
+    let data = stripProtected({ ...req.body });
     if (beforeUpdate) data = await beforeUpdate(data, req);
     const item = await prisma[model].update({
       where: { id: req.params.id }, data, include,
@@ -83,8 +94,7 @@ export function crudRouter(opts) {
   }));
 
   router.patch('/:id', asyncHandler(async (req, res) => {
-    let data = { ...req.body };
-    delete data.id; delete data.createdAt;
+    let data = stripProtected({ ...req.body });
     if (beforeUpdate) data = await beforeUpdate(data, req);
     const item = await prisma[model].update({
       where: { id: req.params.id }, data, include,

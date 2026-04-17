@@ -338,6 +338,8 @@ model Audit {
 enum SupplierType {
   GOODS
   SERVICES
+  CONSTRUCTION     // مقاولات وبناء
+  IT_SERVICES      // خدمات تقنية المعلومات
   IN_KIND_DONOR    // مورد تبرعات عينية
   TRANSPORT
   CONSULTING

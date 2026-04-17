@@ -45,6 +45,7 @@ import communicationRoutes from './routes/communication.js';
 import isoReadinessRoutes from './routes/isoReadiness.js';
 import evalTokensRoutes from './routes/evalTokens.js';
 import publicEvalRoutes from './routes/publicEval.js';
+import publicSurveyRoutes from './routes/publicSurvey.js';
 
 const app = express();
 
@@ -72,6 +73,8 @@ app.use('/api/auth', authRoutes);
 
 // Public evaluation form (no auth required — token-based)
 app.use('/eval', publicEvalRoutes);
+// Public survey form (no auth required — open by survey ID)
+app.use('/survey', publicSurveyRoutes);
 
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
