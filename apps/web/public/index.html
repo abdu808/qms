@@ -111,7 +111,7 @@
           </div>
 
           <!-- GENERIC LIST PAGE -->
-          <template x-if="page !== 'dashboard' && page !== 'audit-log'">
+          <template x-if="page !== 'dashboard' && page !== 'audit-log' && page !== 'iso-readiness'">
             <div>
               <!-- Toolbar -->
               <div class="flex items-center gap-2 mb-4 flex-wrap">
@@ -167,6 +167,68 @@
               </div>
             </div>
           </template>
+
+          <!-- ISO READINESS -->
+          <div x-show="page==='iso-readiness'" x-cloak>
+            <template x-if="isoReport">
+              <div>
+                <!-- Header -->
+                <div class="bg-gradient-to-l from-brand-600 to-brand-500 text-white rounded-xl p-6 mb-4 shadow">
+                  <div class="flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                      <div class="text-sm opacity-90">تقرير جاهزية نظام إدارة الجودة</div>
+                      <h2 class="text-2xl font-bold mt-1">ISO 9001:2015 Readiness</h2>
+                      <div class="mt-2 text-lg" x-text="isoReport.level"></div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-5xl font-bold" x-text="isoReport.percentage + '%'"></div>
+                      <div class="text-sm opacity-90 mt-1" x-text="isoReport.totalScore + ' / ' + isoReport.totalWeight + ' نقطة'"></div>
+                    </div>
+                  </div>
+                  <div class="mt-4 h-3 bg-white/30 rounded-full overflow-hidden">
+                    <div class="h-full bg-white rounded-full transition-all" :style="'width:' + isoReport.percentage + '%'"></div>
+                  </div>
+                </div>
+
+                <!-- Clauses table -->
+                <div class="bg-white border rounded-xl overflow-hidden">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-right">
+                      <tr>
+                        <th class="px-3 py-2">البند</th>
+                        <th class="px-3 py-2">العنوان</th>
+                        <th class="px-3 py-2">المطلوب</th>
+                        <th class="px-3 py-2">الواقع الحالي</th>
+                        <th class="px-3 py-2 text-center">الحالة</th>
+                        <th class="px-3 py-2 text-center">النقاط</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="c in isoReport.clauses" :key="c.clause">
+                        <tr class="border-t hover:bg-gray-50">
+                          <td class="px-3 py-2 font-bold text-brand-700" x-text="c.clause"></td>
+                          <td class="px-3 py-2" x-text="c.title"></td>
+                          <td class="px-3 py-2 text-gray-600 text-xs" x-text="c.required"></td>
+                          <td class="px-3 py-2 text-xs" x-text="c.evidence"></td>
+                          <td class="px-3 py-2 text-center">
+                            <span x-show="c.ok" class="text-green-600 font-bold">✓</span>
+                            <span x-show="!c.ok" class="text-red-500 font-bold">✗</span>
+                          </td>
+                          <td class="px-3 py-2 text-center font-medium" x-text="c.score + '/' + c.weight"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 text-sm">
+                  <div class="font-bold text-amber-800 mb-1">💡 ملاحظة</div>
+                  <div class="text-amber-700">هذا التقرير يعكس جاهزية البيانات المدخلة في النظام. الاعتماد الفعلي للأيزو يتطلب أيضاً: تنفيذ فعلي على أرض الواقع، دليل جودة موثق، ومراجعة من جهة مانحة معتمدة.</div>
+                </div>
+              </div>
+            </template>
+            <div x-show="!isoReport" class="text-center text-gray-400 py-20">جار التحميل...</div>
+          </div>
 
           <!-- AUDIT LOG -->
           <div x-show="page==='audit-log'">
@@ -292,7 +354,15 @@
                       <template x-for="o in f.options" :key="o.v"><option :value="o.v" x-text="o.l"></option></template>
                     </select>
                   </template>
-                  <template x-if="!['textarea','select'].includes(f.type||'text')">
+                  <template x-if="f.type==='relation'">
+                    <select x-model="modal.data[f.key]" class="w-full border rounded-lg px-3 py-2">
+                      <option value="">— لا شيء —</option>
+                      <template x-for="o in (relationOptions[f.relation]||[])" :key="o.id">
+                        <option :value="o.id" x-text="(o.code ? o.code + ' — ' : '') + (o.title||o.name||'')"></option>
+                      </template>
+                    </select>
+                  </template>
+                  <template x-if="!['textarea','select','relation'].includes(f.type||'text')">
                     <input :type="f.type||'text'" x-model="modal.data[f.key]" class="w-full border rounded-lg px-3 py-2" />
                   </template>
                 </div>

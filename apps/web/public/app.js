@@ -5,6 +5,224 @@
 const API = '/api';
 
 const MODULES = {
+  swot: {
+    endpoint: 'swot',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'ACTIVE', l: 'نشط' },
+      { v: 'CLOSED', l: 'مغلق' },
+    ],
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'type', label: 'النوع' },
+      { key: 'category', label: 'الفئة' },
+      { key: 'description', label: 'الوصف' },
+      { key: 'impact', label: 'الأثر' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'type', label: 'النوع', required: true, type: 'select', options: [
+        { v: 'STRENGTH', l: 'قوة (Strength)' },
+        { v: 'WEAKNESS', l: 'ضعف (Weakness)' },
+        { v: 'OPPORTUNITY', l: 'فرصة (Opportunity)' },
+        { v: 'THREAT', l: 'تهديد (Threat)' },
+      ]},
+      { key: 'category', label: 'الفئة', type: 'select', options: [
+        { v: 'داخلي', l: 'داخلي' },
+        { v: 'سياسي', l: 'سياسي (خارجي)' },
+        { v: 'اقتصادي', l: 'اقتصادي (خارجي)' },
+        { v: 'اجتماعي', l: 'اجتماعي (خارجي)' },
+        { v: 'تقني', l: 'تقني (خارجي)' },
+        { v: 'قانوني', l: 'قانوني (خارجي)' },
+      ]},
+      { key: 'description', label: 'الوصف', type: 'textarea', required: true },
+      { key: 'impact', label: 'الأثر', type: 'select', options: [
+        { v: 'منخفض', l: 'منخفض' }, { v: 'متوسط', l: 'متوسط' }, { v: 'مرتفع', l: 'مرتفع' },
+      ]},
+      { key: 'strategy', label: 'الاستراتيجية للاستفادة أو التعامل', type: 'textarea' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة', type: 'date' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'ACTIVE', l: 'نشط' }, { v: 'CLOSED', l: 'مغلق' },
+      ]},
+    ],
+  },
+
+  interestedParties: {
+    endpoint: 'interested-parties',
+    exportable: true,
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'name', label: 'الاسم' },
+      { key: 'type', label: 'النوع' },
+      { key: 'influence', label: 'التأثير' },
+      { key: 'responsible', label: 'المسؤول' },
+    ],
+    fields: [
+      { key: 'name', label: 'اسم الطرف', required: true },
+      { key: 'type', label: 'النوع', required: true, type: 'select', options: [
+        { v: 'DONOR', l: 'متبرع' },
+        { v: 'BENEFICIARY', l: 'مستفيد' },
+        { v: 'GOVERNMENT', l: 'جهة حكومية' },
+        { v: 'EMPLOYEE', l: 'موظف' },
+        { v: 'PARTNER', l: 'شريك' },
+        { v: 'SUPPLIER', l: 'مورد' },
+        { v: 'COMMUNITY', l: 'مجتمع' },
+        { v: 'VOLUNTEER', l: 'متطوع' },
+      ]},
+      { key: 'needs', label: 'الاحتياجات', type: 'textarea' },
+      { key: 'expectations', label: 'التوقعات', type: 'textarea' },
+      { key: 'influence', label: 'التأثير', type: 'select', options: [
+        { v: 'منخفض', l: 'منخفض' }, { v: 'متوسط', l: 'متوسط' }, { v: 'مرتفع', l: 'مرتفع' },
+      ]},
+      { key: 'monitoring', label: 'طريقة الرصد والاستجابة', type: 'textarea' },
+      { key: 'responsible', label: 'المسؤول' },
+    ],
+  },
+
+  processes: {
+    endpoint: 'processes',
+    exportable: true,
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'name', label: 'العملية' },
+      { key: 'type', label: 'النوع' },
+      { key: 'owner', label: 'المالك' },
+    ],
+    fields: [
+      { key: 'name', label: 'اسم العملية', required: true },
+      { key: 'type', label: 'نوع العملية', required: true, type: 'select', options: [
+        { v: 'CORE', l: 'عملية رئيسية' },
+        { v: 'SUPPORT', l: 'عملية مساندة' },
+        { v: 'MANAGEMENT', l: 'عملية إدارية' },
+      ]},
+      { key: 'owner', label: 'مالك العملية' },
+      { key: 'inputs', label: 'المدخلات', type: 'textarea' },
+      { key: 'outputs', label: 'المخرجات', type: 'textarea' },
+      { key: 'resources', label: 'الموارد المطلوبة', type: 'textarea' },
+      { key: 'kpis', label: 'مؤشرات الأداء', type: 'textarea' },
+      { key: 'risks', label: 'المخاطر المرتبطة', type: 'textarea' },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+    ],
+  },
+
+  qualityPolicy: {
+    endpoint: 'quality-policy',
+    cols: [
+      { key: 'version', label: 'الإصدار' },
+      { key: 'title', label: 'العنوان' },
+      { key: 'active', label: 'مفعّلة', type: 'bool' },
+      { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
+      { key: 'approvedBy', label: 'اعتمدها' },
+    ],
+    fields: [
+      { key: 'version', label: 'رقم الإصدار', required: true },
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'content', label: 'نص السياسة', type: 'textarea', required: true },
+      { key: 'commitments', label: 'التعهدات', type: 'textarea' },
+      { key: 'approvedBy', label: 'اعتمدها' },
+      { key: 'approvedAt', label: 'تاريخ الاعتماد', type: 'date' },
+      { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة القادمة', type: 'date' },
+    ],
+  },
+
+  managementReview: {
+    endpoint: 'management-review',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PLANNED', l: 'مخطط' },
+      { v: 'COMPLETED', l: 'مكتمل' },
+      { v: 'CANCELLED', l: 'ملغى' },
+    ],
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'العنوان' },
+      { key: 'period', label: 'الفترة' },
+      { key: 'meetingDate', label: 'تاريخ الاجتماع', type: 'date' },
+      { key: 'status', label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title', label: 'عنوان الاجتماع', required: true },
+      { key: 'period', label: 'الفترة (مثال: Q1-2026)' },
+      { key: 'meetingDate', label: 'تاريخ الاجتماع', type: 'date', required: true },
+      { key: 'attendees', label: 'الحضور', type: 'textarea' },
+      { key: 'contextChanges', label: '[مدخل] تغييرات في السياق', type: 'textarea' },
+      { key: 'objectivesReview', label: '[مدخل] مراجعة تحقق الأهداف', type: 'textarea' },
+      { key: 'processPerformance', label: '[مدخل] أداء العمليات', type: 'textarea' },
+      { key: 'conformityStatus', label: '[مدخل] حالة المطابقة', type: 'textarea' },
+      { key: 'auditResults', label: '[مدخل] نتائج التدقيق', type: 'textarea' },
+      { key: 'customerFeedback', label: '[مدخل] تغذية راجعة من المستفيدين', type: 'textarea' },
+      { key: 'risksStatus', label: '[مدخل] حالة المخاطر', type: 'textarea' },
+      { key: 'improvementOpps', label: '[مدخل] فرص التحسين', type: 'textarea' },
+      { key: 'decisions', label: '[مخرج] القرارات', type: 'textarea' },
+      { key: 'resourceNeeds', label: '[مخرج] الاحتياجات من الموارد', type: 'textarea' },
+      { key: 'improvementActions', label: '[مخرج] إجراءات التحسين', type: 'textarea' },
+      { key: 'systemChanges', label: '[مخرج] تغييرات على النظام', type: 'textarea' },
+      { key: 'minutes', label: 'محضر الاجتماع', type: 'textarea' },
+      { key: 'nextReview', label: 'تاريخ المراجعة القادمة', type: 'date' },
+      { key: 'status', label: 'الحالة', type: 'select', options: [
+        { v: 'PLANNED', l: 'مخطط' }, { v: 'COMPLETED', l: 'مكتمل' }, { v: 'CANCELLED', l: 'ملغى' },
+      ]},
+    ],
+  },
+
+  competence: {
+    endpoint: 'competence',
+    exportable: true,
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'jobTitle', label: 'المسمى الوظيفي' },
+      { key: 'department', label: 'الإدارة' },
+      { key: 'minExperience', label: 'سنوات الخبرة' },
+    ],
+    fields: [
+      { key: 'jobTitle', label: 'المسمى الوظيفي', required: true },
+      { key: 'department', label: 'الإدارة' },
+      { key: 'requiredSkills', label: 'المهارات المطلوبة', type: 'textarea' },
+      { key: 'minEducation', label: 'الحد الأدنى للتعليم' },
+      { key: 'minExperience', label: 'سنوات الخبرة', type: 'number' },
+      { key: 'certifications', label: 'الشهادات المطلوبة', type: 'textarea' },
+      { key: 'trainings', label: 'التدريبات المطلوبة', type: 'textarea' },
+      { key: 'evaluationMethod', label: 'طريقة التقييم', type: 'textarea' },
+    ],
+  },
+
+  communication: {
+    endpoint: 'communication',
+    exportable: true,
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'topic', label: 'الموضوع' },
+      { key: 'audience', label: 'الجمهور' },
+      { key: 'channel', label: 'القناة' },
+      { key: 'frequency', label: 'التكرار' },
+      { key: 'responsible', label: 'المسؤول' },
+    ],
+    fields: [
+      { key: 'topic', label: 'الموضوع', required: true },
+      { key: 'audience', label: 'الجمهور المستهدف', required: true },
+      { key: 'purpose', label: 'الغرض', type: 'textarea' },
+      { key: 'channel', label: 'القناة', required: true, type: 'select', options: [
+        { v: 'بريد إلكتروني', l: 'بريد إلكتروني' },
+        { v: 'اجتماع', l: 'اجتماع' },
+        { v: 'واتساب', l: 'واتساب' },
+        { v: 'لوحة إعلانات', l: 'لوحة إعلانات' },
+        { v: 'موقع إلكتروني', l: 'موقع إلكتروني' },
+        { v: 'نشرة', l: 'نشرة' },
+        { v: 'رسائل', l: 'رسائل' },
+      ]},
+      { key: 'frequency', label: 'التكرار', required: true, type: 'select', options: [
+        { v: 'يومي', l: 'يومي' }, { v: 'أسبوعي', l: 'أسبوعي' },
+        { v: 'شهري', l: 'شهري' }, { v: 'ربعي', l: 'ربعي' },
+        { v: 'سنوي', l: 'سنوي' }, { v: 'عند الحاجة', l: 'عند الحاجة' },
+      ]},
+      { key: 'responsible', label: 'المسؤول', required: true },
+      { key: 'format', label: 'الشكل' },
+    ],
+  },
+
   strategicGoals: {
     endpoint: 'strategic-goals',
     exportable: true,
@@ -93,6 +311,7 @@ const MODULES = {
         { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'COMPLETED', l: 'مكتمل' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
+      { key: 'strategicGoalId', label: 'الهدف الاستراتيجي المرتبط', type: 'relation', relation: 'strategicGoals' },
       { key: 'notes', label: 'ملاحظات', type: 'textarea' },
     ],
   },
@@ -132,6 +351,7 @@ const MODULES = {
         { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'ACHIEVED', l: 'محقق' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
+      { key: 'strategicGoalId', label: 'الهدف الاستراتيجي المرتبط', type: 'relation', relation: 'strategicGoals' },
     ],
   },
 
@@ -174,6 +394,7 @@ const MODULES = {
         { v: 'IDENTIFIED', l: 'محدد' }, { v: 'UNDER_TREATMENT', l: 'قيد المعالجة' },
         { v: 'MITIGATED', l: 'خُفف' }, { v: 'ACCEPTED', l: 'مقبول' }, { v: 'CLOSED', l: 'مغلق' },
       ]},
+      { key: 'strategicGoalId', label: 'الهدف الاستراتيجي المرتبط', type: 'relation', relation: 'strategicGoals' },
     ],
   },
 
@@ -575,12 +796,28 @@ function app() {
     _sigCtx: null,
     _sigInited: false,
 
+    // Relation dropdowns cache (loaded on demand when opening form)
+    relationOptions: {
+      strategicGoals: [],
+    },
+
+    // ISO readiness report
+    isoReport: null,
+
     menu: [
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
+      { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
+      { id: 'swot',                   label: 'سياق المنظمة (SWOT)', icon: '🧭' },
+      { id: 'interestedParties',      label: 'الأطراف ذات العلاقة', icon: '🤝' },
+      { id: 'processes',              label: 'خريطة العمليات',      icon: '🔗' },
+      { id: 'qualityPolicy',          label: 'سياسة الجودة',        icon: '📜' },
       { id: 'strategicGoals',         label: 'الخطة الاستراتيجية',  icon: '🏆' },
       { id: 'operationalActivities',  label: 'الخطة التشغيلية',     icon: '📅' },
       { id: 'objectives',             label: 'الأهداف والمؤشرات',   icon: '🎯' },
       { id: 'risks',                  label: 'المخاطر والفرص',      icon: '⚠️' },
+      { id: 'managementReview',       label: 'مراجعة الإدارة',       icon: '🗣️' },
+      { id: 'competence',             label: 'مصفوفة الكفاءات',      icon: '🧑\u200d🎓' },
+      { id: 'communication',          label: 'خطة الاتصال',          icon: '📣' },
       { id: 'complaints',   label: 'الشكاوى',             icon: '📢' },
       { id: 'ncr',          label: 'عدم المطابقة',        icon: '🔧' },
       { id: 'audits',       label: 'التدقيق الداخلي',     icon: '🔍' },
@@ -640,7 +877,35 @@ function app() {
       this.totalItems = 0;
       if (id === 'dashboard') await this.loadDashboard();
       else if (id === 'audit-log') await this.loadAuditLog();
+      else if (id === 'iso-readiness') await this.loadIsoReadiness();
       else await this.loadList();
+    },
+
+    async loadIsoReadiness() {
+      try {
+        const r = await this.api('GET', '/iso-readiness');
+        this.isoReport = r;
+      } catch (e) {
+        this.isoReport = null;
+        alert(e.message || 'فشل تحميل تقرير الجاهزية');
+      }
+    },
+
+    async loadRelations() {
+      if (!this.currentFields) return;
+      const needed = new Set();
+      for (const f of this.currentFields) {
+        if (f.type === 'relation' && f.relation) needed.add(f.relation);
+      }
+      const endpoints = {
+        strategicGoals: '/strategic-goals?limit=200',
+      };
+      for (const rel of needed) {
+        try {
+          const r = await this.api('GET', endpoints[rel]);
+          this.relationOptions[rel] = r.items || [];
+        } catch {}
+      }
     },
 
     // ------ data loading ------
@@ -737,10 +1002,12 @@ function app() {
     },
 
     // ------ CRUD ------
-    openCreate() {
+    async openCreate() {
+      await this.loadRelations();
       this.modal = { open: true, mode: 'create', data: {} };
     },
-    openEdit(item) {
+    async openEdit(item) {
+      await this.loadRelations();
       const data = { ...item };
       for (const f of this.currentFields) {
         if (f.type === 'date' && data[f.key]) data[f.key] = data[f.key].split('T')[0];
@@ -753,6 +1020,8 @@ function app() {
       for (const f of this.currentFields) {
         if (f.type === 'number' && payload[f.key] != null && payload[f.key] !== '') payload[f.key] = Number(payload[f.key]);
         if (f.type === 'date' && payload[f.key]) payload[f.key] = new Date(payload[f.key]).toISOString();
+        // Convert empty relation/select/date/number to null so Prisma accepts
+        if (payload[f.key] === '') payload[f.key] = null;
       }
       try {
         if (this.modal.mode === 'edit') {

@@ -33,6 +33,14 @@ import dashboardRoutes from './routes/dashboard.js';
 import exportsRoutes from './routes/exports.js';
 import strategicGoalsRoutes from './routes/strategicGoals.js';
 import operationalActivitiesRoutes from './routes/operationalActivities.js';
+import swotRoutes from './routes/swot.js';
+import interestedPartiesRoutes from './routes/interestedParties.js';
+import processesRoutes from './routes/processes.js';
+import qualityPolicyRoutes from './routes/qualityPolicy.js';
+import managementReviewRoutes from './routes/managementReview.js';
+import competenceRoutes from './routes/competence.js';
+import communicationRoutes from './routes/communication.js';
+import isoReadinessRoutes from './routes/isoReadiness.js';
 
 const app = express();
 
@@ -82,6 +90,14 @@ app.use('/api/audit-log',     auditLogRoutes);
 app.use('/api/exports',                  exportsRoutes);
 app.use('/api/strategic-goals',          strategicGoalsRoutes);
 app.use('/api/operational-activities',   operationalActivitiesRoutes);
+app.use('/api/swot',                     swotRoutes);
+app.use('/api/interested-parties',       interestedPartiesRoutes);
+app.use('/api/processes',                processesRoutes);
+app.use('/api/quality-policy',           qualityPolicyRoutes);
+app.use('/api/management-review',        managementReviewRoutes);
+app.use('/api/competence',               competenceRoutes);
+app.use('/api/communication',            communicationRoutes);
+app.use('/api/iso-readiness',            isoReadinessRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
