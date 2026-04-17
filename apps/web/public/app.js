@@ -1074,14 +1074,68 @@ function app() {
       this.evalModal.supplier = supplier;
       this.evalModal.period = '';
       this.evalModal.notes = '';
+      // Load criteria based on supplier type
+      this.evalModal.criteria = this.criteriaForType(supplier.type);
       this.evalModal.criteria.forEach(c => c.score = 0);
       this.evalModal.open = true;
+    },
+
+    criteriaForType(type) {
+      const sets = {
+        GOODS: [
+          { key: 'product_quality', label: 'جودة المنتجات ومطابقة المواصفات', max: 35, score: 0 },
+          { key: 'delivery',        label: 'الالتزام بمواعيد التسليم',          max: 25, score: 0 },
+          { key: 'packaging',       label: 'التعبئة والتغليف والحفظ',           max: 15, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والشروط التجارية',          max: 15, score: 0 },
+          { key: 'communication',   label: 'الاستجابة والتواصل',                max: 10, score: 0 },
+        ],
+        SERVICES: [
+          { key: 'service_quality', label: 'جودة الخدمة المقدمة',              max: 30, score: 0 },
+          { key: 'professionalism', label: 'الكفاءة والاحترافية',               max: 25, score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',           max: 20, score: 0 },
+          { key: 'communication',   label: 'التواصل والاستجابة',                max: 15, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والقيمة المقدمة',           max: 10, score: 0 },
+        ],
+        TRANSPORT: [
+          { key: 'safety',           label: 'سلامة النقل وحماية البضاعة',       max: 30, score: 0 },
+          { key: 'delivery',         label: 'الالتزام بالمواعيد',               max: 30, score: 0 },
+          { key: 'vehicle_condition',label: 'حالة المركبات والمعدات',           max: 20, score: 0 },
+          { key: 'communication',    label: 'التواصل والاستجابة',               max: 10, score: 0 },
+          { key: 'pricing',          label: 'الأسعار والتنافسية',               max: 10, score: 0 },
+        ],
+        CONSULTING: [
+          { key: 'output_quality',  label: 'جودة التقارير والمخرجات',           max: 30, score: 0 },
+          { key: 'expertise',       label: 'الخبرة والكفاءة التخصصية',          max: 25, score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالجدول الزمني',           max: 20, score: 0 },
+          { key: 'communication',   label: 'التواصل والاستجابة',                max: 15, score: 0 },
+          { key: 'pricing',         label: 'الأسعار والقيمة المقابلة',          max: 10, score: 0 },
+        ],
+        IN_KIND_DONOR: [
+          { key: 'spec_conformity', label: 'مطابقة المواصفات المطلوبة',         max: 40, score: 0 },
+          { key: 'product_quality', label: 'جودة المواد / البضائع',             max: 30, score: 0 },
+          { key: 'delivery',        label: 'الالتزام بالمواعيد',               max: 20, score: 0 },
+          { key: 'compliance',      label: 'الامتثال والوثائق (صلاحية - شهادات)', max: 10, score: 0 },
+        ],
+      };
+      return sets[type] || [
+        { key: 'quality',       label: 'جودة المنتج / الخدمة',              max: 30, score: 0 },
+        { key: 'delivery',      label: 'الالتزام بالمواعيد',                max: 25, score: 0 },
+        { key: 'communication', label: 'التواصل والاستجابة',                max: 20, score: 0 },
+        { key: 'pricing',       label: 'الأسعار والشروط التجارية',          max: 15, score: 0 },
+        { key: 'compliance',    label: 'الامتثال والوثائق',                 max: 10, score: 0 },
+      ];
     },
 
     evalTotal() {
       return this.evalModal.criteria.reduce((s, c) => s + Math.min(c.max, Math.max(0, Number(c.score) || 0)), 0);
     },
-    evalPct() { return this.evalTotal(); },
+    evalMaxTotal() {
+      return this.evalModal.criteria.reduce((s, c) => s + c.max, 0);
+    },
+    evalPct() {
+      const max = this.evalMaxTotal();
+      return max > 0 ? Math.round((this.evalTotal() / max) * 100) : 0;
+    },
     evalGrade() {
       const p = this.evalPct();
       if (p >= 90) return 'ممتاز ⭐⭐⭐⭐⭐';
@@ -1103,16 +1157,19 @@ function app() {
         Object.fromEntries(this.evalModal.criteria.map(c => [c.key, { label: c.label, max: c.max, score: Number(c.score) || 0 }]))
       );
       try {
+        const maxTotal = this.evalMaxTotal();
+        const pct = this.evalPct();
         await this.api('POST', '/supplier-evals', {
           supplierId: this.evalModal.supplier.id,
           totalScore: total,
-          maxScore: 100,
+          maxScore: maxTotal,
+          percentage: pct,
           criteriaJson,
           period: this.evalModal.period,
           notes: this.evalModal.notes,
         });
         this.evalModal.open = false;
-        alert(`✅ تم حفظ التقييم\nالنتيجة: ${total}/100 — ${this.evalGrade()}\nالقرار: ${this.evalDecision()}`);
+        alert(`✅ تم حفظ التقييم\nالنتيجة: ${total}/${maxTotal} (${pct}%) — ${this.evalGrade()}\nالقرار: ${this.evalDecision()}`);
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل حفظ التقييم'); }
     },

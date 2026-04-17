@@ -5,13 +5,57 @@ import { nextCode } from '../utils/codeGen.js';
 
 const router = Router();
 
-const CRITERIA = [
-  { key: 'quality',       label: 'جودة المنتجات / الخدمات',   max: 30 },
-  { key: 'delivery',      label: 'الالتزام بالمواعيد',          max: 25 },
-  { key: 'communication', label: 'التواصل والاستجابة',          max: 20 },
-  { key: 'pricing',       label: 'الأسعار والشروط التجارية',   max: 15 },
-  { key: 'compliance',    label: 'الامتثال والوثائق',          max: 10 },
-];
+// Criteria per supplier type (ISO 8.4 - evaluation criteria based on provider type)
+const CRITERIA_BY_TYPE = {
+  GOODS: [
+    { key: 'product_quality',  label: 'جودة المنتجات ومطابقة المواصفات', max: 35 },
+    { key: 'delivery',         label: 'الالتزام بمواعيد التسليم',          max: 25 },
+    { key: 'packaging',        label: 'التعبئة والتغليف والحفظ',           max: 15 },
+    { key: 'pricing',          label: 'الأسعار والشروط التجارية',          max: 15 },
+    { key: 'communication',    label: 'الاستجابة والتواصل',                max: 10 },
+  ],
+  SERVICES: [
+    { key: 'service_quality',  label: 'جودة الخدمة المقدمة',              max: 30 },
+    { key: 'professionalism',  label: 'الكفاءة والاحترافية',               max: 25 },
+    { key: 'delivery',         label: 'الالتزام بالجدول الزمني',           max: 20 },
+    { key: 'communication',    label: 'التواصل والاستجابة',                max: 15 },
+    { key: 'pricing',          label: 'الأسعار والقيمة المقدمة',           max: 10 },
+  ],
+  TRANSPORT: [
+    { key: 'safety',           label: 'سلامة النقل وحماية البضاعة',        max: 30 },
+    { key: 'delivery',         label: 'الالتزام بالمواعيد',                max: 30 },
+    { key: 'vehicle_condition',label: 'حالة المركبات والمعدات',            max: 20 },
+    { key: 'communication',    label: 'التواصل والاستجابة',                max: 10 },
+    { key: 'pricing',          label: 'الأسعار والتنافسية',                max: 10 },
+  ],
+  CONSULTING: [
+    { key: 'output_quality',   label: 'جودة التقارير والمخرجات',           max: 30 },
+    { key: 'expertise',        label: 'الخبرة والكفاءة التخصصية',          max: 25 },
+    { key: 'delivery',         label: 'الالتزام بالجدول الزمني',           max: 20 },
+    { key: 'communication',    label: 'التواصل والاستجابة',                max: 15 },
+    { key: 'pricing',          label: 'الأسعار والقيمة المقابلة',          max: 10 },
+  ],
+  IN_KIND_DONOR: [
+    { key: 'spec_conformity',  label: 'مطابقة المواصفات المطلوبة',         max: 40 },
+    { key: 'product_quality',  label: 'جودة المواد / البضائع',             max: 30 },
+    { key: 'delivery',         label: 'الالتزام بالمواعيد',                max: 20 },
+    { key: 'compliance',       label: 'الامتثال والوثائق (صلاحية - شهادات)', max: 10 },
+  ],
+  OTHER: [
+    { key: 'quality',          label: 'جودة المنتج / الخدمة',              max: 30 },
+    { key: 'delivery',         label: 'الالتزام بالمواعيد',                max: 25 },
+    { key: 'communication',    label: 'التواصل والاستجابة',                max: 20 },
+    { key: 'pricing',          label: 'الأسعار والشروط التجارية',          max: 15 },
+    { key: 'compliance',       label: 'الامتثال والوثائق',                 max: 10 },
+  ],
+};
+
+// Fallback default
+const DEFAULT_CRITERIA = CRITERIA_BY_TYPE.OTHER;
+
+function getCriteria(supplierType) {
+  return CRITERIA_BY_TYPE[supplierType] || DEFAULT_CRITERIA;
+}
 
 function grade(p) {
   if (p >= 90) return 'ممتاز';
@@ -38,7 +82,8 @@ router.get('/:token', asyncHandler(async (req, res) => {
   if (record.usedAt) return res.send(usedPage(record.supplier));
   if (record.expiresAt < new Date()) return res.status(410).send(errorPage('انتهت صلاحية هذا الرابط'));
 
-  res.send(formPage(record));
+  const criteria = getCriteria(record.supplier.type);
+  res.send(formPage(record, criteria));
 }));
 
 // POST /eval/:token  — submit evaluation
@@ -53,20 +98,23 @@ router.post('/:token', asyncHandler(async (req, res) => {
   if (record.expiresAt < new Date()) return res.status(410).send(errorPage('انتهت صلاحية هذا الرابط'));
 
   const { evaluatorName, evaluatorOrg, notes } = req.body;
+  const criteria = getCriteria(record.supplier.type);
 
-  // Build criteria JSON & compute scores
+  // Build criteria JSON & compute scores based on this supplier's criteria
   let totalScore = 0;
+  let maxTotal = 0;
   const criteriaObj = {};
-  for (const c of CRITERIA) {
+  for (const c of criteria) {
     const score = Math.min(c.max, Math.max(0, Number(req.body[c.key]) || 0));
     totalScore += score;
+    maxTotal += c.max;
     criteriaObj[c.key] = { label: c.label, max: c.max, score };
   }
+  // Normalize to 100 if maxTotal != 100
+  const pctNorm = maxTotal > 0 ? Math.round((totalScore / maxTotal) * 100) : 0;
 
-  const pct   = totalScore; // out of 100
-  const code  = await nextCode('supplierEval', 'SEVAL');
+  const code = await nextCode('supplierEval', 'SEVAL');
 
-  // Find a system user to use as evaluatorId (use token creator)
   await prisma.$transaction([
     prisma.supplierEval.create({
       data: {
@@ -76,11 +124,11 @@ router.post('/:token', asyncHandler(async (req, res) => {
         period:       `تقييم خارجي — ${evaluatorOrg || evaluatorName || 'مقيّم خارجي'}`,
         criteriaJson: JSON.stringify(criteriaObj),
         totalScore,
-        maxScore: 100,
-        percentage: pct,
-        grade:    grade(pct),
-        decision: decision(pct),
-        notes:    notes || null,
+        maxScore:   maxTotal,
+        percentage: pctNorm,
+        grade:      grade(pctNorm),
+        decision:   decision(pctNorm),
+        notes:      notes || null,
       },
     }),
     prisma.evalToken.update({
@@ -92,14 +140,14 @@ router.post('/:token', asyncHandler(async (req, res) => {
         notes:         notes         || null,
       },
     }),
-    // Update supplier overall rating
+    // Update supplier overall rating (normalized to 100)
     prisma.supplier.update({
       where: { id: record.supplierId },
-      data: { overallRating: pct },
+      data: { overallRating: pctNorm },
     }),
   ]);
 
-  res.send(successPage(record.supplier, totalScore, grade(pct), decision(pct)));
+  res.send(successPage(record.supplier, totalScore, maxTotal, pctNorm, grade(pctNorm), decision(pctNorm)));
 }));
 
 // ─── HTML Templates ────────────────────────────────────────────────────────────
@@ -138,10 +186,17 @@ const baseStyle = `
   </style>
 `;
 
-function formPage(record) {
+const TYPE_LABELS = {
+  GOODS: 'بضائع ومنتجات', SERVICES: 'خدمات', TRANSPORT: 'نقل وشحن',
+  CONSULTING: 'استشارات', IN_KIND_DONOR: 'مورد تبرعات عينية', OTHER: 'أخرى',
+};
+
+function formPage(record, criteria) {
   const sup = record.supplier;
   const expDate = record.expiresAt.toLocaleDateString('ar-SA');
-  const criteriaHtml = CRITERIA.map(c => `
+  const typeLabel = TYPE_LABELS[sup.type] || sup.type;
+  const maxTotal = criteria.reduce((s, c) => s + c.max, 0);
+  const criteriaHtml = criteria.map(c => `
     <div class="criterion">
       <div class="criterion-header">
         <span class="criterion-label">${c.label}</span>
@@ -163,7 +218,8 @@ function formPage(record) {
         <div style="font-size:.8rem;opacity:.8;margin-bottom:4px">نظام إدارة الجودة — جمعية البر بصبيا</div>
         <h1>📋 نموذج تقييم المورد</h1>
         <p>${sup.code} — ${sup.name}</p>
-        <p style="margin-top:6px;font-size:.8rem;opacity:.7">⏳ الرابط صالح حتى ${expDate}</p>
+        <p style="margin-top:4px;font-size:.8rem;opacity:.8">📦 نوع المورد: ${typeLabel}</p>
+        <p style="margin-top:2px;font-size:.8rem;opacity:.7">⏳ الرابط صالح حتى ${expDate}</p>
       </div>
       <div class="body">
         <form method="POST">
@@ -184,7 +240,7 @@ function formPage(record) {
           <div class="total-bar">
             <div style="font-size:.85rem;color:#6b7280;margin-bottom:4px">المجموع الكلي</div>
             <div class="total-score" id="totalDisplay">0</div>
-            <div style="font-size:.8rem;color:#6b7280">من 100 نقطة</div>
+            <div style="font-size:.8rem;color:#6b7280">من ${maxTotal} نقطة</div>
           </div>
 
           <div class="field-group">
@@ -210,8 +266,8 @@ function formPage(record) {
   </body></html>`;
 }
 
-function successPage(sup, score, gradeStr, decisionStr) {
-  const color = score >= 80 ? 'badge-green' : score >= 60 ? 'badge-amber' : 'badge-red';
+function successPage(sup, score, maxScore, pct, gradeStr, decisionStr) {
+  const color = pct >= 80 ? 'badge-green' : pct >= 60 ? 'badge-amber' : 'badge-red';
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>تم الإرسال بنجاح</title></head>
   <body>
@@ -227,8 +283,8 @@ function successPage(sup, score, gradeStr, decisionStr) {
         <p style="color:#6b7280;margin-bottom:24px">تم حفظ تقييمك بنجاح وإرساله لفريق الجودة</p>
         <div class="total-bar">
           <div style="font-size:.85rem;color:#6b7280;margin-bottom:4px">نتيجتك</div>
-          <div class="total-score">${score}</div>
-          <div style="font-size:.8rem;color:#6b7280;margin-top:4px">من 100 نقطة</div>
+          <div class="total-score">${score}/${maxScore}</div>
+          <div style="font-size:.8rem;color:#6b7280;margin-top:4px">النسبة المئوية: ${pct}%</div>
         </div>
         <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
           <span class="badge ${color}">${gradeStr}</span>
