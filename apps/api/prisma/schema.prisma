@@ -373,9 +373,27 @@ model Supplier {
   updatedAt     DateTime @updatedAt
 
   evaluations   SupplierEval[]
+  evalTokens    EvalToken[]
 
   @@index([status])
   @@index([type])
+}
+
+model EvalToken {
+  id             String    @id @default(cuid())
+  token          String    @unique @default(uuid())
+  supplierId     String
+  supplier       Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdById    String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  evaluatorName  String?
+  evaluatorOrg   String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  @@index([token])
+  @@index([supplierId])
 }
 
 model SupplierEval {

@@ -43,6 +43,8 @@ import managementReviewRoutes from './routes/managementReview.js';
 import competenceRoutes from './routes/competence.js';
 import communicationRoutes from './routes/communication.js';
 import isoReadinessRoutes from './routes/isoReadiness.js';
+import evalTokensRoutes from './routes/evalTokens.js';
+import publicEvalRoutes from './routes/publicEval.js';
 
 const app = express();
 
@@ -67,6 +69,9 @@ app.get('/', (req, res) => res.redirect('/login'));
 
 // Public
 app.use('/api/auth', authRoutes);
+
+// Public evaluation form (no auth required — token-based)
+app.use('/eval', publicEvalRoutes);
 
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
@@ -100,11 +105,12 @@ app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
 app.use('/api/iso-readiness',            isoReadinessRoutes);
+app.use('/api/eval-tokens',             evalTokensRoutes);
 
 // Serve frontend statically in development (for local testing)
 if (config.env !== 'production') {
   const __dir = dirname(fileURLToPath(import.meta.url));
-  const webPath = join(__dir, '..', '..', '..', 'web', 'public');
+  const webPath = join(__dir, '..', '..', 'web', 'public');
   app.use(express.static(webPath));
   app.get('/login', (req, res) => res.sendFile(join(webPath, 'index.html')));
   console.log(`[qms-api] serving frontend from ${webPath}`);

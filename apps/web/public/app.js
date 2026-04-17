@@ -804,6 +804,9 @@ function app() {
     // ISO readiness report
     isoReport: null,
 
+    // Eval link modal
+    evalLinkModal: { open: false, url: '', supplier: null, copied: false },
+
     menu: [
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
@@ -1039,6 +1042,31 @@ function app() {
         await this.api('DELETE', `/${this.currentModule.endpoint}/${id}`);
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل الحذف'); }
+    },
+
+    // ------ External Eval Link ------
+    async requestEvalLink(supplier) {
+      try {
+        const r = await this.api('POST', '/eval-tokens', { supplierId: supplier.id, daysValid: 30 });
+        this.evalLinkModal = { open: true, url: r.url, supplier, copied: false };
+      } catch (e) { alert(e.message || 'فشل إنشاء الرابط'); }
+    },
+
+    copyEvalLink() {
+      navigator.clipboard.writeText(this.evalLinkModal.url).then(() => {
+        this.evalLinkModal.copied = true;
+        setTimeout(() => { this.evalLinkModal.copied = false; }, 2500);
+      }).catch(() => {
+        // fallback for older browsers
+        const el = document.createElement('textarea');
+        el.value = this.evalLinkModal.url;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        el.remove();
+        this.evalLinkModal.copied = true;
+        setTimeout(() => { this.evalLinkModal.copied = false; }, 2500);
+      });
     },
 
     // ------ Supplier Evaluation ------

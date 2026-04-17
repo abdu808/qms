@@ -146,6 +146,7 @@
                           <button @click="openEdit(item)" class="text-blue-600 hover:underline text-xs ml-2">✏️ تعديل</button>
                           <button @click="remove(item.id)" class="text-red-600 hover:underline text-xs ml-2">🗑️ حذف</button>
                           <button x-show="currentModule?.evalAction" @click="openEval(item)" class="text-indigo-600 hover:underline text-xs ml-2">📊 تقييم</button>
+                          <button x-show="currentModule?.evalAction" @click="requestEvalLink(item)" class="text-teal-600 hover:underline text-xs ml-2">🔗 رابط خارجي</button>
                           <button x-show="currentModule?.sigAction" @click="openSig(item)" class="text-purple-600 hover:underline text-xs">✍️ توقيع</button>
                         </td>
                       </tr>
@@ -337,6 +338,52 @@
         </div>
 
         <!-- EDIT/CREATE MODAL -->
+        <!-- EVAL LINK MODAL -->
+        <div x-show="evalLinkModal.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="evalLinkModal.open=false">
+          <div class="bg-white rounded-xl w-full max-w-lg shadow-2xl" @click.outside="evalLinkModal.open=false">
+            <div class="p-5 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-brand-700 text-lg">🔗 رابط التقييم الخارجي</h3>
+                <p class="text-sm text-gray-500 mt-0.5" x-text="evalLinkModal.supplier?.name"></p>
+              </div>
+              <button @click="evalLinkModal.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-5 space-y-4">
+              <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                📤 أرسل هذا الرابط للمشرف أو المهندس. يمكنه تقييم المورد مباشرة بدون دخول للنظام.
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-gray-700">الرابط (صالح 30 يوماً — مرة واحدة فقط)</label>
+                <div class="flex gap-2">
+                  <input type="text" readonly :value="evalLinkModal.url"
+                    class="flex-1 border rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700 font-mono" />
+                  <button @click="copyEvalLink()"
+                    :class="evalLinkModal.copied ? 'bg-green-500' : 'bg-brand-500 hover:bg-brand-600'"
+                    class="text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
+                    <span x-show="!evalLinkModal.copied">📋 نسخ</span>
+                    <span x-show="evalLinkModal.copied">✅ تم النسخ</span>
+                  </button>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <a :href="'https://wa.me/?text=' + encodeURIComponent('نموذج تقييم المورد: ' + evalLinkModal.supplier?.name + '\n' + evalLinkModal.url)"
+                   target="_blank"
+                   class="flex-1 bg-green-500 hover:bg-green-600 text-white text-center py-2 rounded-lg text-sm font-medium">
+                  📱 إرسال واتساب
+                </a>
+                <a :href="'mailto:?subject=' + encodeURIComponent('طلب تقييم المورد') + '&body=' + encodeURIComponent('يرجى تعبئة نموذج تقييم المورد: ' + evalLinkModal.supplier?.name + '\n\n' + evalLinkModal.url)"
+                   class="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-center py-2 rounded-lg text-sm font-medium">
+                  📧 إرسال إيميل
+                </a>
+                <a :href="evalLinkModal.url" target="_blank"
+                   class="flex-1 border hover:bg-gray-50 text-gray-700 text-center py-2 rounded-lg text-sm font-medium">
+                  👁️ معاينة
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div x-show="modal.open" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" @keydown.escape.window="modal.open=false">
           <div class="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="modal.open=false">
             <div class="p-4 border-b flex items-center justify-between">
