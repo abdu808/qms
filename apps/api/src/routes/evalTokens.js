@@ -19,7 +19,7 @@ router.post('/', asyncHandler(async (req, res) => {
   const evalToken = await prisma.evalToken.create({
     data: {
       supplierId,
-      createdById: req.user.id,
+      createdById: req.user.sub,
       expiresAt,
     },
     include: { supplier: { select: { name: true, code: true } } },
