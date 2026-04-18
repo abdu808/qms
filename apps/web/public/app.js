@@ -791,6 +791,10 @@ function app() {
     items: [],
     auditLog: [],
     dashKpis: null,
+    dashAlerts: [],
+    dashExpiring: [],
+    dashActivity: [],
+    dashNextReview: null,
     dashChart: null,
 
     // Pagination
@@ -1143,7 +1147,11 @@ function app() {
 
     async loadDashboard() {
       const r = await this.api('GET', '/dashboard');
-      this.dashKpis = r.kpis;
+      this.dashKpis       = r.kpis;
+      this.dashAlerts     = r.alerts || [];
+      this.dashExpiring   = r.expiringDocs || [];
+      this.dashActivity   = r.recentActivity || [];
+      this.dashNextReview = r.nextReview || null;
       this.$nextTick(() => this.renderChart());
     },
 
@@ -1156,15 +1164,26 @@ function app() {
       const k = this.dashKpis;
       if (!k) return [];
       return [
-        { label: 'أهداف محققة',    value: `${k.objectives.achievementRate}%`, sub: `${k.objectives.achieved}/${k.objectives.total}`, color: 'text-green-600' },
-        { label: 'مخاطر حرجة',     value: k.risks.critical,                   sub: `من ${k.risks.total} إجمالي`,                   color: 'text-red-600' },
-        { label: 'شكاوى مفتوحة',   value: k.complaints.open,                  sub: `معدل المعالجة ${k.complaints.resolutionRate}%`, color: 'text-orange-600' },
-        { label: 'عدم مطابقة',     value: k.ncr.open,                         sub: `مغلق: ${k.ncr.closed}`,                        color: 'text-amber-600' },
-        { label: 'تدقيقات مخططة',  value: k.audits.planned,                   sub: `مكتمل: ${k.audits.completed}`,                  color: 'text-blue-600' },
-        { label: 'موردون معتمدون', value: k.suppliers.approved,               sub: `من ${k.suppliers.total}`,                       color: 'text-indigo-600' },
-        { label: 'مستفيدون نشطون', value: k.beneficiaries.active,             sub: '',                                              color: 'text-teal-600' },
-        { label: 'وثائق منشورة',   value: k.documents.published,              sub: '',                                              color: 'text-gray-700' },
+        { label: 'الأهداف المحققة',  value: `${k.objectives.achievementRate}%`, sub: `${k.objectives.achieved} من ${k.objectives.total}`, icon: '🎯', bg: 'bg-green-50',  border: 'border-green-200',  val: 'text-green-700' },
+        { label: 'مخاطر حرجة',       value: k.risks.byCriticality?.حرج || 0,   sub: `${k.risks.totalActive} مخاطرة نشطة`,              icon: '⚠️', bg: 'bg-red-50',    border: 'border-red-200',    val: 'text-red-700' },
+        { label: 'شكاوى مفتوحة',     value: k.complaints.open,                  sub: `${k.complaints.overdue} متأخرة — معالجة ${k.complaints.resolutionRate}%`, icon: '📢', bg: 'bg-orange-50', border: 'border-orange-200', val: k.complaints.overdue > 0 ? 'text-red-600' : 'text-orange-700' },
+        { label: 'عدم مطابقة (NCR)', value: k.ncr.open,                         sub: `${k.ncr.overdue} متأخر — مغلق: ${k.ncr.closed}`,  icon: '🔧', bg: 'bg-amber-50',  border: 'border-amber-200',  val: k.ncr.overdue > 0 ? 'text-red-600' : 'text-amber-700' },
+        { label: 'موردون معتمدون',   value: k.suppliers.approved,               sub: `${k.suppliers.pending} بانتظار الاعتماد`,          icon: '🏭', bg: 'bg-indigo-50', border: 'border-indigo-200', val: 'text-indigo-700' },
+        { label: 'وثائق منشورة',     value: k.documents.published,              sub: `${k.documents.expiringCount} تستحق مراجعة قريباً`, icon: '📄', bg: 'bg-blue-50',   border: 'border-blue-200',   val: 'text-blue-700' },
+        { label: 'مستفيدون نشطون',   value: k.beneficiaries.active,             sub: '',                                                 icon: '👥', bg: 'bg-teal-50',   border: 'border-teal-200',   val: 'text-teal-700' },
+        { label: 'رضا المستفيدين',   value: k.surveys.avgScore ? `${k.surveys.avgScore}/5` : '—', sub: `${k.surveys.totalResponses} استجابة`, icon: '📝', bg: 'bg-purple-50', border: 'border-purple-200', val: 'text-purple-700' },
       ];
+    },
+
+    activityLabel(action) {
+      const map = {
+        CREATE: 'أضاف', UPDATE: 'عدّل', DELETE: 'حذف',
+        LOGIN: 'سجّل دخولاً', LOGOUT: 'خرج',
+        ACTIVATE_POLICY: 'فعّل سياسة',
+        VERIFY_NCR_EFFECTIVENESS: 'تحقق من فعالية NCR',
+        EXPORT: 'صدّر',
+      };
+      return map[action] || action;
     },
 
     renderChart() {
@@ -1172,17 +1191,24 @@ function app() {
       if (!el || !this.dashKpis) return;
       if (this.dashChart) this.dashChart.destroy();
       const k = this.dashKpis;
+      const rc = k.risks.byCriticality || {};
       this.dashChart = new Chart(el, {
-        type: 'bar',
+        type: 'doughnut',
         data: {
-          labels: ['أهداف', 'مخاطر', 'شكاوى', 'عدم مطابقة', 'تدقيقات', 'موردون'],
+          labels: ['حرج', 'مرتفع', 'متوسط', 'منخفض'],
           datasets: [{
-            label: 'الإجمالي',
-            data: [k.objectives.total, k.risks.total, k.complaints.total, k.ncr.open+k.ncr.closed, k.audits.planned+k.audits.completed, k.suppliers.total],
-            backgroundColor: '#2e8b57',
+            data: [rc['حرج']||0, rc['مرتفع']||0, rc['متوسط']||0, rc['منخفض']||0],
+            backgroundColor: ['#dc2626','#f97316','#eab308','#22c55e'],
+            borderWidth: 2,
           }],
         },
-        options: { responsive: true, plugins: { legend: { display: false } } },
+        options: {
+          responsive: true,
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { family: 'Segoe UI, Tahoma, sans-serif' } } },
+          },
+        },
       });
     },
 
