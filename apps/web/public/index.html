@@ -215,6 +215,19 @@
               </div>
             </div>
 
+            <!-- التقرير السنوي GAAFZA (C3) -->
+            <div class="mt-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-bold text-gray-700 text-sm">📊 التقرير السنوي — GAAFZA</h3>
+                  <p class="text-xs text-gray-500 mt-1">تقرير الامتثال السنوي للجهات الرقابية · يشمل المستفيدين والتبرعات والجودة</p>
+                </div>
+                <button @click="openGaafzaReport()" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow">
+                  🖨️ إنشاء التقرير
+                </button>
+              </div>
+            </div>
+
           </div>
 
           <!-- GENERIC LIST PAGE -->
@@ -261,6 +274,7 @@
                           <button x-show="page==='documents'" @click="viewDocVersions(item)" class="text-gray-500 hover:underline text-xs ml-2">📋 الإصدارات</button>
                           <button x-show="page==='qualityPolicy' && !item.active" @click="activatePolicy(item)" class="text-green-600 hover:underline text-xs ml-2">✅ تفعيل</button>
                           <button x-show="page==='training'" @click="openTrainingRecords(item)" class="text-teal-600 hover:underline text-xs ml-2">👥 الحضور والفعالية</button>
+                          <button x-show="['managementReview','ncr','suppliers'].includes(page)" @click="printReport(item)" class="text-gray-600 hover:underline text-xs ml-2">🖨️ طباعة</button>
                           <button x-show="currentModule?.sigAction" @click="openSig(item)" class="text-purple-600 hover:underline text-xs">✍️ توقيع</button>
                         </td>
                       </tr>

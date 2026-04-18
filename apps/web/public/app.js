@@ -1016,6 +1016,22 @@ function app() {
       } catch (e) { alert(e.message || 'فشل تحميل الإصدارات'); }
     },
 
+    // ─── Print Reports (C2) ───────────────────────────────────────────
+    printReport(item) {
+      let url = '';
+      if (this.page === 'managementReview') url = `/api/reports/management-review/${item.id}`;
+      else if (this.page === 'ncr')         url = `/api/reports/ncr/${item.id}`;
+      else if (this.page === 'suppliers')   url = `/api/reports/supplier/${item.id}/latest-eval`;
+      if (url) window.open(url, '_blank');
+    },
+
+    // C3: GAAFZA annual report
+    openGaafzaReport() {
+      const year = prompt('أدخل السنة الميلادية للتقرير:', new Date().getFullYear());
+      if (!year) return;
+      window.open(`/api/reports/gaafza?year=${year}`, '_blank');
+    },
+
     // ─── Quality Policy activation ─────────────────────────────────────
     async activatePolicy(item) {
       if (!confirm(`تفعيل سياسة الجودة إصدار ${item.version}؟\nسيتم إيقاف الإصدارات السابقة تلقائياً.`)) return;

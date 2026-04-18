@@ -44,6 +44,7 @@ import competenceRoutes from './routes/competence.js';
 import communicationRoutes from './routes/communication.js';
 import isoReadinessRoutes from './routes/isoReadiness.js';
 import evalTokensRoutes from './routes/evalTokens.js';
+import reportsRoutes from './routes/reports.js';
 import publicEvalRoutes from './routes/publicEval.js';
 import publicSurveyRoutes from './routes/publicSurvey.js';
 
@@ -109,6 +110,7 @@ app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
 app.use('/api/iso-readiness',            isoReadinessRoutes);
 app.use('/api/eval-tokens',             evalTokensRoutes);
+app.use('/api/reports',                 reportsRoutes);
 
 // Serve frontend statically in development (for local testing)
 if (config.env !== 'production') {
