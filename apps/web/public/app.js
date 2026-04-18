@@ -118,8 +118,8 @@ const MODULES = {
     fields: [
       { key: 'version', label: 'رقم الإصدار', required: true },
       { key: 'title', label: 'العنوان', required: true },
-      { key: 'content', label: 'نص السياسة', type: 'textarea', required: true },
-      { key: 'commitments', label: 'التعهدات', type: 'textarea' },
+      { key: 'content', label: 'نص السياسة', type: 'textarea', required: true, hint: 'يجب أن تتضمن: الالتزام بمتطلبات ISO 9001، التحسين المستمر، ملاءمة نشاط الجمعية — ISO 5.2.1' },
+      { key: 'commitments', label: 'التعهدات', type: 'textarea', hint: 'التعهدات المحددة التي تلتزم بها الجمعية تجاه الجودة — ISO 5.2.2' },
       { key: 'approvedBy', label: 'اعتمدها' },
       { key: 'approvedAt', label: 'تاريخ الاعتماد', type: 'date' },
       { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
@@ -147,7 +147,7 @@ const MODULES = {
       { key: 'title', label: 'عنوان الاجتماع', required: true },
       { key: 'period', label: 'الفترة (مثال: Q1-2026)' },
       { key: 'meetingDate', label: 'تاريخ الاجتماع', type: 'date', required: true },
-      { key: 'attendees', label: 'الحضور', type: 'textarea' },
+      { key: 'attendees', label: 'الحضور', type: 'textarea', hint: 'وثّق أسماء جميع الحاضرين بالكامل — حضور الإدارة العليا مطلوب (ISO 9.3.1)' },
       { key: 'contextChanges', label: '[مدخل] تغييرات في السياق', type: 'textarea' },
       { key: 'objectivesReview', label: '[مدخل] مراجعة تحقق الأهداف', type: 'textarea' },
       { key: 'processPerformance', label: '[مدخل] أداء العمليات', type: 'textarea' },
@@ -156,7 +156,7 @@ const MODULES = {
       { key: 'customerFeedback', label: '[مدخل] تغذية راجعة من المستفيدين', type: 'textarea' },
       { key: 'risksStatus', label: '[مدخل] حالة المخاطر', type: 'textarea' },
       { key: 'improvementOpps', label: '[مدخل] فرص التحسين', type: 'textarea' },
-      { key: 'decisions', label: '[مخرج] القرارات', type: 'textarea' },
+      { key: 'decisions', label: '[مخرج] القرارات', type: 'textarea', hint: 'القرارات الرسمية الصادرة عن المراجعة — ISO 9.3.3' },
       { key: 'resourceNeeds', label: '[مخرج] الاحتياجات من الموارد', type: 'textarea' },
       { key: 'improvementActions', label: '[مخرج] إجراءات التحسين', type: 'textarea' },
       { key: 'systemChanges', label: '[مخرج] تغييرات على النظام', type: 'textarea' },
@@ -340,12 +340,12 @@ const MODULES = {
     fields: [
       { key: 'title', label: 'عنوان الهدف', required: true },
       { key: 'description', label: 'الوصف', type: 'textarea' },
-      { key: 'kpi', label: 'مؤشر الأداء', required: true },
+      { key: 'kpi', label: 'مؤشر الأداء', required: true, hint: 'طبّق مبدأ SMART: محدد، قابل للقياس، قابل للتحقق، ذو صلة، محدد بوقت — ISO 6.2.1' },
       { key: 'baseline', label: 'نقطة البداية', type: 'number' },
       { key: 'target', label: 'القيمة المستهدفة', type: 'number', required: true },
       { key: 'currentValue', label: 'القيمة الحالية', type: 'number' },
       { key: 'unit', label: 'وحدة القياس' },
-      { key: 'progress', label: 'نسبة الإنجاز %', type: 'number' },
+      { key: 'progress', label: 'نسبة الإنجاز %', type: 'number', hint: 'أدخل رقماً بين 0 و100 — تُحدَّث دورياً (ISO 6.2.2)' },
       { key: 'startDate', label: 'تاريخ البداية', type: 'date', required: true },
       { key: 'dueDate',   label: 'التاريخ المستهدف', type: 'date', required: true },
       { key: 'status', label: 'الحالة', type: 'select', options: [
@@ -384,9 +384,9 @@ const MODULES = {
         { v: 'RISK', l: 'خطر' }, { v: 'OPPORTUNITY', l: 'فرصة' },
       ]},
       { key: 'source', label: 'المصدر' },
-      { key: 'probability', label: 'الاحتمالية (1-5)', type: 'number' },
-      { key: 'impact', label: 'الأثر (1-5)', type: 'number' },
-      { key: 'treatment', label: 'خطة المعالجة', type: 'textarea' },
+      { key: 'probability', label: 'الاحتمالية (1-5)', type: 'number', hint: '1=نادر جداً · 2=ممكن · 3=محتمل · 4=مرجح · 5=شبه مؤكد — ISO 6.1.2' },
+      { key: 'impact', label: 'الأثر (1-5)', type: 'number', hint: '1=بسيط · 2=طفيف · 3=متوسط · 4=جسيم · 5=كارثي — ISO 6.1.2' },
+      { key: 'treatment', label: 'خطة المعالجة', type: 'textarea', hint: 'مطلوب قبل إغلاق المخاطرة — ISO 6.1' },
       { key: 'treatmentType', label: 'نوع المعالجة', type: 'select', options: [
         { v: 'تجنب', l: 'تجنب' }, { v: 'تخفيف', l: 'تخفيف' },
         { v: 'نقل', l: 'نقل' }, { v: 'قبول', l: 'قبول' },
@@ -438,7 +438,7 @@ const MODULES = {
       { key: 'severity', label: 'الأهمية', type: 'select', options: [
         { v: 'منخفضة', l: 'منخفضة' }, { v: 'متوسطة', l: 'متوسطة' }, { v: 'مرتفعة', l: 'مرتفعة' },
       ]},
-      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea' },
+      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea', hint: 'حدد السبب الجذري لمنع تكرار الشكوى — استخدم أسلوب 5 لماذا (ISO 9.1.2)' },
       { key: 'resolution', label: 'الحل', type: 'textarea' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'NEW', l: 'جديد' }, { v: 'UNDER_REVIEW', l: 'قيد الدراسة' },
@@ -484,9 +484,9 @@ const MODULES = {
       { key: 'severity', label: 'الأهمية', type: 'select', options: [
         { v: 'منخفضة', l: 'منخفضة' }, { v: 'متوسطة', l: 'متوسطة' }, { v: 'مرتفعة', l: 'مرتفعة' },
       ]},
-      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea' },
-      { key: 'correction', label: 'التصحيح الفوري', type: 'textarea' },
-      { key: 'correctiveAction', label: 'الإجراء التصحيحي', type: 'textarea' },
+      { key: 'rootCause', label: 'السبب الجذري', type: 'textarea', hint: "استخدم أسلوب '5 لماذا' لتحليل السبب الحقيقي — ISO 10.2.1" },
+      { key: 'correction', label: 'التصحيح الفوري', type: 'textarea', hint: 'الإجراء العاجل لاحتواء المشكلة الآن (لا يعالج السبب الجذري)' },
+      { key: 'correctiveAction', label: 'الإجراء التصحيحي', type: 'textarea', hint: 'يجب أن يعالج السبب الجذري لا مجرد الأعراض — ISO 10.2.1' },
       { key: 'dueDate', label: 'تاريخ الاستحقاق', type: 'date' },
       { key: 'assigneeId', label: 'المسؤول عن التنفيذ', type: 'relation', rel: 'users' },
       { key: 'departmentId', label: 'القسم المعني', type: 'relation', rel: 'departments' },
@@ -497,7 +497,7 @@ const MODULES = {
       ]},
       // ISO 10.2 — التحقق من فعالية الإجراء التصحيحي (مطلوب للإغلاق)
       { key: 'verifiedAt', label: '📋 تاريخ التحقق من الفعالية', type: 'date' },
-      { key: 'effective', label: '✅ هل الإجراء فعّال؟', type: 'select', options: [
+      { key: 'effective', label: '✅ هل الإجراء فعّال؟', type: 'select', hint: 'التحقق من أن الإجراء منع التكرار — مطلوب للإغلاق (ISO 10.2.2)', options: [
         { v: '', l: '— لم يُقيَّم —' },
         { v: 'true',  l: 'نعم — فعّال' },
         { v: 'false', l: 'لا — يحتاج إعادة معالجة' },
@@ -571,7 +571,7 @@ const MODULES = {
         { v: 'IN_KIND_DONOR', l: 'مورد تبرعات عينية' }, { v: 'TRANSPORT', l: 'نقل' },
         { v: 'CONSULTING', l: 'استشارات' }, { v: 'OTHER', l: 'أخرى' },
       ]},
-      { key: 'crNumber', label: 'السجل التجاري' },
+      { key: 'crNumber', label: 'السجل التجاري', hint: 'رقم السجل التجاري السعودي — 10 أرقام بالضبط' },
       { key: 'vatNumber', label: 'الرقم الضريبي' },
       { key: 'contactPerson', label: 'الشخص المسؤول' },
       { key: 'phone', label: 'الجوال' },
@@ -706,9 +706,9 @@ const MODULES = {
       { key: 'currentVersion', label: 'الإصدار' },
       { key: 'departmentId', label: 'الإدارة', type: 'relation', rel: 'departments' },
       { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
-      { key: 'reviewDate', label: 'تاريخ المراجعة التالية', type: 'date' },
-      { key: 'retentionYears', label: 'مدة الاحتفاظ (سنوات)', type: 'number' },
-      { key: 'isoClause', label: 'البند ISO' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة التالية', type: 'date', hint: 'حدد تاريخاً دورياً (سنوياً أو عند التغيير) — ISO 7.5.3.2' },
+      { key: 'retentionYears', label: 'مدة الاحتفاظ (سنوات)', type: 'number', hint: 'المدة الزمنية لحفظ الوثيقة قبل الإتلاف — ISO 7.5.3.2' },
+      { key: 'isoClause', label: 'البند ISO', hint: 'مثال: 5.2، 6.1، 7.5، 8.4 — يُسهّل الاسترجاع أثناء التدقيق' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'DRAFT', l: 'مسودة' }, { v: 'UNDER_REVIEW', l: 'قيد المراجعة' },
         { v: 'OBSOLETE', l: 'ملغى' },
@@ -855,6 +855,12 @@ function app() {
     },
     surveySummary: { open: false, data: null, survey: null },
 
+    // ─── Toast notifications ─────────────────────────────────────────
+    toasts: [],
+
+    // ─── Setup Wizard ────────────────────────────────────────────────
+    wizard: { open: false, step: 0 },
+
     menu: [
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
@@ -884,8 +890,43 @@ function app() {
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
     ],
 
+    // ─── Toast notification system ────────────────────────────────────
+    toast(msg, type = 'success', duration = 4500) {
+      const id = Date.now() + Math.random();
+      this.toasts.push({ id, msg: String(msg ?? '').split('\n')[0].slice(0, 120), type });
+      setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, duration);
+    },
+
+    // ─── Setup Wizard ─────────────────────────────────────────────────
+    wizardSteps: [
+      { icon: '📜', title: 'سياسة الجودة',      iso: 'ISO 5.2',   page: 'qualityPolicy',  desc: 'حدد التزامات الجمعية بالجودة. يجب أن تتضمن الالتزام بمتطلبات ISO 9001 والتحسين المستمر.' },
+      { icon: '🎯', title: 'الأهداف والمؤشرات',  iso: 'ISO 6.2',   page: 'objectives',     desc: 'حدد أهدافاً قابلة للقياس لكل إدارة باستخدام مبدأ SMART (محدد، قابل للقياس، محدد بوقت).' },
+      { icon: '⚠️', title: 'المخاطر والفرص',     iso: 'ISO 6.1',   page: 'risks',          desc: 'سجّل المخاطر المحيطة بنشاط الجمعية وقيّم احتمالية وأثر كل منها (1-5).' },
+      { icon: '🏭', title: 'الموردون',            iso: 'ISO 8.4',   page: 'suppliers',      desc: 'أضف أول مورد وأرسل له رابط التقييم الإلكتروني. الاعتماد يتطلب تقييماً ناجحاً.' },
+      { icon: '📄', title: 'الوثائق والسجلات',   iso: 'ISO 7.5',   page: 'documents',      desc: 'أضف دليل الجودة والإجراءات الرئيسية. حدد دورة مراجعة لكل وثيقة.' },
+    ],
+    showWizard() {
+      this.wizard = { open: true, step: 0 };
+    },
+    closeWizard() {
+      this.wizard.open = false;
+      localStorage.setItem('qms_wizard_done', '1');
+    },
+    wizardGoto(pg) {
+      this.closeWizard();
+      this.goto(pg);
+    },
+
     // ------ lifecycle ------
     async init() {
+      // ── تحويل window.alert إلى toast ─────────────────────────────
+      window._qmsApp = this;
+      window.alert = (msg) => {
+        const m = String(msg ?? '');
+        const isOk = /^✅|تم |تم\b|نجح/.test(m);
+        window._qmsApp.toast(m.replace(/^[✅⚠️❌🔔]\s*/, ''), isOk ? 'success' : 'error');
+      };
+
       this.token = localStorage.getItem('qms_token');
       this.refreshToken = localStorage.getItem('qms_refresh');
       if (this.token) {
@@ -893,6 +934,10 @@ function app() {
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
           this.goto('dashboard');
+          // عرض مساعد البداية للمستخدمين الجدد
+          if (!localStorage.getItem('qms_wizard_done')) {
+            setTimeout(() => this.showWizard(), 800);
+          }
         } catch {
           this.token = null;
           localStorage.removeItem('qms_token');

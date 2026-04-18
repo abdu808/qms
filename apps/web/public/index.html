@@ -98,7 +98,12 @@
             <button @click="sidebarOpen=true" class="md:hidden text-2xl text-brand-600 hover:bg-gray-100 rounded p-1" aria-label="فتح القائمة">☰</button>
             <h2 class="text-lg font-bold" x-text="menu.find(m=>m.id===page)?.label || 'لوحة المعلومات'"></h2>
           </div>
-          <div class="text-xs text-gray-500" x-text="today()"></div>
+          <div class="flex items-center gap-2">
+            <button @click="showWizard()" title="دليل البداية" class="text-indigo-500 hover:bg-indigo-50 rounded-lg px-2 py-1 text-xs font-medium hidden md:flex items-center gap-1 border border-indigo-200">
+              🧭 <span>دليل البداية</span>
+            </button>
+            <div class="text-xs text-gray-500" x-text="today()"></div>
+          </div>
         </header>
 
         <div class="p-4 md:p-6">
@@ -889,6 +894,11 @@
                   <template x-if="!['textarea','select','relation','bool'].includes(f.type||'text')">
                     <input :type="f.type||'text'" x-model="modal.data[f.key]" :placeholder="f.placeholder||''" class="w-full border rounded-lg px-3 py-2" />
                   </template>
+                  <!-- تلميح ISO ───────────────────────────────────── -->
+                  <div x-show="f.hint" class="mt-1.5 flex items-start gap-1.5 text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1.5">
+                    <span class="flex-shrink-0 mt-px">ℹ️</span>
+                    <span x-text="f.hint"></span>
+                  </div>
                 </div>
               </template>
               <div class="flex gap-2 pt-3 border-t">
@@ -901,6 +911,111 @@
       </main>
     </div>
   </template>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TOAST NOTIFICATIONS — نظام الإشعارات
+════════════════════════════════════════════════════════════════ -->
+<!-- Toast container — داخل نطاق x-data="app()" في الـ body -->
+<div class="fixed top-4 left-1/2 -translate-x-1/2 md:left-auto md:translate-x-0 md:left-4 z-[300] space-y-2 pointer-events-none w-[calc(100vw-2rem)] md:w-96" x-cloak>
+  <template x-for="t in toasts" :key="t.id">
+    <div :class="t.type==='error' ? 'bg-red-600 border-red-700' : t.type==='warn' ? 'bg-amber-500 border-amber-600' : 'bg-green-600 border-green-700'"
+         class="border text-white px-4 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-start gap-2.5 pointer-events-auto"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 -translate-y-2 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-end="opacity-0 translate-y-1">
+      <span x-text="t.type==='error' ? '❌' : t.type==='warn' ? '⚠️' : '✅'" class="text-base flex-shrink-0 mt-px"></span>
+      <span x-text="t.msg" class="flex-1 leading-snug"></span>
+      <button @click="toasts = toasts.filter(x=>x.id!==t.id)" class="opacity-70 hover:opacity-100 flex-shrink-0 text-lg leading-none">✖</button>
+    </div>
+  </template>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SETUP WIZARD — مساعد البداية (ISO 9001 Quick Start)
+════════════════════════════════════════════════════════════════ -->
+<template x-if="user && wizard.open">
+  <div class="fixed inset-0 bg-black/60 z-[400] flex items-center justify-center p-4" @click.self="closeWizard()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
+      <!-- Header -->
+      <div class="bg-gradient-to-l from-indigo-600 to-indigo-500 text-white px-6 py-4 flex items-center justify-between">
+        <div>
+          <div class="text-xs opacity-80 mb-0.5">ISO 9001:2015 Quick Start</div>
+          <h3 class="font-bold text-lg">🧭 دليل إعداد نظام الجودة</h3>
+        </div>
+        <button @click="closeWizard()" class="text-white/70 hover:text-white text-xl">✖</button>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="px-6 pt-4">
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+          <span x-text="`الخطوة ${wizard.step + 1} من ${wizardSteps.length}`"></span>
+          <span x-text="`${Math.round(((wizard.step) / wizardSteps.length) * 100)}% مكتمل`"></span>
+        </div>
+        <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full bg-indigo-500 rounded-full transition-all duration-500"
+               :style="`width: ${(wizard.step / wizardSteps.length) * 100}%`"></div>
+        </div>
+      </div>
+
+      <!-- Step content -->
+      <template x-if="wizard.step < wizardSteps.length">
+        <div class="px-6 py-5">
+          <div class="flex items-start gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-3xl flex-shrink-0"
+                 x-text="wizardSteps[wizard.step].icon"></div>
+            <div class="flex-1">
+              <div class="text-xs font-bold text-indigo-500 mb-1" x-text="wizardSteps[wizard.step].iso"></div>
+              <h4 class="text-lg font-bold text-gray-800 mb-2" x-text="wizardSteps[wizard.step].title"></h4>
+              <p class="text-sm text-gray-600 leading-relaxed" x-text="wizardSteps[wizard.step].desc"></p>
+            </div>
+          </div>
+
+          <!-- Step indicators -->
+          <div class="flex gap-2 mt-5 mb-1">
+            <template x-for="(s, i) in wizardSteps" :key="i">
+              <div :class="i < wizard.step ? 'bg-indigo-500' : i === wizard.step ? 'bg-indigo-300' : 'bg-gray-200'"
+                   class="flex-1 h-1.5 rounded-full transition-all duration-300" :title="s.title"></div>
+            </template>
+          </div>
+
+          <div class="flex gap-2 mt-4">
+            <button @click="wizardGoto(wizardSteps[wizard.step].page)"
+                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+              <span>اذهب إلى</span>
+              <span x-text="wizardSteps[wizard.step].title"></span>
+              <span>←</span>
+            </button>
+            <button @click="wizard.step < wizardSteps.length - 1 ? wizard.step++ : closeWizard()"
+                    class="px-4 py-2.5 border rounded-xl text-gray-600 hover:bg-gray-50 text-sm">
+              <span x-text="wizard.step < wizardSteps.length - 1 ? 'التالي ←' : 'إنهاء ✓'"></span>
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Done screen -->
+      <template x-if="wizard.step >= wizardSteps.length">
+        <div class="px-6 py-8 text-center">
+          <div class="text-5xl mb-4">🎉</div>
+          <h4 class="text-xl font-bold text-gray-800 mb-2">النظام جاهز للعمل!</h4>
+          <p class="text-sm text-gray-500 mb-6">يمكنك دائماً العودة لهذا الدليل من زر "🧭 دليل البداية" في أعلى الشاشة</p>
+          <button @click="closeWizard()"
+                  class="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-2.5 rounded-xl transition-colors">
+            ابدأ العمل ✓
+          </button>
+        </div>
+      </template>
+
+      <!-- Footer -->
+      <div class="px-6 py-3 bg-gray-50 border-t flex items-center justify-between text-xs text-gray-400">
+        <span>ISO 9001:2015 — جمعية البر بصبيا</span>
+        <button @click="closeWizard()" class="hover:text-gray-600">تخطّي الدليل</button>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script src="/app.js"></script>
 </body>
