@@ -1295,6 +1295,28 @@ function app() {
       }
     },
 
+    // ------ Duplicate ──────────────────────────────────────────────
+    async duplicateItem(item) {
+      await this.loadRelations();
+      const copy = { ...item };
+      // حذف الحقول التي تتولد تلقائياً أو تعود للصفر
+      const STRIP = ['id', 'code', 'createdAt', 'updatedAt', 'spent', 'progress',
+                     'effective', 'verifiedAt', 'verifiedNote', 'resolvedAt',
+                     'closedAt', 'overallRating'];
+      for (const k of STRIP) delete copy[k];
+      // إعادة الحالة للبداية
+      if ('status' in copy) {
+        const firstOpt = this.currentModule?.statusOptions?.find(o => o.v);
+        copy.status = firstOpt?.v || 'PLANNED';
+      }
+      // تحويل التواريخ للتنسيق الصحيح
+      for (const f of this.currentFields) {
+        if (f.type === 'date' && copy[f.key]) copy[f.key] = copy[f.key].split('T')[0];
+      }
+      this.modal = { open: true, mode: 'create', data: copy };
+      this.toast('تم نسخ السجل — راجع البيانات قبل الحفظ', 'warn');
+    },
+
     // ------ CRUD ------
     async openCreate() {
       await this.loadRelations();
