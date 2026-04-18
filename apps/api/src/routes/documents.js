@@ -91,6 +91,20 @@ router.post('/:id/obsolete', asyncHandler(async (req, res) => {
   res.json({ ok: true, item: updated });
 }));
 
+// GET /:id/versions — سجل الإصدارات (ISO 7.5.3)
+router.get('/:id/versions', asyncHandler(async (req, res) => {
+  const doc = await prisma.document.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, code: true, title: true, currentVersion: true, status: true },
+  });
+  if (!doc) throw NotFound('الوثيقة غير موجودة');
+  const versions = await prisma.docVersion.findMany({
+    where: { documentId: req.params.id },
+    orderBy: { uploadedAt: 'desc' },
+  });
+  res.json({ ok: true, document: doc, versions });
+}));
+
 // Acknowledge a document
 router.post('/:id/ack', asyncHandler(async (req, res) => {
   const doc = await prisma.document.findUnique({ where: { id: req.params.id } });

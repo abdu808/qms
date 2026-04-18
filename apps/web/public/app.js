@@ -162,6 +162,7 @@ const MODULES = {
       { key: 'systemChanges', label: '[مخرج] تغييرات على النظام', type: 'textarea' },
       { key: 'minutes', label: 'محضر الاجتماع', type: 'textarea' },
       { key: 'nextReview', label: 'تاريخ المراجعة القادمة', type: 'date' },
+      { key: 'topManagementPresent', label: '✅ حضرت الإدارة العليا (ISO 9.3.1 — مطلوب للإكمال)', type: 'bool' },
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'PLANNED', l: 'مخطط' }, { v: 'COMPLETED', l: 'مكتمل' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
@@ -734,6 +735,7 @@ const MODULES = {
       { key: 'duration', label: 'المدة (ساعات)', type: 'number' },
       { key: 'location', label: 'المكان' },
       { key: 'category', label: 'الفئة' },
+      { key: 'competenceTarget', label: 'الكفاءة المستهدفة (ISO 7.2)', placeholder: 'مثال: مهارات السلامة المهنية، جودة الخدمة' },
     ],
   },
 
@@ -999,6 +1001,15 @@ function app() {
         this.trainingRecords.records = recs.records;
         this.trainingRecords.stats = recs.stats;
       } catch (e) { alert(e.message || 'فشل الحذف'); }
+    },
+
+    // ─── Document version history (ISO 7.5.3) ─────────────────────────
+    docVersions: { open: false, document: null, versions: [] },
+    async viewDocVersions(item) {
+      try {
+        const res = await this.api('GET', `/documents/${item.id}/versions`);
+        this.docVersions = { open: true, document: res.document, versions: res.versions };
+      } catch (e) { alert(e.message || 'فشل تحميل الإصدارات'); }
     },
 
     // ─── Quality Policy activation ─────────────────────────────────────

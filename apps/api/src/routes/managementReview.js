@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { NotFound } from '../utils/errors.js';
+import { NotFound, BadRequest } from '../utils/errors.js';
 import { crudRouter } from '../utils/crudFactory.js';
 
 const base = crudRouter({
@@ -9,6 +9,16 @@ const base = crudRouter({
   codePrefix: 'MR',
   searchFields: ['title', 'attendees', 'decisions', 'improvementActions'],
   allowedSortFields: ['createdAt', 'meetingDate', 'status'],
+  allowedFilters: ['status'],
+  beforeUpdate: async (data) => {
+    // ISO 9.3.1: لا يمكن إكمال المراجعة دون تأكيد حضور الإدارة العليا
+    if (data.status === 'COMPLETED') {
+      if (data.topManagementPresent !== true && data.topManagementPresent !== 'true') {
+        throw BadRequest('لا يمكن إكمال المراجعة الإدارية دون تأكيد حضور الإدارة العليا (ISO 9.3.1)');
+      }
+    }
+    return data;
+  },
 });
 
 const router = Router();

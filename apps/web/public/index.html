@@ -160,6 +160,7 @@
                           <button x-show="page==='documents' && item.status==='UNDER_REVIEW'" @click="approveDoc(item, false)" class="text-green-600 hover:underline text-xs ml-2">✅ اعتماد</button>
                           <button x-show="page==='documents' && item.status==='APPROVED'" @click="approveDoc(item, true)" class="text-emerald-600 hover:underline text-xs ml-2">📢 نشر</button>
                           <button x-show="page==='documents' && ['DRAFT','APPROVED','PUBLISHED'].includes(item.status)" @click="obsoleteDoc(item)" class="text-amber-600 hover:underline text-xs ml-2">🗑️ سحب</button>
+                          <button x-show="page==='documents'" @click="viewDocVersions(item)" class="text-gray-500 hover:underline text-xs ml-2">📋 الإصدارات</button>
                           <button x-show="page==='qualityPolicy' && !item.active" @click="activatePolicy(item)" class="text-green-600 hover:underline text-xs ml-2">✅ تفعيل</button>
                           <button x-show="page==='training'" @click="openTrainingRecords(item)" class="text-teal-600 hover:underline text-xs ml-2">👥 الحضور والفعالية</button>
                           <button x-show="currentModule?.sigAction" @click="openSig(item)" class="text-purple-600 hover:underline text-xs">✍️ توقيع</button>
@@ -481,6 +482,43 @@
           </div>
         </div>
 
+        <!-- DOCUMENT VERSIONS MODAL (ISO 7.5.3) -->
+        <div x-show="docVersions?.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="docVersions.open=false">
+          <div class="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl" @click.outside="docVersions.open=false">
+            <div class="p-4 border-b flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-gray-800">📋 سجل الإصدارات (ISO 7.5.3)</h3>
+                <p class="text-xs text-gray-500 mt-0.5" x-text="docVersions.document?.code + ' — ' + docVersions.document?.title"></p>
+              </div>
+              <button @click="docVersions.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
+            </div>
+            <div class="p-4">
+              <div x-show="!docVersions.versions?.length" class="text-center text-gray-400 py-8">لا توجد إصدارات مرفوعة بعد</div>
+              <table x-show="docVersions.versions?.length" class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-right">الإصدار</th>
+                    <th class="px-3 py-2 text-right">تاريخ الرفع</th>
+                    <th class="px-3 py-2 text-right">الحجم</th>
+                    <th class="px-3 py-2 text-right">ملاحظة التغيير</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="v in docVersions.versions" :key="v.id">
+                    <tr class="border-t">
+                      <td class="px-3 py-2 font-mono font-bold text-brand-700" x-text="v.version"></td>
+                      <td class="px-3 py-2 text-gray-600" x-text="new Date(v.uploadedAt).toLocaleDateString('ar-SA')"></td>
+                      <td class="px-3 py-2 text-gray-500" x-text="v.fileSize ? (Math.round(v.fileSize/1024) + ' KB') : '—'"></td>
+                      <td class="px-3 py-2 text-gray-700" x-text="v.changeLog || '—'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="text-xs text-gray-400 mt-3 text-center">الإصدار الحالي: <span class="font-bold" x-text="docVersions.document?.currentVersion"></span></p>
+            </div>
+          </div>
+        </div>
+
         <!-- TRAINING RECORDS MODAL -->
         <div x-show="trainingRecords.open" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" @keydown.escape.window="trainingRecords.open=false">
           <div class="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.outside="trainingRecords.open=false">
@@ -730,8 +768,14 @@
                       </template>
                     </select>
                   </template>
-                  <template x-if="!['textarea','select','relation'].includes(f.type||'text')">
-                    <input :type="f.type||'text'" x-model="modal.data[f.key]" class="w-full border rounded-lg px-3 py-2" />
+                  <template x-if="f.type==='bool'">
+                    <label class="flex items-center gap-2 cursor-pointer mt-1">
+                      <input type="checkbox" x-model="modal.data[f.key]" class="accent-brand-500 w-5 h-5 rounded">
+                      <span class="text-sm text-gray-700" x-text="modal.data[f.key] ? 'نعم' : 'لا'"></span>
+                    </label>
+                  </template>
+                  <template x-if="!['textarea','select','relation','bool'].includes(f.type||'text')">
+                    <input :type="f.type||'text'" x-model="modal.data[f.key]" :placeholder="f.placeholder||''" class="w-full border rounded-lg px-3 py-2" />
                   </template>
                 </div>
               </template>

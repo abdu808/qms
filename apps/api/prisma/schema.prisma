@@ -675,16 +675,17 @@ model Signature {
 // =====================================================
 
 model Training {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  title       String
-  description String?
-  trainer     String?
-  date        DateTime
-  duration    Float?   // hours
-  location    String?
-  category    String?
-  createdAt   DateTime @default(now())
+  id                String   @id @default(cuid())
+  code              String   @unique
+  title             String
+  description       String?
+  trainer           String?
+  date              DateTime
+  duration          Float?   // hours
+  location          String?
+  category          String?
+  competenceTarget  String?  // الكفاءة المستهدفة (ISO 7.2) — مثال: مهارات السلامة، الجودة، الخدمة
+  createdAt         DateTime @default(now())
 
   records     TrainingRecord[]
 }
@@ -901,6 +902,9 @@ model ManagementReview {
   resourceNeeds      String?  // الاحتياجات من الموارد
   improvementActions String?  // إجراءات التحسين
   systemChanges      String?  // تغييرات على النظام
+
+  // ISO 9.3.1: حضور الإدارة العليا (شرط أساسي لصحة المراجعة)
+  topManagementPresent Boolean? // هل حضرت الإدارة العليا؟
 
   minutes            String?  // محضر الاجتماع
   nextReview         DateTime?

@@ -47,8 +47,8 @@
 **الملفات:** `suppliers.js` + `publicEval.js`  
 **المشكلة:** لا يوجد ما يمنع رفع مورد لحالة APPROVED بدون تقييم ناجح مسبق  
 **الإصلاح:**
-- [ ] إضافة فحص في `suppliers.js` عند تغيير الحالة إلى APPROVED: يجب وجود تقييم ناجح
-- [ ] إظهار تنبيه في الواجهة عند محاولة اعتماد مورد بلا تقييم
+- [x] إضافة فحص في `suppliers.js` عند تغيير الحالة إلى APPROVED: يجب وجود تقييم ناجح
+- [x] رسالة خطأ واضحة بالعربية
 
 ---
 
@@ -56,8 +56,8 @@
 **الملف:** `documents.js`  
 **المشكلة:** `DocVersion` موجود في الـ schema لكن لا يوجد endpoint لاسترجاعه  
 **الإصلاح:**
-- [ ] إضافة `GET /api/documents/:id/versions` يعيد قائمة الإصدارات
-- [ ] إضافة زر "📋 الإصدارات السابقة" في واجهة الوثائق
+- [x] إضافة `GET /api/documents/:id/versions` يعيد قائمة الإصدارات
+- [x] إضافة زر "📋 الإصدارات" + مودال عرض في واجهة الوثائق
 
 ---
 
@@ -65,7 +65,7 @@
 **الملف:** `objectives.js` / `crudFactory.js`  
 **المشكلة:** حقل `progress` يقبل أي رقم (حتى -10 أو 200)  
 **الإصلاح:**
-- [ ] إضافة `beforeUpdate` في `objectives.js` يتحقق أن `0 <= progress <= 100`
+- [x] إضافة `beforeUpdate` في `objectives.js` يتحقق أن `0 <= progress <= 100`
 
 ---
 
@@ -73,8 +73,8 @@
 **الملف:** `risks.js`  
 **المشكلة:** الحالة تنتقل من IDENTIFIED مباشرةً لـ CLOSED بدون خطة معالجة أو إجراء مثبت  
 **الإصلاح:**
-- [ ] إضافة guard: لا إغلاق المخاطرة بدون `treatmentPlan` + `treatmentDate`
-- [ ] التحقق من server-side أن probability و impact بين 1-5
+- [x] إضافة guard: لا إغلاق المخاطرة بدون `treatment` موجود
+- [x] التحقق من server-side أن probability و impact بين 1-5 (clamp)
 
 ---
 
@@ -82,8 +82,8 @@
 **الملف:** `training.js`  
 **المشكلة:** التدريبات منفصلة عن جدول الكفاءات المطلوبة  
 **الإصلاح:**
-- [ ] ربط `Training` بـ `CompetenceRequirement` (optional FK)
-- [ ] عرض "الكفاءة المستهدفة" في نافذة التدريب
+- [x] إضافة حقل `competenceTarget String?` في schema.prisma
+- [x] عرض "الكفاءة المستهدفة" في نموذج التدريب (ISO 7.2)
 
 ---
 
@@ -91,8 +91,9 @@
 **الملف:** `managementReview.js` + schema  
 **المشكلة:** ISO 9.3 يشترط حضور الإدارة العليا؛ لا يوجد حقل للتوثيق  
 **الإصلاح:**
-- [ ] إضافة حقل `topManagementPresent: Boolean` في schema
-- [ ] إضافة guard: لا يمكن إنهاء المراجعة بدون تأكيد الحضور
+- [x] إضافة حقل `topManagementPresent Boolean?` في schema.prisma
+- [x] إضافة guard في managementReview.js: لا COMPLETED بدون تأكيد الحضور
+- [x] إضافة checkbox في نموذج المراجعة الإدارية + دعم `bool` في النموذج العام
 
 ---
 
@@ -100,7 +101,7 @@
 **الملف:** `complaints.js`  
 **المشكلة:** شكوى مفتوحة منذ 30 يوماً لا تُرسل أي تنبيه  
 **الإصلاح:**
-- [ ] إضافة CRON job أسبوعي يجمع الشكاوى المفتوحة > 14 يوم ويُنشئ تقرير
+- [x] إضافة `GET /api/complaints/overdue` يُعيد الشكاوى المفتوحة > 14 يوم مع عمرها
 
 ---
 
