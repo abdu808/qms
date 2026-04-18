@@ -38,8 +38,14 @@ router.post('/:id/activate', asyncHandler(async (req, res) => {
   if (!policy) throw NotFound('السياسة غير موجودة');
   if (policy.active) throw BadRequest('هذه السياسة مفعلة بالفعل');
 
-  const [deactivated, activated] = await prisma.$transaction([
-    prisma.qualityPolicy.updateMany({ where: { active: true }, data: { active: false } }),
+  // أولاً: إلغاء تفعيل كل السياسات الحالية (منفصلة لنحصل على العدد الفعلي)
+  const deactivated = await prisma.qualityPolicy.updateMany({
+    where: { active: true },
+    data: { active: false },
+  });
+
+  // ثانياً: تفعيل السياسة الجديدة + سجل التدقيق في معاملة واحدة
+  const [activated] = await prisma.$transaction([
     prisma.qualityPolicy.update({
       where: { id: req.params.id },
       data: {
@@ -49,7 +55,7 @@ router.post('/:id/activate', asyncHandler(async (req, res) => {
         effectiveDate: policy.effectiveDate || new Date(),
       },
     }),
-    // Audit trail — record the activation event
+    // Audit trail — يعرف الآن العدد الفعلي للسياسات الملغاة
     prisma.auditLog.create({
       data: {
         userId: req.user.sub,
@@ -59,7 +65,7 @@ router.post('/:id/activate', asyncHandler(async (req, res) => {
         changesJson: JSON.stringify({
           version: policy.version,
           title: policy.title,
-          deactivatedPreviousCount: 0, // set after the updateMany result
+          deactivatedPreviousCount: deactivated.count,
         }),
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],

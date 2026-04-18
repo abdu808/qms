@@ -4,4 +4,5 @@ export default crudRouter({
   codePrefix: 'SUP',
   searchFields: ['name', 'crNumber', 'contactPerson'],
   allowedSortFields: ['createdAt', 'name', 'status', 'overallRating'],
+  allowedFilters: ['status', 'type'],
 });

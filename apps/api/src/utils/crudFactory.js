@@ -20,6 +20,7 @@ export function crudRouter(opts) {
   const {
     model, codePrefix, searchFields = [], include,
     beforeCreate, beforeUpdate, allowedSortFields = ['createdAt'],
+    allowedFilters,   // قائمة بيضاء بالحقول المسموح بتصفيتها — undefined = الكل مسموح (legacy)
   } = opts;
 
   const router = Router();
@@ -35,9 +36,11 @@ export function crudRouter(opts) {
     if (q && searchFields.length) {
       where.OR = searchFields.map(f => ({ [f]: { contains: q, mode: 'insensitive' } }));
     }
-    // filter by any field: ?filter[status]=OPEN
+    // filter by field: ?filter[status]=OPEN — only whitelisted fields accepted
     if (req.query.filter && typeof req.query.filter === 'object') {
       for (const [k, v] of Object.entries(req.query.filter)) {
+        // إذا حُدِّدت قائمة بيضاء، اقبل الحقل فقط إن كان فيها
+        if (allowedFilters && !allowedFilters.includes(k)) continue;
         where[k] = v;
       }
     }

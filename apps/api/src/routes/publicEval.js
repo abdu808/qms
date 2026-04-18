@@ -5,6 +5,16 @@ import { nextCode } from '../utils/codeGen.js';
 
 const router = Router();
 
+// تهريب HTML لمنع هجمات XSS في النماذج العامة
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ─── معايير مشتركة لجميع الأنواع (متوائمة مع متطلبات الجمعيات في المملكة) ──
 // (هيئة المنشآت غير الربحية — Vision 2030 — ISO 26000)
 const COMMON_CRITERIA = [
@@ -275,15 +285,17 @@ const baseStyle = `
 `;
 
 function formPage(record, criteria) {
-  const sup = record.supplier;
-  const expDate = record.expiresAt.toLocaleDateString('ar-SA');
-  const typeLabel = TYPE_LABELS[sup.type] || sup.type;
-  const maxTotal = criteria.reduce((s, c) => s + c.max, 0);
+  const sup       = record.supplier;
+  const expDate   = escapeHtml(record.expiresAt.toLocaleDateString('ar-SA'));
+  const typeLabel = escapeHtml(TYPE_LABELS[sup.type] || sup.type);
+  const supName   = escapeHtml(sup.name);
+  const supCode   = escapeHtml(sup.code);
+  const maxTotal  = criteria.reduce((s, c) => s + c.max, 0);
 
   const renderCrit = (c) => `
     <div class="criterion ${c.critical ? 'critical' : ''}">
       <div class="criterion-header">
-        <span class="criterion-label">${c.label}</span>
+        <span class="criterion-label">${escapeHtml(c.label)}</span>
         <div style="display:flex;gap:4px">
           ${c.critical ? '<span class="chip chip-crit">⚠️ معيار حرج</span>' : ''}
           <span class="chip chip-max">من ${c.max}</span>
@@ -307,13 +319,13 @@ function formPage(record, criteria) {
   const commonHtml = criteria.slice(coreCount).map(renderCrit).join('');
 
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
-    <title>تقييم المورد — ${sup.name}</title></head>
+    <title>تقييم المورد — ${supName}</title></head>
   <body>
     <div class="card">
       <div class="header">
         <div style="font-size:.8rem;opacity:.85;margin-bottom:4px">نظام إدارة الجودة — جمعية البر بصبيا</div>
         <h1>📋 نموذج تقييم المورد</h1>
-        <p>${sup.code} — ${sup.name}</p>
+        <p>${supCode} — ${supName}</p>
         <p style="margin-top:4px;font-size:.8rem;opacity:.85">📦 نوع المورد: ${typeLabel}</p>
         <p style="margin-top:2px;font-size:.8rem;opacity:.75">⏳ الرابط صالح حتى ${expDate}</p>
       </div>
@@ -396,7 +408,11 @@ function formPage(record, criteria) {
 }
 
 function successPage(sup, score, maxScore, pct, gradeStr, decisionStr, criticalFailed) {
-  const color = criticalFailed ? 'badge-red' : (pct >= 80 ? 'badge-green' : pct >= 60 ? 'badge-amber' : 'badge-red');
+  const color       = criticalFailed ? 'badge-red' : (pct >= 80 ? 'badge-green' : pct >= 60 ? 'badge-amber' : 'badge-red');
+  const supName     = escapeHtml(sup.name);
+  const supCode     = escapeHtml(sup.code);
+  const safeGrade   = escapeHtml(gradeStr);
+  const safeDecision= escapeHtml(decisionStr);
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>تم الإرسال بنجاح</title></head>
   <body>
@@ -404,7 +420,7 @@ function successPage(sup, score, maxScore, pct, gradeStr, decisionStr, criticalF
       <div class="header">
         <div style="font-size:.8rem;opacity:.85;margin-bottom:4px">نظام إدارة الجودة — جمعية البر بصبيا</div>
         <h1>✅ تم استلام تقييمك</h1>
-        <p>${sup.code} — ${sup.name}</p>
+        <p>${supCode} — ${supName}</p>
       </div>
       <div class="body" style="text-align:center;padding:40px 28px">
         <div class="icon">🎉</div>
@@ -417,8 +433,8 @@ function successPage(sup, score, maxScore, pct, gradeStr, decisionStr, criticalF
         </div>
         ${criticalFailed ? '<div style="background:#fee2e2;color:#991b1b;padding:10px;border-radius:8px;margin-bottom:12px;font-size:.85rem">⚠️ تم رصد فشل في معيار حرج</div>' : ''}
         <div style="margin-top:8px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-          <span class="badge ${color}">${gradeStr}</span>
-          <span class="badge ${color}">${decisionStr}</span>
+          <span class="badge ${color}">${safeGrade}</span>
+          <span class="badge ${color}">${safeDecision}</span>
         </div>
         <p style="margin-top:24px;color:#9ca3af;font-size:.85rem">يمكنك إغلاق هذه الصفحة الآن</p>
       </div>
@@ -428,13 +444,14 @@ function successPage(sup, score, maxScore, pct, gradeStr, decisionStr, criticalF
 }
 
 function usedPage(sup) {
+  const supName = escapeHtml(sup.name);
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>تم الإرسال مسبقاً</title></head>
   <body>
     <div class="card">
       <div class="header" style="background:linear-gradient(135deg,#92400e,#b45309)">
         <h1>⚠️ تم استخدام هذا الرابط</h1>
-        <p>${sup.name}</p>
+        <p>${supName}</p>
       </div>
       <div class="body" style="text-align:center;padding:40px 28px">
         <div class="icon">🔒</div>
@@ -446,6 +463,7 @@ function usedPage(sup) {
 }
 
 function errorPage(msg) {
+  const safeMsg = escapeHtml(msg);
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>خطأ</title></head>
   <body>
@@ -455,7 +473,7 @@ function errorPage(msg) {
       </div>
       <div class="body" style="text-align:center;padding:40px 28px">
         <div class="icon">🔗</div>
-        <div style="font-size:1.1rem;font-weight:600;color:#991b1b;margin-bottom:12px">${msg}</div>
+        <div style="font-size:1.1rem;font-weight:600;color:#991b1b;margin-bottom:12px">${safeMsg}</div>
         <p style="color:#6b7280">تواصل مع الجهة المُرسِلة للحصول على رابط صحيح.</p>
       </div>
     </div>

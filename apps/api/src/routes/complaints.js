@@ -28,6 +28,7 @@ export default crudRouter({
   searchFields: ['subject', 'description', 'complainantName'],
   include: { assignee: { select: { id: true, name: true } } },
   allowedSortFields: ['createdAt', 'receivedAt', 'status', 'severity'],
+  allowedFilters: ['status', 'severity', 'assigneeId'],
   beforeCreate: async (data) => normalize(data),
   beforeUpdate: async (data) => normalize(data),
 });

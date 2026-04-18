@@ -13,6 +13,7 @@ export default crudRouter({
   searchFields: ['title', 'description'],
   include: { department: true, owner: { select: { id: true, name: true } } },
   allowedSortFields: ['createdAt', 'score', 'status'],
+  allowedFilters: ['status', 'level', 'departmentId', 'ownerId'],
   beforeCreate: async (data, req) => {
     const p = Number(data.probability) || 1;
     const i = Number(data.impact) || 1;

@@ -4,6 +4,16 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
+// تهريب HTML لمنع هجمات XSS في النماذج العامة
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const TARGET_LABELS = {
   BENEFICIARY: 'المستفيدين',
   DONOR: 'المتبرعين',
@@ -116,40 +126,44 @@ const baseStyle = `
 `;
 
 function renderQuestion(q) {
+  const label = escapeHtml(q.label);
+  const key   = escapeHtml(q.key);
   if (q.type === 'rating') {
     const scale = [1, 2, 3, 4, 5];
     return `<div class="question">
-      <div class="qlabel">${q.label}</div>
+      <div class="qlabel">${label}</div>
       <div class="rating">
-        ${scale.map(n => `<label><input type="radio" name="${q.key}" value="${n}"><span>${'⭐'.repeat(n)} ${n}</span></label>`).join('')}
+        ${scale.map(n => `<label><input type="radio" name="${key}" value="${n}"><span>${'⭐'.repeat(n)} ${n}</span></label>`).join('')}
       </div>
     </div>`;
   }
   if (q.type === 'yesno') {
     return `<div class="question">
-      <div class="qlabel">${q.label}</div>
+      <div class="qlabel">${label}</div>
       <div class="yesno">
-        <label><input type="radio" name="${q.key}" value="yes">✅ نعم</label>
-        <label><input type="radio" name="${q.key}" value="no">❌ لا</label>
+        <label><input type="radio" name="${key}" value="yes">✅ نعم</label>
+        <label><input type="radio" name="${key}" value="no">❌ لا</label>
       </div>
     </div>`;
   }
   return `<div class="question">
-    <div class="qlabel">${q.label}</div>
-    <textarea name="${q.key}" rows="2" placeholder="اكتب إجابتك..."></textarea>
+    <div class="qlabel">${label}</div>
+    <textarea name="${key}" rows="2" placeholder="اكتب إجابتك..."></textarea>
   </div>`;
 }
 
 function formPage(s, questions) {
-  const target = TARGET_LABELS[s.target] || s.target;
+  const target = escapeHtml(TARGET_LABELS[s.target] || s.target);
+  const title  = escapeHtml(s.title);
+  const period = escapeHtml(s.period || '');
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
-    <title>${s.title}</title></head>
+    <title>${title}</title></head>
   <body>
     <div class="card">
       <div class="header">
         <div style="font-size:.8rem;opacity:.85;margin-bottom:4px">جمعية البر بصبيا — استبيان</div>
-        <h1>📋 ${s.title}</h1>
-        <p>الفئة المستهدفة: ${target}${s.period ? ` · ${s.period}` : ''}</p>
+        <h1>📋 ${title}</h1>
+        <p>الفئة المستهدفة: ${target}${period ? ` · ${period}` : ''}</p>
       </div>
       <div class="body">
         <form method="POST">
@@ -167,13 +181,14 @@ function formPage(s, questions) {
 }
 
 function successPage(s) {
+  const title = escapeHtml(s.title);
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>تم الإرسال</title></head>
   <body>
     <div class="card">
       <div class="header">
         <h1>✅ شكراً لك!</h1>
-        <p>${s.title}</p>
+        <p>${title}</p>
       </div>
       <div class="body" style="text-align:center;padding:40px 28px">
         <div class="icon">🙏</div>
@@ -187,12 +202,13 @@ function successPage(s) {
 }
 
 function errorPage(msg) {
+  const safeMsg = escapeHtml(msg);
   return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
     <title>خطأ</title></head>
   <body>
     <div class="card">
       <div class="header" style="background:linear-gradient(135deg,#991b1b,#dc2626)">
-        <h1>❌ ${msg}</h1>
+        <h1>❌ ${safeMsg}</h1>
       </div>
       <div class="body" style="text-align:center;padding:40px 28px">
         <div class="icon">📋</div>
