@@ -46,6 +46,72 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
   } catch (e) { next(e); }
 });
 
+// ─── إدخال مُجمَّع (Bulk) — لصق CSV أو JSON بدلاً من صف-بصف ──
+// يقبل: { rows: [{ objectiveId|activityId, year, month, actualValue, spent? }, ...] }
+// يُنفَّذ upsert لكل صف بشكل متسلسل (لنفس سجل الأب يتم rollup مرة واحدة في الآخر).
+// يُرجع { ok, inserted, failed:[{row, error}], rollup:{objectiveIds, activityIds} }.
+router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, next) => {
+  try {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+    if (!rows || !rows.length) throw BadRequest('rows مطلوبة كمصفوفة غير فارغة');
+    if (rows.length > 500) throw BadRequest('الحد الأقصى 500 صف في الدفعة الواحدة');
+
+    const inserted = [];
+    const failed = [];
+    // نؤجّل rollup إلى النهاية لتفادي إعادة حسابات متكرّرة لنفس الأب
+    const touchedObj = new Set();
+    const touchedAct = new Set();
+    const touchedYears = new Set();
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        const parsed = validateKpiEntry(row);
+        if (parsed.objectiveId && parsed.activityId)
+          throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
+        // استخدم upsertKpiEntry بـ skipRollup=true (سنعمل rollup دفعة واحدة)
+        const result = await upsertKpiEntry({
+          ...parsed,
+          userId:   req.user.sub,
+          userRole: req.user?.role,
+          skipRollup: true,
+        });
+        inserted.push({ row: i, entryId: result.entry?.id });
+        if (parsed.objectiveId) touchedObj.add(parsed.objectiveId);
+        if (parsed.activityId)  touchedAct.add(parsed.activityId);
+        touchedYears.add(parsed.year);
+      } catch (e) {
+        failed.push({ row: i, error: e.message || String(e) });
+      }
+    }
+
+    // rollup واحد لكل أب × كل سنة تم لمسها
+    const { recomputeObjective, recomputeActivity } = await import('../services/rollup.js');
+    for (const objId of touchedObj) {
+      for (const y of touchedYears) {
+        try { await recomputeObjective(objId, { year: y }); } catch (err) { console.error('[bulk rollup obj]', err?.message); }
+      }
+    }
+    for (const actId of touchedAct) {
+      for (const y of touchedYears) {
+        try { await recomputeActivity(actId, { year: y }); } catch (err) { console.error('[bulk rollup act]', err?.message); }
+      }
+    }
+
+    res.json({
+      ok: true,
+      total: rows.length,
+      inserted: inserted.length,
+      failed,
+      rollup: {
+        objectiveIds: [...touchedObj],
+        activityIds:  [...touchedAct],
+        years: [...touchedYears],
+      },
+    });
+  } catch (e) { next(e); }
+});
+
 // ─── معاينة قراءة قبل الحفظ (Wizard step 2) ──────────────────
 // يحسب expected / ratio / rag / forecast / alerts بناءً على قيمة مُقترَحة
 // دون كتابتها في DB — يُمكِّن UX على شكل "راجع قبل الحفظ".
@@ -153,6 +219,7 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         perspective: rec.strategicGoal?.perspective || rec.perspective || '—',
         goalTitle: rec.strategicGoal?.title,
         kpiType: rec.kpiType, targetValue: kpi.targetValue, unit: kpi.unit,
+        currentProgress: Number(rec.progress ?? 0),
         thisMonth: thisMonthEntry
           ? { actualValue: thisMonthEntry.actualValue, spent: thisMonthEntry.spent, enteredAt: thisMonthEntry.enteredAt, note: thisMonthEntry.note, evidenceUrl: thisMonthEntry.evidenceUrl, id: thisMonthEntry.id }
           : null,

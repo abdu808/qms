@@ -231,6 +231,39 @@ router.get('/', asyncHandler(async (req, res) => {
     } catch { /* non-fatal */ }
   }
 
+  // ═══ 6b) أهداف/أنشطة منخفضة progress — تنبيه proactive ═══
+  //   - للموظف: أهدافه الشخصية بـ progress < 50
+  //   - للمدير/الجودة/التنفيذ: كل أهداف/أنشطة المؤسّسة بـ progress < 50
+  //   نعرض بطاقة action "راجع الأسباب" (تشير إلى الصفحة المناسبة).
+  let atRisk = { objectives: [], activities: [], total: 0 };
+  try {
+    const objScope = privileged
+      ? activeWhere({ status: { notIn: ['CANCELLED', 'ACHIEVED'] }, progress: { lt: 50 } })
+      : activeWhere({ ownerId: userId, status: { notIn: ['CANCELLED', 'ACHIEVED'] }, progress: { lt: 50 } });
+    const actScope = privileged
+      ? activeWhere({ status: { not: 'CANCELLED' }, progress: { lt: 50 } })
+      : null;
+    const [atRiskObj, atRiskAct] = await Promise.all([
+      prisma.objective.findMany({
+        where: objScope,
+        select: { id: true, code: true, title: true, progress: true, ownerId: true },
+        orderBy: { progress: 'asc' },
+        take: 20,
+      }),
+      actScope ? prisma.operationalActivity.findMany({
+        where: actScope,
+        select: { id: true, code: true, title: true, progress: true, responsible: true },
+        orderBy: { progress: 'asc' },
+        take: 20,
+      }) : [],
+    ]);
+    atRisk = {
+      objectives: atRiskObj,
+      activities: atRiskAct,
+      total: atRiskObj.length + atRiskAct.length,
+    };
+  } catch { atRisk = { objectives: [], activities: [], total: 0 }; }
+
   // ═══ 7) ملخص تنفيذي (SUPER_ADMIN فقط) ═══
   let execBlock = null;
   if (viewMode === 'EXEC') {
@@ -347,6 +380,15 @@ router.get('/', asyncHandler(async (req, res) => {
       action: { page: 'myWork', label: 'إكمال المسوّدات' },
     });
   }
+  if (atRisk.total > 0) {
+    alerts.push({
+      type: 'progress_low',
+      severity: atRisk.total >= 5 ? 'critical' : 'warning',
+      count: atRisk.total,
+      title: `${atRisk.total} ${privileged ? 'هدف/نشاط' : 'هدف'} دون 50% — راجع الأسباب`,
+      action: { page: privileged ? 'strategicGoals' : 'myKpi', label: 'فتح القائمة' },
+    });
+  }
   if (compAssigned.length > 0) {
     alerts.push({
       type: 'complaints_assigned',
@@ -435,6 +477,7 @@ router.get('/', asyncHandler(async (req, res) => {
     },
     pendingAcks,
     myDrafts,
+    atRisk,
     dept: deptBlock,
     exec: execBlock,
     dataHealth,

@@ -73,7 +73,7 @@ export async function computeKpiFeedback({ objectiveId, activityId, year, month 
 export async function upsertKpiEntry({
   objectiveId, activityId, year, month,
   actualValue, spent, note, evidenceUrl,
-  userId, userRole,
+  userId, userRole, skipRollup = false,
 }) {
   // منع الإدخال على شهر في المستقبل
   const now = new Date();
@@ -109,10 +109,12 @@ export async function upsertKpiEntry({
   // ── Auto rollup: يُحدِّث progress الأب + جذر الخطة الاستراتيجية ─────
   // يُشَغَّل بعد الـ upsert مباشرةً. لا نكسر الـ request لو فشل (نسجّل فقط).
   let rollup = null;
-  try {
-    rollup = await recomputeAfterEntry({ objectiveId, activityId, year });
-  } catch (err) {
-    console.error('[kpi] rollup failed:', err?.message || err);
+  if (!skipRollup) {
+    try {
+      rollup = await recomputeAfterEntry({ objectiveId, activityId, year });
+    } catch (err) {
+      console.error('[kpi] rollup failed:', err?.message || err);
+    }
   }
 
   const feedback = await computeKpiFeedback({ objectiveId, activityId, year, month });

@@ -1091,6 +1091,12 @@ const MODULES = {
 // -------------- Alpine root --------------
 function app() {
   return {
+    // ── Modules (must come first so inline definitions override if needed) ──
+    ...(window.QmsI18n          || {}),
+    ...(window.QmsInbox         || {}),
+    ...(window.QmsKpiQuickEntry || {}),
+    ...(window.QmsKpiBulk       || {}),
+
     user: null,
     token: null,
     refreshToken: null,
@@ -1935,65 +1941,8 @@ function app() {
       if (this.isGuided()) this.page = 'myWork';
     },
 
-    // ─── طبقة الترجمة: ISO → عربي يومي ───────────────────────────────
-    // في الوضع "الموجَّه" نُظهر اللفظ اليومي، وفي "المتقدّم" المصطلح الأصلي.
-    // هذه طبقة تقديم فقط — لا تُغيّر بيانات API ولا المصطلحات في قاعدة البيانات.
-    ISO_DICT: {
-      // شكل الإدخال (بأي حالة حروف/فراغات) → { friendly, iso, def }
-      'ncr':               { friendly: 'بلاغ جودة',          iso: 'NCR',                 def: 'حالة عدم مطابقة: خطأ أو انحراف عن المعيار يحتاج تصحيحاً.' },
-      'nc':                { friendly: 'بلاغ جودة',          iso: 'NC',                  def: 'Non-Conformance' },
-      'capa':              { friendly: 'إجراء تصحيحي',       iso: 'CAPA',                def: 'Corrective & Preventive Action — خطوات إصلاح المشكلة ومنع تكرارها.' },
-      'corrective action': { friendly: 'إجراء تصحيح',         iso: 'Corrective Action',   def: 'ما نفعله لإزالة سبب عدم المطابقة.' },
-      'root cause':        { friendly: 'السبب الجذري',        iso: 'Root Cause',          def: 'السبب الحقيقي وراء المشكلة (وليس الأعراض).' },
-      'kpi':               { friendly: 'مؤشّر أداء',          iso: 'KPI',                 def: 'رقم يقيس تحقّق هدف محدّد شهرياً أو سنوياً.' },
-      'sla':               { friendly: 'مهلة الرد',           iso: 'SLA',                 def: 'Service Level Agreement — المدة القصوى للرد على الشكوى.' },
-      'audit':             { friendly: 'تدقيق',              iso: 'Audit',               def: 'فحص منظَّم للتحقّق من الالتزام بالمعايير.' },
-      'management review': { friendly: 'اجتماع متابعة الإدارة', iso: 'Management Review',   def: 'الاجتماع الدوري للإدارة العليا لمراجعة أداء الجودة.' },
-      'risk':              { friendly: 'مخاطرة',             iso: 'Risk',                def: 'شيء محتمل قد يُعيق تحقيق هدف — ليس مشكلة حدثت فعلاً.' },
-      'risk register':     { friendly: 'سجل المخاطر',         iso: 'Risk Register',       def: 'قائمة بكل المخاطر المعروفة في المنظمة.' },
-      'complaint':         { friendly: 'شكوى',               iso: 'Complaint',           def: 'بلاغ من مستفيد عن خدمة غير مُرضية.' },
-      'beneficiary':       { friendly: 'مستفيد',             iso: 'Beneficiary',         def: 'الشخص الذي يتلقى خدمات الجمعية.' },
-      'donor':             { friendly: 'متبرّع',              iso: 'Donor',               def: 'جهة أو شخص يقدم دعماً مالياً/عينياً.' },
-      'swot':              { friendly: 'تحليل الوضع',         iso: 'SWOT',                def: 'نقاط القوّة والضعف والفرص والتهديدات.' },
-      'interested parties':{ friendly: 'الأطراف المعنيّة',    iso: 'Interested Parties',  def: 'كل من يتأثّر بعمل المنظمة (مستفيدون، موظفون، ممولون...).' },
-      'policy':            { friendly: 'سياسة',              iso: 'Policy',              def: 'وثيقة توجّه اتخاذ القرارات في موضوع معيَّن.' },
-      'procedure':         { friendly: 'إجراء',              iso: 'Procedure',           def: 'خطوات تنفيذ عمل ما.' },
-      'objective':         { friendly: 'هدف تشغيلي',         iso: 'Objective',           def: 'هدف قابل للقياس ينبثق عن أهداف الجمعية.' },
-      'strategic goal':    { friendly: 'هدف استراتيجي',      iso: 'Strategic Goal',      def: 'هدف طويل المدى (سنوات) للجمعية.' },
-      'competence':        { friendly: 'كفاءة',              iso: 'Competence',          def: 'ما يجب أن يجيده الموظف لأداء عمله بجودة.' },
-      'training':          { friendly: 'تدريب',              iso: 'Training',            def: 'جلسات لرفع كفاءة الموظفين.' },
-      'acknowledgment':    { friendly: 'إقرار مطالعة',        iso: 'Acknowledgment',      def: 'توقيع يُثبت أنك اطّلعت على الوثيقة.' },
-      'ack':               { friendly: 'إقرار',               iso: 'Ack',                 def: 'اختصار Acknowledgment.' },
-      'supplier':          { friendly: 'مورِّد',              iso: 'Supplier',            def: 'جهة تُورِّد منتجات أو خدمات للجمعية.' },
-      'workflow':          { friendly: 'مسار اعتماد',        iso: 'Workflow',            def: 'الخطوات المتسلسلة لاعتماد سجل (مسوّدة → مراجعة → اعتماد).' },
-      'draft':             { friendly: 'مسوّدة',              iso: 'Draft',               def: 'سجل لم يُرسَل للمراجعة بعد.' },
-      'submitted':         { friendly: 'مُرسَلة',             iso: 'Submitted',           def: 'بانتظار المراجع.' },
-      'under review':      { friendly: 'قيد المراجعة',        iso: 'Under Review',        def: 'يُراجعها الجهة المختصّة.' },
-      'approved':          { friendly: 'معتمدة',             iso: 'Approved',            def: 'تمّ اعتمادها رسمياً.' },
-      'rejected':          { friendly: 'مرفوضة',             iso: 'Rejected',            def: 'لم تُعتَمد — تحتاج تعديلاً.' },
-      'severity':          { friendly: 'درجة الخطورة',        iso: 'Severity',            def: 'مدى خطورة المشكلة أو المخاطرة.' },
-    },
-    _tLookup(term) {
-      const k = String(term || '').toLowerCase().trim();
-      return this.ISO_DICT[k] || null;
-    },
-    // الترجمة المعروضة: في الوضع الموجَّه نُظهر "الودود"، في المتقدّم المصطلح الأصلي.
-    // لو لم نجد المصطلح نعيد المُدخل كما هو.
-    t(term) {
-      const hit = this._tLookup(term);
-      if (!hit) return term;
-      return this.isGuided() ? hit.friendly : hit.iso;
-    },
-    // تعريف للـ tooltip — نفس التعريف في كلا الوضعين
-    tDef(term) {
-      const hit = this._tLookup(term);
-      return hit ? hit.def : '';
-    },
-    // الشكل "الودود دائماً" — للعناوين الترحيبية بغضّ النظر عن الوضع
-    tFriendly(term) {
-      const hit = this._tLookup(term);
-      return hit ? hit.friendly : term;
-    },
+    // ─── طبقة الترجمة ISO → عربي — استُخرجت إلى modules/i18n.js ──
+    // (ISO_DICT, _tLookup, t, tDef, tFriendly) — تُدمج عبر ...window.QmsI18n
 
     // ─── Command Palette (Ctrl+K / Cmd+K) ──────────────────────────
     // مبدأ: بحث موحَّد يقفز بك لأي مكان في النظام — صفحة أو إجراء.
@@ -3235,143 +3184,15 @@ function app() {
       }
     },
 
-    // ─── Inline Quick KPI Entry (Phase 2 operational chain) ─────────────
-    // فكرة: موظف يُدخل قراءة KPI في سطر واحد على بطاقة "مهامي"، بلا wizard.
-    // تُستدعى POST /api/kpi/entries مباشرة → نعرض "أثر الإدخال" على نسبة
-    // التقدّم (progress) للهدف والخطة الاستراتيجية (من rollup في الـ response).
-    myDue: { pending: [], entered: [], summary: null, month: null, year: null, loaded: false },
-    _kpiDraft: {}, // { [id]: { actualValue, spent, prevProgress, busy, lastImpact } }
-    async loadMyDueKpis() {
-      try {
-        const r = await this.api('GET', '/kpi/my-due');
-        this.myDue = {
-          pending: r.pending || [],
-          entered: r.entered || [],
-          summary: r.summary || null,
-          month: r.month, year: r.year,
-          loaded: true,
-        };
-      } catch (e) {
-        // صامت — بطاقة اختيارية
-        this.myDue = { pending: [], entered: [], summary: null, month: null, year: null, loaded: true };
-      }
-    },
-    _draftFor(item) {
-      const id = item.id;
-      if (!this._kpiDraft[id]) {
-        // إعادة تعيين كامل للكائن الأب لضمان تفعيل Alpine reactivity
-        this._kpiDraft = {
-          ...this._kpiDraft,
-          [id]: { actualValue: '', spent: '', busy: false, lastImpact: null },
-        };
-      }
-      return this._kpiDraft[id];
-    },
-    async quickSaveKpi(item) {
-      const draft = this._draftFor(item);
-      if (draft.busy) return;
-      const val = Number(draft.actualValue);
-      if (!isFinite(val) || draft.actualValue === null || draft.actualValue === '') {
-        alert('أدخل قيمة رقمية للقراءة');
-        return;
-      }
-      draft.busy = true;
-      try {
-        // التقط progress "قبل" لحساب الأثر
-        const prevProgress = await this._peekParentProgress(item);
-        const body = {
-          year: this.myDue.year, month: this.myDue.month,
-          actualValue: val,
-        };
-        if (item.kind === 'objective') body.objectiveId = item.id;
-        else                            body.activityId  = item.id;
-        if (draft.spent != null && draft.spent !== '') body.spent = Number(draft.spent);
+    // ─── Inline Quick KPI Entry — استُخرجت إلى modules/kpi-quickentry.js ─
+    // (myDue, _kpiDraft, loadMyDueKpis, _draftFor, quickSaveKpi,
+    //  _peekParentProgress, _armUndoCountdown, undoRemainingSec, canUndo,
+    //  undoLastKpi) — تُدمج عبر ...window.QmsKpiQuickEntry قبل return.
 
-        const res = await this.api('POST', '/kpi/entries', body);
-        // "أثر الإدخال": progress الجديد من الـ rollup
-        const newProgress = res?.rollup?.progress;
-        if (newProgress != null) {
-          const delta = newProgress - (prevProgress ?? 0);
-          const arrow = delta >= 0 ? '↑' : '↓';
-          draft.lastImpact = {
-            prevProgress,
-            newProgress,
-            delta,
-            ragMessage: res?.feedback?.message || '',
-          };
-          this.toast?.(
-            `✅ رفعتَ "${item.title}" من ${prevProgress ?? 0}% إلى ${newProgress}% ${arrow}`
-          );
-        } else {
-          this.toast?.(`✅ تم حفظ قراءة "${item.title}"`);
-        }
-        // أعد تحميل my-due + myWork لتظهر الانعكاسات فوراً
-        await Promise.all([this.loadMyDueKpis(), this.loadMyWork()]);
-      } catch (e) {
-        alert(e.message || 'فشل حفظ القراءة');
-      } finally {
-        draft.busy = false;
-      }
-    },
-    // يقرأ progress الحالي للهدف/النشاط قبل الإدخال — لإظهار الفرق.
-    async _peekParentProgress(item) {
-      try {
-        const path = item.kind === 'objective' ? `/objectives/${item.id}` : `/operational-activities/${item.id}`;
-        const r = await this.api('GET', path);
-        return r?.item?.progress ?? r?.progress ?? null;
-      } catch { return null; }
-    },
 
-    // ─── Inbox mode: إجراءات inline داخل بطاقات "مهامي" ───────────────
-    // الفكرة: لا تُجبر المستخدم على الانتقال إلى صفحة الوحدة كاملةً لاتخاذ
-    // قرار بسيط (مراجعة/اعتماد/رفض). نستدعي نفس workflow endpoints ثم نعيد
-    // تحميل "مهامي" فقط لتحديث البطاقات في مكانها.
-    _inboxBusy: {}, // { 'ncr:abc123': true } — لتعطيل الأزرار أثناء الاستدعاء
-    inboxBusy(item, event) {
-      return !!this._inboxBusy[(item?.id || '') + ':' + event];
-    },
-    async _inboxCall(resource, item, event, body) {
-      const key = (item?.id || '') + ':' + event;
-      if (this._inboxBusy[key]) return;
-      this._inboxBusy[key] = true;
-      try {
-        await this.api('POST', `/${resource}/${item.id}/${event}`, body);
-        this.toast?.(`✅ تم الإجراء`);
-        await this.loadMyWork();
-      } catch (e) {
-        alert(e.message || 'فشل الإجراء');
-      } finally {
-        this._inboxBusy[key] = false;
-      }
-    },
-    async inboxSubmit(item, resource) {
-      if (!confirm('إرسال هذه المسوّدة للمراجعة؟')) return;
-      await this._inboxCall(resource, item, 'submit');
-    },
-    async inboxReview(item, resource) {
-      await this._inboxCall(resource, item, 'review');
-    },
-    async inboxApprove(item, resource) {
-      if (!confirm('اعتماد هذا السجل؟')) return;
-      await this._inboxCall(resource, item, 'approve');
-    },
-    async inboxReject(item, resource) {
-      const reason = prompt('سبب الرفض:');
-      if (!reason || !reason.trim()) return;
-      await this._inboxCall(resource, item, 'reject', { reason: reason.trim() });
-    },
-    // نفس منطق canWorkflow لكن على بيانات myWork المختصرة (التي قد لا تحتوي
-    // submittedById). نستخدم قواعد مبسّطة: إذا وصلت للمستخدم في أحد صناديق
-    // "pending*" فالإجراء متاح له في أغلب الحالات.
-    canInbox(item, event) {
-      const s = item?.workflowState || 'DRAFT';
-      const role = this.user?.role;
-      if (event === 'submit')  return s === 'DRAFT';
-      if (event === 'review')  return s === 'SUBMITTED'   && ['QUALITY_MANAGER','SUPER_ADMIN','DEPT_MANAGER','COMMITTEE_MEMBER'].includes(role);
-      if (event === 'approve') return s === 'UNDER_REVIEW' && ['QUALITY_MANAGER','SUPER_ADMIN','COMMITTEE_MEMBER'].includes(role);
-      if (event === 'reject')  return ['SUBMITTED','UNDER_REVIEW'].includes(s) && ['QUALITY_MANAGER','SUPER_ADMIN','DEPT_MANAGER','COMMITTEE_MEMBER'].includes(role);
-      return false;
-    },
+    // ─── Inbox mode — استُخرجت إلى modules/inbox.js ──
+    // (_inboxBusy, inboxBusy, _inboxCall, inboxSubmit, inboxReview,
+    //  inboxApprove, inboxReject, canInbox) — تُدمج عبر ...window.QmsInbox
     goToResource(page, id) {
       this.page = page;
       this.quickFilter = '';
