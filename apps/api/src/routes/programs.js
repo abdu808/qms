@@ -2,6 +2,7 @@ import { crudRouter } from '../utils/crudFactory.js';
 import { BadRequest } from '../utils/errors.js';
 
 export default crudRouter({
+  resource: 'programs',
   model: 'program',
   codePrefix: 'PRG',
   searchFields: ['name', 'description'],

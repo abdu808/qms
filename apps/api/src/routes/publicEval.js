@@ -2,8 +2,16 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { nextCode } from '../utils/codeGen.js';
+import {
+  getSupplierCriteria, SUPPLIER_TYPE_LABELS, COMMON_SUPPLIER_CRITERIA,
+  computeSupplierEval, recomputeSupplierRating,
+} from '../lib/evalEngine.js';
 
 const router = Router();
+
+// aliases لمحافظة الأسماء القديمة داخل هذا الملف
+const TYPE_LABELS   = SUPPLIER_TYPE_LABELS;
+const getCriteria   = getSupplierCriteria;
 
 // تهريب HTML لمنع هجمات XSS في النماذج العامة
 function escapeHtml(str) {
@@ -15,125 +23,12 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-// ─── معايير مشتركة لجميع الأنواع (متوائمة مع متطلبات الجمعيات في المملكة) ──
-// (هيئة المنشآت غير الربحية — Vision 2030 — ISO 26000)
-const COMMON_CRITERIA = [
-  { key: 'transparency',     label: 'الشفافية ومكافحة الفساد (عدم تقديم إكراميات)', max: 8,  critical: true  },
-  { key: 'saudization',      label: 'نسبة السعودة وتوطين الوظائف',                max: 5,  critical: false },
-  { key: 'sustainability',   label: 'الاستدامة والمسؤولية الاجتماعية',            max: 5,  critical: false },
-  { key: 'financial_stab',   label: 'الاستقرار المالي وموثوقية المورد',           max: 5,  critical: false },
-];
+// ملاحظة: المعايير + تصنيف الدرجات تُستورد الآن من lib/evalEngine.js (Batch 12)
+// هذا يوحّد المنطق بين التقييم الداخلي والخارجي.
+const COMMON_CRITERIA = COMMON_SUPPLIER_CRITERIA;
 
-// معايير خاصة بكل نوع (المجموع = 77 نقطة ليكتمل 100 مع المعايير المشتركة = 23)
-const CORE_CRITERIA_BY_TYPE = {
-  GOODS: [
-    { key: 'product_quality',  label: 'جودة المنتجات ومطابقة المواصفات',     max: 25, critical: true  },
-    { key: 'delivery',         label: 'الالتزام بمواعيد التسليم',             max: 18, critical: false },
-    { key: 'packaging',        label: 'التعبئة والتغليف والحفظ',              max: 10, critical: false },
-    { key: 'pricing',          label: 'الأسعار والشروط التجارية',             max: 12, critical: false },
-    { key: 'communication',    label: 'الاستجابة والتواصل',                   max: 7,  critical: false },
-    { key: 'after_sale',       label: 'خدمات ما بعد البيع والضمان',           max: 5,  critical: false },
-  ],
-  SERVICES: [
-    { key: 'service_quality',  label: 'جودة الخدمة المقدمة',                  max: 22, critical: true  },
-    { key: 'professionalism',  label: 'الكفاءة والاحترافية للفريق',            max: 18, critical: false },
-    { key: 'delivery',         label: 'الالتزام بالجدول الزمني',              max: 15, critical: false },
-    { key: 'communication',    label: 'التواصل والاستجابة',                   max: 12, critical: false },
-    { key: 'pricing',          label: 'الأسعار والقيمة المقدمة',              max: 10, critical: false },
-  ],
-  CONSTRUCTION: [
-    { key: 'spec_compliance',  label: 'الالتزام بالمواصفات الفنية والمخططات', max: 14, critical: true  },
-    { key: 'work_quality',     label: 'جودة التنفيذ ومطابقة المعايير الهندسية', max: 13, critical: true  },
-    { key: 'schedule',         label: 'الالتزام بالجدول الزمني ومراحل التسليم', max: 12, critical: false },
-    { key: 'hse_safety',       label: 'السلامة المهنية وتطبيق اشتراطات HSE',  max: 12, critical: true  },
-    { key: 'workforce',        label: 'كفاءة العمالة والكوادر الفنية',         max: 8,  critical: false },
-    { key: 'materials',        label: 'جودة المواد المستخدمة',                max: 8,  critical: false },
-    { key: 'warranty',         label: 'فترة الضمان وخدمات ما بعد التسليم',    max: 5,  critical: false },
-    { key: 'permits',          label: 'الالتزام بالأنظمة البلدية والتراخيص',   max: 5,  critical: true  },
-  ],
-  IT_SERVICES: [
-    { key: 'solution_quality', label: 'جودة الحل التقني ومطابقة المتطلبات',   max: 18, critical: true  },
-    { key: 'sla_response',     label: 'وقت الاستجابة والالتزام بـ SLA',        max: 15, critical: true  },
-    { key: 'support',          label: 'الدعم الفني وتوفره عند الحاجة',         max: 12, critical: false },
-    { key: 'data_security',    label: 'أمن المعلومات وحماية البيانات',        max: 12, critical: true  },
-    { key: 'compatibility',    label: 'التوافقية مع الأنظمة القائمة',          max: 8,  critical: false },
-    { key: 'documentation',    label: 'التوثيق والتدريب',                     max: 7,  critical: false },
-    { key: 'pricing',          label: 'الأسعار والقيمة المقدمة',              max: 5,  critical: false },
-  ],
-  TRANSPORT: [
-    { key: 'safety',           label: 'سلامة النقل وحماية البضاعة',           max: 22, critical: true  },
-    { key: 'delivery',         label: 'الالتزام بالمواعيد',                   max: 22, critical: false },
-    { key: 'vehicle_condition',label: 'حالة المركبات والمعدات',               max: 15, critical: false },
-    { key: 'driver_conduct',   label: 'سلوك وكفاءة السائقين',                 max: 10, critical: false },
-    { key: 'communication',    label: 'التواصل والاستجابة',                   max: 5,  critical: false },
-    { key: 'pricing',          label: 'الأسعار والتنافسية',                   max: 3,  critical: false },
-  ],
-  CONSULTING: [
-    { key: 'output_quality',   label: 'جودة التقارير والمخرجات',              max: 22, critical: true  },
-    { key: 'expertise',        label: 'الخبرة والكفاءة التخصصية',             max: 18, critical: true  },
-    { key: 'delivery',         label: 'الالتزام بالجدول الزمني',              max: 15, critical: false },
-    { key: 'communication',    label: 'التواصل والاستجابة',                   max: 12, critical: false },
-    { key: 'pricing',          label: 'الأسعار والقيمة المقابلة',             max: 10, critical: false },
-  ],
-  IN_KIND_DONOR: [
-    { key: 'spec_conformity',  label: 'مطابقة المواصفات المطلوبة',            max: 28, critical: true  },
-    { key: 'product_quality',  label: 'جودة المواد / البضائع',                max: 22, critical: true  },
-    { key: 'delivery',         label: 'الالتزام بالمواعيد',                   max: 15, critical: false },
-    { key: 'compliance',       label: 'الامتثال والوثائق (صلاحية - شهادات)',  max: 12, critical: true  },
-  ],
-  OTHER: [
-    { key: 'quality',          label: 'جودة المنتج / الخدمة',                 max: 22, critical: true  },
-    { key: 'delivery',         label: 'الالتزام بالمواعيد',                   max: 18, critical: false },
-    { key: 'communication',    label: 'التواصل والاستجابة',                   max: 15, critical: false },
-    { key: 'pricing',          label: 'الأسعار والشروط التجارية',             max: 12, critical: false },
-    { key: 'compliance',       label: 'الامتثال والوثائق',                    max: 10, critical: false },
-  ],
-};
-
-const TYPE_LABELS = {
-  GOODS: 'بضائع ومنتجات',
-  SERVICES: 'خدمات',
-  CONSTRUCTION: 'مقاولات وبناء',
-  IT_SERVICES: 'خدمات تقنية المعلومات',
-  TRANSPORT: 'نقل وشحن',
-  CONSULTING: 'استشارات',
-  IN_KIND_DONOR: 'مورد تبرعات عينية',
-  OTHER: 'أخرى',
-};
-
-// الأوصاف النوعية للدرجات حسب نسبة التحقق (مع المعيار)
-function scoreLabel(score, max) {
-  if (max === 0) return '';
-  const pct = (score / max) * 100;
-  if (pct >= 90) return 'ممتاز ويتجاوز التوقعات';
-  if (pct >= 75) return 'جيد جداً ومطابق';
-  if (pct >= 60) return 'مقبول مع ملاحظات';
-  if (pct >= 40) return 'ضعيف يحتاج تحسين';
-  if (pct > 0)   return 'غير مقبول';
-  return 'لم يُقيَّم';
-}
-
-function getCriteria(supplierType) {
-  const core = CORE_CRITERIA_BY_TYPE[supplierType] || CORE_CRITERIA_BY_TYPE.OTHER;
-  return [...core, ...COMMON_CRITERIA];
-}
-
-function grade(p) {
-  if (p >= 90) return 'ممتاز';
-  if (p >= 80) return 'جيد جداً';
-  if (p >= 70) return 'جيد';
-  if (p >= 60) return 'مقبول';
-  return 'ضعيف';
-}
-
-function decision(p, criticalFailed) {
-  // فشل أي معيار حرج = رفض تلقائي (حتى لو النسبة عالية)
-  if (criticalFailed) return 'مرفوض (فشل معيار حرج)';
-  if (p >= 85) return 'معتمد';
-  if (p >= 70) return 'معتمد مشروط';
-  if (p >= 50) return 'قيد المراقبة';
-  return 'مرفوض';
-}
+// ملاحظة: scoreLabel القديم أُزيل — عرض المستوى النصي يتم داخل formPage (levelText في JS الصفحة).
+// getCriteria/grade/decision — يُستوردان الآن من lib/evalEngine.js (Batch 12)
 
 // GET /eval/:token
 router.get('/:token', asyncHandler(async (req, res) => {
@@ -161,33 +56,33 @@ router.post('/:token', asyncHandler(async (req, res) => {
   if (record.usedAt) return res.send(usedPage(record.supplier));
   if (record.expiresAt < new Date()) return res.status(410).send(errorPage('انتهت صلاحية هذا الرابط'));
 
-  const { evaluatorName, evaluatorOrg, notes, recommendation } = req.body;
+  // Trim + enforce length limits on free-text public input (prevent DB/UI bloat abuse)
+  const trimLen = (v, max) => String(v ?? '').trim().slice(0, max);
+  const evaluatorName = trimLen(req.body.evaluatorName, 120);
+  const evaluatorOrg  = trimLen(req.body.evaluatorOrg, 200);
+  const notes         = trimLen(req.body.notes, 2000);
+  const recommendation = req.body.recommendation;
+  if (!evaluatorName) {
+    return res.status(400).send(errorPage('اسم المقيّم مطلوب لإثبات التقييم'));
+  }
   const criteria = getCriteria(record.supplier.type);
 
-  let totalScore = 0;
-  let maxTotal = 0;
-  let criticalFailed = false;
-  const criteriaObj = {};
-
-  for (const c of criteria) {
-    const score = Math.min(c.max, Math.max(0, Number(req.body[c.key]) || 0));
-    const note = (req.body[`${c.key}_note`] || '').trim().slice(0, 300);
-    totalScore += score;
-    maxTotal += c.max;
-    // معيار حرج يعتبر فاشلاً إذا حصل على أقل من 50% من حده الأقصى
-    if (c.critical && score < (c.max * 0.5)) criticalFailed = true;
-    criteriaObj[c.key] = {
-      label: c.label,
-      max: c.max,
-      score,
-      critical: !!c.critical,
-      level: scoreLabel(score, c.max),
-      note: note || null,
-    };
+  // تحقّق أنّ كل المعايير مُعبَّأة (null ≠ 0)
+  const unanswered = criteria.filter(c => req.body[c.key] === undefined || req.body[c.key] === '');
+  if (unanswered.length) {
+    return res.status(400).send(errorPage('يرجى تقييم كل المعايير قبل الإرسال: ' + unanswered.map(c => c.label).join(' · ')));
   }
 
-  const pctNorm = maxTotal > 0 ? Math.round((totalScore / maxTotal) * 100) : 0;
-  const finalDecision = decision(pctNorm, criticalFailed);
+  // ═══ محرك التقييم الموحّد (Batch 12) ═══
+  const computed = computeSupplierEval({
+    supplierType: record.supplier.type,
+    answers: req.body,
+  });
+  const totalScore     = computed.totalScore;
+  const maxTotal       = computed.maxScore;
+  const pctNorm        = computed.percentage;
+  const criticalFailed = computed.criticalFailed;
+  const finalDecision  = computed.decision;
 
   // توصية المقيّم النهائية (اختيارية — إن لم تُرسل تُستخدم الحسابية)
   const userRec = (recommendation || '').trim();
@@ -196,44 +91,53 @@ router.post('/:token', asyncHandler(async (req, res) => {
 
   const code = await nextCode('supplierEval', 'SEVAL');
 
+  // criteriaJson يأتي من المحرك؛ نحقن الـ recommendation فيه
+  const parsedJson = JSON.parse(computed.criteriaJson);
   const payload = {
-    criteria:    criteriaObj,
-    criticalFailed,
+    ...parsedJson,
     recommendation: recommendationFinal,
   };
 
-  await prisma.$transaction([
-    prisma.supplierEval.create({
-      data: {
-        code,
-        supplierId:   record.supplierId,
-        evaluatorId:  record.createdById,
-        period:       `تقييم خارجي — ${evaluatorOrg || evaluatorName || 'مقيّم خارجي'}`,
-        criteriaJson: JSON.stringify(payload),
-        totalScore,
-        maxScore:   maxTotal,
-        percentage: pctNorm,
-        grade:      grade(pctNorm),
-        decision:   finalDecision,
-        notes:      notes || null,
-      },
-    }),
-    prisma.evalToken.update({
-      where: { id: record.id },
-      data: {
-        usedAt: new Date(),
-        evaluatorName: evaluatorName || null,
-        evaluatorOrg:  evaluatorOrg  || null,
-        notes:         notes         || null,
-      },
-    }),
-    prisma.supplier.update({
-      where: { id: record.supplierId },
-      data: { overallRating: pctNorm },
-    }),
-  ]);
+  // ═══ استهلاك ذرّي للتوكن — إصلاح race condition ═══
+  try {
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.evalToken.updateMany({
+        where: { id: record.id, usedAt: null },
+        data: {
+          usedAt: new Date(),
+          evaluatorName: evaluatorName || null,
+          evaluatorOrg:  evaluatorOrg  || null,
+          notes:         notes         || null,
+        },
+      });
+      if (claimed.count === 0) throw new Error('TOKEN_ALREADY_USED');
 
-  res.send(successPage(record.supplier, totalScore, maxTotal, pctNorm, grade(pctNorm), finalDecision, criticalFailed));
+      await tx.supplierEval.create({
+        data: {
+          code,
+          supplierId:   record.supplierId,
+          evalTokenId:  record.id,  // ربط فريد: يمنع تقييمين من نفس الرابط
+          evaluatorId:  record.createdById,
+          period:       `تقييم خارجي — ${evaluatorOrg || evaluatorName || 'مقيّم خارجي'}`,
+          criteriaJson: JSON.stringify(payload),
+          totalScore,
+          maxScore:   maxTotal,
+          percentage: pctNorm,
+          grade:      computed.grade,
+          decision:   finalDecision,
+          notes:      notes || null,
+        },
+      });
+    });
+
+    // إعادة حساب overallRating بمتوسط مرجَّح حديثي (Batch 12 - نفس الحساب للمسارين)
+    await recomputeSupplierRating(prisma, record.supplierId);
+  } catch (e) {
+    if (e.message === 'TOKEN_ALREADY_USED') return res.send(usedPage(record.supplier));
+    throw e;
+  }
+
+  res.send(successPage(record.supplier, totalScore, maxTotal, pctNorm, computed.grade, finalDecision, criticalFailed));
 }));
 
 // ─── HTML Templates ────────────────────────────────────────────────────────────

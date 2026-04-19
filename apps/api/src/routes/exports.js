@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { activeWhere } from '../lib/dataHelpers.js';
+import { NotFound } from '../utils/errors.js';
 import ExcelJS from 'exceljs';
 
 const router = Router();
 
 const fmt = (v, type) => {
   if (v === null || v === undefined) return '';
-  if (type === 'date') return v ? new Date(v).toLocaleDateString('ar-SA') : '';
+  if (type === 'date') return v ? new Date(v).toLocaleDateString('ar-SA-u-ca-gregory', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
   if (type === 'bool') return v ? 'نعم' : 'لا';
   return String(v);
 };
@@ -276,11 +278,88 @@ const CONFIGS = {
       { key: 'format', label: 'الشكل' },
     ],
   },
+  ackDocuments: {
+    label: 'السياسات والمواثيق (الإقرارات)',
+    fetch: () => prisma.ackDocument.findMany({ where: activeWhere(), orderBy: [{ category: 'asc' }, { title: 'asc' }] }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'العنوان' },
+      { key: 'category', label: 'الفئة' },
+      { key: 'audience', label: 'المستهدفون' },
+      { key: 'version', label: 'الإصدار' },
+      { key: 'renewFrequency', label: 'تكرار التجديد' },
+      { key: 'mandatory', label: 'إلزامية', type: 'bool' },
+      { key: 'active', label: 'مفعّلة', type: 'bool' },
+      { key: 'effectiveDate', label: 'تاريخ النفاذ', type: 'date' },
+      { key: 'reviewDate', label: 'تاريخ المراجعة', type: 'date' },
+      { key: 'approvedBy', label: 'الجهة المُعتمِدة' },
+    ],
+  },
+  performanceReviews: {
+    label: 'تقييمات الأداء',
+    fetch: () => prisma.performanceReview.findMany({
+      where: activeWhere(),
+      include: { employee: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'employeeName', label: 'الموظف' },
+      { key: 'period', label: 'الفترة' },
+      { key: 'status', label: 'الحالة' },
+      { key: 'overallScore', label: 'الدرجة الإجمالية' },
+      { key: 'strengthsNotes', label: 'نقاط القوة' },
+      { key: 'improvementNotes', label: 'مجالات التطوير' },
+      { key: 'createdAt', label: 'تاريخ الإنشاء', type: 'date' },
+    ],
+  },
+  improvementProjects: {
+    label: 'مشاريع التحسين (PDCA)',
+    fetch: () => prisma.improvementProject.findMany({
+      where: activeWhere(),
+      orderBy: { createdAt: 'desc' },
+    }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'المشروع' },
+      { key: 'source', label: 'المصدر' },
+      { key: 'phase', label: 'المرحلة (PDCA)' },
+      { key: 'problemStatement', label: 'المشكلة' },
+      { key: 'goalStatement', label: 'الهدف' },
+      { key: 'plannedStart', label: 'بداية مقرَّرة', type: 'date' },
+      { key: 'plannedEnd', label: 'نهاية مقرَّرة', type: 'date' },
+      { key: 'actualEnd', label: 'الإغلاق الفعلي', type: 'date' },
+    ],
+  },
+  auditChecklists: {
+    label: 'قوائم تحقق التدقيق',
+    fetch: () => prisma.auditChecklistTemplate.findMany({
+      where: activeWhere(),
+      orderBy: { createdAt: 'desc' },
+    }),
+    cols: [
+      { key: 'code', label: 'الرمز' },
+      { key: 'title', label: 'العنوان' },
+      { key: 'scope', label: 'النطاق' },
+      { key: 'clause', label: 'البند' },
+      { key: 'version', label: 'الإصدار' },
+      { key: 'active', label: 'مفعّلة', type: 'bool' },
+      { key: 'createdAt', label: 'تاريخ الإنشاء', type: 'date' },
+    ],
+  },
+};
+
+// preprocess: للتصدير، نُسطِّح حقول الـ relation والمصفوفات قبل العرض
+const flattenForExport = (item, cfg) => {
+  const out = { ...item };
+  if (item.employee?.name !== undefined) out.employeeName = item.employee.name;
+  if (Array.isArray(out.audience)) out.audience = out.audience.join('، ');
+  return out;
 };
 
 router.get('/:model', asyncHandler(async (req, res) => {
   const cfg = CONFIGS[req.params.model];
-  if (!cfg) return res.status(404).json({ ok: false, error: { message: 'نموذج التصدير غير موجود' } });
+  if (!cfg) throw NotFound('نموذج التصدير غير موجود');
 
   const items = await cfg.fetch();
 
@@ -300,7 +379,8 @@ router.get('/:model', asyncHandler(async (req, res) => {
     cell.border = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
   });
 
-  items.forEach((item, idx) => {
+  items.forEach((rawItem, idx) => {
+    const item = flattenForExport(rawItem, cfg);
     const rowData = {};
     cfg.cols.forEach(c => { rowData[c.key] = fmt(item[c.key], c.type); });
     const row = ws.addRow(rowData);

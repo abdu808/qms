@@ -1,6 +1,9 @@
+import { Router } from 'express';
 import { crudRouter } from '../utils/crudFactory.js';
+import { attachWorkflow } from '../lib/workflow.js';
 import { prisma } from '../db.js';
 import { BadRequest } from '../utils/errors.js';
+import { createSchema as riskCreateSchema, updateSchema as riskUpdateSchema } from '../schemas/risk.schema.js';
 
 function computeLevel(score) {
   if (score >= 20) return 'حرج';
@@ -9,13 +12,15 @@ function computeLevel(score) {
   return 'منخفض';
 }
 
-export default crudRouter({
+const crud = crudRouter({
+  resource: 'risks',
   model: 'risk',
   codePrefix: 'RSK',
   searchFields: ['title', 'description'],
   include: { department: true, owner: { select: { id: true, name: true } } },
   allowedSortFields: ['createdAt', 'score', 'status'],
-  allowedFilters: ['status', 'level', 'departmentId', 'ownerId'],
+  allowedFilters: ['status', 'level', 'departmentId', 'ownerId', 'workflowState'],
+  schemas: { create: riskCreateSchema, update: riskUpdateSchema },
   beforeCreate: async (data, req) => {
     const p = Math.min(5, Math.max(1, Number(data.probability) || 1));
     const i = Math.min(5, Math.max(1, Number(data.impact) || 1));
@@ -46,3 +51,8 @@ export default crudRouter({
     return data;
   },
 });
+
+const router = Router();
+attachWorkflow(router, { model: 'risk', resource: 'risks' });
+router.use(crud);
+export default router;

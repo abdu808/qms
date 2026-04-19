@@ -19,12 +19,13 @@ RUN apk add --no-cache \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Copy package files
+# Copy package files + prisma schema BEFORE npm install so postinstall (prisma generate) works
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install
-RUN npm install --omit=dev && npx prisma generate
+# Install production deps. postinstall script auto-runs `prisma generate` using the local
+# prisma CLI (now in dependencies). No network download needed at build time.
+RUN npm install --omit=dev
 
 # Copy source
 COPY . .

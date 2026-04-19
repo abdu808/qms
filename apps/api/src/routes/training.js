@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { NotFound, BadRequest } from '../utils/errors.js';
+import { NotFound } from '../utils/errors.js';
 import { crudRouter } from '../utils/crudFactory.js';
+import { requireAction } from '../lib/permissions.js';
+import { requireFields, intInRange, triBool } from '../lib/dataHelpers.js';
 
 const base = crudRouter({
+  resource: 'training',
   model: 'training',
   codePrefix: 'TRN',
   searchFields: ['title', 'trainer'],
@@ -17,7 +20,7 @@ const base = crudRouter({
 const router = Router();
 
 // GET /:id/records — list attendance/effectiveness records
-router.get('/:id/records', asyncHandler(async (req, res) => {
+router.get('/:id/records', requireAction('training', 'read'), asyncHandler(async (req, res) => {
   const training = await prisma.training.findUnique({ where: { id: req.params.id } });
   if (!training) throw NotFound('التدريب غير موجود');
   const records = await prisma.trainingRecord.findMany({
@@ -50,24 +53,19 @@ router.get('/:id/records', asyncHandler(async (req, res) => {
 }));
 
 // POST /:id/records — upsert a single record (attendance/score/effectiveness)
-router.post('/:id/records', asyncHandler(async (req, res) => {
+router.post('/:id/records', requireAction('training', 'update'), asyncHandler(async (req, res) => {
   const { userId, attended, score, effective, certUrl } = req.body;
-  if (!userId) throw BadRequest('مطلوب اختيار الموظف');
+  requireFields({ userId }, { userId: 'الموظف' });
 
   const t = await prisma.training.findUnique({ where: { id: req.params.id } });
   if (!t) throw NotFound('التدريب غير موجود');
 
   const data = {
-    attended: !!attended,
-    score: score === '' || score === null || score === undefined ? null : Number(score),
-    effective: effective === '' || effective === null || effective === undefined ? null
-               : (effective === true || effective === 'true'),
-    certUrl: certUrl || null,
+    attended:  !!attended,
+    score:     intInRange(score, { min: 0, max: 100, label: 'الدرجة' }),
+    effective: triBool(effective, { label: 'الفعالية' }),
+    certUrl:   certUrl || null,
   };
-
-  if (data.score !== null && (!Number.isFinite(data.score) || data.score < 0 || data.score > 100)) {
-    throw BadRequest('الدرجة يجب أن تكون بين 0 و 100');
-  }
 
   const record = await prisma.trainingRecord.upsert({
     where: { trainingId_userId: { trainingId: req.params.id, userId } },
@@ -79,7 +77,7 @@ router.post('/:id/records', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /:id/records/:userId — remove a record
-router.delete('/:id/records/:userId', asyncHandler(async (req, res) => {
+router.delete('/:id/records/:userId', requireAction('training', 'update'), asyncHandler(async (req, res) => {
   await prisma.trainingRecord.delete({
     where: { trainingId_userId: { trainingId: req.params.id, userId: req.params.userId } },
   });

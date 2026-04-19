@@ -2,8 +2,12 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
+import { requireAction } from '../lib/permissions.js';
+import { activeWhere } from '../lib/dataHelpers.js';
+import { NotFound } from '../utils/errors.js';
 
 const base = crudRouter({
+  resource: 'strategic-goals',
   model: 'strategicGoal',
   codePrefix: 'STR',
   searchFields: ['title', 'perspective', 'kpi', 'initiatives', 'responsible'],
@@ -16,16 +20,16 @@ const router = Router();
  * GET /api/strategic-goals/:id/summary
  * Returns a goal with auto-computed progress from linked activities/objectives + linked risks
  */
-router.get('/:id/summary', asyncHandler(async (req, res) => {
-  const goal = await prisma.strategicGoal.findUnique({
-    where: { id: req.params.id },
+router.get('/:id/summary', requireAction('strategic-goals', 'read'), asyncHandler(async (req, res) => {
+  const goal = await prisma.strategicGoal.findFirst({
+    where: activeWhere({ id: req.params.id }),
     include: {
       activities: true,
       objectives: true,
       risks: true,
     },
   });
-  if (!goal) return res.status(404).json({ ok: false, error: { message: 'غير موجود' } });
+  if (!goal) throw NotFound('الهدف الاستراتيجي غير موجود');
 
   const acts = goal.activities || [];
   const objs = goal.objectives || [];
@@ -57,12 +61,12 @@ router.get('/:id/summary', asyncHandler(async (req, res) => {
  * PATCH /api/strategic-goals/:id/recompute
  * Sync progress from linked activities + objectives
  */
-router.patch('/:id/recompute', asyncHandler(async (req, res) => {
-  const goal = await prisma.strategicGoal.findUnique({
-    where: { id: req.params.id },
+router.patch('/:id/recompute', requireAction('strategic-goals', 'update'), asyncHandler(async (req, res) => {
+  const goal = await prisma.strategicGoal.findFirst({
+    where: activeWhere({ id: req.params.id }),
     include: { activities: true, objectives: true },
   });
-  if (!goal) return res.status(404).json({ ok: false, error: { message: 'غير موجود' } });
+  if (!goal) throw NotFound('الهدف الاستراتيجي غير موجود');
 
   const all = [
     ...(goal.activities || []).map(a => a.progress || 0),

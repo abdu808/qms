@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { requireAction } from '../lib/permissions.js';
 
 const router = Router();
 
@@ -8,7 +9,7 @@ const router = Router();
  * GET /api/iso-readiness
  * Returns completion status per ISO 9001:2015 clause
  */
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', requireAction('iso-readiness', 'read'), asyncHandler(async (req, res) => {
   const [
     swotCount, ipCount, processCount,
     policyActive,

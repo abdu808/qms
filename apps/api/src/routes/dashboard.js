@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { activeWhere } from '../lib/dataHelpers.js';
 
 const router = Router();
 
@@ -45,49 +46,49 @@ router.get('/', asyncHandler(async (req, res) => {
     // Training (last 90 days)
     recentTrainings,
   ] = await Promise.all([
-    // Objectives
-    prisma.objective.count(),
-    prisma.objective.count({ where: { status: 'ACHIEVED' } }),
-    prisma.objective.count({ where: { status: 'IN_PROGRESS' } }),
-    prisma.objective.count({ where: { status: 'DELAYED' } }),
+    // Objectives — activeWhere يستبعد المحذوفة منطقياً
+    prisma.objective.count({ where: activeWhere() }),
+    prisma.objective.count({ where: activeWhere({ status: 'ACHIEVED' }) }),
+    prisma.objective.count({ where: activeWhere({ status: 'IN_PROGRESS' }) }),
+    prisma.objective.count({ where: activeWhere({ status: 'DELAYED' }) }),
 
     // Risks by level (غير المغلقة)
     prisma.risk.groupBy({
       by: ['level'],
       _count: { _all: true },
-      where: { status: { not: 'CLOSED' } },
+      where: activeWhere({ status: { not: 'CLOSED' } }),
     }),
 
     // NCR متأخر (dueDate فات ولم يُغلق)
     prisma.nCR.count({
-      where: { status: { in: OPEN_NCR }, dueDate: { lt: now, not: null } },
+      where: activeWhere({ status: { in: OPEN_NCR }, dueDate: { lt: now, not: null } }),
     }),
 
     // NCR
-    prisma.nCR.count({ where: { status: { in: OPEN_NCR } } }),
-    prisma.nCR.count({ where: { status: 'CLOSED' } }),
+    prisma.nCR.count({ where: activeWhere({ status: { in: OPEN_NCR } }) }),
+    prisma.nCR.count({ where: activeWhere({ status: 'CLOSED' }) }),
 
     // Complaints
-    prisma.complaint.count({ where: { status: { in: OPEN_COMPLAINT } } }),
-    prisma.complaint.count({ where: { status: { in: OPEN_COMPLAINT }, receivedAt: { lte: overdueDate } } }),
-    prisma.complaint.count(),
+    prisma.complaint.count({ where: activeWhere({ status: { in: OPEN_COMPLAINT } }) }),
+    prisma.complaint.count({ where: activeWhere({ status: { in: OPEN_COMPLAINT }, receivedAt: { lte: overdueDate } }) }),
+    prisma.complaint.count({ where: activeWhere() }),
 
     // Audits
-    prisma.audit.count({ where: { status: 'PLANNED' } }),
-    prisma.audit.count({ where: { status: 'COMPLETED' } }),
+    prisma.audit.count({ where: activeWhere({ status: 'PLANNED' }) }),
+    prisma.audit.count({ where: activeWhere({ status: 'COMPLETED' }) }),
 
     // Suppliers
-    prisma.supplier.count(),
-    prisma.supplier.count({ where: { status: 'APPROVED' } }),
-    prisma.supplier.count({ where: { status: 'PENDING' } }),
+    prisma.supplier.count({ where: activeWhere() }),
+    prisma.supplier.count({ where: activeWhere({ status: 'APPROVED' }) }),
+    prisma.supplier.count({ where: activeWhere({ status: 'PENDING' }) }),
 
     // Beneficiaries
-    prisma.beneficiary.count({ where: { status: 'ACTIVE' } }),
+    prisma.beneficiary.count({ where: activeWhere({ status: 'ACTIVE' }) }),
 
     // Documents
-    prisma.document.count({ where: { status: 'PUBLISHED' } }),
+    prisma.document.count({ where: activeWhere({ status: 'PUBLISHED' }) }),
     prisma.document.findMany({
-      where: { status: 'PUBLISHED', reviewDate: { gte: now, lte: expiryDate } },
+      where: activeWhere({ status: 'PUBLISHED', reviewDate: { gte: now, lte: expiryDate } }),
       select: { id: true, code: true, title: true, reviewDate: true },
       orderBy: { reviewDate: 'asc' },
       take: 10,
@@ -96,8 +97,8 @@ router.get('/', asyncHandler(async (req, res) => {
     // Active users
     prisma.user.count({ where: { active: true } }),
 
-    // Survey responses (total)
-    prisma.survey.aggregate({ _sum: { responses: true }, _avg: { avgScore: true } }),
+    // Survey responses (total) — استبعاد الاستبيانات المحذوفة منطقياً
+    prisma.survey.aggregate({ where: activeWhere(), _sum: { responses: true }, _avg: { avgScore: true } }),
 
     // Recent audit log (last 10)
     prisma.auditLog.findMany({

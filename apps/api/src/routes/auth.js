@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { config } from '../config.js';
@@ -10,12 +11,48 @@ import { logAuth } from '../middleware/audit.js';
 
 const router = Router();
 
+// Strict limiter for /auth/login — IP + email based, counts only failures.
+// 10 failed attempts per 15min per (IP+email) combination. Successful logins reset implicitly.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // don't count 2xx responses toward limit
+  keyGenerator: (req) => {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    return `${req.ip}|${email}`;
+  },
+  message: { ok: false, error: 'تم تجاوز عدد محاولات الدخول. حاول بعد 15 دقيقة.' },
+});
+
+// Separate stricter per-IP limiter — catches distributed email guessing from same origin.
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => req.ip,
+  message: { ok: false, error: 'عدد كبير من محاولات الدخول من هذا العنوان. حاول لاحقاً.' },
+});
+
+// Refresh token limiter — prevents token enumeration attacks.
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+  message: { ok: false, error: 'عدد كبير من الطلبات. حاول لاحقاً.' },
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
 
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) throw BadRequest('بيانات الدخول غير صالحة');
   const { email, password } = parsed.data;
@@ -24,7 +61,11 @@ router.post('/login', asyncHandler(async (req, res) => {
   if (!user || !user.active) throw Unauthorized('بيانات الدخول غير صحيحة');
 
   const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) throw Unauthorized('بيانات الدخول غير صحيحة');
+  if (!ok) {
+    // Record failed attempt for security audit (ISO 9001 §7.5.3.2)
+    await logAuth(user.id, 'LOGIN_FAILED', req).catch(() => {});
+    throw Unauthorized('بيانات الدخول غير صحيحة');
+  }
 
   const payload = { sub: user.id, email: user.email, role: user.role, name: user.name };
   const token = jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
@@ -52,7 +93,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   });
 }));
 
-router.post('/refresh', asyncHandler(async (req, res) => {
+router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   const { refreshToken } = req.body || {};
   if (!refreshToken) throw Unauthorized();
   let payload;

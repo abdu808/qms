@@ -3,11 +3,12 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { NotFound } from '../utils/errors.js';
 import { config } from '../config.js';
+import { requireAction } from '../lib/permissions.js';
 
 const router = Router();
 
 // POST /api/eval-tokens  — create shareable evaluation link for a supplier
-router.post('/', asyncHandler(async (req, res) => {
+router.post('/', requireAction('suppliers', 'update'), asyncHandler(async (req, res) => {
   const { supplierId, daysValid = 30 } = req.body;
 
   const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
@@ -32,7 +33,7 @@ router.post('/', asyncHandler(async (req, res) => {
 }));
 
 // GET /api/eval-tokens?supplierId=xxx  — list tokens for a supplier
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', requireAction('suppliers', 'read'), asyncHandler(async (req, res) => {
   const where = {};
   if (req.query.supplierId) where.supplierId = req.query.supplierId;
 
@@ -54,7 +55,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // DELETE /api/eval-tokens/:id  — revoke a token
-router.delete('/:id', asyncHandler(async (req, res) => {
+router.delete('/:id', requireAction('suppliers', 'update'), asyncHandler(async (req, res) => {
   await prisma.evalToken.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 }));

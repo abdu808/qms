@@ -1,33 +1,14 @@
+import { Router } from 'express';
 import { crudRouter } from '../utils/crudFactory.js';
-import { BadRequest } from '../utils/errors.js';
-import { prisma } from '../db.js';
+import { attachWorkflow } from '../lib/workflow.js';
+import { readAudit } from '../middleware/audit.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { createSchema as ncrCreateSchema, updateSchema as ncrUpdateSchema } from '../schemas/ncr.schema.js';
+import { guardNcrCreate, guardNcrUpdate } from '../services/ncrClosure.js';
+import { reopenRecord } from '../services/reopenGuard.js';
 
-// Normalize payload: coerce `effective` string → boolean, auto-stamp verifiedAt
-function normalize(data) {
-  if (data.effective === 'true')  data.effective = true;
-  else if (data.effective === 'false') data.effective = false;
-  else if (data.effective === '' || data.effective === null) data.effective = null;
-
-  // When effectiveness is recorded, auto-stamp verifiedAt if not provided
-  if (data.effective !== null && data.effective !== undefined && !data.verifiedAt) {
-    data.verifiedAt = new Date();
-  }
-  return data;
-}
-
-// ISO 10.2: cannot CLOSE an NCR without verifying effectiveness
-function guardClosure(data) {
-  if (data.status === 'CLOSED') {
-    if (data.effective !== true) {
-      throw BadRequest('لا يمكن إغلاق عدم المطابقة دون التحقق من فعالية الإجراء التصحيحي (ISO 10.2)');
-    }
-    if (!data.verifiedAt) {
-      throw BadRequest('مطلوب تاريخ التحقق من الفعالية قبل الإغلاق');
-    }
-  }
-}
-
-export default crudRouter({
+const crud = crudRouter({
+  resource: 'ncr',
   model: 'nCR',
   codePrefix: 'NCR',
   searchFields: ['title', 'description'],
@@ -37,33 +18,52 @@ export default crudRouter({
     assignee: { select: { id: true, name: true } },
   },
   allowedSortFields: ['createdAt', 'dueDate', 'status'],
-  allowedFilters: ['status', 'severity', 'departmentId', 'assigneeId'],
+  allowedFilters: ['status', 'severity', 'departmentId', 'assigneeId', 'workflowState'],
+  schemas: { create: ncrCreateSchema, update: ncrUpdateSchema },
+  smartFilters: {
+    overdue: () => ({
+      status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] },
+      dueDate: { lt: new Date() },
+    }),
+    mine: (req) => ({ assigneeId: req.user.sub }),
+    pendingMine: (req) => ({
+      assigneeId: req.user.sub,
+      status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] },
+    }),
+    open: () => ({ status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] } }),
+    closed: () => ({ status: 'CLOSED' }),
+    pendingReview:   () => ({ workflowState: 'SUBMITTED' }),
+    pendingApproval: () => ({ workflowState: 'REVIEWED' }),
+    thisMonth: () => {
+      const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
+      return { createdAt: { gte: d } };
+    },
+  },
   beforeCreate: async (data, req) => {
-    data = normalize(data);
-    guardClosure(data);
+    data = guardNcrCreate(data);
     return { ...data, reporterId: req.user.sub };
   },
-  beforeUpdate: async (data, req) => {
-    data = normalize(data);
-    guardClosure(data);
-    // ISO 10.2: سجّل حدث التحقق من الفعالية بشكل منفصل عند الإغلاق
-    if (data.status === 'CLOSED') {
-      prisma.auditLog.create({
-        data: {
-          userId:     req.user.sub,
-          action:     'VERIFY_NCR_EFFECTIVENESS',
-          entityType: 'NCR',
-          entityId:   req.params.id,
-          changesJson: JSON.stringify({
-            effective:    data.effective,
-            verifiedAt:   data.verifiedAt,
-            verifiedNote: data.verifiedNote || null,
-          }),
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
-        },
-      }).catch(() => {}); // fire-and-forget — لا نوقف الإغلاق لو فشل السجل
-    }
-    return data;
-  },
+  beforeUpdate: async (data, req) => guardNcrUpdate(data, { ncrId: req.params.id, req }),
 });
+
+const router = Router();
+// ISO 7.5.3.2(b) — audit who reads nonconformity records.
+router.use(readAudit('NCR'));
+
+/**
+ * POST /ncr/:id/reopen — إعادة فتح NCR مُغلَقة (ISO 10.2).
+ * QM/SUPER_ADMIN فقط + سبب إلزامي + سجل AuditLog مستقل.
+ * مُسجَّل قبل attachWorkflow لتفادي تعارض المسار العام /:id/reopen.
+ */
+router.post('/:id/reopen', asyncHandler(async (req, res) => {
+  const updated = await reopenRecord({
+    model: 'nCR', entityType: 'NCR',
+    id: req.params.id, reason: req.body?.reason, req,
+  });
+  res.json({ ok: true, item: updated });
+}));
+
+attachWorkflow(router, { model: 'nCR', resource: 'ncr' });
+
+router.use(crud);
+export default router;

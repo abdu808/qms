@@ -28,7 +28,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
   if (!s) return res.status(404).send(errorPage('الاستبيان غير موجود'));
   if (!s.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
 
-  const questions = JSON.parse(s.questionsJson || '[]');
+  const rawQuestions = JSON.parse(s.questionsJson || '[]');
+  const questions = rawQuestions.map((q, i) => normalizeQuestion(q, i));
   res.send(formPage(s, questions));
 }));
 
@@ -38,16 +39,34 @@ router.post('/:id', asyncHandler(async (req, res) => {
   if (!s) return res.status(404).send(errorPage('الاستبيان غير موجود'));
   if (!s.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
 
-  const questions = JSON.parse(s.questionsJson || '[]');
-  const existing = JSON.parse(s.resultsJson || '[]');
+  const rawQuestions = JSON.parse(s.questionsJson || '[]');
+  const questions = rawQuestions.map((q, i) => normalizeQuestion(q, i));
+  // resultsJson قد يكون مصفوفة (الشكل الجديد) أو object (seed قديم avgByQ/topFeedback) — نطبّعه إلى مصفوفة
+  let existing;
+  try {
+    const parsed = JSON.parse(s.resultsJson || '[]');
+    existing = Array.isArray(parsed) ? parsed : [];
+  } catch { existing = []; }
+
+  // منع التكرار البسيط: نفس IP+UA خلال آخر ساعة → رفض
+  const ipKey = (req.ip || '') + '|' + (req.headers['user-agent'] || '');
+  const ONE_HOUR = 60 * 60 * 1000;
+  const now = Date.now();
+  const dup = existing.find(r => r._idHash === ipKey && (now - new Date(r.at).getTime()) < ONE_HOUR);
+  if (dup) return res.status(429).send(errorPage('لا يمكنك إرسال الاستبيان أكثر من مرّة خلال ساعة واحدة'));
 
   // Build answers object from body
   const answers = {};
+  const missing = [];
   let ratingSum = 0;
   let ratingCount = 0;
   for (const q of questions) {
     const v = req.body[q.key];
-    if (v === undefined || v === '') continue;
+    const isEmpty = v === undefined || v === '' || v === null;
+    if (isEmpty) {
+      if (q.required) missing.push(q.label);
+      continue;
+    }
     if (q.type === 'rating') {
       const n = Math.max(1, Math.min(5, Number(v) || 0));
       answers[q.key] = n;
@@ -56,37 +75,50 @@ router.post('/:id', asyncHandler(async (req, res) => {
     } else if (q.type === 'yesno') {
       answers[q.key] = v === 'yes' || v === 'نعم' ? 'yes' : 'no';
     } else {
-      answers[q.key] = String(v).trim().slice(0, 500);
+      answers[q.key] = String(v).trim().slice(0, 5000);
     }
+  }
+  if (missing.length) {
+    return res.status(400).send(errorPage('يرجى الإجابة عن الأسئلة المطلوبة: ' + missing.join(' · ')));
   }
 
   const response = {
     at: new Date().toISOString(),
     respondentName: (req.body.respondentName || '').toString().trim().slice(0, 100) || null,
     answers,
+    _idHash: ipKey,  // لكشف التكرار فقط (لا يُعرض)
   };
-  existing.push(response);
+  // ═══ كتابة ذرّية — إصلاح lost-update لسباقات التزامن ═══
+  // نُعيد قراءة resultsJson داخل معاملة، نلحق الرد، ثم نكتب. يُقلّص نافذة الكتابات الضائعة.
+  // ملاحظة: الحل الكامل يتطلب جدول SurveyResponse منفصل (ديْن تقني مسجَّل).
+  await prisma.$transaction(async (tx) => {
+    const fresh = await tx.survey.findUnique({ where: { id: s.id } });
+    let freshArr;
+    try {
+      const parsed = JSON.parse(fresh.resultsJson || '[]');
+      freshArr = Array.isArray(parsed) ? parsed : [];
+    } catch { freshArr = []; }
+    freshArr.push(response);
 
-  // Recompute avg score across all responses' rating questions
-  let totalRatingSum = 0;
-  let totalRatingCount = 0;
-  for (const r of existing) {
-    for (const q of questions) {
-      if (q.type === 'rating' && Number.isFinite(Number(r.answers?.[q.key]))) {
-        totalRatingSum += Number(r.answers[q.key]);
-        totalRatingCount++;
+    let totalRatingSum = 0, totalRatingCount = 0;
+    for (const r of freshArr) {
+      for (const q of questions) {
+        if (q.type === 'rating' && Number.isFinite(Number(r.answers?.[q.key]))) {
+          totalRatingSum += Number(r.answers[q.key]);
+          totalRatingCount++;
+        }
       }
     }
-  }
-  const avgScore = totalRatingCount > 0 ? Math.round((totalRatingSum / totalRatingCount) * 100) / 100 : null;
+    const avgScore = totalRatingCount > 0 ? Math.round((totalRatingSum / totalRatingCount) * 100) / 100 : null;
 
-  await prisma.survey.update({
-    where: { id: s.id },
-    data: {
-      resultsJson: JSON.stringify(existing),
-      responses: existing.length,
-      avgScore,
-    },
+    await tx.survey.update({
+      where: { id: s.id },
+      data: {
+        resultsJson: JSON.stringify(freshArr),
+        responses: freshArr.length,
+        avgScore,
+      },
+    });
   });
 
   res.send(successPage(s));
@@ -125,30 +157,45 @@ const baseStyle = `
   </style>
 `;
 
-function renderQuestion(q) {
-  const label = escapeHtml(q.label);
+// تطبيع شكل السؤال — يدعم المفاتيح القديمة (id/text/RATING) والجديدة (key/label/rating)
+function normalizeQuestion(raw, idx) {
+  return {
+    key: String(raw.key || raw.id || `q${idx + 1}`),
+    label: String(raw.label || raw.text || raw.question || raw.title || ''),
+    type: String(raw.type || 'text').toLowerCase(),
+    required: !!raw.required,
+  };
+}
+
+function renderQuestion(raw, idx) {
+  const q = normalizeQuestion(raw, idx);
+  const label = escapeHtml(q.label) || `سؤال ${idx + 1}`;
   const key   = escapeHtml(q.key);
+  const req   = q.required ? '<span style="color:#dc2626;font-weight:700" title="إجباري">*</span>' : '';
+  const reqAttr = q.required ? 'required' : '';
   if (q.type === 'rating') {
     const scale = [1, 2, 3, 4, 5];
     return `<div class="question">
-      <div class="qlabel">${label}</div>
+      <div class="qlabel">${label} ${req}</div>
       <div class="rating">
-        ${scale.map(n => `<label><input type="radio" name="${key}" value="${n}"><span>${'⭐'.repeat(n)} ${n}</span></label>`).join('')}
+        ${scale.map(n => `<label><input type="radio" name="${key}" value="${n}" ${reqAttr && n===1 ? 'required' : ''}><span>${'⭐'.repeat(n)} ${n}</span></label>`).join('')}
       </div>
     </div>`;
   }
   if (q.type === 'yesno') {
     return `<div class="question">
-      <div class="qlabel">${label}</div>
+      <div class="qlabel">${label} ${req}</div>
       <div class="yesno">
-        <label><input type="radio" name="${key}" value="yes">✅ نعم</label>
+        <label><input type="radio" name="${key}" value="yes" ${reqAttr}>✅ نعم</label>
         <label><input type="radio" name="${key}" value="no">❌ لا</label>
       </div>
     </div>`;
   }
   return `<div class="question">
-    <div class="qlabel">${label}</div>
-    <textarea name="${key}" rows="2" placeholder="اكتب إجابتك..."></textarea>
+    <div class="qlabel">${label} ${req}</div>
+    <textarea name="${key}" rows="3" maxlength="5000" placeholder="اكتب إجابتك..." ${reqAttr}
+      oninput="this.nextElementSibling.textContent = this.value.length + ' / 5000 حرفاً'"></textarea>
+    <div style="text-align:left;font-size:.7rem;color:#9ca3af;margin-top:2px">0 / 5000 حرفاً</div>
   </div>`;
 }
 
@@ -171,7 +218,7 @@ function formPage(s, questions) {
             <label class="field-lbl">اسمك (اختياري)</label>
             <input type="text" name="respondentName" placeholder="يمكنك ترك الاسم فارغاً">
           </div>
-          ${questions.map(renderQuestion).join('')}
+          ${questions.map((q, i) => renderQuestion(q, i)).join('')}
           <button type="submit" class="submit-btn">💾 إرسال الاستبيان</button>
         </form>
       </div>

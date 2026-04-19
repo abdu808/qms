@@ -45,8 +45,25 @@ import communicationRoutes from './routes/communication.js';
 import isoReadinessRoutes from './routes/isoReadiness.js';
 import evalTokensRoutes from './routes/evalTokens.js';
 import reportsRoutes from './routes/reports.js';
+import operationalReportsRoutes from './routes/operationalReports.js';
+import kpiRoutes from './routes/kpi.js';
 import publicEvalRoutes from './routes/publicEval.js';
 import publicSurveyRoutes from './routes/publicSurvey.js';
+import publicAckRoutes from './routes/publicAck.js';
+import policyAckRoutes from './routes/policyAck.js';
+import performanceReviewsRoutes from './routes/performanceReviews.js';
+import improvementProjectsRoutes from './routes/improvementProjects.js';
+import auditChecklistsRoutes from './routes/auditChecklists.js';
+import notificationsRoutes from './routes/notifications.js';
+import alertsRoutes from './routes/alerts.js';
+import stateMachinesRoutes from './routes/stateMachines.js';
+import ackDocumentsRoutes from './routes/ackDocuments.js';
+import dataHealthRoutes from './routes/dataHealth.js';
+import slaRoutes from './routes/sla.js';
+import myWorkRoutes from './routes/myWork.js';
+import schedulerRoutes from './routes/scheduler.js';
+import reportBuilderRoutes from './routes/reportBuilder.js';
+import { startScheduler } from './lib/scheduler.js';
 
 const app = express();
 
@@ -61,21 +78,71 @@ app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
 app.use('/api/', apiLimiter);
 
+// ═══ Rate limiters for PUBLIC token-based endpoints (no auth) ═══
+// These endpoints must be defended against: token enumeration, DoS, survey flooding.
+// Kept moderately permissive to allow legitimate retries, strict enough to block brute force.
+const publicReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,  // 4/min per IP — generous for retries but blocks enumeration
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'عدد كبير من الطلبات. حاول بعد قليل.' },
+});
+const publicSubmitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,  // 1 hour
+  max: 10,  // 10 submissions/hour per IP — sufficient for family/office shared IPs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'تم تجاوز الحد المسموح. حاول بعد ساعة.' },
+});
+// Smaller body limit for public endpoints — block bloat-DoS
+const publicBodyLimit = express.json({ limit: '100kb' });
+const publicUrlEncoded = express.urlencoded({ extended: true, limit: '100kb' });
+
+// Anti-clickjacking + no-referrer leak on public pages
+function publicSecurityHeaders(_req, res, next) {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+}
+
 // Health
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
 });
 
-// Redirect root to frontend login (Coolify may route / to this service)
-app.get('/', (req, res) => res.redirect('/login'));
+// الصفحة الأساسية '/' تخدم SPA مباشرة (لا إعادة توجيه إلى /login)
+// الـ SPA يعرض شاشة تسجيل الدخول داخلياً إن لم يكن المستخدم مصادَقاً، ثم يعرض التطبيق.
 
 // Public
 app.use('/api/auth', authRoutes);
 
 // Public evaluation form (no auth required — token-based)
-app.use('/eval', publicEvalRoutes);
+app.use('/eval',
+  publicSecurityHeaders,
+  publicReadLimiter,
+  publicBodyLimit,
+  publicUrlEncoded,
+  publicEvalRoutes,
+);
 // Public survey form (no auth required — open by survey ID)
-app.use('/survey', publicSurveyRoutes);
+// Uses stricter submit limiter since no token guards it.
+app.use('/survey',
+  publicSecurityHeaders,
+  publicSubmitLimiter,
+  publicBodyLimit,
+  publicUrlEncoded,
+  publicSurveyRoutes,
+);
+// Public acknowledgment page (token-based personal links sent via WhatsApp/SMS/email)
+app.use('/ack',
+  publicSecurityHeaders,
+  publicReadLimiter,
+  publicBodyLimit,
+  publicUrlEncoded,
+  publicAckRoutes,
+);
 
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
@@ -105,25 +172,55 @@ app.use('/api/swot',                     swotRoutes);
 app.use('/api/interested-parties',       interestedPartiesRoutes);
 app.use('/api/processes',                processesRoutes);
 app.use('/api/quality-policy',           qualityPolicyRoutes);
+app.use('/api/policy-ack',               policyAckRoutes);
+app.use('/api/performance-reviews',      performanceReviewsRoutes);
+app.use('/api/improvement-projects',     improvementProjectsRoutes);
+app.use('/api/audit-checklists',         auditChecklistsRoutes);
+app.use('/api/notifications',            notificationsRoutes);
+app.use('/api/alerts',                   alertsRoutes);
+app.use('/api/state-machines',           stateMachinesRoutes);
+app.use('/api/ack-documents',            ackDocumentsRoutes);
+app.use('/api/data-health',              dataHealthRoutes);
+app.use('/api/sla',                       slaRoutes);
+app.use('/api/my-work',                   myWorkRoutes);
+app.use('/api/scheduler',                 schedulerRoutes);
+app.use('/api/report-builder',            reportBuilderRoutes);
 app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
 app.use('/api/iso-readiness',            isoReadinessRoutes);
 app.use('/api/eval-tokens',             evalTokensRoutes);
 app.use('/api/reports',                 reportsRoutes);
+app.use('/api/operational-reports',     operationalReportsRoutes);
+app.use('/api/kpi',                     kpiRoutes);
 
 // Serve frontend statically in development (for local testing)
 if (config.env !== 'production') {
   const __dir = dirname(fileURLToPath(import.meta.url));
   const webPath = join(__dir, '..', '..', 'web', 'public');
-  app.use(express.static(webPath));
-  app.get('/login', (req, res) => res.sendFile(join(webPath, 'index.html')));
+  app.use(express.static(webPath, {
+    setHeaders: (res, path) => {
+      if (/\.(html|js|css)$/.test(path)) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      }
+    },
+  }));
+  // الـ SPA يستخدم hash-routing (#/page) — كل المسارات غير API تُخدَم نفس index.html
+  app.get(['/', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
   console.log(`[qms-api] serving frontend from ${webPath}`);
 }
 
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(config.port, () => {
-  console.log(`[qms-api] listening on :${config.port} (${config.env})`);
-});
+// Export the app for integration tests (supertest). In production this file
+// is the main entry — it starts listening only when NOT imported as a module
+// test (NODE_ENV='test' or QMS_NO_LISTEN='1' suppress listen).
+export { app };
+
+if (process.env.NODE_ENV !== 'test' && process.env.QMS_NO_LISTEN !== '1') {
+  app.listen(config.port, () => {
+    console.log(`[qms-api] listening on :${config.port} (${config.env})`);
+    startScheduler();
+  });
+}
