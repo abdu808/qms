@@ -23,5 +23,8 @@ node scripts/backfill-survey-responses.mjs
 echo "[startup] ── المرحلة 4: تهيئة البيانات الأولية ──"
 node src/seed-if-empty.js
 
-echo "[startup] ── المرحلة 5: تشغيل الخادم ──"
+echo "[startup] ── المرحلة 5: تعبئة البيانات الاستراتيجية ──"
+node scripts/seed-strategic-plan.mjs
+
+echo "[startup] ── المرحلة 6: تشغيل الخادم ──"
 exec node src/server.js
