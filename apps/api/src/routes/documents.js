@@ -19,8 +19,14 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
   : path.join(__dir, '..', '..', '..', 'uploads', 'docs');
 
-// Ensure upload directory exists
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Ensure upload directory exists (robust to read-only / wrong-owner volumes)
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+} catch (e) {
+  // Don't crash the server on boot — just warn. Uploads will fail later with
+  // a clearer error. This handles Coolify's "volume mounted as root" gotcha.
+  console.warn(`[documents] cannot create UPLOAD_DIR (${UPLOAD_DIR}):`, e.message);
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
