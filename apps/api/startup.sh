@@ -1,21 +1,27 @@
 #!/bin/sh
 set -e
 
-echo "[startup] Waiting for database to be ready..."
+echo "[startup] ── المرحلة 1: مزامنة schema مع قاعدة البيانات ──"
 MAX_RETRIES=30
 i=0
 until npx prisma db push --accept-data-loss; do
   i=$((i + 1))
   if [ $i -ge $MAX_RETRIES ]; then
-    echo "[startup] Database unavailable after $MAX_RETRIES attempts. Exiting."
+    echo "[startup] قاعدة البيانات غير متاحة بعد $MAX_RETRIES محاولة. إنهاء."
     exit 1
   fi
-  echo "[startup] Attempt $i/$MAX_RETRIES failed. Retrying in 5s..."
+  echo "[startup] المحاولة $i/$MAX_RETRIES فشلت. إعادة المحاولة بعد 5 ثوانٍ..."
   sleep 5
 done
 
-echo "[startup] Running seed check..."
+echo "[startup] ── المرحلة 2: تطبيق الترحيلات اليدوية (SQL) ──"
+node scripts/migrate.mjs
+
+echo "[startup] ── المرحلة 3: ترحيل بيانات الاستبيانات (إن وُجدت) ──"
+node scripts/backfill-survey-responses.mjs
+
+echo "[startup] ── المرحلة 4: تهيئة البيانات الأولية ──"
 node src/seed-if-empty.js
 
-echo "[startup] Starting server..."
+echo "[startup] ── المرحلة 5: تشغيل الخادم ──"
 exec node src/server.js
