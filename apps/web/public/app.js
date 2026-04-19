@@ -1119,6 +1119,9 @@ function app() {
     // UI Mode: 'guided' (موجَّه — مهام + wizards) أو 'advanced' (وصول كامل للموارد).
     // افتراضي = advanced للمستخدمين الحاليين (لا كسر في السلوك).
     uiMode: (typeof localStorage !== 'undefined' && localStorage.getItem('qms_ui_mode')) || 'advanced',
+
+    // ─── Command Palette (Ctrl+K) — بحث موحَّد عبر كل النظام ────────
+    palette: { open: false, query: '', selectedIdx: 0 },
     search: '',
     items: [],
     auditLog: [],
@@ -1931,6 +1934,121 @@ function app() {
       // في الوضع الموجَّه نعيد المستخدم إلى "مهامي" دائماً
       if (this.isGuided()) this.page = 'myWork';
     },
+
+    // ─── Command Palette (Ctrl+K / Cmd+K) ──────────────────────────
+    // مبدأ: بحث موحَّد يقفز بك لأي مكان في النظام — صفحة أو إجراء.
+    // يعمل في أي وضع (guided/advanced). مفتاح افتراضي: Ctrl+K / Cmd+K / F1.
+    openPalette() {
+      this.palette.open = true;
+      this.palette.query = '';
+      this.palette.selectedIdx = 0;
+      // focus بعد render
+      this.$nextTick?.(() => {
+        const el = document.getElementById('cmdk-input');
+        el?.focus();
+      });
+    },
+    closePalette() { this.palette.open = false; },
+
+    // تطبيع النص العربي للبحث — يزيل التشكيل ويوحّد أشكال الألف/التاء المربوطة.
+    _normalizeAr(s) {
+      return String(s || '')
+        .toLowerCase()
+        .replace(/[\u064B-\u0652\u0670]/g, '')   // تشكيل
+        .replace(/[\u0622\u0623\u0625]/g, '\u0627') // أ إ آ → ا
+        .replace(/\u0649/g, '\u064A')             // ى → ي
+        .replace(/\u0629/g, '\u0647')             // ة → ه
+        .trim();
+    },
+
+    // قائمة كاملة بكل ما يمكن القفز إليه. يُبنى مرّة في الذاكرة.
+    paletteItems() {
+      const items = [];
+      // الصفحات — من الـ menu الكامل (يعتمد على permissions كما في can(resource,action))
+      (this.menu || []).forEach(m => {
+        items.push({
+          kind: 'page', id: m.id, label: m.label, icon: m.icon,
+          hint: 'صفحة',
+          action: () => this.goto(m.id),
+        });
+      });
+      // الـ wizards — إجراءات إنشاء مباشرة (تحترم الصلاحيات)
+      const wizardMap = [
+        { id: 'complaint',        label: 'سجّل شكوى جديدة',   icon: '📣', res: 'complaint' },
+        { id: 'ncr',              label: 'بلّغ عدم مطابقة',   icon: '⚠️', res: 'ncr' },
+        { id: 'risk',             label: 'سجّل مخاطرة جديدة', icon: '🛡️', res: 'risk' },
+        { id: 'managementReview', label: 'جدولة مراجعة إدارية', icon: '🗓️', res: 'managementReview' },
+      ];
+      wizardMap.forEach(w => {
+        if (this.can(w.res, 'create')) {
+          items.push({
+            kind: 'action', id: 'wiz:' + w.id, label: w.label, icon: w.icon,
+            hint: 'معالِج خطوة بخطوة',
+            action: () => this.openWizard(w.id),
+          });
+        }
+      });
+      // إجراءات عامة
+      items.push({
+        kind: 'action', id: 'toggle-mode',
+        label: this.isGuided() ? 'التبديل للوضع المتقدّم' : 'التبديل للوضع الموجَّه',
+        icon: this.isGuided() ? '⚙️' : '🧭',
+        hint: 'تفضيلات الواجهة',
+        action: () => this.toggleUiMode(),
+      });
+      return items;
+    },
+
+    paletteResults() {
+      const q = this._normalizeAr(this.palette.query);
+      const all = this.paletteItems();
+      if (!q) return all.slice(0, 12); // افتراضياً 12 عنصر
+      // فرز بسيط: يطابق بداية الاسم > يحتويه > يحتوي الهامش
+      const scored = all.map(it => {
+        const lbl = this._normalizeAr(it.label);
+        const hnt = this._normalizeAr(it.hint || '');
+        let score = -1;
+        if (lbl.startsWith(q))   score = 100;
+        else if (lbl.includes(q)) score = 60;
+        else if (hnt.includes(q)) score = 20;
+        return { it, score };
+      }).filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.it);
+      return scored.slice(0, 20);
+    },
+
+    paletteMoveSelection(delta) {
+      const n = this.paletteResults().length;
+      if (!n) return;
+      this.palette.selectedIdx = (this.palette.selectedIdx + delta + n) % n;
+    },
+
+    paletteExecute(idx) {
+      const results = this.paletteResults();
+      const target = (typeof idx === 'number') ? results[idx] : results[this.palette.selectedIdx];
+      if (!target) return;
+      this.closePalette();
+      try { target.action(); } catch (e) { console.error('cmdk:', e); }
+    },
+
+    paletteOnKey(e) {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); this.paletteMoveSelection(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); this.paletteMoveSelection(-1); }
+      else if (e.key === 'Enter')   { e.preventDefault(); this.paletteExecute(); }
+      else if (e.key === 'Escape')  { e.preventDefault(); this.closePalette(); }
+    },
+
+    // يُستدعى من window keydown listener
+    paletteGlobalShortcut(e) {
+      // Ctrl+K أو Cmd+K أو F1 — إغلاق/فتح
+      const isCmdK = (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K');
+      if (isCmdK || e.key === 'F1') {
+        e.preventDefault();
+        if (this.palette.open) this.closePalette();
+        else this.openPalette();
+      }
+    },
     // مجموعات مرئية في الوضع الموجَّه — home + acks + planning (للجميع لأن myKpi يومي).
     // أدوار الجودة/الإدارة تزيد evaluation (شكاوى/مراجعات) و improvement (NCR).
     GUIDED_GROUP_IDS: ['home', 'acks', 'planning'],
@@ -2122,6 +2240,9 @@ function app() {
     handleShortcut(e) {
       // تجاهل عند الكتابة في حقول الإدخال (إلا Ctrl/Meta)
       const inField = ['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName);
+      // Ctrl+K / Cmd+K / F1 — Command Palette (يعمل من أي مكان حتى داخل الحقول)
+      this.paletteGlobalShortcut(e);
+      if (this.palette.open) return;
       // "/" لتركيز البحث
       if (e.key === '/' && !inField && !this.modal.open) {
         e.preventDefault();
