@@ -3227,10 +3227,99 @@ function app() {
       try {
         const r = await this.api('GET', '/my-work');
         this.myWork = r;
+        // تحميل مؤشرات "مطلوب إدخالها" جنباً إلى جنب — بلا تعطيل تحميل myWork
+        this.loadMyDueKpis?.().catch(() => {});
       } catch (e) {
         this.myWork = null;
         alert(e.message || 'فشل تحميل مهامي');
       }
+    },
+
+    // ─── Inline Quick KPI Entry (Phase 2 operational chain) ─────────────
+    // فكرة: موظف يُدخل قراءة KPI في سطر واحد على بطاقة "مهامي"، بلا wizard.
+    // تُستدعى POST /api/kpi/entries مباشرة → نعرض "أثر الإدخال" على نسبة
+    // التقدّم (progress) للهدف والخطة الاستراتيجية (من rollup في الـ response).
+    myDue: { pending: [], entered: [], summary: null, month: null, year: null, loaded: false },
+    _kpiDraft: {}, // { [id]: { actualValue, spent, prevProgress, busy, lastImpact } }
+    async loadMyDueKpis() {
+      try {
+        const r = await this.api('GET', '/kpi/my-due');
+        this.myDue = {
+          pending: r.pending || [],
+          entered: r.entered || [],
+          summary: r.summary || null,
+          month: r.month, year: r.year,
+          loaded: true,
+        };
+      } catch (e) {
+        // صامت — بطاقة اختيارية
+        this.myDue = { pending: [], entered: [], summary: null, month: null, year: null, loaded: true };
+      }
+    },
+    _draftFor(item) {
+      const id = item.id;
+      if (!this._kpiDraft[id]) {
+        // إعادة تعيين كامل للكائن الأب لضمان تفعيل Alpine reactivity
+        this._kpiDraft = {
+          ...this._kpiDraft,
+          [id]: { actualValue: '', spent: '', busy: false, lastImpact: null },
+        };
+      }
+      return this._kpiDraft[id];
+    },
+    async quickSaveKpi(item) {
+      const draft = this._draftFor(item);
+      if (draft.busy) return;
+      const val = Number(draft.actualValue);
+      if (!isFinite(val) || draft.actualValue === null || draft.actualValue === '') {
+        alert('أدخل قيمة رقمية للقراءة');
+        return;
+      }
+      draft.busy = true;
+      try {
+        // التقط progress "قبل" لحساب الأثر
+        const prevProgress = await this._peekParentProgress(item);
+        const body = {
+          year: this.myDue.year, month: this.myDue.month,
+          actualValue: val,
+        };
+        if (item.kind === 'objective') body.objectiveId = item.id;
+        else                            body.activityId  = item.id;
+        if (draft.spent != null && draft.spent !== '') body.spent = Number(draft.spent);
+
+        const res = await this.api('POST', '/kpi/entries', body);
+        // "أثر الإدخال": progress الجديد من الـ rollup
+        const newProgress = res?.rollup?.progress;
+        if (newProgress != null) {
+          const delta = newProgress - (prevProgress ?? 0);
+          const arrow = delta >= 0 ? '↑' : '↓';
+          draft.lastImpact = {
+            prevProgress,
+            newProgress,
+            delta,
+            ragMessage: res?.feedback?.message || '',
+          };
+          this.toast?.(
+            `✅ رفعتَ "${item.title}" من ${prevProgress ?? 0}% إلى ${newProgress}% ${arrow}`
+          );
+        } else {
+          this.toast?.(`✅ تم حفظ قراءة "${item.title}"`);
+        }
+        // أعد تحميل my-due + myWork لتظهر الانعكاسات فوراً
+        await Promise.all([this.loadMyDueKpis(), this.loadMyWork()]);
+      } catch (e) {
+        alert(e.message || 'فشل حفظ القراءة');
+      } finally {
+        draft.busy = false;
+      }
+    },
+    // يقرأ progress الحالي للهدف/النشاط قبل الإدخال — لإظهار الفرق.
+    async _peekParentProgress(item) {
+      try {
+        const path = item.kind === 'objective' ? `/objectives/${item.id}` : `/operational-activities/${item.id}`;
+        const r = await this.api('GET', path);
+        return r?.item?.progress ?? r?.progress ?? null;
+      } catch { return null; }
     },
 
     // ─── Inbox mode: إجراءات inline داخل بطاقات "مهامي" ───────────────

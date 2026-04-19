@@ -1498,6 +1498,79 @@
                   </div>
                 </template>
 
+                <!-- ⚡ Inline Quick KPI Entry — سلسلة إدخال مباشرة تنعكس على الأهداف والخطة الاستراتيجية -->
+                <template x-if="(myDue.pending || []).length">
+                  <div class="bg-white border-2 border-violet-200 rounded-xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <div>
+                        <div class="font-bold text-violet-800 text-sm">⚡ أدخِل قراءاتك الآن
+                          <span class="ml-1 text-[11px] bg-violet-100 text-violet-700 rounded-full px-2 py-0.5"
+                                x-text="myDue.pending.length + ' معلّقة'"></span>
+                        </div>
+                        <div class="text-[11px] text-gray-600 mt-0.5">شهر <b x-text="myDue.month + '/' + myDue.year"></b> — كل قراءة تُحدّث تلقائياً الهدف والخطة الاستراتيجية 📈</div>
+                      </div>
+                      <button @click="goToResource('myKpi')" class="text-xs text-violet-600 hover:underline whitespace-nowrap">عرض تفصيلي ←</button>
+                    </div>
+                    <ul class="divide-y">
+                      <template x-for="k in myDue.pending.slice(0, 6)" :key="k.id">
+                        <li class="py-2">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex-1 min-w-0">
+                              <div class="flex items-center gap-1 flex-wrap">
+                                <span class="font-mono text-[10px] text-gray-500" x-text="k.code"></span>
+                                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600"
+                                      x-text="k.kind === 'objective' ? 'هدف' : 'نشاط'"></span>
+                                <span class="text-[10px] text-gray-500" x-text="'مستهدف: ' + (k.targetValue ?? '—') + ' ' + (k.unit || '')"></span>
+                              </div>
+                              <div class="text-sm font-medium truncate mt-0.5" x-text="k.title"></div>
+                              <template x-if="k.goalTitle">
+                                <div class="text-[10px] text-violet-700 mt-0.5 truncate">🎯 ينعكس على: <span x-text="k.goalTitle"></span></div>
+                              </template>
+                            </div>
+                            <div class="flex items-center gap-1 whitespace-nowrap">
+                              <input type="number" step="any"
+                                     :placeholder="'القيمة الفعلية (' + (k.unit || 'رقم') + ')'"
+                                     x-model="_draftFor(k).actualValue"
+                                     @keydown.enter="quickSaveKpi(k)"
+                                     class="w-32 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-violet-400">
+                              <template x-if="k.kind === 'activity'">
+                                <input type="number" step="any" placeholder="المصروف (اختياري)"
+                                       x-model="_draftFor(k).spent"
+                                       class="w-28 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-violet-400">
+                              </template>
+                              <button type="button"
+                                      @click="quickSaveKpi(k)"
+                                      :disabled="_draftFor(k).busy"
+                                      class="text-xs bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded px-3 py-1.5 whitespace-nowrap">
+                                <span x-show="!_draftFor(k).busy">💾 حفظ</span>
+                                <span x-show="_draftFor(k).busy">⏳ جارٍ…</span>
+                              </button>
+                            </div>
+                          </div>
+                          <!-- Impact feedback: بعد الحفظ، أظهر التغيّر في progress -->
+                          <template x-if="_draftFor(k).lastImpact">
+                            <div class="mt-2 text-xs bg-green-50 border border-green-200 text-green-900 rounded px-2 py-1 flex items-center gap-2 flex-wrap">
+                              <span>✅ رفعت الـ progress من</span>
+                              <b x-text="(_draftFor(k).lastImpact.prevProgress ?? 0) + '%'"></b>
+                              <span>إلى</span>
+                              <b x-text="_draftFor(k).lastImpact.newProgress + '%'"></b>
+                              <span class="text-[11px] opacity-75">
+                                (<span x-text="(_draftFor(k).lastImpact.delta >= 0 ? '+' : '') + _draftFor(k).lastImpact.delta"></span>)
+                              </span>
+                              <span class="text-[11px] opacity-75" x-text="_draftFor(k).lastImpact.ragMessage"></span>
+                            </div>
+                          </template>
+                        </li>
+                      </template>
+                    </ul>
+                    <template x-if="(myDue.pending || []).length > 6">
+                      <div class="mt-2 text-center text-[11px] text-gray-500">
+                        يوجد <b x-text="myDue.pending.length - 6"></b> قراءات أخرى — <button @click="goToResource('myKpi')" class="text-violet-700 hover:underline">عرضها كلّها</button>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
                 <!-- EXEC summary (Top management only) -->
                 <template x-if="myWork.viewMode==='EXEC' && myWork.exec">
                   <div class="bg-white border rounded-xl p-4 mb-4">
@@ -4463,6 +4536,6 @@
   </div>
 </template>
 
-<script src="/app.js?v=inbox-i18n-2026-04-19b"></script>
+<script src="/app.js?v=rollup-quickentry-2026-04-19c"></script>
 </body>
 </html>
