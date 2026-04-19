@@ -32,18 +32,14 @@ router.post('/:id', asyncHandler(async (req, res) => {
 
   const rawQuestions = JSON.parse(s.questionsJson || '[]');
   const questions = rawQuestions.map((q, i) => normalizeQuestion(q, i));
-  // resultsJson قد يكون مصفوفة (الشكل الجديد) أو object (seed قديم avgByQ/topFeedback) — نطبّعه إلى مصفوفة
-  let existing;
-  try {
-    const parsed = JSON.parse(s.resultsJson || '[]');
-    existing = Array.isArray(parsed) ? parsed : [];
-  } catch { existing = []; }
 
-  // منع التكرار البسيط: نفس IP+UA خلال آخر ساعة → رفض
+  // منع التكرار: نفس IP+UA خلال آخر ساعة → رفض (فحص من DB بدل JSON blob)
   const ipKey = (req.ip || '') + '|' + (req.headers['user-agent'] || '');
-  const ONE_HOUR = 60 * 60 * 1000;
-  const now = Date.now();
-  const dup = existing.find(r => r._idHash === ipKey && (now - new Date(r.at).getTime()) < ONE_HOUR);
+  const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000);
+  const dup = await prisma.surveyResponse.findFirst({
+    where: { surveyId: s.id, idHash: ipKey, submittedAt: { gte: ONE_HOUR_AGO } },
+    select: { id: true },
+  });
   if (dup) return res.status(429).send(errorPage('لا يمكنك إرسال الاستبيان أكثر من مرّة خلال ساعة واحدة'));
 
   // Build answers object from body
@@ -73,41 +69,42 @@ router.post('/:id', asyncHandler(async (req, res) => {
     return res.status(400).send(errorPage('يرجى الإجابة عن الأسئلة المطلوبة: ' + missing.join(' · ')));
   }
 
-  const response = {
-    at: new Date().toISOString(),
-    respondentName: (req.body.respondentName || '').toString().trim().slice(0, 100) || null,
-    answers,
-    _idHash: ipKey,  // لكشف التكرار فقط (لا يُعرض)
-  };
-  // ═══ كتابة ذرّية — إصلاح lost-update لسباقات التزامن ═══
-  // نُعيد قراءة resultsJson داخل معاملة، نلحق الرد، ثم نكتب. يُقلّص نافذة الكتابات الضائعة.
-  // ملاحظة: الحل الكامل يتطلب جدول SurveyResponse منفصل (ديْن تقني مسجَّل).
-  await prisma.$transaction(async (tx) => {
-    const fresh = await tx.survey.findUnique({ where: { id: s.id } });
-    let freshArr;
-    try {
-      const parsed = JSON.parse(fresh.resultsJson || '[]');
-      freshArr = Array.isArray(parsed) ? parsed : [];
-    } catch { freshArr = []; }
-    freshArr.push(response);
+  const respondentName = (req.body.respondentName || '').toString().trim().slice(0, 100) || null;
 
-    let totalRatingSum = 0, totalRatingCount = 0;
-    for (const r of freshArr) {
+  // ═══ كتابة ذرّية — INSERT إلى SurveyResponse + تحديث المجاميع المُكثَّفة ═══
+  await prisma.$transaction(async (tx) => {
+    // 1) أدرج صف الرد الجديد
+    await tx.surveyResponse.create({
+      data: {
+        surveyId:      s.id,
+        respondentName,
+        answersJson:   JSON.stringify(answers),
+        idHash:        ipKey,
+        // submittedAt: default now()
+      },
+    });
+
+    // 2) أعد حساب avgScore من جميع الصفوف (دقيق دائماً)
+    const allRows = await tx.surveyResponse.findMany({
+      where:  { surveyId: s.id },
+      select: { answersJson: true },
+    });
+    let rSum = 0, rCount = 0;
+    for (const row of allRows) {
+      const ans = JSON.parse(row.answersJson || '{}');
       for (const q of questions) {
-        if (q.type === 'rating' && Number.isFinite(Number(r.answers?.[q.key]))) {
-          totalRatingSum += Number(r.answers[q.key]);
-          totalRatingCount++;
+        if (q.type === 'rating' && Number.isFinite(Number(ans[q.key]))) {
+          rSum += Number(ans[q.key]); rCount++;
         }
       }
     }
-    const avgScore = totalRatingCount > 0 ? Math.round((totalRatingSum / totalRatingCount) * 100) / 100 : null;
 
+    // 3) حدّث الحقول المُكثَّفة على Survey (للـ dashboard/reports)
     await tx.survey.update({
       where: { id: s.id },
       data: {
-        resultsJson: JSON.stringify(freshArr),
-        responses: freshArr.length,
-        avgScore,
+        responses: allRows.length,
+        avgScore:  rCount > 0 ? Math.round((rSum / rCount) * 100) / 100 : null,
       },
     });
   });

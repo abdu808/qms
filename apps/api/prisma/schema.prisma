@@ -659,21 +659,40 @@ enum SurveyTarget {
 }
 
 model Survey {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  title       String
-  target      SurveyTarget
-  period      String?
-  responses   Int      @default(0)
-  avgScore    Float?
-  questionsJson String  // JSON array
-  resultsJson String?  // JSON
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id              String           @id @default(cuid())
+  code            String           @unique
+  title           String
+  target          SurveyTarget
+  period          String?
+  responses       Int              @default(0)  // عدد مُكثَّف — يُحدَّث عند كل رد
+  avgScore        Float?                         // متوسط مُكثَّف — dashboard/reports
+  questionsJson   String                         // JSON array
+  resultsJson     String?                        // DEPRECATED — سيُحذف بعد migration 005
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  surveyResponses SurveyResponse[]
 
   @@index([deletedAt])
+}
+
+// =====================================================
+// CLAUSE 9.1.2 - SURVEY RESPONSES (replaces resultsJson blob)
+// =====================================================
+
+model SurveyResponse {
+  id             String   @id @default(cuid())
+  surveyId       String
+  survey         Survey   @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  submittedAt    DateTime @default(now())
+  respondentName String?
+  answersJson    String   // JSON object: { "q1": 5, "q2": "yes", "q3": "نص حر" }
+  idHash         String   // IP|UA — كشف التكرار فقط، لا يُكشَف في API
+
+  @@index([surveyId])
+  @@index([surveyId, submittedAt])
+  @@index([surveyId, idHash])
 }
 
 // =====================================================

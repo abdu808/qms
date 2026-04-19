@@ -145,14 +145,27 @@ router.delete('/:id', requireAction('surveys', 'delete'), asyncHandler(async (re
 }));
 
 // ─── Helpers ───────────────────────────────────────────────
-function parseResponses(s) {
-  try {
-    const parsed = JSON.parse(s.resultsJson || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+
+/**
+ * يُحمِّل ردود الاستبيان من جدول SurveyResponse.
+ * يُرجع مصفوفة بنفس شكل العناصر القديمة (at, respondentName, answers)
+ * حتى لا يحتاج كود الإحصاء أدناه إلى أي تغيير.
+ * idHash مستبعد عمداً — لا يُكشَف في API.
+ */
+async function loadResponses(surveyId) {
+  const rows = await prisma.surveyResponse.findMany({
+    where:   { surveyId },
+    orderBy: { submittedAt: 'asc' },
+    select:  { submittedAt: true, respondentName: true, answersJson: true },
+  });
+  return rows.map(r => ({
+    at:             r.submittedAt.toISOString(),
+    respondentName: r.respondentName,
+    answers:        JSON.parse(r.answersJson || '{}'),
+  }));
 }
 
-function median(arr) {
+export function median(arr) {
   if (!arr.length) return null;
   const sorted = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -161,7 +174,7 @@ function median(arr) {
 
 /** Net Promoter Score من سؤال rating 1-5:
  *  Promoters = 5، Passives = 4، Detractors ≤ 3 → NPS = %P - %D (مقياس 1-5 تقريبي) */
-function computeNps(scores) {
+export function computeNps(scores) {
   if (!scores.length) return null;
   const promoters  = scores.filter(s => s === 5).length;
   const detractors = scores.filter(s => s <= 3).length;
@@ -173,7 +186,7 @@ router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async 
   const s = await prisma.survey.findUnique({ where: { id: req.params.id } });
   if (!s) throw NotFound();
   const questions = JSON.parse(s.questionsJson || '[]');
-  const responses = parseResponses(s);
+  const responses = await loadResponses(s.id);
 
   // Compute per-question stats (مع توزيع + نسب + وسيط)
   const stats = questions.map(q => {
@@ -260,7 +273,7 @@ router.get('/:id/export.csv', requireAction('surveys', 'read'), asyncHandler(asy
   const s = await prisma.survey.findUnique({ where: { id: req.params.id } });
   if (!s) throw NotFound();
   const questions = JSON.parse(s.questionsJson || '[]');
-  const responses = parseResponses(s);
+  const responses = await loadResponses(s.id);
 
   const header = ['at', 'respondentName', ...questions.map(q => q.key)];
   const rows = [header.join(',')];
