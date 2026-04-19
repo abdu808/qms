@@ -30,11 +30,12 @@ export async function createUser(overrides = {}) {
 }
 
 export async function createSupplier(overrides = {}) {
+  // NB: enum SupplierType بالإنجليزية في Prisma — لا تمرّر قيماً عربية هنا
   return prisma.supplier.create({
     data: {
       code: overrides.code || uniq('SUP'),
       name: overrides.name || 'مورّد اختبار',
-      type: overrides.type || 'خدمات',
+      type: overrides.type || 'SERVICES',
       status: overrides.status || 'PENDING',
       ...overrides,
     },
