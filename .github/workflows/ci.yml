@@ -35,6 +35,9 @@ jobs:
       - name: Prisma generate (dry)
         run: npx prisma generate
 
+      - name: Schema wiring check (no new crudRouter without Zod)
+        run: node scripts/check-schemas.js
+
       - name: Run unit tests
         run: npm test
         env:

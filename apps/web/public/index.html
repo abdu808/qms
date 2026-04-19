@@ -2661,7 +2661,7 @@
                 </div>
                 <div x-show="kpi.matrix?.perspectives?.length" class="flex flex-wrap gap-1.5 items-center">
                   <span class="text-[11px] text-gray-500 font-medium ml-1">📊 المحور:</span>
-                  <template x-for="p in kpi.matrix.perspectives" :key="p">
+                  <template x-for="p in (kpi.matrix?.perspectives || [])" :key="p">
                     <button @click="kpiSetPerspective(p)"
                       :class="kpi.perspective===p
                         ? 'bg-violet-600 text-white border-violet-600'
@@ -2681,7 +2681,7 @@
                 <div class="flex items-center gap-2">
                   <span class="text-red-600">⏰</span>
                   <span class="text-red-800">
-                    <span class="font-bold" x-text="kpi.matrix.counts.missing"></span>
+                    <span class="font-bold" x-text="kpi.matrix?.counts?.missing ?? 0"></span>
                     قراءة غير مُدخلة لهذا الشهر
                   </span>
                 </div>
