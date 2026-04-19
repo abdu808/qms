@@ -6,22 +6,13 @@ import {
   getSupplierCriteria, SUPPLIER_TYPE_LABELS, COMMON_SUPPLIER_CRITERIA,
   computeSupplierEval, recomputeSupplierRating,
 } from '../lib/evalEngine.js';
+import { escapeHtml, trimLen } from '../utils/html.js';
 
 const router = Router();
 
 // aliases لمحافظة الأسماء القديمة داخل هذا الملف
 const TYPE_LABELS   = SUPPLIER_TYPE_LABELS;
 const getCriteria   = getSupplierCriteria;
-
-// تهريب HTML لمنع هجمات XSS في النماذج العامة
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 // ملاحظة: المعايير + تصنيف الدرجات تُستورد الآن من lib/evalEngine.js (Batch 12)
 // هذا يوحّد المنطق بين التقييم الداخلي والخارجي.
@@ -57,7 +48,6 @@ router.post('/:token', asyncHandler(async (req, res) => {
   if (record.expiresAt < new Date()) return res.status(410).send(errorPage('انتهت صلاحية هذا الرابط'));
 
   // Trim + enforce length limits on free-text public input (prevent DB/UI bloat abuse)
-  const trimLen = (v, max) => String(v ?? '').trim().slice(0, max);
   const evaluatorName = trimLen(req.body.evaluatorName, 120);
   const evaluatorOrg  = trimLen(req.body.evaluatorOrg, 200);
   const notes         = trimLen(req.body.notes, 2000);

@@ -1,18 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { escapeHtml } from '../utils/html.js';
 
 const router = Router();
-
-// تهريب HTML لمنع هجمات XSS في النماذج العامة
-function escapeHtml(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 const TARGET_LABELS = {
   BENEFICIARY: 'المستفيدين',

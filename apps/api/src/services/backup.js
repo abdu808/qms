@@ -58,7 +58,9 @@ export async function runDatabaseBackup() {
     const gzip = createGzip({ level: 6 });
     const out  = createWriteStream(outPath);
 
-    pipeline(proc.stdout, gzip, out).then(() => {}).catch(() => {});
+    pipeline(proc.stdout, gzip, out).then(() => {}).catch((e) => {
+      console.error('[backup] pipeline error:', e?.message || e);
+    });
 
     proc.on('close', (code) => {
       const durationMs = Date.now() - started;

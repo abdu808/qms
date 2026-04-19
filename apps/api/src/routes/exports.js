@@ -303,7 +303,6 @@ const CONFIGS = {
     label: 'تقييمات الأداء',
     fetch: () => prisma.performanceReview.findMany({
       where: activeWhere(),
-      include: { employee: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     }),
     cols: [
@@ -356,7 +355,13 @@ const CONFIGS = {
 // preprocess: للتصدير، نُسطِّح حقول الـ relation والمصفوفات قبل العرض
 const flattenForExport = (item, cfg) => {
   const out = { ...item };
-  if (item.employee?.name !== undefined) out.employeeName = item.employee.name;
+  // PerformanceReview has no `employee` relation in the schema — only employeeId (raw FK).
+  // Fall back to the raw ID so the column is never silently blank due to a missing join.
+  if (item.employee?.name !== undefined) {
+    out.employeeName = item.employee.name;
+  } else if (out.employeeName === undefined && out.employeeId) {
+    out.employeeName = out.employeeId;
+  }
   if (Array.isArray(out.audience)) out.audience = out.audience.join('، ');
   return out;
 };

@@ -81,7 +81,9 @@ export async function guardNcrUpdate(data, { ncrId, req }) {
         ipAddress: req?.ip,
         userAgent: req?.headers?.['user-agent'],
       },
-    }).catch(() => {});
+    }).catch((e) => {
+      console.error('[audit] ncrClosure VERIFY_NCR_EFFECTIVENESS auditLog failed:', e?.message || e);
+    });
   }
   return data;
 }

@@ -233,7 +233,9 @@ router.post('/:id/assess', requireAction('beneficiaries', 'update'), asyncHandle
       ipAddress:   req.ip,
       userAgent:   req.headers['user-agent'],
     },
-  }).catch(() => {});
+  }).catch((e) => {
+    console.error('[audit] beneficiaries BENEFICIARY_ASSESSED auditLog failed:', e?.message || e);
+  });
 
   res.json({
     ok: true,

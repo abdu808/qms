@@ -70,7 +70,9 @@ export async function reopenRecord({ model, entityType, id, reason, req }) {
       ipAddress: req?.ip,
       userAgent: req?.headers?.['user-agent'],
     },
-  }).catch(() => {});
+  }).catch((e) => {
+    console.error(`[audit] reopenGuard REOPEN_${entityType.toUpperCase()} auditLog failed:`, e?.message || e);
+  });
 
   return updated;
 }

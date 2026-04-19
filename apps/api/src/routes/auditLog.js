@@ -13,6 +13,7 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { authorize } from '../middleware/auth.js';
+import { requireAction } from '../lib/permissions.js';
 import { parsePagination, paginationEnvelope } from '../utils/pagination.js';
 
 const router = Router();
@@ -39,9 +40,9 @@ function buildWhere(q) {
   return where;
 }
 
-// Lightweight timeline endpoint per entity — accessible to any authenticated user.
+// Lightweight timeline endpoint per entity — requires audit-log read permission.
 // Returns up to 50 recent audit events for a single record. Used by DetailShell drawer.
-router.get('/for/:entityType/:entityId', asyncHandler(async (req, res) => {
+router.get('/for/:entityType/:entityId', requireAction('audit-log', 'read'), asyncHandler(async (req, res) => {
   const { entityType, entityId } = req.params;
   const items = await prisma.auditLog.findMany({
     where: { entityType, entityId },

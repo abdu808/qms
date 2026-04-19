@@ -59,7 +59,9 @@ export async function convertComplaintToNcr({ complaintId, userId, req }) {
       ipAddress:   req?.ip,
       userAgent:   req?.headers?.['user-agent'],
     },
-  }).catch(() => {});
+  }).catch((e) => {
+    console.error('[audit] complaintLifecycle CONVERT_COMPLAINT_TO_NCR auditLog failed:', e?.message || e);
+  });
 
   return { ncr, complaintId };
 }

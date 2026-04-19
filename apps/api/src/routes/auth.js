@@ -9,6 +9,23 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { Unauthorized, BadRequest } from '../utils/errors.js';
 import { logAuth } from '../middleware/audit.js';
 
+/**
+ * Parse a duration string like "30d", "8h", "7d", "15m" into milliseconds.
+ * Supports: d (days), h (hours), m (minutes), s (seconds).
+ */
+function parseDurationMs(str) {
+  if (typeof str !== 'string') throw new Error(`parseDurationMs: expected string, got ${typeof str}`);
+  const match = str.match(/^(\d+)([dhms])$/);
+  if (!match) throw new Error(`parseDurationMs: unrecognised duration format "${str}"`);
+  const n = Number(match[1]);
+  switch (match[2]) {
+    case 'd': return n * 24 * 60 * 60 * 1000;
+    case 'h': return n * 60 * 60 * 1000;
+    case 'm': return n * 60 * 1000;
+    case 's': return n * 1000;
+  }
+}
+
 const router = Router();
 
 // Strict limiter for /auth/login — IP + email based, counts only failures.
@@ -75,14 +92,14 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
     data: {
       userId: user.id,
       token: refreshToken,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
     },
   });
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await logAuth(user.id, 'LOGIN', req);
 
   res.cookie('token', token, {
-    httpOnly: true, secure: config.env === 'production', sameSite: 'lax', maxAge: 8 * 60 * 60 * 1000,
+    httpOnly: true, secure: config.env === 'production', sameSite: 'lax', maxAge: parseDurationMs(config.jwt.expiresIn),
   });
 
   res.json({

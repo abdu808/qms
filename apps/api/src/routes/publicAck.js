@@ -6,12 +6,9 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
+import { escapeHtml, trimLen } from '../utils/html.js';
 
 const router = Router();
-
-function escapeHtml(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
 
 /**
  * GET /ack/:token — صفحة الإقرار العامة (HTML)
@@ -217,7 +214,6 @@ router.post('/:token', asyncHandler(async (req, res) => {
   if (t.document.version !== t.documentVersion) throw BadRequest('تم تحديث الوثيقة — اطلب رابطاً جديداً');
 
   // Enforce length limits on public input to prevent bloat-DoS
-  const trimLen = (v, max) => String(v ?? '').trim().slice(0, max);
   const fullName  = trimLen(req.body?.fullName, 120);
   const idOrPhone = trimLen(req.body?.idOrPhone, 60);
   if (!fullName) throw BadRequest('الاسم الكامل مطلوب');
