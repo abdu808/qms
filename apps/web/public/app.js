@@ -4272,6 +4272,11 @@ function app() {
 
     // ------ CRUD ------
     async openCreate() {
+      if (!this.currentModule) {
+        // صفحة بلا CRUD (myWork / dashboard / ...) — لا يوجد سجل قابل للإضافة هنا
+        this.toast?.('هذه الصفحة ليست قائمة سجلات. افتح قسماً من القائمة الجانبية لإضافة سجل.');
+        return;
+      }
       await this.loadRelations();
       this.modal = { open: true, mode: 'create', data: {} };
       this.$nextTick ? this.$nextTick(() => this._snapshotModal()) : this._snapshotModal();
@@ -4295,6 +4300,11 @@ function app() {
 
     async save() {
       const mod = this.currentModule;
+      if (!mod) {
+        this.modal.open = false;
+        alert('لا يمكن الحفظ من هذه الصفحة — افتح قسم السجلات المناسب من القائمة الجانبية');
+        return;
+      }
       const payload = { ...this.modal.data };
 
       // ── Batch 11 — حارس التوقيع على الانتقالات النهائية ─────────────

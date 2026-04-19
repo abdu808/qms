@@ -601,7 +601,7 @@
                     <option :value="o.v" x-text="o.l"></option>
                   </template>
                 </select>
-                <button x-show="canCreate(currentResource) && !showDeleted" @click="openCreate()" title="اختصار: Ctrl+N" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة</button>
+                <button x-show="currentModule && canCreate(currentResource) && !showDeleted" @click="openCreate()" title="اختصار: Ctrl+N" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة</button>
                 <button x-show="canCreate(currentResource) && !showDeleted && ['complaints','ncr','risks','managementReview'].includes(page)"
                         @click="openWizard({complaints:'complaint',ncr:'ncr',risks:'risk',managementReview:'managementReview'}[page])"
                         class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm"
@@ -772,7 +772,7 @@
                           <div class="text-5xl opacity-60" x-text="search ? '🔎' : '📭'"></div>
                           <div class="text-base font-medium" x-text="search ? 'لا توجد نتائج مطابقة لبحثك' : 'لا توجد بيانات بعد'"></div>
                           <div class="text-xs" x-text="search ? 'جرّب كلمات أخرى أو اضبط الفلتر' : 'ابدأ بإضافة أول سجل في هذه الوحدة'"></div>
-                          <button x-show="!search && canCreate(currentResource)" @click="openCreate()" class="mt-1 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة سجل جديد</button>
+                          <button x-show="currentModule && !search && canCreate(currentResource)" @click="openCreate()" class="mt-1 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة سجل جديد</button>
                           <button x-show="search" @click="search=''; loadList(1)" class="mt-1 border border-gray-300 text-gray-600 px-4 py-1.5 rounded-lg text-sm hover:bg-gray-50">مسح البحث</button>
                         </div>
                       </td>
@@ -4536,6 +4536,6 @@
   </div>
 </template>
 
-<script src="/app.js?v=rollup-quickentry-2026-04-19c"></script>
+<script src="/app.js?v=rollup-quickentry-2026-04-19d"></script>
 </body>
 </html>
