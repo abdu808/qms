@@ -135,14 +135,40 @@ export function crudRouter(opts) {
   }));
 
   // ── CREATE ───────────────────────────────────────────────────────
+  // nextCode() يقرأ آخر code ثم يزيد +1 — سباق إذا وصل طلبان متزامنان
+  // (أو نقرة "حفظ" مضاعفة من المستخدم). لذلك نعيد المحاولة حتى 5 مرات
+  // عندما يرجع Prisma P2002 على حقل `code` فقط.
   router.post('/', gate('create'), asyncHandler(async (req, res) => {
     let data = { ...req.body };
     if (createValidator) data = createValidator(data, req);
-    if (codePrefix && !data.code) {
-      data.code = await nextCode(model, codePrefix);
-    }
     if (beforeCreate) data = await beforeCreate(data, req);
-    const item = await prisma[model].create({ data, include });
+
+    let item;
+    const hadClientCode = !!data.code;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
+    // نحتفظ بنسخة أصلية لأن beforeCreate قد يضيف حقولاً؛ لا نعيد تشغيله
+    const baseData = { ...data };
+    while (true) {
+      attempts++;
+      try {
+        const payload = { ...baseData };
+        if (codePrefix && !hadClientCode) {
+          payload.code = await nextCode(model, codePrefix);
+        }
+        item = await prisma[model].create({ data: payload, include });
+        break;
+      } catch (err) {
+        const target = err?.meta?.target;
+        const hitsCode = Array.isArray(target)
+          ? target.includes('code')
+          : String(target || '').includes('code');
+        const isCodeRace = err?.code === 'P2002' && !hadClientCode && hitsCode;
+        if (isCodeRace && attempts < MAX_ATTEMPTS) continue;
+        throw err;
+      }
+    }
+
     if (afterCreate) { try { await afterCreate(item, req); } catch (e) { console.error('[crud afterCreate]', e.message); } }
     res.status(201).json({ ok: true, item });
   }));
