@@ -107,9 +107,45 @@ function publicSecurityHeaders(_req, res, next) {
   next();
 }
 
-// Health
+// ──────────────────────────────────────────────────────────────
+// Slow-request observability — surfaces 1s+ endpoints in Logs
+// so we spot latency regressions without an APM.
+// ──────────────────────────────────────────────────────────────
+const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_MS || 1000);
+app.use((req, res, next) => {
+  const t0 = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - t0;
+    if (ms >= SLOW_REQUEST_MS && req.url.startsWith('/api/')) {
+      console.warn(`[slow-req] ${req.method} ${req.url} ${ms}ms → ${res.statusCode}`);
+    }
+  });
+  next();
+});
+
+// Health — shallow liveness (fast, used by Coolify/Cloudflare probes)
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
+});
+
+// Health — deep readiness. Verifies the DB actually responds.
+// If this returns 503, Coolify's healthcheck should restart the container.
+app.get('/api/health/ready', async (req, res) => {
+  const t0 = Date.now();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [{ prisma }] = await Promise.all([import('./db.js')]);
+    await prisma.$queryRawUnsafe('SELECT 1');
+    res.json({ ok: true, db: 'ok', ms: Date.now() - t0, time: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({
+      ok: false,
+      db: 'error',
+      error: err.message?.split('\n')[0] || 'unknown',
+      ms: Date.now() - t0,
+      time: new Date().toISOString(),
+    });
+  }
 });
 
 // الصفحة الأساسية '/' تخدم SPA مباشرة (لا إعادة توجيه إلى /login)
