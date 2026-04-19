@@ -3,9 +3,13 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { activeWhere } from '../lib/dataHelpers.js';
 import { NotFound } from '../utils/errors.js';
+import { requireAction } from '../lib/permissions.js';
 import ExcelJS from 'exceljs';
 
 const router = Router();
+
+// حد أقصى للصفوف لحماية الذاكرة من exports ضخمة
+const EXPORT_MAX_ROWS = 50_000;
 
 const fmt = (v, type) => {
   if (v === null || v === undefined) return '';
@@ -17,7 +21,7 @@ const fmt = (v, type) => {
 const CONFIGS = {
   objectives: {
     label: 'الأهداف والمؤشرات',
-    fetch: () => prisma.objective.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.objective.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'الهدف' },
@@ -33,7 +37,7 @@ const CONFIGS = {
   },
   risks: {
     label: 'المخاطر والفرص',
-    fetch: () => prisma.risk.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.risk.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'type', label: 'النوع' },
@@ -49,7 +53,7 @@ const CONFIGS = {
   },
   complaints: {
     label: 'الشكاوى',
-    fetch: () => prisma.complaint.findMany({ orderBy: { receivedAt: 'desc' } }),
+    fetch: () => prisma.complaint.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { receivedAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'subject', label: 'الموضوع' },
@@ -66,7 +70,7 @@ const CONFIGS = {
   },
   ncr: {
     label: 'عدم المطابقة',
-    fetch: () => prisma.nCR.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.nCR.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'العنوان' },
@@ -81,7 +85,7 @@ const CONFIGS = {
   },
   suppliers: {
     label: 'الموردون',
-    fetch: () => prisma.supplier.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.supplier.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'name', label: 'الاسم' },
@@ -97,7 +101,7 @@ const CONFIGS = {
   },
   beneficiaries: {
     label: 'المستفيدون',
-    fetch: () => prisma.beneficiary.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.beneficiary.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'fullName', label: 'الاسم الكامل' },
@@ -115,7 +119,7 @@ const CONFIGS = {
   },
   training: {
     label: 'التدريب',
-    fetch: () => prisma.training.findMany({ orderBy: { date: 'desc' } }),
+    fetch: () => prisma.training.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { date: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'الدورة' },
@@ -129,7 +133,7 @@ const CONFIGS = {
   },
   audits: {
     label: 'التدقيق الداخلي',
-    fetch: () => prisma.audit.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.audit.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'العنوان' },
@@ -145,7 +149,7 @@ const CONFIGS = {
   },
   donations: {
     label: 'التبرعات',
-    fetch: () => prisma.donation.findMany({ orderBy: { receivedAt: 'desc' } }),
+    fetch: () => prisma.donation.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { receivedAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'donorName', label: 'المتبرع' },
@@ -161,7 +165,7 @@ const CONFIGS = {
   },
   strategicGoals: {
     label: 'الخطة الاستراتيجية',
-    fetch: () => prisma.strategicGoal.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.strategicGoal.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'perspective', label: 'المحور' },
@@ -179,7 +183,7 @@ const CONFIGS = {
   },
   operationalActivities: {
     label: 'الخطة التشغيلية',
-    fetch: () => prisma.operationalActivity.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.operationalActivity.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'النشاط' },
@@ -197,7 +201,7 @@ const CONFIGS = {
   },
   swot: {
     label: 'تحليل SWOT',
-    fetch: () => prisma.swotItem.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.swotItem.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'type', label: 'النوع' },
@@ -210,7 +214,7 @@ const CONFIGS = {
   },
   interestedParties: {
     label: 'الأطراف ذات العلاقة',
-    fetch: () => prisma.interestedParty.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.interestedParty.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'name', label: 'الاسم' },
@@ -224,7 +228,7 @@ const CONFIGS = {
   },
   processes: {
     label: 'خريطة العمليات',
-    fetch: () => prisma.process.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.process.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'name', label: 'الاسم' },
@@ -238,7 +242,7 @@ const CONFIGS = {
   },
   managementReview: {
     label: 'مراجعة الإدارة',
-    fetch: () => prisma.managementReview.findMany({ orderBy: { meetingDate: 'desc' } }),
+    fetch: () => prisma.managementReview.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { meetingDate: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'العنوان' },
@@ -252,7 +256,7 @@ const CONFIGS = {
   },
   competence: {
     label: 'مصفوفة الكفاءات',
-    fetch: () => prisma.competenceRequirement.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.competenceRequirement.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'jobTitle', label: 'المسمى الوظيفي' },
@@ -266,7 +270,7 @@ const CONFIGS = {
   },
   communication: {
     label: 'خطة الاتصال',
-    fetch: () => prisma.communicationPlan.findMany({ orderBy: { createdAt: 'desc' } }),
+    fetch: () => prisma.communicationPlan.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'topic', label: 'الموضوع' },
@@ -357,7 +361,9 @@ const flattenForExport = (item, cfg) => {
   return out;
 };
 
-router.get('/:model', asyncHandler(async (req, res) => {
+// تصدير البيانات: يتطلب صلاحية read على الـ model المطلوب.
+// ⚠️ بدون هذه الحماية، أي شخص لديه الرابط يستطيع تحميل كامل البيانات بما فيها PII.
+router.get('/:model', requireAction('exports', 'read'), asyncHandler(async (req, res) => {
   const cfg = CONFIGS[req.params.model];
   if (!cfg) throw NotFound('نموذج التصدير غير موجود');
 

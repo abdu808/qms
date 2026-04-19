@@ -162,6 +162,8 @@ model Objective {
   @@index([departmentId])
   @@index([strategicGoalId])
   @@index([deletedAt])
+  @@index([deletedAt, status])           // dashboard: objectives by status (active only)
+  @@index([ownerId, status])             // myWork: my objectives by status
 }
 
 // =====================================================
@@ -287,6 +289,7 @@ model Complaint {
   @@index([source])
   @@index([relatedNcrId])
   @@index([deletedAt])
+  @@index([deletedAt, status, receivedAt]) // dashboard: overdue complaints + date filter
 }
 
 // =====================================================
@@ -343,6 +346,8 @@ model NCR {
   @@index([departmentId])
   @@index([workflowState])
   @@index([deletedAt])
+  @@index([deletedAt, status, dueDate])   // dashboard: overdue NCRs (status + date)
+  @@index([assigneeId, status])           // myWork: my NCRs by status
 }
 
 // =====================================================
@@ -493,6 +498,7 @@ model SupplierEval {
   @@index([supplierId])
   @@index([workflowState])
   @@index([deletedAt])
+  @@index([supplierId, workflowState])   // myWork: supplier evals pending review
 }
 
 // =====================================================
@@ -613,6 +619,8 @@ model Beneficiary {
   @@index([status])
   @@index([category])
   @@index([deletedAt])
+  @@index([status, assessedAt])          // myWork: due-review sort by assessedAt
+  @@index([deletedAt, status])           // exports: active beneficiaries by status
 }
 
 // =====================================================

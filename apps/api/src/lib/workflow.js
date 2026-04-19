@@ -108,9 +108,15 @@ export function attachWorkflow(router, { model, resource }) {
     ensureCan(req.user, resource, 'approve');
     const item = await prisma[model].findUnique({ where: { id: req.params.id } });
     if (!item) throw NotFound();
-    // SoD: approver cannot be the original submitter (break-glass for SUPER_ADMIN)
-    if (item.submittedById && item.submittedById === req.user.id && req.user.role !== 'SUPER_ADMIN') {
-      throw Forbidden('لا يمكنك اعتماد سجل قمتَ بإرساله (فصل المهام)');
+    // SoD: ISO 7.1.2 فصل المهام — المعتمِد لا يكون هو المُرسِل ولا المُراجِع
+    // (break-glass: SUPER_ADMIN مُعفى في الحالات الاستثنائية)
+    if (req.user.role !== 'SUPER_ADMIN') {
+      if (item.submittedById && item.submittedById === req.user.id) {
+        throw Forbidden('لا يمكنك اعتماد سجل قمتَ بإرساله (فصل المهام ISO 7.1.2)');
+      }
+      if (item.reviewedById && item.reviewedById === req.user.id) {
+        throw Forbidden('لا يمكنك اعتماد سجل قمتَ بمراجعته (فصل المهام ISO 7.1.2)');
+      }
     }
     const next = transition(item.workflowState, 'approve');
 

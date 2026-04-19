@@ -121,13 +121,15 @@ router.post(
  * POST /api/complaints/:id/reopen — إعادة فتح شكوى مُغلَقة (ISO 9.1.2).
  * QM/SUPER_ADMIN فقط + سبب إلزامي + AuditLog.
  */
-router.post('/:id/reopen', asyncHandler(async (req, res) => {
-  const updated = await reopenRecord({
-    model: 'complaint', entityType: 'Complaint',
-    id: req.params.id, reason: req.body?.reason, req,
-  });
-  res.json({ ok: true, item: updated });
-}));
+router.post('/:id/reopen',
+  requireAction('complaints', 'update'),
+  asyncHandler(async (req, res) => {
+    const updated = await reopenRecord({
+      model: 'complaint', entityType: 'Complaint',
+      id: req.params.id, reason: req.body?.reason, req,
+    });
+    res.json({ ok: true, item: updated });
+  }));
 
 router.use('/', base);
 

@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { createSchema as ncrCreateSchema, updateSchema as ncrUpdateSchema } from '../schemas/ncr.schema.js';
 import { guardNcrCreate, guardNcrUpdate } from '../services/ncrClosure.js';
 import { reopenRecord } from '../services/reopenGuard.js';
+import { requireAction } from '../lib/permissions.js';
 
 const crud = crudRouter({
   resource: 'ncr',
@@ -55,13 +56,15 @@ router.use(readAudit('NCR'));
  * QM/SUPER_ADMIN فقط + سبب إلزامي + سجل AuditLog مستقل.
  * مُسجَّل قبل attachWorkflow لتفادي تعارض المسار العام /:id/reopen.
  */
-router.post('/:id/reopen', asyncHandler(async (req, res) => {
-  const updated = await reopenRecord({
-    model: 'nCR', entityType: 'NCR',
-    id: req.params.id, reason: req.body?.reason, req,
-  });
-  res.json({ ok: true, item: updated });
-}));
+router.post('/:id/reopen',
+  requireAction('ncr', 'update'),   // QM/SUPER_ADMIN فقط — الـ reopenGuard يعيد التحقق داخلياً
+  asyncHandler(async (req, res) => {
+    const updated = await reopenRecord({
+      model: 'nCR', entityType: 'NCR',
+      id: req.params.id, reason: req.body?.reason, req,
+    });
+    res.json({ ok: true, item: updated });
+  }));
 
 attachWorkflow(router, { model: 'nCR', resource: 'ncr' });
 
