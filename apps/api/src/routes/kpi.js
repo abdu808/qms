@@ -18,6 +18,7 @@ import { evaluateKpi, expectedByMonth, actualByMonth, ragStatus, achievementRati
 import { createSchema as kpiCreateSchema } from '../schemas/kpiEntry.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
 import { upsertKpiEntry, isPeriodLocked } from '../services/kpi.js';
+import { recomputeAfterEntry } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
 
 const validateKpiEntry = runSchema(kpiCreateSchema);
@@ -187,7 +188,17 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
 // ─── حذف إدخال ───────────────────────────────────────────────
 router.delete('/entries/:id', requireAction('kpi', 'update'), async (req, res, next) => {
   try {
+    // نلتقط الأب/السنة قبل الحذف لإعادة الحساب بعده
+    const entry = await prisma.kpiEntry.findUnique({
+      where: { id: req.params.id },
+      select: { objectiveId: true, activityId: true, year: true },
+    });
     await prisma.kpiEntry.delete({ where: { id: req.params.id } });
+    if (entry) {
+      try { await recomputeAfterEntry(entry); } catch (err) {
+        console.error('[kpi] rollup after delete failed:', err?.message || err);
+      }
+    }
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

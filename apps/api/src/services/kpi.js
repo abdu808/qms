@@ -9,6 +9,7 @@
 import { prisma } from '../db.js';
 import { BadRequest } from '../utils/errors.js';
 import { evaluateKpi } from '../lib/kpi-engine.js';
+import { recomputeAfterEntry } from './rollup.js';
 
 /**
  * هل هذا الشهر/السنة مُغلَق بسبب مراجعة إدارية مكتملة تغطّي هذه الفترة؟
@@ -105,6 +106,15 @@ export async function upsertKpiEntry({
   };
   const entry = await prisma.kpiEntry.upsert({ where, update: data, create: data });
 
+  // ── Auto rollup: يُحدِّث progress الأب + جذر الخطة الاستراتيجية ─────
+  // يُشَغَّل بعد الـ upsert مباشرةً. لا نكسر الـ request لو فشل (نسجّل فقط).
+  let rollup = null;
+  try {
+    rollup = await recomputeAfterEntry({ objectiveId, activityId, year });
+  } catch (err) {
+    console.error('[kpi] rollup failed:', err?.message || err);
+  }
+
   const feedback = await computeKpiFeedback({ objectiveId, activityId, year, month });
-  return { entry, feedback, locked: lock.locked };
+  return { entry, feedback, rollup, locked: lock.locked };
 }
