@@ -1935,6 +1935,66 @@ function app() {
       if (this.isGuided()) this.page = 'myWork';
     },
 
+    // ─── طبقة الترجمة: ISO → عربي يومي ───────────────────────────────
+    // في الوضع "الموجَّه" نُظهر اللفظ اليومي، وفي "المتقدّم" المصطلح الأصلي.
+    // هذه طبقة تقديم فقط — لا تُغيّر بيانات API ولا المصطلحات في قاعدة البيانات.
+    ISO_DICT: {
+      // شكل الإدخال (بأي حالة حروف/فراغات) → { friendly, iso, def }
+      'ncr':               { friendly: 'بلاغ جودة',          iso: 'NCR',                 def: 'حالة عدم مطابقة: خطأ أو انحراف عن المعيار يحتاج تصحيحاً.' },
+      'nc':                { friendly: 'بلاغ جودة',          iso: 'NC',                  def: 'Non-Conformance' },
+      'capa':              { friendly: 'إجراء تصحيحي',       iso: 'CAPA',                def: 'Corrective & Preventive Action — خطوات إصلاح المشكلة ومنع تكرارها.' },
+      'corrective action': { friendly: 'إجراء تصحيح',         iso: 'Corrective Action',   def: 'ما نفعله لإزالة سبب عدم المطابقة.' },
+      'root cause':        { friendly: 'السبب الجذري',        iso: 'Root Cause',          def: 'السبب الحقيقي وراء المشكلة (وليس الأعراض).' },
+      'kpi':               { friendly: 'مؤشّر أداء',          iso: 'KPI',                 def: 'رقم يقيس تحقّق هدف محدّد شهرياً أو سنوياً.' },
+      'sla':               { friendly: 'مهلة الرد',           iso: 'SLA',                 def: 'Service Level Agreement — المدة القصوى للرد على الشكوى.' },
+      'audit':             { friendly: 'تدقيق',              iso: 'Audit',               def: 'فحص منظَّم للتحقّق من الالتزام بالمعايير.' },
+      'management review': { friendly: 'اجتماع متابعة الإدارة', iso: 'Management Review',   def: 'الاجتماع الدوري للإدارة العليا لمراجعة أداء الجودة.' },
+      'risk':              { friendly: 'مخاطرة',             iso: 'Risk',                def: 'شيء محتمل قد يُعيق تحقيق هدف — ليس مشكلة حدثت فعلاً.' },
+      'risk register':     { friendly: 'سجل المخاطر',         iso: 'Risk Register',       def: 'قائمة بكل المخاطر المعروفة في المنظمة.' },
+      'complaint':         { friendly: 'شكوى',               iso: 'Complaint',           def: 'بلاغ من مستفيد عن خدمة غير مُرضية.' },
+      'beneficiary':       { friendly: 'مستفيد',             iso: 'Beneficiary',         def: 'الشخص الذي يتلقى خدمات الجمعية.' },
+      'donor':             { friendly: 'متبرّع',              iso: 'Donor',               def: 'جهة أو شخص يقدم دعماً مالياً/عينياً.' },
+      'swot':              { friendly: 'تحليل الوضع',         iso: 'SWOT',                def: 'نقاط القوّة والضعف والفرص والتهديدات.' },
+      'interested parties':{ friendly: 'الأطراف المعنيّة',    iso: 'Interested Parties',  def: 'كل من يتأثّر بعمل المنظمة (مستفيدون، موظفون، ممولون...).' },
+      'policy':            { friendly: 'سياسة',              iso: 'Policy',              def: 'وثيقة توجّه اتخاذ القرارات في موضوع معيَّن.' },
+      'procedure':         { friendly: 'إجراء',              iso: 'Procedure',           def: 'خطوات تنفيذ عمل ما.' },
+      'objective':         { friendly: 'هدف تشغيلي',         iso: 'Objective',           def: 'هدف قابل للقياس ينبثق عن أهداف الجمعية.' },
+      'strategic goal':    { friendly: 'هدف استراتيجي',      iso: 'Strategic Goal',      def: 'هدف طويل المدى (سنوات) للجمعية.' },
+      'competence':        { friendly: 'كفاءة',              iso: 'Competence',          def: 'ما يجب أن يجيده الموظف لأداء عمله بجودة.' },
+      'training':          { friendly: 'تدريب',              iso: 'Training',            def: 'جلسات لرفع كفاءة الموظفين.' },
+      'acknowledgment':    { friendly: 'إقرار مطالعة',        iso: 'Acknowledgment',      def: 'توقيع يُثبت أنك اطّلعت على الوثيقة.' },
+      'ack':               { friendly: 'إقرار',               iso: 'Ack',                 def: 'اختصار Acknowledgment.' },
+      'supplier':          { friendly: 'مورِّد',              iso: 'Supplier',            def: 'جهة تُورِّد منتجات أو خدمات للجمعية.' },
+      'workflow':          { friendly: 'مسار اعتماد',        iso: 'Workflow',            def: 'الخطوات المتسلسلة لاعتماد سجل (مسوّدة → مراجعة → اعتماد).' },
+      'draft':             { friendly: 'مسوّدة',              iso: 'Draft',               def: 'سجل لم يُرسَل للمراجعة بعد.' },
+      'submitted':         { friendly: 'مُرسَلة',             iso: 'Submitted',           def: 'بانتظار المراجع.' },
+      'under review':      { friendly: 'قيد المراجعة',        iso: 'Under Review',        def: 'يُراجعها الجهة المختصّة.' },
+      'approved':          { friendly: 'معتمدة',             iso: 'Approved',            def: 'تمّ اعتمادها رسمياً.' },
+      'rejected':          { friendly: 'مرفوضة',             iso: 'Rejected',            def: 'لم تُعتَمد — تحتاج تعديلاً.' },
+      'severity':          { friendly: 'درجة الخطورة',        iso: 'Severity',            def: 'مدى خطورة المشكلة أو المخاطرة.' },
+    },
+    _tLookup(term) {
+      const k = String(term || '').toLowerCase().trim();
+      return this.ISO_DICT[k] || null;
+    },
+    // الترجمة المعروضة: في الوضع الموجَّه نُظهر "الودود"، في المتقدّم المصطلح الأصلي.
+    // لو لم نجد المصطلح نعيد المُدخل كما هو.
+    t(term) {
+      const hit = this._tLookup(term);
+      if (!hit) return term;
+      return this.isGuided() ? hit.friendly : hit.iso;
+    },
+    // تعريف للـ tooltip — نفس التعريف في كلا الوضعين
+    tDef(term) {
+      const hit = this._tLookup(term);
+      return hit ? hit.def : '';
+    },
+    // الشكل "الودود دائماً" — للعناوين الترحيبية بغضّ النظر عن الوضع
+    tFriendly(term) {
+      const hit = this._tLookup(term);
+      return hit ? hit.friendly : term;
+    },
+
     // ─── Command Palette (Ctrl+K / Cmd+K) ──────────────────────────
     // مبدأ: بحث موحَّد يقفز بك لأي مكان في النظام — صفحة أو إجراء.
     // يعمل في أي وضع (guided/advanced). مفتاح افتراضي: Ctrl+K / Cmd+K / F1.
@@ -2062,6 +2122,36 @@ function app() {
       return this.menuGroups.filter(g => allowed.has(g.id));
     },
 
+    // ─── تخصيص "الأكثر استخداماً" — يتعلّم من سلوك المستخدم ───────────
+    // نُخزّن آخر 20 نقرة على أزرار Quick Actions في localStorage ونستعملها
+    // لترفيع ما يستخدمه المستخدم فعلاً إلى الأعلى. قرار صغير وبلا backend.
+    _qaUsageKey() { return 'qms_qa_usage_' + (this.user?.id || 'anon'); },
+    _qaUsageGet() {
+      try {
+        const raw = localStorage.getItem(this._qaUsageKey());
+        return raw ? JSON.parse(raw) : {};
+      } catch { return {}; }
+    },
+    _qaUsageSet(obj) {
+      try { localStorage.setItem(this._qaUsageKey(), JSON.stringify(obj)); } catch {}
+    },
+    trackQuickAction(id) {
+      const m = this._qaUsageGet();
+      m[id] = (m[id] || 0) + 1;
+      // نبقي 12 مفتاحاً فقط (تنظيف)
+      const keys = Object.keys(m);
+      if (keys.length > 12) {
+        keys.sort((a, b) => m[a] - m[b]).slice(0, keys.length - 12).forEach(k => delete m[k]);
+      }
+      this._qaUsageSet(m);
+    },
+    mostUsedQaId() {
+      const m = this._qaUsageGet();
+      const keys = Object.keys(m);
+      if (!keys.length) return null;
+      return keys.reduce((a, b) => (m[a] >= m[b] ? a : b));
+    },
+
     // ─── Quick Actions حسب الدور (Phase 1 refinement) ─────────────────
     // كل action: { id, icon, label, sublabel, color, onClick }. onClick دالة
     // تُستدعى بسياق this عند النقر.
@@ -2081,8 +2171,10 @@ function app() {
           onClick: () => this.openWizard('complaint'),
         },
         ncr: {
-          id: 'ncr', icon: '⚠️', label: 'بلّغ عدم مطابقة',
-          sublabel: 'NCR موجَّه', color: 'orange',
+          id: 'ncr', icon: '⚠️',
+          label: this.isGuided() ? 'أبلِغ عن بلاغ جودة' : 'بلّغ عدم مطابقة',
+          sublabel: this.isGuided() ? 'شيء غير مطابق للمعيار' : 'NCR موجَّه',
+          color: 'orange',
           show: () => this.can('ncr', 'create'),
           onClick: () => this.openWizard('ncr'),
         },
@@ -2093,19 +2185,22 @@ function app() {
           onClick: () => this.openWizard('risk'),
         },
         managementReview: {
-          id: 'managementReview', icon: '🗓️', label: 'مراجعة إدارية',
+          id: 'managementReview', icon: '🗓️',
+          label: this.isGuided() ? 'اجتماع متابعة الإدارة' : 'مراجعة إدارية',
           sublabel: 'جدولة اجتماع', color: 'indigo',
           show: () => this.can('managementReview', 'create'),
           onClick: () => this.openWizard('managementReview'),
         },
         ncrReview: {
-          id: 'ncrReview', icon: '🔍', label: 'مراجعة NCR المعلّقة',
+          id: 'ncrReview', icon: '🔍',
+          label: this.isGuided() ? 'بلاغات جودة بانتظار قرارك' : 'مراجعة NCR المعلّقة',
           sublabel: 'بانتظار قرارك', color: 'orange',
           show: () => ['QUALITY_MANAGER', 'SUPER_ADMIN', 'COMMITTEE_MEMBER'].includes(role),
           onClick: () => this.goToResource('ncr'),
         },
         slaBoard: {
-          id: 'slaBoard', icon: '⏱️', label: 'لوحة SLA',
+          id: 'slaBoard', icon: '⏱️',
+          label: this.isGuided() ? 'لوحة المهل المتأخّرة' : 'لوحة SLA',
           sublabel: 'شكاوى متأخّرة', color: 'rose',
           show: () => ['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER'].includes(role),
           onClick: () => this.goToResource('slaBoard'),
@@ -2120,7 +2215,21 @@ function app() {
         SUPER_ADMIN:      ['managementReview', 'ncrReview', 'slaBoard', 'risk', 'complaint'],
       };
       const ids = order[role] || order.EMPLOYEE;
-      return ids.map(id => all[id]).filter(a => a && a.show());
+      const list = ids.map(id => all[id]).filter(a => a && a.show());
+      // ترفيع "الأكثر استخداماً" — إذا كان ضمن القائمة الحالية، ضعه أولاً.
+      const topId = this.mostUsedQaId?.();
+      if (topId) {
+        const idx = list.findIndex(a => a.id === topId);
+        if (idx > 0) {
+          const item = list.splice(idx, 1)[0];
+          // نعلّمه كي يظهر شارة "الأكثر استخداماً"
+          item.mostUsed = true;
+          list.unshift(item);
+        } else if (idx === 0) {
+          list[0].mostUsed = true;
+        }
+      }
+      return list;
     },
 
     // ألوان المجموعات (لضمان أن Tailwind لا يحذفها في التشغيل على CDN)
@@ -3122,6 +3231,57 @@ function app() {
         this.myWork = null;
         alert(e.message || 'فشل تحميل مهامي');
       }
+    },
+
+    // ─── Inbox mode: إجراءات inline داخل بطاقات "مهامي" ───────────────
+    // الفكرة: لا تُجبر المستخدم على الانتقال إلى صفحة الوحدة كاملةً لاتخاذ
+    // قرار بسيط (مراجعة/اعتماد/رفض). نستدعي نفس workflow endpoints ثم نعيد
+    // تحميل "مهامي" فقط لتحديث البطاقات في مكانها.
+    _inboxBusy: {}, // { 'ncr:abc123': true } — لتعطيل الأزرار أثناء الاستدعاء
+    inboxBusy(item, event) {
+      return !!this._inboxBusy[(item?.id || '') + ':' + event];
+    },
+    async _inboxCall(resource, item, event, body) {
+      const key = (item?.id || '') + ':' + event;
+      if (this._inboxBusy[key]) return;
+      this._inboxBusy[key] = true;
+      try {
+        await this.api('POST', `/${resource}/${item.id}/${event}`, body);
+        this.toast?.(`✅ تم الإجراء`);
+        await this.loadMyWork();
+      } catch (e) {
+        alert(e.message || 'فشل الإجراء');
+      } finally {
+        this._inboxBusy[key] = false;
+      }
+    },
+    async inboxSubmit(item, resource) {
+      if (!confirm('إرسال هذه المسوّدة للمراجعة؟')) return;
+      await this._inboxCall(resource, item, 'submit');
+    },
+    async inboxReview(item, resource) {
+      await this._inboxCall(resource, item, 'review');
+    },
+    async inboxApprove(item, resource) {
+      if (!confirm('اعتماد هذا السجل؟')) return;
+      await this._inboxCall(resource, item, 'approve');
+    },
+    async inboxReject(item, resource) {
+      const reason = prompt('سبب الرفض:');
+      if (!reason || !reason.trim()) return;
+      await this._inboxCall(resource, item, 'reject', { reason: reason.trim() });
+    },
+    // نفس منطق canWorkflow لكن على بيانات myWork المختصرة (التي قد لا تحتوي
+    // submittedById). نستخدم قواعد مبسّطة: إذا وصلت للمستخدم في أحد صناديق
+    // "pending*" فالإجراء متاح له في أغلب الحالات.
+    canInbox(item, event) {
+      const s = item?.workflowState || 'DRAFT';
+      const role = this.user?.role;
+      if (event === 'submit')  return s === 'DRAFT';
+      if (event === 'review')  return s === 'SUBMITTED'   && ['QUALITY_MANAGER','SUPER_ADMIN','DEPT_MANAGER','COMMITTEE_MEMBER'].includes(role);
+      if (event === 'approve') return s === 'UNDER_REVIEW' && ['QUALITY_MANAGER','SUPER_ADMIN','COMMITTEE_MEMBER'].includes(role);
+      if (event === 'reject')  return ['SUBMITTED','UNDER_REVIEW'].includes(s) && ['QUALITY_MANAGER','SUPER_ADMIN','DEPT_MANAGER','COMMITTEE_MEMBER'].includes(role);
+      return false;
     },
     goToResource(page, id) {
       this.page = page;
