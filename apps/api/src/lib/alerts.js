@@ -268,13 +268,13 @@ async function dueManagementReview() {
 }
 
 async function unapprovedSupplierEvals() {
-  // تقييمات موردين لم تُعتمد بعد (score منخفض يحتاج قراراً إدارياً)
-  const where = activeWhere({ score: { lt: 60, not: null } });
+  // تقييمات موردين لم تُعتمد بعد (percentage منخفض يحتاج قراراً إدارياً)
+  const where = activeWhere({ percentage: { lt: 60 } });
   const [count, items] = await Promise.all([
     prisma.supplierEval.count({ where }).catch(() => 0),
     prisma.supplierEval.findMany({
       where,
-      select: { id: true, code: true, score: true, supplier: { select: { name: true } } },
+      select: { id: true, code: true, percentage: true, supplier: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
       take: T.MAX_ITEMS_PER_ALERT,
     }).catch(() => []),
