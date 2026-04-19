@@ -72,7 +72,7 @@ router.get('/', asyncHandler(async (req, res) => {
       take: 20,
     }) : [],
     privileged ? prisma.nCR.findMany({
-      where: activeWhere({ workflowState: 'REVIEWED' }),
+      where: activeWhere({ workflowState: 'UNDER_REVIEW' }),
       select: { id: true, code: true, title: true, reviewedAt: true },
       take: 20,
     }) : [],
@@ -101,12 +101,12 @@ router.get('/', asyncHandler(async (req, res) => {
   // ═══ 4) Workflow pending (privileged) ═══
   const [risksPendingReview, supplierEvalsPendingReview] = await Promise.all([
     privileged ? prisma.risk.findMany({
-      where: activeWhere({ workflowState: { in: ['SUBMITTED', 'REVIEWED'] } }),
+      where: activeWhere({ workflowState: { in: ['SUBMITTED', 'UNDER_REVIEW'] } }),
       select: { id: true, code: true, title: true, workflowState: true, submittedAt: true },
       take: 20,
     }) : [],
     privileged ? prisma.supplierEval.findMany({
-      where: activeWhere({ workflowState: { in: ['SUBMITTED', 'REVIEWED'] } }),
+      where: activeWhere({ workflowState: { in: ['SUBMITTED', 'UNDER_REVIEW'] } }),
       select: {
         id: true, code: true, workflowState: true, submittedAt: true,
         supplier: { select: { name: true, code: true } },

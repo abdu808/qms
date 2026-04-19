@@ -33,7 +33,7 @@ const crud = crudRouter({
     open: () => ({ status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] } }),
     closed: () => ({ status: 'CLOSED' }),
     pendingReview:   () => ({ workflowState: 'SUBMITTED' }),
-    pendingApproval: () => ({ workflowState: 'REVIEWED' }),
+    pendingApproval: () => ({ workflowState: 'UNDER_REVIEW' }),
     thisMonth: () => {
       const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0);
       return { createdAt: { gte: d } };
