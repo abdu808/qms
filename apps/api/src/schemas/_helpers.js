@@ -62,8 +62,21 @@ export const optionalDate = z.preprocess(
   z.date().nullable().optional(),
 );
 
-/** CUID أو UUID مقبول (Prisma يولد cuid افتراضياً). */
-export const idString = z.string().min(1).max(64);
+/** CUID أو UUID مقبول (Prisma يولد cuid افتراضياً).
+ *  يُعامل "" / " " / null / undefined كغياب قيمة (null) حتى لا ينفجر FK
+ *  عند Prisma — نماذج الفرونت ترسل "" للحقول الاختيارية بدلاً من عدم إرسالها.
+ */
+export const idString = z.preprocess(
+  v => {
+    if (v == null) return v;
+    if (typeof v === 'string') {
+      const t = v.trim();
+      return t === '' ? null : t;
+    }
+    return v;
+  },
+  z.string().min(1).max(64),
+);
 
 /**
  * validateBody(schema) — يُرجع دالة beforeCreate/beforeUpdate موحّدة.

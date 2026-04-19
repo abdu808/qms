@@ -28,8 +28,14 @@ prisma.$use(async (params, next) => {
     //   P2025 = record not found (optimistic "update if exists")
     const silent = err.code === 'P2002' || err.code === 'P2025';
     if (!silent) {
-      // Log *once* with a compact summary; the route layer will still see the throw.
-      console.error(`[prisma-error] ${model}.${params.action} ${ms}ms — ${err.message?.split('\n')[0]}`);
+      // Log a compact but meaningful summary. Prisma error messages span multiple
+      // lines and the first is usually empty — pick the first *non-empty* line
+      // and also surface err.code + meta so FK/unknown-argument bugs are obvious.
+      const lines  = (err.message || '').split('\n').map(s => s.trim()).filter(Boolean);
+      const brief  = lines.slice(0, 4).join(' | ') || '(no message)';
+      const code   = err.code ? ` [${err.code}]` : '';
+      const meta   = err.meta  ? ` meta=${JSON.stringify(err.meta)}` : '';
+      console.error(`[prisma-error] ${model}.${params.action} ${ms}ms${code} — ${brief}${meta}`);
     }
     throw err;
   }
