@@ -23,8 +23,14 @@ prisma.$use(async (params, next) => {
   } catch (err) {
     const ms = Date.now() - t0;
     const model = params.model || '(raw)';
-    // Log *once* with a compact summary; the route layer will still see the throw.
-    console.error(`[prisma-error] ${model}.${params.action} ${ms}ms — ${err.message?.split('\n')[0]}`);
+    // Skip well-known "expected" errors that callers already handle:
+    //   P2002 = unique constraint (idempotent inserts)
+    //   P2025 = record not found (optimistic "update if exists")
+    const silent = err.code === 'P2002' || err.code === 'P2025';
+    if (!silent) {
+      // Log *once* with a compact summary; the route layer will still see the throw.
+      console.error(`[prisma-error] ${model}.${params.action} ${ms}ms — ${err.message?.split('\n')[0]}`);
+    }
     throw err;
   }
 });

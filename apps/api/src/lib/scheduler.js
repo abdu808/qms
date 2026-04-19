@@ -17,16 +17,18 @@ const RISK_REVIEW_STALE_DAYS = 90;
 const NCR_STUCK_DAYS         = 30;
 const MGMT_REVIEW_MAX_MONTHS = 12;
 
-/** ينشئ إشعاراً فقط إذا لم يكن له مفتاح فريد مطابق (idempotent). */
+/** ينشئ إشعاراً فقط إذا لم يكن له مفتاح فريد مطابق (idempotent).
+ *  نستخدم createMany({ skipDuplicates }) لتفادي ضرب القاعدة بخطأ unique
+ *  على كل استدعاء متكرر — أنظف من try/catch للحالات المتوقعة. */
 async function notifyOnce({ userId, type, title, message, link, entityType, entityId, eventKey }) {
   if (!userId || !eventKey) return;
   try {
-    await prisma.notification.create({
-      data: { userId, type, title, message, link, entityType, entityId, eventKey },
+    await prisma.notification.createMany({
+      data: [{ userId, type, title, message, link, entityType, entityId, eventKey }],
+      skipDuplicates: true,
     });
   } catch (e) {
-    // تكرار المفتاح الفريد = إشعار موجود مسبقاً، تجاهل بهدوء
-    if (e.code !== 'P2002') console.warn('[scheduler] notify failed:', e.message);
+    console.warn('[scheduler] notify failed:', e.message);
   }
 }
 
