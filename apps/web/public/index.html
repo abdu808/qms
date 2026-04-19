@@ -3895,7 +3895,7 @@
             </div>
 
             <!-- ── Form body ────────────────────────────────────── -->
-            <form @submit.prevent="save()" class="overflow-y-auto flex-1 px-6 py-5">
+            <form @submit.prevent="save()" novalidate class="overflow-y-auto flex-1 px-6 py-5">
               <div class="grid grid-cols-2 gap-x-4 gap-y-4">
 
                 <template x-for="f in currentFields" :key="f.key">

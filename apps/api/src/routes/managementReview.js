@@ -6,6 +6,7 @@ import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { MGMT_REVIEW_STATUS, assertTransition } from '../lib/stateMachines.js';
 import { requireSignatureFor } from '../lib/signatureGuard.js';
+import { createSchema as mrCreate, updateSchema as mrUpdate } from '../schemas/managementReview.schema.js';
 
 const base = crudRouter({
   resource: 'management-review',
@@ -14,6 +15,7 @@ const base = crudRouter({
   searchFields: ['title', 'attendees', 'decisions', 'improvementActions'],
   allowedSortFields: ['createdAt', 'meetingDate', 'status'],
   allowedFilters: ['status'],
+  schemas: { create: mrCreate, update: mrUpdate },
   beforeUpdate: async (data, req) => {
     if (data.status) {
       const current = await prisma.managementReview.findUnique({

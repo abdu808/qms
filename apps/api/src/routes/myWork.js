@@ -91,6 +91,8 @@ router.get('/', asyncHandler(async (req, res) => {
           where: activeWhere({ status: { in: COMPL_OPEN } }),
           select: { id: true, code: true, subject: true, severity: true, status: true,
                     receivedAt: true, assigneeId: true, resolvedAt: true, updatedAt: true, createdAt: true },
+          orderBy: { receivedAt: 'desc' },
+          take: 200, // cap to keep latency bounded — SLA breach filter happens in-memory
         })
       : [],
   ]);
@@ -171,6 +173,8 @@ router.get('/', asyncHandler(async (req, res) => {
       const actives = await prisma.beneficiary.findMany({
         where: activeWhere({ status: 'ACTIVE' }),
         select: { id: true, code: true, fullName: true, assessedAt: true },
+        orderBy: { assessedAt: 'asc' }, // الأقدم أولاً يتصدّر قائمة الحاجة للمراجعة
+        take: 500, // سقف للأداء — الفلتر بعده في الذاكرة
       });
       beneficiariesDueReview = actives.filter(b => beneficiaryNeedsReview(b)).slice(0, 20);
     } catch { /* non-fatal */ }

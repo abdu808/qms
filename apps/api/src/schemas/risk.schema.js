@@ -8,7 +8,8 @@ const TYPES    = ['RISK', 'OPPORTUNITY'];
 const STATUSES = ['IDENTIFIED', 'UNDER_TREATMENT', 'MITIGATED', 'ACCEPTED', 'CLOSED'];
 const WORKFLOW = ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'];
 const LEVELS   = ['منخفض', 'متوسط', 'مرتفع', 'حرج'];
-const TREATMENT_TYPES = ['تجنب', 'تخفيف', 'نقل', 'قبول'];
+// قيم إنجليزية تطابق ما ترسله الواجهة. الـ Prisma field هو String? فلا enum على جانب DB.
+const TREATMENT_TYPES = ['AVOID', 'MITIGATE', 'TRANSFER', 'ACCEPT'];
 
 const scale1to5 = z.preprocess(
   v => (v === '' || v == null ? undefined : Number(v)),
