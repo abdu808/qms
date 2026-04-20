@@ -9,6 +9,24 @@
 
 BEGIN;
 
+-- إزالة التكرارات في crNumber قبل إنشاء الـ index (soft-delete للأقدم)
+UPDATE "Supplier" SET "deletedAt" = NOW()
+WHERE "crNumber" IS NOT NULL AND "deletedAt" IS NULL
+  AND id NOT IN (
+    SELECT DISTINCT ON ("crNumber") id FROM "Supplier"
+    WHERE "crNumber" IS NOT NULL AND "deletedAt" IS NULL
+    ORDER BY "crNumber", "createdAt" DESC
+  );
+
+-- إزالة التكرارات في vatNumber
+UPDATE "Supplier" SET "deletedAt" = NOW()
+WHERE "vatNumber" IS NOT NULL AND "deletedAt" IS NULL
+  AND id NOT IN (
+    SELECT DISTINCT ON ("vatNumber") id FROM "Supplier"
+    WHERE "vatNumber" IS NOT NULL AND "deletedAt" IS NULL
+    ORDER BY "vatNumber", "createdAt" DESC
+  );
+
 CREATE UNIQUE INDEX IF NOT EXISTS "supplier_crNumber_active_unique"
   ON "Supplier"("crNumber")
   WHERE "crNumber" IS NOT NULL AND "deletedAt" IS NULL;

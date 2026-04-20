@@ -1502,3 +1502,13 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+
+// جدول تتبع الترحيلات اليدوية — يُدار بواسطة scripts/migrate.mjs
+// مُعرَّف هنا لمنع prisma db push من حذفه
+model MigrationLog {
+  name      String   @id
+  appliedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("_MigrationLog")
+}
