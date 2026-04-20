@@ -72,35 +72,8 @@ services:
     networks:
       - qms-net
 
-  qms-backup:
-    image: postgres:16-alpine
-    container_name: qms-backup
-    restart: unless-stopped
-    depends_on:
-      qms-db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
-    volumes:
-      - ./backups:/backups
-    networks:
-      - qms-net
-    entrypoint: >
-      sh -c "
-      echo '[backup] hourly-check loop started (no crond — avoids setpgid restriction)';
-      while sleep 3600; do
-        HOUR=$$(date -u +%H);
-        if [ \"$$HOUR\" = '03' ]; then
-          echo '[backup] running nightly backup...';
-          pg_dump -h qms-db -U $$POSTGRES_USER $$POSTGRES_DB | gzip > /backups/qms_$$(date +%Y%m%d_%H%M%S).sql.gz \
-            && echo '[backup] done' || echo '[backup] pg_dump failed';
-          find /backups -name '*.sql.gz' -mtime +$$BACKUP_RETENTION_DAYS -delete || true;
-        fi;
-      done
-      "
+  # qms-backup: مُعطَّل مؤقتاً — كان يتسبب في restarts بسبب setpgid ممنوع في Docker
+  # النسخ الاحتياطي يعمل عبر API الداخلي (QMS_BACKUP=on في متغيرات Coolify)
 
 volumes:
   qms_db_data:
