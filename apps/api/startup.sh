@@ -29,5 +29,8 @@ node scripts/seed-strategic-plan.mjs
 echo "[startup] ── المرحلة 6: إدخال بيانات المؤشرات التاريخية (2025 + Q1 2026) ──"
 node scripts/seed-kpi-history.mjs
 
-echo "[startup] ── المرحلة 7: تشغيل الخادم ──"
+echo "[startup] ── المرحلة 7: تعبئة وثائق ISO 9001 ──"
+node scripts/seed-iso-documents.mjs
+
+echo "[startup] ── المرحلة 8: تشغيل الخادم ──"
 exec node src/server.js
