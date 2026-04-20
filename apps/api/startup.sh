@@ -24,13 +24,13 @@ echo "[startup] ── المرحلة 4: تهيئة البيانات الأول�
 node src/seed-if-empty.js
 
 echo "[startup] ── المرحلة 5: تعبئة البيانات الاستراتيجية ──"
-node scripts/seed-strategic-plan.mjs
+node scripts/seed-strategic-plan.mjs || echo "[startup] تخطّي — البيانات موجودة مسبقاً"
 
 echo "[startup] ── المرحلة 6: إدخال بيانات المؤشرات التاريخية (2025 + Q1 2026) ──"
-node scripts/seed-kpi-history.mjs
+node scripts/seed-kpi-history.mjs || echo "[startup] تخطّي — البيانات موجودة مسبقاً"
 
 echo "[startup] ── المرحلة 7: تعبئة وثائق ISO 9001 ──"
-node scripts/seed-iso-documents.mjs
+node scripts/seed-iso-documents.mjs || echo "[startup] تخطّي — البيانات موجودة مسبقاً"
 
 echo "[startup] ── المرحلة 8: تشغيل الخادم ──"
 exec node src/server.js
