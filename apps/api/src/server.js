@@ -66,7 +66,7 @@ import schedulerRoutes from './routes/scheduler.js';
 import reportBuilderRoutes from './routes/reportBuilder.js';
 import { startScheduler } from './lib/scheduler.js';
 
-// ── مُعالج عالمي لـ unhandled rejections ──────────────────────────────────
+// ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
 // Node.js v20+ يُنهي العملية عند أي rejected promise بدون handler.
 // نُسجّل الخطأ ونبقى نشطين — الخادم يجب أن يعمل حتى في مواجهة الأخطاء غير المتوقعة.
 process.on('unhandledRejection', (reason, promise) => {
@@ -76,6 +76,21 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
   console.error('[server] uncaughtException — preventing crash:', err?.message || err);
   // لا process.exit — نترك الخادم يعمل
+});
+
+// ── تسجيل سبب الخروج (يساعد في تشخيص SIGTERM/SIGKILL) ──────────────────
+process.on('exit', (code) => {
+  console.error(`[server] process exiting — code=${code} uptime=${Math.round(process.uptime())}s`);
+});
+// SIGTERM: يُرسَل من Docker/Coolify عند إيقاف الحاوية — نُسجّل ونخرج بنعومة
+process.on('SIGTERM', () => {
+  console.error('[server] received SIGTERM — graceful shutdown');
+  process.exit(0);
+});
+// SIGINT: Ctrl+C في التطوير
+process.on('SIGINT', () => {
+  console.error('[server] received SIGINT — graceful shutdown');
+  process.exit(0);
 });
 
 const app = express();
@@ -149,7 +164,16 @@ app.get('/api/health/ready', async (req, res) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [{ prisma }] = await Promise.all([import('./db.js')]);
     await prisma.$queryRawUnsafe('SELECT 1');
-    res.json({ ok: true, db: 'ok', ms: Date.now() - t0, time: new Date().toISOString() });
+    const mem = process.memoryUsage();
+    res.json({
+      ok: true,
+      db: 'ok',
+      ms: Date.now() - t0,
+      uptime: Math.round(process.uptime()),
+      heapMB: Math.round(mem.heapUsed / 1024 / 1024),
+      rssMB:  Math.round(mem.rss / 1024 / 1024),
+      time: new Date().toISOString(),
+    });
   } catch (err) {
     res.status(503).json({
       ok: false,

@@ -220,18 +220,32 @@ async function checkMissingAckDocuments() {
       select: { id: true, version: true, code: true, title: true, category: true },
     });
     if (!docs.length) return;
-    const users = await prisma.user.findMany({
-      where: { active: true }, select: { id: true },
-    });
+
+    // جلب المستخدمين + الإقرارات الموجودة في طلبَين فقط (بدلاً من N طلب واحد لكل وثيقة)
+    const docIds = docs.map(d => d.id);
+    const [users, existingAcks] = await Promise.all([
+      prisma.user.findMany({ where: { active: true }, select: { id: true } }),
+      prisma.acknowledgment.findMany({
+        where: { documentId: { in: docIds }, userId: { not: null } },
+        select: { userId: true, documentId: true, documentVersion: true },
+      }),
+    ]);
+
+    // تجميع الإقرارات الموجودة بمفتاح (documentId:version) → Set<userId>
+    const ackedMap = new Map();
+    for (const a of existingAcks) {
+      const key = `${a.documentId}:${a.documentVersion}`;
+      if (!ackedMap.has(key)) ackedMap.set(key, new Set());
+      ackedMap.get(key).add(a.userId);
+    }
+
+    // تجميع جميع الإشعارات المطلوبة ثم إرسالها دفعةً واحدة
+    const pending = [];
     for (const d of docs) {
-      const acks = await prisma.acknowledgment.findMany({
-        where: { documentId: d.id, documentVersion: d.version, userId: { not: null } },
-        select: { userId: true },
-      });
-      const ackedSet = new Set(acks.map(a => a.userId));
+      const ackedSet = ackedMap.get(`${d.id}:${d.version}`) ?? new Set();
       for (const u of users) {
         if (ackedSet.has(u.id)) continue;
-        await notifyOnce({
+        pending.push({
           userId: u.id,
           type: 'ACK_DOCUMENT_PENDING',
           title: `📋 وثيقة تحتاج إقرارك: ${d.code}`,
@@ -243,6 +257,10 @@ async function checkMissingAckDocuments() {
         });
       }
     }
+    if (!pending.length) return;
+
+    // دفعة واحدة لكل الإشعارات (skipDuplicates يتجاهل المكرر منها)
+    await prisma.notification.createMany({ data: pending, skipDuplicates: true });
   } catch (e) {
     // قد يكون موديل ackDocument غير متوفر قبل prisma generate — نتسامح
     if (!/ackDocument|acknowledgment/i.test(e.message || '')) {

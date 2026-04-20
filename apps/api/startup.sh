@@ -21,7 +21,7 @@ echo "[startup] ── المرحلة 3: ترحيل بيانات الاستبي�
 node scripts/backfill-survey-responses.mjs || echo "[startup] تخطّي الترحيل — الحقل غير موجود أو البيانات محوّلة مسبقاً"
 
 echo "[startup] ── المرحلة 4: تهيئة البيانات الأولية ──"
-node src/seed-if-empty.js
+node src/seed-if-empty.js || echo "[startup] تخطّي — البيانات الأولية موجودة أو فشل غير حرج"
 
 echo "[startup] ── المرحلة 5: تعبئة البيانات الاستراتيجية ──"
 node scripts/seed-strategic-plan.mjs || echo "[startup] تخطّي — البيانات موجودة مسبقاً"
