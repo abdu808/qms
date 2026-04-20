@@ -18,7 +18,7 @@ echo "[startup] ── المرحلة 2: تطبيق الترحيلات اليد�
 node scripts/migrate.mjs
 
 echo "[startup] ── المرحلة 3: ترحيل بيانات الاستبيانات (إن وُجدت) ──"
-node scripts/backfill-survey-responses.mjs
+node scripts/backfill-survey-responses.mjs || echo "[startup] تخطّي الترحيل — الحقل غير موجود أو البيانات محوّلة مسبقاً"
 
 echo "[startup] ── المرحلة 4: تهيئة البيانات الأولية ──"
 node src/seed-if-empty.js
