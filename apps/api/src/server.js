@@ -66,6 +66,18 @@ import schedulerRoutes from './routes/scheduler.js';
 import reportBuilderRoutes from './routes/reportBuilder.js';
 import { startScheduler } from './lib/scheduler.js';
 
+// ── مُعالج عالمي لـ unhandled rejections ──────────────────────────────────
+// Node.js v20+ يُنهي العملية عند أي rejected promise بدون handler.
+// نُسجّل الخطأ ونبقى نشطين — الخادم يجب أن يعمل حتى في مواجهة الأخطاء غير المتوقعة.
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[server] unhandledRejection — preventing crash:', reason?.message || reason);
+  // لا process.exit — نترك الخادم يعمل
+});
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaughtException — preventing crash:', err?.message || err);
+  // لا process.exit — نترك الخادم يعمل
+});
+
 const app = express();
 
 app.set('trust proxy', 1);

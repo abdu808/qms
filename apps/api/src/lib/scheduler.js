@@ -488,11 +488,17 @@ export function startScheduler() {
     return;
   }
   // تشغيل أول بعد 30 ثانية ثم كل ساعة
+  // ⚠️ يجب أن يكون tick محاطاً بـ try/catch خارجي لمنع unhandled rejection
+  // التي تُغلق Node.js v20+ عند استخدام setTimeout/setInterval
   const tick = async () => {
-    await runAllChecks();
-    await runDailyBackupIfDue();
-    await runDailyJobsIfDue();
-    await runWeeklySummaryIfDue();
+    try {
+      await runAllChecks();
+      await runDailyBackupIfDue();
+      await runDailyJobsIfDue();
+      await runWeeklySummaryIfDue();
+    } catch (e) {
+      console.error('[scheduler] tick crashed — prevented process exit:', e?.message || e);
+    }
   };
   setTimeout(tick, 30 * 1000);
   timer = setInterval(tick, INTERVAL_MS);
