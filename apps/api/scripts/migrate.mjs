@@ -7,7 +7,6 @@
  * الاستخدام: node scripts/migrate.mjs
  * يُستدعى من startup.sh قبل تشغيل الخادم.
  *
- * ملاحظة: migration 005 (DROP COLUMN resultsJson) مستثنى تلقائياً — يتطلب موافقة يدوية.
  */
 import { PrismaClient } from '@prisma/client';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -18,7 +17,7 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = join(__dir, '../prisma/migrations-manual');
 
 // migrations التي تتطلب موافقة يدوية (لا تُطبَّق تلقائياً)
-const MANUAL_ONLY = new Set(['005_drop_resultsJson.sql']);
+const MANUAL_ONLY = new Set([]);
 
 const prisma = new PrismaClient({ log: ['warn', 'error'] });
 

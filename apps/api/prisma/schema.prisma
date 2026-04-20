@@ -667,7 +667,6 @@ model Survey {
   responses       Int              @default(0)  // عدد مُكثَّف — يُحدَّث عند كل رد
   avgScore        Float?                         // متوسط مُكثَّف — dashboard/reports
   questionsJson   String                         // JSON array
-  resultsJson     String?                        // DEPRECATED — سيُحذف بعد migration 005
   active          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
