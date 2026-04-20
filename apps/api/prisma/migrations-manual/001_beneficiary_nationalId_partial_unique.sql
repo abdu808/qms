@@ -22,7 +22,7 @@ ALTER TABLE "Beneficiary" DROP CONSTRAINT IF EXISTS "Beneficiary_nationalId_key"
 DROP INDEX IF EXISTS "Beneficiary_nationalId_key";
 
 -- 2) أنشئ partial unique index يحترم soft-delete
-CREATE UNIQUE INDEX "beneficiary_nationalId_active_unique"
+CREATE UNIQUE INDEX IF NOT EXISTS "beneficiary_nationalId_active_unique"
   ON "Beneficiary"("nationalId")
   WHERE "nationalId" IS NOT NULL AND "deletedAt" IS NULL;
 
