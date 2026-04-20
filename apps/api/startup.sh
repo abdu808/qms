@@ -26,5 +26,8 @@ node src/seed-if-empty.js
 echo "[startup] ── المرحلة 5: تعبئة البيانات الاستراتيجية ──"
 node scripts/seed-strategic-plan.mjs
 
-echo "[startup] ── المرحلة 6: تشغيل الخادم ──"
+echo "[startup] ── المرحلة 6: إدخال بيانات المؤشرات التاريخية (2025 + Q1 2026) ──"
+node scripts/seed-kpi-history.mjs
+
+echo "[startup] ── المرحلة 7: تشغيل الخادم ──"
 exec node src/server.js
