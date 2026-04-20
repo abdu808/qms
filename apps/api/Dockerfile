@@ -39,7 +39,7 @@ EXPOSE 3000
 
 # Deep healthcheck — pings the DB. Returns 503 on failure so the
 # orchestrator restarts the container instead of serving 504s.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
   CMD wget -qO- --timeout=4 http://127.0.0.1:3000/api/health/ready || exit 1
 
 CMD ["/app/startup.sh"]

@@ -37,7 +37,7 @@ async function upsert(label, items, existsFn, createFn) {
 // ─────────────────────────────────────────────────────────────────────────────
 function buildDocuments(admin, depts) {
   const d = (code) => depts[code]?.id;
-  const base = { status: 'EFFECTIVE', retentionYears: 5, createdById: admin.id, effectiveDate: new Date('2026-02-01'), reviewDate: new Date('2027-02-01') };
+  const base = { status: 'PUBLISHED', retentionYears: 5, createdById: admin.id, effectiveDate: new Date('2026-02-01'), reviewDate: new Date('2027-02-01') };
   return [
     // ── الأدلة والنطاق ──
     { code: 'QM-001-2026', title: 'دليل نظام إدارة الجودة', category: 'MANUAL', currentVersion: '2.0', isoClause: '4.0-10.0', departmentId: d('QM'), ...base },

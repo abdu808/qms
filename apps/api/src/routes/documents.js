@@ -17,7 +17,7 @@ import { dirname } from 'path';
 const __dir = dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = process.env.UPLOAD_DIR
   ? path.resolve(process.env.UPLOAD_DIR)
-  : path.join(__dir, '..', '..', '..', 'uploads', 'docs');
+  : path.join(__dir, '..', '..', 'uploads', 'docs');
 
 // Ensure upload directory exists (robust to read-only / wrong-owner volumes)
 try {
