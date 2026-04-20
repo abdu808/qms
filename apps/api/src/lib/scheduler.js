@@ -425,7 +425,7 @@ async function runWeeklySummaryIfDue() {
 async function sendWeeklyExecSummary() {
   // جمهور التقرير: SUPER_ADMIN + EXECUTIVE (إن وُجد) + QUALITY_MANAGER
   const execs = await prisma.user.findMany({
-    where: { role: { in: ['SUPER_ADMIN', 'QUALITY_MANAGER', 'EXECUTIVE'] }, active: true },
+    where: { role: { in: ['SUPER_ADMIN', 'QUALITY_MANAGER'] }, active: true },
     select: { id: true },
   });
   if (!execs.length) return;

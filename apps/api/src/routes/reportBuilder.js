@@ -15,7 +15,7 @@ import { listDatasets, runReport, toCsv } from '../lib/reportBuilder.js';
 
 const router = Router();
 
-const ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER', 'EXECUTIVE'];
+const ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER'];
 
 router.use(authorize(...ROLES));
 
