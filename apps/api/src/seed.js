@@ -5,24 +5,31 @@ import { config } from './config.js';
 async function main() {
   console.log('[seed] starting...');
 
-  // Departments
+  // ── الأقسام التنظيمية الحقيقية (12 قسماً) ──────────────────────────────
+  // يجب أن تتطابق مع seed-strategic-plan.mjs بالضبط
   const depts = [
-    { code: 'QM',  name: 'إدارة الجودة' },
-    { code: 'ADM', name: 'الإدارة العامة' },
-    { code: 'FIN', name: 'المالية' },
-    { code: 'HR',  name: 'الموارد البشرية' },
-    { code: 'PRG', name: 'البرامج والمستفيدين' },
-    { code: 'MKT', name: 'التسويق وجمع التبرعات' },
-    { code: 'IT',  name: 'تقنية المعلومات' },
+    { code: 'QM',  name: 'وحدة التميز المؤسسي والجودة',   nameEn: 'Quality & Excellence Unit',    manager: 'مدير الجودة' },
+    { code: 'ADM', name: 'الإدارة التنفيذية العليا',       nameEn: 'Executive Management',          manager: 'المدير التنفيذي' },
+    { code: 'SOC', name: 'قسم الرعاية الاجتماعية',        nameEn: 'Social Care Department',        manager: 'رئيس قسم الرعاية' },
+    { code: 'KAF', name: 'قسم الكفالات',                  nameEn: 'Sponsorship Department',        manager: 'رئيس قسم الكفالات' },
+    { code: 'EMP', name: 'قسم التمكين والتنمية',           nameEn: 'Empowerment Department',        manager: 'رئيس قسم التمكين' },
+    { code: 'FIN', name: 'إدارة الشؤون المالية',           nameEn: 'Finance Department',            manager: 'المدير المالي' },
+    { code: 'RES', name: 'إدارة تنمية الموارد المالية',    nameEn: 'Resource Development',          manager: 'مدير تنمية الموارد' },
+    { code: 'INV', name: 'وحدة الاستثمار والأصول',         nameEn: 'Investment & Assets Unit',      manager: 'مسؤول الاستثمار' },
+    { code: 'COM', name: 'إدارة الاتصال المؤسسي والتطوع',  nameEn: 'Communications & Volunteering', manager: 'مدير الاتصال' },
+    { code: 'HR',  name: 'إدارة الموارد البشرية',          nameEn: 'Human Resources',               manager: 'مدير الموارد البشرية' },
+    { code: 'IT',  name: 'وحدة تقنية المعلومات',           nameEn: 'Information Technology',        manager: 'مسؤول تقنية المعلومات' },
+    { code: 'MKT', name: 'إدارة التسويق والحملات',         nameEn: 'Marketing & Campaigns',         manager: 'مدير التسويق' },
   ];
   for (const d of depts) {
-    await prisma.department.upsert({ where: { code: d.code }, update: {}, create: d });
+    await prisma.department.upsert({ where: { code: d.code }, update: { name: d.name, nameEn: d.nameEn, manager: d.manager }, create: d });
   }
+  console.log(`[seed] أقسام: ${depts.length} قسماً ✓`);
 
-  // Admin user
+  // ── المستخدم المدير ──────────────────────────────────────────────────────
   const adminPasswordHash = await bcrypt.hash(config.admin.password, config.bcryptRounds);
   const qmDept = await prisma.department.findUnique({ where: { code: 'QM' } });
-  await prisma.user.upsert({
+  const adminUser = await prisma.user.upsert({
     where: { email: config.admin.email.toLowerCase() },
     update: {},
     create: {
@@ -35,7 +42,7 @@ async function main() {
     },
   });
 
-  // Quality Manager — password from env or secure default (never hardcoded)
+  // ── مدير الجودة ──────────────────────────────────────────────────────────
   const qmPassword = process.env.QM_PASSWORD || `QM@${new Date().getFullYear()}!${Math.random().toString(36).slice(2, 8)}`;
   const qmPwd = await bcrypt.hash(qmPassword, config.bcryptRounds);
   const qmUser = await prisma.user.upsert({
@@ -51,42 +58,45 @@ async function main() {
     },
   });
   if (qmUser.createdAt >= new Date(Date.now() - 5000)) {
-    console.log(`[seed] Quality Manager created: quality@bir-sabia.org.sa — set QM_PASSWORD env to control password`);
+    console.log(`[seed] Quality Manager: quality@bir-sabia.org.sa — set QM_PASSWORD env to control password`);
   }
 
-  // Sample Objectives
-  if ((await prisma.objective.count()) === 0) {
-    const admin = await prisma.user.findUnique({ where: { email: config.admin.email.toLowerCase() } });
-    const samples = [
-      { code: 'OBJ-2026-001', title: 'رفع رضا المستفيدين', kpi: 'نسبة رضا المستفيدين', target: 90, unit: '%', currentValue: 82, progress: 60, status: 'IN_PROGRESS' },
-      { code: 'OBJ-2026-002', title: 'تقليل زمن معالجة الشكاوى', kpi: 'متوسط أيام المعالجة', target: 5, unit: 'يوم', currentValue: 7, progress: 40, status: 'IN_PROGRESS' },
-      { code: 'OBJ-2026-003', title: 'تنويع قاعدة المتبرعين', kpi: 'عدد المتبرعين الجدد', target: 100, unit: 'متبرع', currentValue: 45, progress: 45, status: 'IN_PROGRESS' },
-    ];
-    for (const s of samples) {
-      await prisma.objective.create({
-        data: {
-          ...s,
-          departmentId: qmDept?.id,
-          startDate: new Date('2026-01-01'),
-          dueDate: new Date('2026-12-31'),
-          createdById: admin.id,
-        },
-      });
-    }
-  }
+  // ── سياسة الجودة (الإصدار الأول) ─────────────────────────────────────────
+  // يُنشئ فقط إذا لم تكن موجودة — seed-strategic-plan.mjs لا يُنشئها
+  const policyExists = await prisma.qualityPolicy.findFirst();
+  if (!policyExists) {
+    await prisma.qualityPolicy.create({
+      data: {
+        version: '1.0',
+        title: 'سياسة الجودة — جمعية البر بصبيا',
+        content: `تلتزم جمعية البر بصبيا بتقديم خدمات إنسانية واجتماعية عالية الجودة تلبّي احتياجات المستفيدين وتتجاوز توقعاتهم، في إطار من الحوكمة الرشيدة والشفافية والمسؤولية.
 
-  // Sample Risks
-  if ((await prisma.risk.count()) === 0) {
-    const admin = await prisma.user.findUnique({ where: { email: config.admin.email.toLowerCase() } });
-    await prisma.risk.createMany({
-      data: [
-        { code: 'RSK-2026-001', title: 'انقطاع نظام التبرعات الإلكتروني', probability: 2, impact: 5, score: 10, level: 'متوسط', status: 'UNDER_TREATMENT', createdById: admin.id },
-        { code: 'RSK-2026-002', title: 'عدم كفاية الموارد البشرية', probability: 3, impact: 4, score: 12, level: 'مرتفع', status: 'IDENTIFIED', createdById: admin.id },
-      ],
+نسعى إلى التحسين المستمر لأنظمتنا وعملياتنا وكفاءات كوادرنا، وفق متطلبات نظام إدارة الجودة ISO 9001:2015 ومتطلبات المستفيدين والأطراف ذات المصلحة.
+
+نؤمن بأن الجودة مسؤولية الجميع، وأن التميز المؤسسي هو الطريق إلى تحقيق أهدافنا الاستراتيجية وخدمة مجتمعنا بإتقان وإخلاص.`,
+        commitments: JSON.stringify([
+          'استيفاء متطلبات المستفيدين والأطراف ذات المصلحة',
+          'الالتزام بالتحسين المستمر لفاعلية نظام إدارة الجودة',
+          'توفير الموارد اللازمة لتحقيق الأهداف الاستراتيجية',
+          'بناء بيئة عمل تشجّع على الابتكار والتطوير',
+          'الامتثال للمتطلبات التنظيمية والتشريعية المعمول بها',
+        ]),
+        approvedBy: config.admin.name || 'المدير التنفيذي',
+        approvedAt: new Date('2026-01-01'),
+        effectiveDate: new Date('2026-01-01'),
+        reviewDate: new Date('2027-01-01'),
+        active: true,
+      },
     });
+    console.log('[seed] سياسة الجودة v1.0: أُنشئت ✓');
+  } else {
+    console.log('[seed] سياسة الجودة: موجودة — تخطّي');
   }
 
-  console.log('[seed] done.');
+  // ── ملاحظة: الأهداف والمخاطر تُنشئها seed-strategic-plan.mjs ─────────────
+  // لا تُنشئ بيانات تجريبية هنا — تجنّباً للتعارض في الأكواد
+
+  console.log('[seed] done ✓');
 }
 
 main()
