@@ -64,6 +64,8 @@ import importRoutes from './routes/import.js';
 import myWorkRoutes from './routes/myWork.js';
 import schedulerRoutes from './routes/scheduler.js';
 import reportBuilderRoutes from './routes/reportBuilder.js';
+import publicPortalRoutes from './routes/publicPortal.js';
+import portalAdminRoutes from './routes/portalAdmin.js';
 import { startScheduler } from './lib/scheduler.js';
 
 const app = express();
@@ -181,6 +183,15 @@ app.use('/ack',
   publicAckRoutes,
 );
 
+// Public portal API (no auth — returns only whitelisted published data)
+app.use('/api/public',
+  publicSecurityHeaders,
+  publicReadLimiter,
+  publicBodyLimit,
+  publicUrlEncoded,
+  publicPortalRoutes,
+);
+
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
 app.use('/api/dashboard',     dashboardRoutes);
@@ -223,6 +234,7 @@ app.use('/api/import',                   importRoutes);
 app.use('/api/my-work',                   myWorkRoutes);
 app.use('/api/scheduler',                 schedulerRoutes);
 app.use('/api/report-builder',            reportBuilderRoutes);
+app.use('/api/portal',                   portalAdminRoutes);
 app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
@@ -243,8 +255,10 @@ if (config.env !== 'production') {
       }
     },
   }));
-  // الـ SPA يستخدم hash-routing (#/page) — كل المسارات غير API تُخدَم نفس index.html
-  app.get(['/', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
+  // / → البوابة العامة (portal.html)
+  // /qms → لوحة الإدارة (index.html — SPA)
+  app.get('/', (req, res) => res.sendFile(join(webPath, 'portal.html')));
+  app.get(['/qms', '/qms/login', '/qms/app', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
   console.log(`[qms-api] serving frontend from ${webPath}`);
 }
 

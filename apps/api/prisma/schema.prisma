@@ -669,6 +669,7 @@ model Survey {
   avgScore        Float?                         // متوسط مُكثَّف — dashboard/reports
   questionsJson   String                         // JSON array
   active          Boolean          @default(true)
+  isPublic        Boolean          @default(false) // يظهر في البوابة العامة
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -731,6 +732,7 @@ model Document {
   reviewDate   DateTime?
   retentionYears Int?   @default(5)
   isoClause    String?  // e.g. "7.5"
+  isPublic     Boolean  @default(false) // يظهر في البوابة العامة
   createdById  String
   createdBy    User     @relation("DocCreator", fields: [createdById], references: [id])
   approvedById String?
@@ -1455,6 +1457,40 @@ model Acknowledgment {
   @@index([userId])
   @@index([externalType, externalId])
   @@index([acknowledgedAt])
+}
+
+// =====================================================
+// PUBLIC PORTAL
+// =====================================================
+
+model PortalSettings {
+  id                String   @id @default("default")
+  orgName           String   @default("الجمعية")
+  orgDescription    String?
+  showPolicy        Boolean  @default(true)
+  showDocuments     Boolean  @default(true)
+  showAnnouncements Boolean  @default(true)
+  showSurveys       Boolean  @default(true)
+  showKpis          Boolean  @default(false)  // محجوز للإصدار القادم
+  footerText        String?
+  updatedAt         DateTime @updatedAt
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  summary     String?
+  body        String
+  category    String?   // "خبر" | "إعلان" | "تحديث" | "إنجاز"
+  isActive    Boolean   @default(true)
+  publishedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([isActive, publishedAt])
+  @@index([deletedAt])
 }
 
 // =====================================================

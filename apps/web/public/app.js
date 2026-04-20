@@ -1137,6 +1137,18 @@ function app() {
       importing: false, result: null, error: '',
     },
 
+    // ─── إدارة البوابة العامة ────────────────────────────────────────
+    portalAdmin: {
+      tab: 'announcements',  // 'announcements' | 'settings' | 'documents' | 'surveys'
+      settings: { orgName: '', orgDescription: '', showPolicy: true, showDocuments: true,
+                  showAnnouncements: true, showSurveys: true, footerText: '' },
+      settingsSaving: false,
+      announcements: [], announcementForm: null,  // null = مغلق، {} = جديد/تعديل
+      annSaving: false, annError: '',
+      documents: [], surveys: [],
+      loading: false, error: '',
+    },
+
     // ─── Command Palette (Ctrl+K) — بحث موحَّد عبر كل النظام ────────
     palette: { open: false, query: '', selectedIdx: 0 },
     search: '',
@@ -1928,6 +1940,7 @@ function app() {
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
       { id: 'reportBuilder', label: 'منشئ التقارير',      icon: '🧾' },
       { id: 'dataImport',    label: 'استيراد البيانات',    icon: '📥' },
+      { id: 'portalAdmin',   label: 'البوابة العامة',       icon: '🌐' },
     ],
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
@@ -1940,7 +1953,7 @@ function app() {
       { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard'] },
       { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','improvementProjects','slaBoard'] },
-      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport'] },
+      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
     ],
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
@@ -2514,6 +2527,84 @@ function app() {
       } catch(e) { d.error = e.message; } finally { d.importing = false; }
     },
 
+    // ──────────────────────────────────────────────────────────────────────
+    // إدارة البوابة العامة
+    // ──────────────────────────────────────────────────────────────────────
+    async loadPortalAdmin() {
+      const p = this.portalAdmin;
+      p.loading = true; p.error = '';
+      try {
+        const [sRes, aRes, dRes, srRes] = await Promise.all([
+          this.api('GET', '/portal/settings'),
+          this.api('GET', '/portal/announcements'),
+          this.api('GET', '/portal/documents'),
+          this.api('GET', '/portal/surveys'),
+        ]);
+        p.settings      = sRes.settings  || p.settings;
+        p.announcements = aRes.items      || [];
+        p.documents     = dRes.items      || [];
+        p.surveys       = srRes.items     || [];
+      } catch(e) { p.error = e.message; } finally { p.loading = false; }
+    },
+
+    async savePortalSettings() {
+      const p = this.portalAdmin;
+      p.settingsSaving = true;
+      try {
+        const r = await this.api('PATCH', '/portal/settings', p.settings);
+        p.settings = r.settings;
+        this.toast('تم حفظ إعدادات البوابة ✅', 'success');
+      } catch(e) { this.toast(e.message, 'error'); } finally { p.settingsSaving = false; }
+    },
+
+    openAnnouncementForm(ann = null) {
+      this.portalAdmin.annError = '';
+      this.portalAdmin.announcementForm = ann
+        ? { ...ann, publishedAt: ann.publishedAt?.slice(0, 10), expiresAt: ann.expiresAt?.slice(0, 10) || '' }
+        : { title: '', summary: '', body: '', category: '', isActive: true, publishedAt: '', expiresAt: '' };
+    },
+
+    async saveAnnouncement() {
+      const p = this.portalAdmin; const f = p.announcementForm;
+      if (!f.title?.trim() || !f.body?.trim()) { p.annError = 'العنوان والمحتوى مطلوبان'; return; }
+      p.annSaving = true; p.annError = '';
+      try {
+        if (f.id) {
+          await this.api('PATCH', `/portal/announcements/${f.id}`, f);
+        } else {
+          await this.api('POST', '/portal/announcements', f);
+        }
+        p.announcementForm = null;
+        await this.loadPortalAdmin();
+        this.toast('تم حفظ الإعلان ✅', 'success');
+      } catch(e) { p.annError = e.message; } finally { p.annSaving = false; }
+    },
+
+    async deleteAnnouncement(id) {
+      if (!confirm('حذف هذا الإعلان؟')) return;
+      try {
+        await this.api('DELETE', `/portal/announcements/${id}`);
+        this.portalAdmin.announcements = this.portalAdmin.announcements.filter(a => a.id !== id);
+        this.toast('تم حذف الإعلان', 'success');
+      } catch(e) { this.toast(e.message, 'error'); }
+    },
+
+    async toggleDocPublic(doc) {
+      try {
+        const r = await this.api('PATCH', `/portal/documents/${doc.id}/toggle-public`);
+        doc.isPublic = r.item.isPublic;
+        this.toast(doc.isPublic ? 'الوثيقة مرئية في البوابة ✅' : 'الوثيقة أُخفيت من البوابة', 'success');
+      } catch(e) { this.toast(e.message, 'error'); }
+    },
+
+    async toggleSurveyPublic(survey) {
+      try {
+        const r = await this.api('PATCH', `/portal/surveys/${survey.id}/toggle-public`);
+        survey.isPublic = r.item.isPublic;
+        this.toast(survey.isPublic ? 'الاستبيان مرئي في البوابة ✅' : 'الاستبيان أُخفي من البوابة', 'success');
+      } catch(e) { this.toast(e.message, 'error'); }
+    },
+
     async logout() {
       try { await this.api('POST', '/auth/logout', { refreshToken: this.refreshToken }); } catch {}
       localStorage.removeItem('qms_token'); localStorage.removeItem('qms_refresh');
@@ -2545,6 +2636,7 @@ function app() {
       else if (id === 'myAcknowledgments') await this.loadMyAcks();
       else if (id === 'acknowledgmentsMatrix') await this.loadAckMatrix();
       else if (id === 'dataImport') await this.loadDataImportEntities();
+      else if (id === 'portalAdmin') await this.loadPortalAdmin();
       else await this.loadList();
     },
 
