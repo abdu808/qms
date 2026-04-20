@@ -1137,6 +1137,9 @@ function app() {
       importing: false, result: null, error: '',
     },
 
+    // ─── لوحة مراقب الجودة (GUEST_AUDITOR) ──────────────────────────
+    auditorData: null,   // { kpis, isoReport, policy }
+
     // ─── إدارة البوابة العامة ────────────────────────────────────────
     portalAdmin: {
       tab: 'announcements',  // 'announcements' | 'settings' | 'documents' | 'surveys'
@@ -1939,8 +1942,9 @@ function app() {
       { id: 'departments',  label: 'الإدارات',            icon: '🏢' },
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
       { id: 'reportBuilder', label: 'منشئ التقارير',      icon: '🧾' },
-      { id: 'dataImport',    label: 'استيراد البيانات',    icon: '📥' },
-      { id: 'portalAdmin',   label: 'البوابة العامة',       icon: '🌐' },
+      { id: 'dataImport',        label: 'استيراد البيانات',    icon: '📥' },
+      { id: 'portalAdmin',       label: 'البوابة العامة',       icon: '🌐' },
+      { id: 'auditorDashboard',  label: 'لوحة المراقب',         icon: '🔍' },
     ],
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
@@ -1955,6 +1959,29 @@ function app() {
       { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','improvementProjects','slaBoard'] },
       { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
     ],
+
+    // ─── دور المراقب الخارجي ──────────────────────────────────────────
+    isReadOnly() { return this.user?.role === 'GUEST_AUDITOR'; },
+
+    // قائمة التنقل المُصفَّاة حسب الدور
+    menuGroupsForRole() {
+      if (!this.isReadOnly()) return this.menuGroups;
+      return [
+        { id: 'auditor-home', title: 'لوحة المراقب', icon: '🔍', iso: '', color: 'slate',
+          items: ['auditorDashboard', 'iso-readiness'] },
+        { id: 'auditor-plan', title: 'التخطيط والأداء', icon: '🎯', iso: 'ISO 6',   color: 'violet',
+          items: ['strategicGoals','operationalActivities','objectives','kpiTracking','risks'] },
+        { id: 'auditor-doc',  title: 'الوثائق والسياسات', icon: '📄', iso: 'ISO 7', color: 'teal',
+          items: ['qualityPolicy','documents'] },
+        { id: 'auditor-eval', title: 'التقييم والمتابعة',  icon: '📊', iso: 'ISO 9', color: 'amber',
+          items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr'] },
+      ];
+    },
+
+    // الصفحة الرئيسية بعد الدخول
+    homePageForRole() {
+      return this.user?.role === 'GUEST_AUDITOR' ? 'auditorDashboard' : 'myWork';
+    },
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
     isGuided()   { return this.uiMode === 'guided'; },
@@ -2087,6 +2114,7 @@ function app() {
     // أدوار الجودة/الإدارة تزيد evaluation (شكاوى/مراجعات) و improvement (NCR).
     GUIDED_GROUP_IDS: ['home', 'acks', 'planning'],
     visibleMenuGroups() {
+      if (this.isReadOnly()) return this.menuGroupsForRole();
       if (this.isAdvanced()) return this.menuGroups;
       const allowed = new Set(this.GUIDED_GROUP_IDS);
       if (['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(this.user?.role)) {
@@ -2409,15 +2437,16 @@ function app() {
         try {
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
-          this.loadSidebarBadges();
-          this.loadPolicyAck();
-          this.loadMyAcks();
-          this.startNotifPolling();
-          this.startAlertsPolling();
-          this.loadStateMachines();
-          this.goto('dashboard');
-          // عرض مساعد البداية للمستخدمين الجدد
-          if (!localStorage.getItem('qms_wizard_done')) {
+          if (!this.isReadOnly()) {
+            this.loadSidebarBadges();
+            this.loadPolicyAck();
+            this.loadMyAcks();
+            this.startNotifPolling();
+            this.startAlertsPolling();
+            this.loadStateMachines();
+          }
+          this.goto(this.isReadOnly() ? 'auditorDashboard' : 'dashboard');
+          if (!this.isReadOnly() && !localStorage.getItem('qms_wizard_done')) {
             setTimeout(() => this.showWizard(), 800);
           }
         } catch {
@@ -2439,12 +2468,14 @@ function app() {
           this.mustChangePw = true;
           return;
         }
-        this.loadPolicyAck();
-        this.loadMyAcks();
-        this.startNotifPolling();
-        this.startAlertsPolling();
-        this.loadStateMachines();
-        this.goto('myWork');
+        if (!this.isReadOnly()) {
+          this.loadPolicyAck();
+          this.loadMyAcks();
+          this.startNotifPolling();
+          this.startAlertsPolling();
+          this.loadStateMachines();
+        }
+        this.goto(this.homePageForRole());
       } catch (e) {
         this.loginError = e.message || 'فشل تسجيل الدخول';
       } finally { this.loading = false; }
@@ -2459,13 +2490,15 @@ function app() {
         await this.api('POST', '/auth/change-password', { currentPassword: f.current, newPassword: f.newPw });
         this.mustChangePw = false;
         this.changePwForm = { current: '', newPw: '', confirm: '', error: '', loading: false };
-        this.loadPolicyAck();
-        this.loadMyAcks();
-        this.startNotifPolling();
-        this.startAlertsPolling();
-        this.loadStateMachines();
+        if (!this.isReadOnly()) {
+          this.loadPolicyAck();
+          this.loadMyAcks();
+          this.startNotifPolling();
+          this.startAlertsPolling();
+          this.loadStateMachines();
+        }
         this.toast('تم تغيير كلمة المرور بنجاح ✅', 'success');
-        this.goto('myWork');
+        this.goto(this.homePageForRole());
       } catch (e) {
         f.error = e.message || 'فشل تغيير كلمة المرور';
       } finally { f.loading = false; }
@@ -2525,6 +2558,33 @@ function app() {
         d.result = data; d.preview = null; d.file = null; d.fileName = '';
         this.toast(`تم الاستيراد: ${data.created} جديد، ${data.updated} محدَّث ✅`, 'success');
       } catch(e) { d.error = e.message; } finally { d.importing = false; }
+    },
+
+    // ──────────────────────────────────────────────────────────────────────
+    // لوحة مراقب الجودة
+    // ──────────────────────────────────────────────────────────────────────
+    async loadAuditorDashboard() {
+      try {
+        const [dash, iso, policy] = await Promise.all([
+          this.api('GET', '/dashboard'),
+          this.api('GET', '/iso-readiness').catch(() => null),
+          this.api('GET', '/quality-policy/active').catch(() => null),
+        ]);
+        this.auditorData = {
+          kpis:   dash.kpis   || {},
+          alerts: dash.alerts || [],
+          expiring: dash.expiringDocs || [],
+          isoReport: iso || null,
+          policy: policy?.item || null,
+          generatedAt: new Date().toLocaleString('ar-SA'),
+        };
+        // نُحمِّل أيضاً dashKpis حتى يعمل renderChart إن وُجد
+        this.dashKpis    = dash.kpis;
+        this.dashAlerts  = dash.alerts || [];
+      } catch (e) {
+        this.auditorData = null;
+        this.toast('تعذّر تحميل بيانات لوحة المراقب', 'error');
+      }
     },
 
     // ──────────────────────────────────────────────────────────────────────
@@ -2636,7 +2696,8 @@ function app() {
       else if (id === 'myAcknowledgments') await this.loadMyAcks();
       else if (id === 'acknowledgmentsMatrix') await this.loadAckMatrix();
       else if (id === 'dataImport') await this.loadDataImportEntities();
-      else if (id === 'portalAdmin') await this.loadPortalAdmin();
+      else if (id === 'portalAdmin')      await this.loadPortalAdmin();
+      else if (id === 'auditorDashboard') await this.loadAuditorDashboard();
       else await this.loadList();
     },
 

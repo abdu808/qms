@@ -394,6 +394,163 @@
         </div>
 
         <div class="p-4 md:p-6">
+
+          <!-- ═══ لوحة مراقب الجودة (GUEST_AUDITOR) ══════════════════ -->
+          <div x-show="page==='auditorDashboard'" x-cloak class="space-y-6">
+
+            <!-- رأس اللوحة -->
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h1 class="text-2xl font-bold text-gray-800">🔍 لوحة مراقب الجودة</h1>
+                <p class="text-sm text-gray-500 mt-0.5">عرض للقراءة فقط — جميع البيانات محدَّثة لحظياً</p>
+              </div>
+              <div class="flex gap-2">
+                <button @click="loadAuditorDashboard()" class="border border-gray-300 text-gray-600 hover:bg-gray-50 text-sm px-3 py-1.5 rounded-lg transition">🔄 تحديث</button>
+                <button @click="goto('iso-readiness')" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-1.5 rounded-lg transition">📋 تقرير جاهزية ISO</button>
+              </div>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="!auditorData" class="flex justify-center py-16">
+              <div class="text-center space-y-2">
+                <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p class="text-gray-400 text-sm">جارٍ تحميل بيانات الجودة…</p>
+              </div>
+            </div>
+
+            <template x-if="auditorData">
+              <div class="space-y-6">
+
+                <!-- ── بطاقات الملخص الرئيسية ── -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <!-- جاهزية ISO -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <template x-if="auditorData.isoReport?.overall !== undefined">
+                      <div>
+                        <div class="text-4xl font-bold mb-1"
+                             :class="auditorData.isoReport.overall >= 80 ? 'text-green-600' : auditorData.isoReport.overall >= 50 ? 'text-amber-500' : 'text-red-500'"
+                             x-text="auditorData.isoReport.overall + '%'"></div>
+                        <div class="text-xs text-gray-500 font-medium">جاهزية ISO 9001</div>
+                        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div class="h-full rounded-full transition-all"
+                               :class="auditorData.isoReport.overall >= 80 ? 'bg-green-500' : auditorData.isoReport.overall >= 50 ? 'bg-amber-500' : 'bg-red-500'"
+                               :style="`width:${auditorData.isoReport.overall}%`"></div>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="auditorData.isoReport?.overall === undefined">
+                      <div>
+                        <div class="text-3xl font-bold text-gray-400">—</div>
+                        <div class="text-xs text-gray-500 font-medium">جاهزية ISO 9001</div>
+                      </div>
+                    </template>
+                  </div>
+                  <!-- الأهداف -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold text-blue-600 mb-1" x-text="auditorData.kpis?.objAchieved ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">أهداف محقَّقة</div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="`من ${auditorData.kpis?.objTotal ?? 0} هدف إجمالي`"></div>
+                  </div>
+                  <!-- المخاطر المفتوحة -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold mb-1"
+                         :class="(auditorData.kpis?.riskHigh ?? 0) > 0 ? 'text-red-500' : 'text-green-600'"
+                         x-text="auditorData.kpis?.riskHigh ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">مخاطر عالية مفتوحة</div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="`${auditorData.kpis?.riskMedium ?? 0} متوسطة • ${auditorData.kpis?.riskLow ?? 0} منخفضة`"></div>
+                  </div>
+                  <!-- عدم المطابقة -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold mb-1"
+                         :class="(auditorData.kpis?.ncrOpen ?? 0) > 0 ? 'text-amber-500' : 'text-green-600'"
+                         x-text="auditorData.kpis?.ncrOpen ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">عدم مطابقة مفتوح</div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="`${auditorData.kpis?.ncrClosed ?? 0} مغلق`"></div>
+                  </div>
+                </div>
+
+                <!-- ── الصف الثاني ── -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold text-amber-500 mb-1" x-text="auditorData.kpis?.cmpOpen ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">شكاوى مفتوحة</div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="`${auditorData.kpis?.cmpOverdue ?? 0} متأخرة`"></div>
+                  </div>
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold text-blue-600 mb-1" x-text="auditorData.kpis?.auditsDone ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">تدقيقات مكتملة</div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="`${auditorData.kpis?.auditsPlanned ?? 0} مخطط`"></div>
+                  </div>
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold text-green-600 mb-1" x-text="auditorData.kpis?.docsPublished ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">وثائق منشورة</div>
+                    <div class="text-xs text-gray-400 mt-1">معتمدة ومُصدَّرة</div>
+                  </div>
+                  <div class="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm">
+                    <div class="text-4xl font-bold text-purple-600 mb-1" x-text="auditorData.kpis?.surveyResponses ?? '—'"></div>
+                    <div class="text-xs text-gray-500 font-medium">ردود استبيانات</div>
+                    <div class="text-xs text-gray-400 mt-1">إجمالي مستلمة</div>
+                  </div>
+                </div>
+
+                <!-- ── سياسة الجودة ── -->
+                <div x-show="auditorData.policy" class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">📜 سياسة الجودة النشطة</h3>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full"
+                            x-text="'الإصدار ' + (auditorData.policy?.version || '')"></span>
+                      <span class="text-xs text-gray-400" x-text="auditorData.policy?.approvedAt ? 'اعتُمدت: ' + new Date(auditorData.policy.approvedAt).toLocaleDateString('ar-SA') : ''"></span>
+                    </div>
+                  </div>
+                  <h4 class="font-semibold text-gray-700 mb-2" x-text="auditorData.policy?.title"></h4>
+                  <p class="text-sm text-gray-600 leading-relaxed line-clamp-4 whitespace-pre-wrap" x-text="auditorData.policy?.content"></p>
+                </div>
+
+                <!-- ── التنبيهات ── -->
+                <div x-show="auditorData.alerts && auditorData.alerts.length > 0" class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h3 class="font-bold text-amber-800 mb-3 text-sm">⚠️ تنبيهات تتطلب انتباهاً</h3>
+                  <ul class="space-y-1.5">
+                    <template x-for="(alert, i) in auditorData.alerts.slice(0,6)" :key="i">
+                      <li class="flex items-start gap-2 text-sm text-amber-700">
+                        <span class="mt-0.5 shrink-0" :class="alert.level==='danger'?'text-red-500':alert.level==='warn'?'text-amber-500':'text-blue-500'"
+                              x-text="alert.level==='danger'?'🔴':alert.level==='warn'?'🟡':'🔵'"></span>
+                        <span x-text="alert.message"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+
+                <!-- ── الوثائق منتهية الصلاحية قريباً ── -->
+                <div x-show="auditorData.expiring && auditorData.expiring.length > 0" class="bg-white rounded-xl border border-red-200 p-5 shadow-sm">
+                  <h3 class="font-bold text-red-700 mb-3 text-sm">📅 وثائق تستحق المراجعة قريباً</h3>
+                  <div class="space-y-2">
+                    <template x-for="d in auditorData.expiring.slice(0,5)" :key="d.id">
+                      <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-700" x-text="d.title"></span>
+                        <span class="text-red-600 text-xs font-medium" x-text="d.reviewDate ? new Date(d.reviewDate).toLocaleDateString('ar-SA') : ''"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- ── روابط سريعة ── -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  <button @click="goto('strategicGoals')"     class="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-sm transition text-sm font-medium text-gray-700">🏆<br>الأهداف الاستراتيجية</button>
+                  <button @click="goto('kpiTracking')"        class="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-sm transition text-sm font-medium text-gray-700">📈<br>متابعة KPI</button>
+                  <button @click="goto('risks')"              class="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-sm transition text-sm font-medium text-gray-700">⚠️<br>سجل المخاطر</button>
+                  <button @click="goto('audits')"             class="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-sm transition text-sm font-medium text-gray-700">🔍<br>التدقيق الداخلي</button>
+                  <button @click="goto('managementReview')"   class="bg-white border border-gray-200 rounded-xl p-3 text-center hover:border-blue-300 hover:shadow-sm transition text-sm font-medium text-gray-700">🗣️<br>مراجعة الإدارة</button>
+                </div>
+
+                <!-- وقت التحديث -->
+                <p class="text-center text-xs text-gray-400" x-text="'آخر تحديث: ' + auditorData.generatedAt"></p>
+
+              </div>
+            </template>
+          </div>
+          <!-- ══════════════════════════════════════════════════════════ -->
+
           <!-- DASHBOARD -->
           <div x-show="page==='dashboard'" x-cloak>
 
