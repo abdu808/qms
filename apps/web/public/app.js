@@ -1124,7 +1124,18 @@ function app() {
     page: 'myWork', // Batch 16: افتراض الدخول على "مهامي اليوم"
     // UI Mode: 'guided' (موجَّه — مهام + wizards) أو 'advanced' (وصول كامل للموارد).
     // افتراضي = advanced للمستخدمين الحاليين (لا كسر في السلوك).
-    uiMode: (typeof localStorage !== 'undefined' && localStorage.getItem('qms_ui_mode')) || 'advanced',
+    uiMode: (typeof localStorage !== 'undefined' && localStorage.getItem('qms_ui_mode')) || 'guided',
+
+    // ─── تغيير كلمة المرور الإجباري ──────────────────────────────────
+    mustChangePw: false,
+    changePwForm: { current: '', newPw: '', confirm: '', error: '', loading: false },
+
+    // ─── صفحة استيراد البيانات ────────────────────────────────────────
+    dataImport: {
+      entities: [], selected: '', file: null, fileName: '',
+      preview: null, previewLoading: false,
+      importing: false, result: null, error: '',
+    },
 
     // ─── Command Palette (Ctrl+K) — بحث موحَّد عبر كل النظام ────────
     palette: { open: false, query: '', selectedIdx: 0 },
@@ -1916,6 +1927,7 @@ function app() {
       { id: 'departments',  label: 'الإدارات',            icon: '🏢' },
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
       { id: 'reportBuilder', label: 'منشئ التقارير',      icon: '🧾' },
+      { id: 'dataImport',    label: 'استيراد البيانات',    icon: '📥' },
     ],
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
@@ -1928,7 +1940,7 @@ function app() {
       { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard'] },
       { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','improvementProjects','slaBoard'] },
-      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log'] },
+      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport'] },
     ],
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
@@ -2410,15 +2422,96 @@ function app() {
         this.token = r.token; this.refreshToken = r.refreshToken; this.user = r.user;
         localStorage.setItem('qms_token', r.token);
         localStorage.setItem('qms_refresh', r.refreshToken);
+        if (r.mustChangePassword) {
+          this.mustChangePw = true;
+          return;
+        }
         this.loadPolicyAck();
         this.loadMyAcks();
         this.startNotifPolling();
         this.startAlertsPolling();
         this.loadStateMachines();
-        this.goto('dashboard');
+        this.goto('myWork');
       } catch (e) {
         this.loginError = e.message || 'فشل تسجيل الدخول';
       } finally { this.loading = false; }
+    },
+
+    async changePassword() {
+      const f = this.changePwForm;
+      if (f.newPw !== f.confirm) { f.error = 'كلمة المرور الجديدة وتأكيدها غير متطابقتين'; return; }
+      if (f.newPw.length < 8)    { f.error = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'; return; }
+      f.loading = true; f.error = '';
+      try {
+        await this.api('POST', '/auth/change-password', { currentPassword: f.current, newPassword: f.newPw });
+        this.mustChangePw = false;
+        this.changePwForm = { current: '', newPw: '', confirm: '', error: '', loading: false };
+        this.loadPolicyAck();
+        this.loadMyAcks();
+        this.startNotifPolling();
+        this.startAlertsPolling();
+        this.loadStateMachines();
+        this.toast('تم تغيير كلمة المرور بنجاح ✅', 'success');
+        this.goto('myWork');
+      } catch (e) {
+        f.error = e.message || 'فشل تغيير كلمة المرور';
+      } finally { f.loading = false; }
+    },
+
+    // ─── استيراد البيانات ─────────────────────────────────────────────
+    async loadDataImportEntities() {
+      try {
+        const r = await this.api('GET', '/import/entities');
+        this.dataImport.entities = r.entities || [];
+      } catch(e) { this.toast('تعذر تحميل قائمة الكيانات', 'error'); }
+    },
+    async downloadTemplate(entityKey) {
+      const a = document.createElement('a');
+      a.href = `/api/import/template/${entityKey}`;
+      a.setAttribute('Authorization', `Bearer ${this.token}`);
+      // Use fetch to download with auth header
+      try {
+        const res = await fetch(`/api/import/template/${entityKey}`, {
+          headers: { Authorization: `Bearer ${this.token}` },
+        });
+        if (!res.ok) throw new Error('فشل التحميل');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `template-${entityKey}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch(e) { this.toast('تعذر تحميل النموذج', 'error'); }
+    },
+    async previewImport() {
+      const d = this.dataImport;
+      if (!d.selected || !d.file) { this.toast('اختر نوع البيانات والملف أولاً', 'warn'); return; }
+      d.previewLoading = true; d.preview = null; d.result = null; d.error = '';
+      try {
+        const form = new FormData(); form.append('file', d.file);
+        const res = await fetch(`/api/import/preview/${d.selected}`, {
+          method: 'POST', headers: { Authorization: `Bearer ${this.token}` }, body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || 'خطأ في التحليل');
+        d.preview = data;
+      } catch(e) { d.error = e.message; } finally { d.previewLoading = false; }
+    },
+    async confirmImport() {
+      const d = this.dataImport;
+      if (!d.selected || !d.file) return;
+      d.importing = true; d.error = '';
+      try {
+        const form = new FormData(); form.append('file', d.file);
+        const res = await fetch(`/api/import/confirm/${d.selected}`, {
+          method: 'POST', headers: { Authorization: `Bearer ${this.token}` }, body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error?.message || 'خطأ في الاستيراد');
+        d.result = data; d.preview = null; d.file = null; d.fileName = '';
+        this.toast(`تم الاستيراد: ${data.created} جديد، ${data.updated} محدَّث ✅`, 'success');
+      } catch(e) { d.error = e.message; } finally { d.importing = false; }
     },
 
     async logout() {
@@ -2451,6 +2544,7 @@ function app() {
       else if (id === 'myWork') await this.loadMyWork();
       else if (id === 'myAcknowledgments') await this.loadMyAcks();
       else if (id === 'acknowledgmentsMatrix') await this.loadAckMatrix();
+      else if (id === 'dataImport') await this.loadDataImportEntities();
       else await this.loadList();
     },
 

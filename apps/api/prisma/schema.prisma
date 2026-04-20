@@ -48,6 +48,7 @@ model User {
   phone        String?
   jobTitle     String?
   active       Boolean   @default(true)
+  mustChangePassword Boolean @default(false) // إجبار تغيير كلمة المرور عند أول دخول
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

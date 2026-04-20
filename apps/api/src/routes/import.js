@@ -446,7 +446,7 @@ async function importUsers(records, _userId) {
         updated++;
       } else {
         await prisma.user.create({
-          data: { name: data.name, email: data.email, passwordHash: hash, jobTitle: data.jobTitle || null, departmentId: deptId, role, phone: data.phone || null },
+          data: { name: data.name, email: data.email, passwordHash: hash, jobTitle: data.jobTitle || null, departmentId: deptId, role, phone: data.phone || null, mustChangePassword: !data.password },
         });
         created++;
       }

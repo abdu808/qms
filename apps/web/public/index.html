@@ -35,6 +35,38 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans" x-data="app()" x-init="init()">
 
+  <!-- ═══ تغيير كلمة المرور الإجباري ════════════════════════════════ -->
+  <template x-if="user && mustChangePw">
+    <div class="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 border border-amber-200">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-14 h-14 bg-amber-100 text-amber-600 rounded-full text-3xl mb-3">🔐</div>
+          <h2 class="text-xl font-bold text-gray-800">تغيير كلمة المرور مطلوب</h2>
+          <p class="text-sm text-gray-500 mt-1">حسابك يستخدم كلمة مرور مؤقتة. يرجى تغييرها قبل المتابعة.</p>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">كلمة المرور الحالية (المؤقتة)</label>
+            <input type="password" x-model="changePwForm.current" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400" placeholder="Changeme@123" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">كلمة المرور الجديدة</label>
+            <input type="password" x-model="changePwForm.newPw" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400" placeholder="8 أحرف على الأقل" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">تأكيد كلمة المرور الجديدة</label>
+            <input type="password" x-model="changePwForm.confirm" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400" placeholder="أعِد كتابة كلمة المرور الجديدة" />
+          </div>
+          <div x-show="changePwForm.error" class="bg-red-50 text-red-600 text-sm rounded-lg px-3 py-2" x-text="changePwForm.error"></div>
+          <button @click="changePassword()" :disabled="changePwForm.loading" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-50">
+            <span x-show="!changePwForm.loading">💾 حفظ كلمة المرور الجديدة</span>
+            <span x-show="changePwForm.loading">جاري الحفظ...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <!-- LOGIN -->
   <template x-if="!user">
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 p-6">
@@ -1322,6 +1354,22 @@
 
           <!-- MY WORK (Batch 16) — inbox of required actions -->
           <div x-show="page==='myWork'" x-cloak>
+            <!-- رسالة ترحيب للوضع الموجَّه -->
+            <div x-show="isGuided()" class="mb-5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-2xl p-5 shadow-md">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h2 class="text-lg font-bold mb-1">🕊️ مرحباً <span x-text="user?.name?.split(' ')[0]"></span>!</h2>
+                  <p class="text-sm opacity-90 mb-3">أنت في الوضع الموجَّه — يُعرض لك ما يخصك مباشرة. يمكنك الانتقال للوضع المتقدم من زر الأعلى.</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button @click="goto('dataImport')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">📥 استيراد بيانات</button>
+                    <button @click="goto('surveys')"    class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">📝 استبيانات الرضا</button>
+                    <button @click="goto('suppliers')"  class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">🏭 تقييم الموردين</button>
+                    <button @click="goto('dashboard')"  class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">📊 لوحة المعلومات</button>
+                  </div>
+                </div>
+                <button @click="toggleMode()" title="تبديل للوضع المتقدم" class="text-white/70 hover:text-white text-xs whitespace-nowrap">⚙️ وضع متقدم</button>
+              </div>
+            </div>
             <template x-if="myWork">
               <div>
                 <!-- Hero (role-aware) -->
@@ -2346,6 +2394,145 @@
           <!-- ═══════════════════════════════════════════════════════════ -->
           <!-- REPORT BUILDER — منشئ التقارير (MVP)                       -->
           <!-- ═══════════════════════════════════════════════════════════ -->
+          <!-- ═══ استيراد البيانات ════════════════════════════════════ -->
+          <div x-show="page==='dataImport'" x-cloak class="space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">📥 استيراد البيانات من Excel</h2>
+                <p class="text-sm text-gray-500 mt-1">حمّل النموذج، عبّئه، ارفعه، راجع المعاينة، ثم أكّد الاستيراد</p>
+              </div>
+            </div>
+
+            <!-- خطوة 1: اختيار نوع البيانات -->
+            <div class="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 class="font-semibold text-gray-700 mb-4">الخطوة 1 — اختر نوع البيانات</h3>
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <template x-for="e in dataImport.entities" :key="e.key">
+                  <button
+                    @click="dataImport.selected = e.key; dataImport.preview = null; dataImport.result = null; dataImport.error = ''"
+                    :class="dataImport.selected === e.key
+                      ? 'border-2 border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border border-gray-200 bg-white text-gray-700 hover:border-blue-300'"
+                    class="rounded-xl p-4 text-right transition cursor-pointer">
+                    <div class="font-semibold text-sm" x-text="e.label"></div>
+                    <div class="text-xs text-gray-400 mt-1" x-text="e.columns + ' عمود'"></div>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- خطوة 2: تحميل النموذج -->
+            <div x-show="dataImport.selected" class="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 class="font-semibold text-gray-700 mb-3">الخطوة 2 — حمّل النموذج وعبّئه</h3>
+              <div class="flex items-center gap-3">
+                <button @click="downloadTemplate(dataImport.selected)"
+                  class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition text-sm">
+                  ⬇️ تحميل نموذج Excel فارغ
+                </button>
+                <span class="text-sm text-gray-500">ثم عبّئه وارفعه في الخطوة التالية</span>
+              </div>
+              <div class="mt-3 bg-blue-50 rounded-lg p-3 text-sm text-blue-700">
+                💡 النموذج يحتوي على: أعمدة عربية واضحة · ملاحظات عن القيم المسموحة · مثال توضيحي · تعليمات كاملة
+              </div>
+            </div>
+
+            <!-- خطوة 3: رفع الملف -->
+            <div x-show="dataImport.selected" class="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 class="font-semibold text-gray-700 mb-3">الخطوة 3 — ارفع الملف المعبأ</h3>
+              <div class="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center">
+                <input type="file" accept=".xlsx,.xls" class="hidden" id="importFileInput"
+                  @change="dataImport.file = $event.target.files[0]; dataImport.fileName = $event.target.files[0]?.name; dataImport.preview = null; dataImport.result = null;" />
+                <label for="importFileInput" class="cursor-pointer">
+                  <div class="text-4xl mb-2">📂</div>
+                  <div class="text-sm font-medium text-gray-600" x-text="dataImport.fileName || 'انقر لاختيار ملف Excel'"></div>
+                  <div class="text-xs text-gray-400 mt-1">.xlsx أو .xls — حد أقصى 10MB</div>
+                </label>
+              </div>
+              <button x-show="dataImport.file && !dataImport.previewLoading"
+                @click="previewImport()"
+                class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition text-sm">
+                🔍 معاينة البيانات قبل الاستيراد
+              </button>
+              <div x-show="dataImport.previewLoading" class="mt-3 text-center text-sm text-gray-500">جاري تحليل الملف...</div>
+            </div>
+
+            <!-- خطوة 4: المعاينة -->
+            <div x-show="dataImport.preview" class="bg-white rounded-xl border p-6 shadow-sm">
+              <h3 class="font-semibold text-gray-700 mb-3">الخطوة 4 — راجع وأكّد</h3>
+              <div class="flex gap-4 mb-4">
+                <div class="bg-green-50 rounded-lg p-3 text-center flex-1">
+                  <div class="text-2xl font-bold text-green-700" x-text="dataImport.preview?.valid || 0"></div>
+                  <div class="text-xs text-green-600">صف صالح</div>
+                </div>
+                <div class="bg-red-50 rounded-lg p-3 text-center flex-1">
+                  <div class="text-2xl font-bold text-red-700" x-text="dataImport.preview?.errorCount || 0"></div>
+                  <div class="text-xs text-red-600">صف به خطأ</div>
+                </div>
+                <div class="bg-blue-50 rounded-lg p-3 text-center flex-1">
+                  <div class="text-2xl font-bold text-blue-700" x-text="dataImport.preview?.total || 0"></div>
+                  <div class="text-xs text-blue-600">إجمالي الصفوف</div>
+                </div>
+              </div>
+              <!-- أخطاء التحليل -->
+              <template x-if="dataImport.preview?.errors?.length">
+                <div class="bg-red-50 rounded-lg p-3 mb-3">
+                  <div class="text-sm font-semibold text-red-700 mb-2">⚠️ أخطاء في الملف:</div>
+                  <template x-for="err in dataImport.preview.errors" :key="err.row">
+                    <div class="text-xs text-red-600" x-text="'صف ' + err.row + ': ' + err.message"></div>
+                  </template>
+                </div>
+              </template>
+              <!-- معاينة البيانات -->
+              <div x-show="dataImport.preview?.preview?.length" class="overflow-auto max-h-48 border rounded-lg mb-3">
+                <table class="w-full text-xs">
+                  <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th class="px-2 py-1 text-right border-b">#</th>
+                      <template x-for="key in Object.keys(dataImport.preview?.preview?.[0]?.data || {})" :key="key">
+                        <th class="px-2 py-1 text-right border-b" x-text="key"></th>
+                      </template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="row in (dataImport.preview?.preview || [])" :key="row.row">
+                      <tr class="border-b hover:bg-gray-50">
+                        <td class="px-2 py-1 text-gray-400" x-text="row.row"></td>
+                        <template x-for="val in Object.values(row.data || {})" :key="val">
+                          <td class="px-2 py-1 truncate max-w-[120px]" x-text="val"></td>
+                        </template>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div x-show="dataImport.preview?.hasMore" class="text-xs text-gray-400 text-center mb-3">يُعرض أول 20 صف فقط</div>
+              <button x-show="dataImport.preview?.valid > 0 && !dataImport.importing"
+                @click="confirmImport()"
+                class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-3 rounded-lg transition">
+                ✅ تأكيد الاستيراد (<span x-text="dataImport.preview?.valid"></span> صف)
+              </button>
+              <div x-show="dataImport.importing" class="text-center text-sm text-gray-500 py-2">جاري الاستيراد...</div>
+            </div>
+
+            <!-- نتيجة الاستيراد -->
+            <div x-show="dataImport.result" class="bg-green-50 rounded-xl border border-green-200 p-6">
+              <h3 class="font-semibold text-green-800 mb-3">✅ اكتمل الاستيراد</h3>
+              <div class="flex gap-4">
+                <div class="text-center flex-1">
+                  <div class="text-2xl font-bold text-green-700" x-text="dataImport.result?.created || 0"></div>
+                  <div class="text-xs text-green-600">سجل جديد</div>
+                </div>
+                <div class="text-center flex-1">
+                  <div class="text-2xl font-bold text-blue-700" x-text="dataImport.result?.updated || 0"></div>
+                  <div class="text-xs text-blue-600">سجل محدَّث</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- خطأ عام -->
+            <div x-show="dataImport.error" class="bg-red-50 rounded-xl border border-red-200 p-4 text-red-700 text-sm" x-text="dataImport.error"></div>
+          </div>
+
           <div x-show="page==='reportBuilder'" x-cloak class="space-y-4">
             <div class="bg-white border rounded-xl p-4">
               <h2 class="font-bold text-lg text-brand-700 mb-3 flex items-center gap-2">🧾 منشئ التقارير</h2>

@@ -106,6 +106,7 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
     ok: true,
     token,
     refreshToken,
+    mustChangePassword: user.mustChangePassword || false,
     user: { id: user.id, email: user.email, name: user.name, role: user.role, departmentId: user.departmentId },
   });
 }));
@@ -154,6 +155,36 @@ router.get('/me', asyncHandler(async (req, res) => {
   } catch {
     throw Unauthorized();
   }
+}));
+
+// تغيير كلمة المرور (مطلوب عند أول دخول أو كلمة مرور مؤقتة)
+router.post('/change-password', asyncHandler(async (req, res) => {
+  const header = req.headers.authorization || '';
+  const token  = header.startsWith('Bearer ') ? header.slice(7) : req.cookies?.token;
+  if (!token) throw Unauthorized();
+
+  let payload;
+  try { payload = jwt.verify(token, config.jwt.secret); } catch { throw Unauthorized(); }
+
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) throw BadRequest('كلمة المرور الحالية والجديدة مطلوبتان');
+  if (newPassword.length < 8) throw BadRequest('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل');
+
+  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  if (!user) throw Unauthorized();
+
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) throw BadRequest('كلمة المرور الحالية غير صحيحة');
+  if (currentPassword === newPassword) throw BadRequest('كلمة المرور الجديدة يجب أن تختلف عن الحالية');
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: newHash, mustChangePassword: false },
+  });
+
+  await logAuth(user.id, 'PASSWORD_CHANGED', req).catch(() => {});
+  res.json({ ok: true, message: 'تم تغيير كلمة المرور بنجاح' });
 }));
 
 export default router;
