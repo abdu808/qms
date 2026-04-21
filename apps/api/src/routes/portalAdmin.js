@@ -25,6 +25,7 @@ import { authorize } from '../middleware/auth.js';
 import { NotFound, BadRequest } from '../utils/errors.js';
 import { runSchema } from '../schemas/_helpers.js';
 import { announcementCreateSchema, announcementUpdateSchema, portalSettingsSchema } from '../schemas/portal.schema.js';
+import { invalidatePortalCache } from '../server.js';
 
 const validateCreate   = runSchema(announcementCreateSchema);
 const validateUpdate   = runSchema(announcementUpdateSchema);
@@ -53,6 +54,8 @@ router.patch('/settings', authorize(...ROLES), asyncHandler(async (req, res) => 
     create: { id: 'default', ...data },
     update: data,
   });
+  // أبطل cache الـ server فور تغيير portalEnabled
+  if ('portalEnabled' in data) invalidatePortalCache();
   res.json({ ok: true, item: settings });
 }));
 

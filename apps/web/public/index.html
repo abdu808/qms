@@ -689,6 +689,33 @@
 
             <!-- ──── تبويب: الإعدادات ──────────────────────────────── -->
             <div x-show="portalAdmin.tab==='settings'" class="space-y-4">
+              <!-- تفعيل / تعطيل البوابة العامة -->
+              <div :class="portalAdmin.settings.portalEnabled
+                              ? 'bg-green-50 border border-green-200'
+                              : 'bg-gray-50 border border-gray-200'"
+                   class="rounded-xl p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p class="font-semibold text-sm"
+                     :class="portalAdmin.settings.portalEnabled ? 'text-green-800' : 'text-gray-600'">
+                    🌐 البوابة العامة
+                    <span x-text="portalAdmin.settings.portalEnabled ? '— مفعَّلة ✅' : '— معطَّلة 🔒'"
+                          class="font-normal"></span>
+                  </p>
+                  <p class="text-xs text-gray-500 mt-0.5">
+                    عند التفعيل يظهر محتوى البوابة على
+                    <span class="font-mono">/</span>
+                    للزوار بدون تسجيل دخول
+                  </p>
+                </div>
+                <button @click="portalAdmin.settings.portalEnabled = !portalAdmin.settings.portalEnabled; savePortalSettings()"
+                        :class="portalAdmin.settings.portalEnabled
+                                  ? 'bg-green-600 hover:bg-green-700'
+                                  : 'bg-gray-400 hover:bg-gray-500'"
+                        class="shrink-0 text-white text-sm px-4 py-2 rounded-lg transition font-medium"
+                        x-text="portalAdmin.settings.portalEnabled ? 'تعطيل البوابة' : 'تفعيل البوابة'">
+                </button>
+              </div>
+
               <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
                 <div class="grid sm:grid-cols-2 gap-4">
                   <div>

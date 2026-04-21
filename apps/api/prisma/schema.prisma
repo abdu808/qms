@@ -1465,6 +1465,7 @@ model Acknowledgment {
 
 model PortalSettings {
   id                String   @id @default("default")
+  portalEnabled     Boolean  @default(false) // تفعيل/تعطيل البوابة العامة على /
   orgName           String   @default("الجمعية")
   orgDescription    String?
   showPolicy        Boolean  @default(true)

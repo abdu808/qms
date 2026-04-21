@@ -282,6 +282,23 @@ app.use('/api/reports',                 reportsRoutes);
 app.use('/api/operational-reports',     operationalReportsRoutes);
 app.use('/api/kpi',                     kpiRoutes);
 
+// ── فحص تفعيل البوابة العامة (cached 60s لتخفيف ضغط DB) ───────────────────
+let _portalEnabledCache = null;
+let _portalCacheAt = 0;
+async function isPortalEnabled() {
+  const now = Date.now();
+  if (_portalEnabledCache !== null && now - _portalCacheAt < 60_000) return _portalEnabledCache;
+  try {
+    const { prisma } = await import('./db.js');
+    const s = await prisma.portalSettings.findUnique({ where: { id: 'default' } });
+    _portalEnabledCache = s?.portalEnabled ?? false;
+  } catch { _portalEnabledCache = false; }
+  _portalCacheAt = Date.now();
+  return _portalEnabledCache;
+}
+/** يبطل الـ cache فور تغيير الإعداد من لوحة الإدارة */
+export function invalidatePortalCache() { _portalEnabledCache = null; }
+
 // Serve frontend statically in all environments.
 // Coolify قد يُوجّه الترافيك مباشرة إلى الـ API بدل nginx — لذا نخدم الـ SPA هنا أيضاً.
 {
@@ -295,9 +312,16 @@ app.use('/api/kpi',                     kpiRoutes);
         }
       },
     }));
-    // البوابة العامة — معطّلة مؤقتاً: / ← redirect → /qms
-    // لتفعيلها: استبدل السطر أدناه بـ res.sendFile(join(webPath, 'portal.html'))
-    app.get('/', (req, res) => res.redirect(302, '/qms'));
+    // البوابة العامة: مفعَّلة/معطَّلة حسب portalSettings.portalEnabled
+    app.get('/', async (req, res) => {
+      try {
+        const enabled = await isPortalEnabled();
+        if (enabled && existsSync(join(webPath, 'portal.html'))) {
+          return res.sendFile(join(webPath, 'portal.html'));
+        }
+      } catch { /* fallthrough to redirect */ }
+      res.redirect(302, '/qms');
+    });
     // النظام الداخلي على /qms
     app.get(['/qms', '/qms/*'], (req, res) => res.sendFile(join(webPath, 'index.html')));
     // Backward-compat: روابط قديمة /login و /app → redirect دائم → /qms

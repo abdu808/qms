@@ -13,6 +13,7 @@ export const announcementCreateSchema = z.object({
 export const announcementUpdateSchema = announcementCreateSchema.partial();
 
 export const portalSettingsSchema = z.object({
+  portalEnabled:     z.boolean().optional(),
   orgName:           z.string().min(2).max(100).optional(),
   orgDescription:    z.string().max(500).optional().nullable(),
   showPolicy:        z.boolean().optional(),
