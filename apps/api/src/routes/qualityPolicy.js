@@ -23,7 +23,7 @@ const router = Router();
 // Get the ACTIVE quality policy
 router.get('/active', asyncHandler(async (req, res) => {
   const item = await prisma.qualityPolicy.findFirst({
-    where: { active: true },
+    where: { active: true, deletedAt: null },
     orderBy: { createdAt: 'desc' },
   });
   res.json({ ok: true, item });
@@ -35,7 +35,7 @@ router.post('/:id/activate', asyncHandler(async (req, res) => {
     throw Forbidden('فقط مدير الجودة أو مسؤول النظام يمكنه تفعيل سياسة الجودة (ISO 5.2)');
   }
 
-  const policy = await prisma.qualityPolicy.findUnique({ where: { id: req.params.id } });
+  const policy = await prisma.qualityPolicy.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!policy) throw NotFound('السياسة غير موجودة');
   if (policy.active) throw BadRequest('هذه السياسة مفعلة بالفعل');
 

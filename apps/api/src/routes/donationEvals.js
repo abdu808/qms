@@ -23,7 +23,7 @@ const base = crudRouter({
   beforeCreate: async (data, req) => {
     if (!data.donationId) throw BadRequest('donationId مطلوب');
     const donation = await prisma.donation.findUnique({
-      where: { id: data.donationId }, select: { type: true },
+      where: { id: data.donationId, deletedAt: null }, select: { type: true },
     });
     if (!donation) throw NotFound('التبرع غير موجود');
     const result = computeDonationEval(donation.type, data);
@@ -41,7 +41,7 @@ const base = crudRouter({
   beforeUpdate: async (data, req) => {
     // الحصول على نوع التبرع من السجل الموجود
     const existing = await prisma.donationEval.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id, deletedAt: null },
       include: { donation: { select: { type: true } } },
     });
     if (!existing) throw NotFound('التقييم غير موجود');

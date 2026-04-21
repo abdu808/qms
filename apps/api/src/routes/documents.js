@@ -115,7 +115,7 @@ router.post('/:id/obsolete', requireAction('documents', 'approve'), asyncHandler
 // GET /:id/versions — سجل الإصدارات (ISO 7.5.3)
 router.get('/:id/versions', requireAction('documents', 'read'), asyncHandler(async (req, res) => {
   const doc = await prisma.document.findUnique({
-    where: { id: req.params.id },
+    where: { id: req.params.id, deletedAt: null },
     select: { id: true, code: true, title: true, currentVersion: true, status: true },
   });
   if (!doc) throw NotFound('الوثيقة غير موجودة');
@@ -137,7 +137,7 @@ router.post('/:id/ack', requireAction('documents', 'read'), asyncHandler(async (
 
 // POST /:id/upload — رفع ملف إصدار جديد (ISO 7.5.3)
 router.post('/:id/upload', requireAction('documents', 'update'), upload.single('file'), asyncHandler(async (req, res) => {
-  const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
+  const doc = await prisma.document.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!doc) throw NotFound('الوثيقة غير موجودة');
   if (!req.file) throw BadRequest('لم يتم إرفاق ملف');
 

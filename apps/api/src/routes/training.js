@@ -21,7 +21,7 @@ const router = Router();
 
 // GET /:id/records — list attendance/effectiveness records
 router.get('/:id/records', requireAction('training', 'read'), asyncHandler(async (req, res) => {
-  const training = await prisma.training.findUnique({ where: { id: req.params.id } });
+  const training = await prisma.training.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!training) throw NotFound('التدريب غير موجود');
   const records = await prisma.trainingRecord.findMany({
     where: { trainingId: req.params.id },

@@ -74,7 +74,7 @@ const crud = crudRouter({
     // سير الحالة: نحتاج السجل الحالي للتحقق
     if (data.status) {
       if (!BENEFICIARY_STATUSES.includes(data.status)) throw BadRequest('حالة مستفيد غير صحيحة');
-      const current = await prisma.beneficiary.findUnique({ where: { id: req.params.id } });
+      const current = await prisma.beneficiary.findUnique({ where: { id: req.params.id, deletedAt: null } });
       if (!current) throw NotFound('المستفيد غير موجود');
 
       const merged = { ...current, ...data };
@@ -141,7 +141,7 @@ router.get('/due-review', requireAction('beneficiaries', 'read'), asyncHandler(a
  * GET /api/beneficiaries/:id/assessment — معاينة محرك التقييم (دون حفظ).
  */
 router.get('/:id/assessment', requireAction('beneficiaries', 'read'), asyncHandler(async (req, res) => {
-  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id } });
+  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!b) throw NotFound('المستفيد غير موجود');
   const result = computePriority(b);
   res.json({
@@ -167,7 +167,7 @@ router.get('/:id/assessment', requireAction('beneficiaries', 'read'), asyncHandl
  * المحسوبة من المحرك (موضوعية) ما لم يُرسل priorityScore يدوياً ويكون useComputedScore=false.
  */
 router.post('/:id/assess', requireAction('beneficiaries', 'update'), asyncHandler(async (req, res) => {
-  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id } });
+  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!b) throw NotFound('المستفيد غير موجود');
 
   const body = req.body || {};

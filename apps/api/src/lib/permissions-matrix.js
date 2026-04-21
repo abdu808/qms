@@ -116,6 +116,7 @@ export const MATRIX = {
   // ── KPI & ISO readiness ──────────────────────────────────────────
   kpi:              { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
   'iso-readiness':  { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
+  'report-builder': { create: QM_UP, read: MANAGER_UP, update: QM_UP, delete: SA, approve: QM_UP },
 
   // ── Proactive alerts (live health signals) ───────────────────────
   // للقراءة فقط لإدارة الجودة والمسؤولين؛ لا عمليات كتابة (detectors محسوبة).

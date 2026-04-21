@@ -40,7 +40,7 @@ const docsCrud = crudRouter({
  * QM+ فقط
  */
 router.post('/:id/activate', requireAction('ack-documents', 'update'), asyncHandler(async (req, res) => {
-  const doc = await prisma.ackDocument.findUnique({ where: { id: req.params.id } });
+  const doc = await prisma.ackDocument.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!doc) throw NotFound('الوثيقة غير موجودة');
   const updated = await prisma.ackDocument.update({
     where: { id: doc.id },

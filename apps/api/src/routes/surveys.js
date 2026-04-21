@@ -99,7 +99,7 @@ router.get('/', requireAction('surveys', 'read'), asyncHandler(async (req, res) 
 
 // GET
 router.get('/:id', requireAction('surveys', 'read'), asyncHandler(async (req, res) => {
-  const item = await prisma.survey.findUnique({ where: { id: req.params.id } });
+  const item = await prisma.survey.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!item) throw NotFound();
   const baseUrl = config.appUrl.replace(/\/$/, '');
   res.json({ ok: true, item: { ...item, publicUrl: `${baseUrl}/survey/${item.id}` } });

@@ -13,10 +13,11 @@ router.get('/', requireAction('signatures', 'read'), asyncHandler(async (req, re
   if (entityType) where.entityType = entityType;
   if (entityId)   where.entityId = entityId;
   const { page, limit, skip } = parsePagination(req);
+  const whereWithDeleted = { ...where, deletedAt: null };
   const [total, items] = await Promise.all([
-    prisma.signature.count({ where }),
+    prisma.signature.count({ where: whereWithDeleted }),
     prisma.signature.findMany({
-      where, include: { user: { select: { id: true, name: true, role: true } } },
+      where: whereWithDeleted, include: { user: { select: { id: true, name: true, role: true } } },
       orderBy: { signedAt: 'desc' }, skip, take: limit,
     }),
   ]);

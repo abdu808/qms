@@ -18,7 +18,7 @@
  *
  * Idempotent وقابلة للتشغيل بلا داعٍ (re-run آمن).
  */
-import { prisma } from '../db.js';
+import { prisma as globalPrisma } from '../db.js';
 import { actualByMonth, achievementRatio } from '../lib/kpi-engine.js';
 
 const clampPct = (x) => {
@@ -50,16 +50,17 @@ export function computeProgressFromEntries({ kpiType, seasonality, direction, ta
 
 /**
  * يُعيد حساب progress للهدف التشغيلي Objective ثم يُحدّث StrategicGoal إن وُجد.
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
-export async function recomputeObjective(objectiveId, { year } = {}) {
+export async function recomputeObjective(objectiveId, { year } = {}, tx = globalPrisma) {
   if (!objectiveId) return null;
-  const obj = await prisma.objective.findUnique({
+  const obj = await tx.objective.findUnique({
     where: { id: objectiveId },
     select: { id: true, kpiType: true, seasonality: true, direction: true, target: true, strategicGoalId: true },
   });
   if (!obj) return null;
   const y = year || new Date().getFullYear();
-  const entries = await prisma.kpiEntry.findMany({
+  const entries = await tx.kpiEntry.findMany({
     where: { objectiveId, year: y },
     orderBy: { month: 'asc' },
     select: { month: true, actualValue: true, spent: true },
@@ -68,26 +69,27 @@ export async function recomputeObjective(objectiveId, { year } = {}) {
     { kpiType: obj.kpiType, seasonality: obj.seasonality, direction: obj.direction, target: obj.target },
     entries,
   );
-  await prisma.objective.update({
+  await tx.objective.update({
     where: { id: obj.id },
     data:  { currentValue: actual, progress },
   });
-  if (obj.strategicGoalId) await recomputeStrategicGoal(obj.strategicGoalId);
+  if (obj.strategicGoalId) await recomputeStrategicGoal(obj.strategicGoalId, tx);
   return { objectiveId: obj.id, currentValue: actual, progress, strategicGoalId: obj.strategicGoalId };
 }
 
 /**
  * يُعيد حساب progress للنشاط التشغيلي OperationalActivity + تجميع spent من القراءات.
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
-export async function recomputeActivity(activityId, { year } = {}) {
+export async function recomputeActivity(activityId, { year } = {}, tx = globalPrisma) {
   if (!activityId) return null;
-  const act = await prisma.operationalActivity.findUnique({
+  const act = await tx.operationalActivity.findUnique({
     where: { id: activityId },
     select: { id: true, kpiType: true, seasonality: true, direction: true, targetValue: true, strategicGoalId: true },
   });
   if (!act) return null;
   const y = year || new Date().getFullYear();
-  const entries = await prisma.kpiEntry.findMany({
+  const entries = await tx.kpiEntry.findMany({
     where: { activityId, year: y },
     orderBy: { month: 'asc' },
     select: { month: true, actualValue: true, spent: true },
@@ -98,26 +100,27 @@ export async function recomputeActivity(activityId, { year } = {}) {
   );
   // تجميع المصروف الفعلي من كل قراءات هذه السنة
   const totalSpent = entries.reduce((s, e) => s + Number(e.spent || 0), 0);
-  await prisma.operationalActivity.update({
+  await tx.operationalActivity.update({
     where: { id: act.id },
     data:  { progress, spent: totalSpent > 0 ? totalSpent : null },
   });
-  if (act.strategicGoalId) await recomputeStrategicGoal(act.strategicGoalId);
+  if (act.strategicGoalId) await recomputeStrategicGoal(act.strategicGoalId, tx);
   return { activityId: act.id, progress, spent: totalSpent, strategicGoalId: act.strategicGoalId };
 }
 
 /**
  * يُعيد حساب progress للهدف الاستراتيجي = متوسط progress لأبنائه المباشرين.
  * (Objectives + OperationalActivities). يتجاهل المحذوفة (soft delete).
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
-export async function recomputeStrategicGoal(strategicGoalId) {
+export async function recomputeStrategicGoal(strategicGoalId, tx = globalPrisma) {
   if (!strategicGoalId) return null;
   const [objs, acts] = await Promise.all([
-    prisma.objective.findMany({
+    tx.objective.findMany({
       where: { strategicGoalId, deletedAt: null },
       select: { progress: true },
     }),
-    prisma.operationalActivity.findMany({
+    tx.operationalActivity.findMany({
       where: { strategicGoalId, deletedAt: null },
       select: { progress: true },
     }),
@@ -128,7 +131,7 @@ export async function recomputeStrategicGoal(strategicGoalId) {
     return { strategicGoalId, progress: null, childrenCount: 0 };
   }
   const avg = Math.round(children.reduce((s, x) => s + (x.progress || 0), 0) / children.length);
-  await prisma.strategicGoal.update({
+  await tx.strategicGoal.update({
     where: { id: strategicGoalId },
     data:  { progress: clampPct(avg) },
   });
@@ -138,9 +141,10 @@ export async function recomputeStrategicGoal(strategicGoalId) {
 /**
  * Entry-point — تُستدعى بعد upsert/delete لـ KpiEntry.
  * تُعيد حساب الأب (Objective أو Activity) ثم الجذر الاستراتيجي.
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
-export async function recomputeAfterEntry({ objectiveId, activityId, year } = {}) {
-  if (objectiveId) return await recomputeObjective(objectiveId, { year });
-  if (activityId)  return await recomputeActivity(activityId,  { year });
+export async function recomputeAfterEntry({ objectiveId, activityId, year } = {}, tx = globalPrisma) {
+  if (objectiveId) return await recomputeObjective(objectiveId, { year }, tx);
+  if (activityId)  return await recomputeActivity(activityId,  { year }, tx);
   return null;
 }

@@ -17,7 +17,7 @@ const router = Router();
  */
 router.get('/me', asyncHandler(async (req, res) => {
   const active = await prisma.qualityPolicy.findFirst({
-    where: { active: true },
+    where: { active: true, deletedAt: null },
     orderBy: { effectiveDate: 'desc' },
     select: {
       id: true, version: true, title: true, effectiveDate: true,
@@ -54,7 +54,7 @@ router.get('/me', asyncHandler(async (req, res) => {
  */
 router.post('/', asyncHandler(async (req, res) => {
   const active = await prisma.qualityPolicy.findFirst({
-    where: { active: true },
+    where: { active: true, deletedAt: null },
     orderBy: { effectiveDate: 'desc' },
   });
   if (!active) throw BadRequest('لا توجد سياسة جودة سارية للإقرار بها');

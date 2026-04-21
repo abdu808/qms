@@ -55,6 +55,7 @@ const crud = crudRouter({
         where: {
           supplierId: req.params.id,
           decision: { in: ['معتمد', 'معتمد مشروط'] },
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -74,7 +75,7 @@ const router = Router();
  */
 router.get('/:id/history', requireAction('suppliers', 'read'), asyncHandler(async (req, res) => {
   const supplier = await prisma.supplier.findUnique({
-    where: { id: req.params.id },
+    where: { id: req.params.id, deletedAt: null },
     select: { id: true, code: true, name: true, type: true, overallRating: true, status: true },
   });
   if (!supplier) throw NotFound('المورّد غير موجود');

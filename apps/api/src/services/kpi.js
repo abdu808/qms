@@ -6,7 +6,7 @@
  *   ▸ upsertKpiEntry       — upsert مع كل الحراسات + feedback فوري
  *   ▸ computeKpiFeedback   — تقييم سريع للقراءة (expected/ratio/rag/alerts)
  */
-import { prisma } from '../db.js';
+import { prisma as globalPrisma } from '../db.js';
 import { BadRequest } from '../utils/errors.js';
 import { evaluateKpi } from '../lib/kpi-engine.js';
 import { recomputeAfterEntry } from './rollup.js';
@@ -17,7 +17,7 @@ import { recomputeAfterEntry } from './rollup.js';
  */
 export async function isPeriodLocked(year, month) {
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-  const review = await prisma.managementReview.findFirst({
+  const review = await globalPrisma.managementReview.findFirst({
     where:   { status: 'COMPLETED', meetingDate: { gt: endOfMonth } },
     orderBy: { meetingDate: 'asc' },
     select:  { id: true, meetingDate: true, code: true },
@@ -40,11 +40,11 @@ const RAG_MESSAGES = {
 export async function computeKpiFeedback({ objectiveId, activityId, year, month }) {
   try {
     const kpiRec = objectiveId
-      ? await prisma.objective.findUnique({ where: { id: objectiveId } })
-      : await prisma.operationalActivity.findUnique({ where: { id: activityId } });
+      ? await globalPrisma.objective.findUnique({ where: { id: objectiveId } })
+      : await globalPrisma.operationalActivity.findUnique({ where: { id: activityId } });
     if (!kpiRec) return null;
 
-    const allEntries = await prisma.kpiEntry.findMany({
+    const allEntries = await globalPrisma.kpiEntry.findMany({
       where:   objectiveId ? { objectiveId, year } : { activityId, year },
       orderBy: [{ month: 'asc' }],
     });
@@ -69,11 +69,12 @@ export async function computeKpiFeedback({ objectiveId, activityId, year, month 
 /**
  * upsertKpiEntry — يمر من كل الحراسات ثم يُحدِّث/يُنشئ القراءة.
  * يُرجع: { entry, feedback, locked }
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
 export async function upsertKpiEntry({
   objectiveId, activityId, year, month,
   actualValue, spent, note, evidenceUrl,
-  userId, userRole, skipRollup = false,
+  userId, userRole, skipRollup = false, tx = globalPrisma,
 }) {
   // منع الإدخال على شهر في المستقبل
   const now = new Date();
@@ -104,14 +105,14 @@ export async function upsertKpiEntry({
     evidenceUrl: evidenceUrl || null,
     enteredById: userId,
   };
-  const entry = await prisma.kpiEntry.upsert({ where, update: data, create: data });
+  const entry = await tx.kpiEntry.upsert({ where, update: data, create: data });
 
   // ── Auto rollup: يُحدِّث progress الأب + جذر الخطة الاستراتيجية ─────
   // يُشَغَّل بعد الـ upsert مباشرةً. لا نكسر الـ request لو فشل (نسجّل فقط).
   let rollup = null;
   if (!skipRollup) {
     try {
-      rollup = await recomputeAfterEntry({ objectiveId, activityId, year });
+      rollup = await recomputeAfterEntry({ objectiveId, activityId, year }, tx);
     } catch (err) {
       console.error('[kpi] rollup failed:', err?.message || err);
     }

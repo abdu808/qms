@@ -17,7 +17,7 @@ export default crudRouter({
   beforeUpdate: async (data, req) => {
     if (data.status) {
       const current = await prisma.audit.findUnique({
-        where: { id: req.params.id }, select: { status: true },
+        where: { id: req.params.id, deletedAt: null }, select: { status: true },
       });
       if (!current) throw NotFound('التدقيق غير موجود');
       assertTransition(AUDIT_STATUS, current.status, data.status, {

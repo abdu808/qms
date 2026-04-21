@@ -33,7 +33,7 @@ const router = Router();
 router.post('/:id/advance',
   requireAction('improvement-projects', 'update'),
   asyncHandler(async (req, res) => {
-    const item = await prisma.improvementProject.findUnique({ where: { id: req.params.id } });
+    const item = await prisma.improvementProject.findUnique({ where: { id: req.params.id, deletedAt: null } });
     if (!item) throw NotFound('المشروع غير موجود');
     const next = NEXT[item.phase];
     if (!next) throw BadRequest('المشروع في مرحلته النهائية');
@@ -63,7 +63,7 @@ router.post('/:id/advance',
 router.post('/:id/restart',
   requireAction('improvement-projects', 'update'),
   asyncHandler(async (req, res) => {
-    const item = await prisma.improvementProject.findUnique({ where: { id: req.params.id } });
+    const item = await prisma.improvementProject.findUnique({ where: { id: req.params.id, deletedAt: null } });
     if (!item) throw NotFound('المشروع غير موجود');
     if (!item.lessonsLearned && !req.body?.lessonsLearned) {
       throw BadRequest('يجب توثيق الدروس المستفادة قبل إعادة التخطيط');

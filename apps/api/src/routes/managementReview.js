@@ -19,7 +19,7 @@ const base = crudRouter({
   beforeUpdate: async (data, req) => {
     if (data.status) {
       const current = await prisma.managementReview.findUnique({
-        where: { id: req.params.id }, select: { status: true },
+        where: { id: req.params.id, deletedAt: null }, select: { status: true },
       });
       if (!current) throw NotFound('المراجعة غير موجودة');
       assertTransition(MGMT_REVIEW_STATUS, current.status, data.status, {
@@ -52,7 +52,7 @@ const router = Router();
  * (from the previous review's meeting date up to this review's meeting date)
  */
 router.get('/:id/inputs', requireAction('management-review', 'read'), asyncHandler(async (req, res) => {
-  const review = await prisma.managementReview.findUnique({ where: { id: req.params.id } });
+  const review = await prisma.managementReview.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!review) throw NotFound('المراجعة غير موجودة');
 
   // Determine period: from previous review (if any) to this review's meetingDate

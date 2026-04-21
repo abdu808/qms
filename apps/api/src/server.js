@@ -67,6 +67,7 @@ import schedulerRoutes from './routes/scheduler.js';
 import reportBuilderRoutes from './routes/reportBuilder.js';
 import publicPortalRoutes from './routes/publicPortal.js';
 import portalAdminRoutes from './routes/portalAdmin.js';
+import metaRoutes from './routes/meta.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
@@ -193,6 +194,7 @@ app.get('/api/health/ready', async (req, res) => {
 
 // Public
 app.use('/api/auth', authRoutes);
+app.use('/api/meta', metaRoutes);
 
 // Public evaluation form (no auth required — token-based)
 app.use('/eval',

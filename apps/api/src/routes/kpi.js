@@ -37,10 +37,13 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
     if (parsed.objectiveId && parsed.activityId)
       throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
 
-    const result = await upsertKpiEntry({
-      ...parsed,
-      userId:   req.user.sub,
-      userRole: req.user?.role,
+    const result = await prisma.$transaction(async (tx) => {
+      return upsertKpiEntry({
+        ...parsed,
+        userId:   req.user.sub,
+        userRole: req.user?.role,
+        tx,
+      });
     });
     res.json({ ok: true, ...result });
   } catch (e) { next(e); }
@@ -87,14 +90,23 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
 
     // rollup واحد لكل أب × كل سنة تم لمسها
     const { recomputeObjective, recomputeActivity } = await import('../services/rollup.js');
+    const rollupErrors = [];
     for (const objId of touchedObj) {
       for (const y of touchedYears) {
-        try { await recomputeObjective(objId, { year: y }); } catch (err) { console.error('[bulk rollup obj]', err?.message); }
+        try { await recomputeObjective(objId, { year: y }); } catch (err) {
+          const msg = err?.message || String(err);
+          console.error('[bulk rollup obj]', msg);
+          rollupErrors.push({ kind: 'objective', id: objId, year: y, error: msg });
+        }
       }
     }
     for (const actId of touchedAct) {
       for (const y of touchedYears) {
-        try { await recomputeActivity(actId, { year: y }); } catch (err) { console.error('[bulk rollup act]', err?.message); }
+        try { await recomputeActivity(actId, { year: y }); } catch (err) {
+          const msg = err?.message || String(err);
+          console.error('[bulk rollup act]', msg);
+          rollupErrors.push({ kind: 'activity', id: actId, year: y, error: msg });
+        }
       }
     }
 
@@ -103,6 +115,7 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
       total: rows.length,
       inserted: inserted.length,
       failed,
+      rollupErrors,
       rollup: {
         objectiveIds: [...touchedObj],
         activityIds:  [...touchedAct],
@@ -255,17 +268,17 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
 // ─── حذف إدخال ───────────────────────────────────────────────
 router.delete('/entries/:id', requireAction('kpi', 'update'), async (req, res, next) => {
   try {
-    // نلتقط الأب/السنة قبل الحذف لإعادة الحساب بعده
-    const entry = await prisma.kpiEntry.findUnique({
-      where: { id: req.params.id },
-      select: { objectiveId: true, activityId: true, year: true },
-    });
-    await prisma.kpiEntry.delete({ where: { id: req.params.id } });
-    if (entry) {
-      try { await recomputeAfterEntry(entry); } catch (err) {
-        console.error('[kpi] rollup after delete failed:', err?.message || err);
+    // نلتقط الأب/السنة قبل الحذف لإعادة الحساب بعده — كل شيء داخل transaction واحدة
+    await prisma.$transaction(async (tx) => {
+      const entry = await tx.kpiEntry.findUnique({
+        where: { id: req.params.id },
+        select: { objectiveId: true, activityId: true, year: true },
+      });
+      await tx.kpiEntry.delete({ where: { id: req.params.id } });
+      if (entry) {
+        await recomputeAfterEntry(entry, tx);
       }
-    }
+    });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

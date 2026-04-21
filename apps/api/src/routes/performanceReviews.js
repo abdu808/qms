@@ -75,7 +75,7 @@ const router = Router();
 router.post('/:id/submit-to-employee',
   requireAction('performance-reviews', 'update'),
   asyncHandler(async (req, res) => {
-    const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id } });
+    const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id, deletedAt: null } });
     if (!item) throw NotFound('التقييم غير موجود');
     if (item.status !== 'DRAFT') throw BadRequest('يمكن إرسال المسودات فقط');
     if (item.reviewerId !== req.user.sub && !can(req.user, 'performance-reviews', 'delete')) {
@@ -95,7 +95,7 @@ router.post('/:id/submit-to-employee',
  * يستطيع إضافة تعليقه في employeeComments.
  */
 router.post('/:id/sign', asyncHandler(async (req, res) => {
-  const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id } });
+  const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!item) throw NotFound('التقييم غير موجود');
   if (item.employeeId !== req.user.sub) throw Forbidden('لا يمكنك توقيع تقييم موظف آخر');
   if (item.status !== 'EMPLOYEE_REVIEW') throw BadRequest('التقييم ليس في مرحلة التوقيع');
@@ -117,7 +117,7 @@ router.post('/:id/sign', asyncHandler(async (req, res) => {
 router.post('/:id/finalize',
   requireAction('performance-reviews', 'delete'), // QM+
   asyncHandler(async (req, res) => {
-    const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id } });
+    const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id, deletedAt: null } });
     if (!item) throw NotFound('التقييم غير موجود');
     if (!item.employeeSignedAt) throw BadRequest('لا يمكن ختم التقييم قبل توقيع الموظف');
     const updated = await prisma.performanceReview.update({

@@ -40,7 +40,7 @@ const crud = crudRouter({
     // ISO 6.1: لا إغلاق المخاطرة دون توثيق خطة المعالجة
     if (data.status === 'CLOSED') {
       const existing = await prisma.risk.findUnique({
-        where: { id: req.params.id },
+        where: { id: req.params.id, deletedAt: null },
         select: { treatment: true, treatmentType: true },
       });
       const hasTreatment = data.treatment || existing?.treatment;

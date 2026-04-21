@@ -28,13 +28,13 @@ router.get('/board', requireAction('alerts', 'read'), asyncHandler(async (_req, 
 }));
 
 router.get('/complaint/:id', requireAction('complaints', 'read'), asyncHandler(async (req, res) => {
-  const c = await prisma.complaint.findUnique({ where: { id: req.params.id } });
+  const c = await prisma.complaint.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!c) throw NotFound('الشكوى غير موجودة');
   res.json({ ok: true, id: c.id, code: c.code, sla: computeComplaintSla(c) });
 }));
 
 router.get('/ncr/:id', requireAction('ncr', 'read'), asyncHandler(async (req, res) => {
-  const n = await prisma.nCR.findUnique({ where: { id: req.params.id } });
+  const n = await prisma.nCR.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!n) throw NotFound('عدم المطابقة غير موجودة');
   res.json({ ok: true, id: n.id, code: n.code, sla: computeNcrSla(n) });
 }));

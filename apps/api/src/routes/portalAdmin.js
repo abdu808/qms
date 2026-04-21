@@ -23,6 +23,12 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { authorize } from '../middleware/auth.js';
 import { NotFound, BadRequest } from '../utils/errors.js';
+import { runSchema } from '../schemas/_helpers.js';
+import { announcementCreateSchema, announcementUpdateSchema, portalSettingsSchema } from '../schemas/portal.schema.js';
+
+const validateCreate   = runSchema(announcementCreateSchema);
+const validateUpdate   = runSchema(announcementUpdateSchema);
+const validateSettings = runSchema(portalSettingsSchema);
 
 const router = Router();
 const ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
@@ -39,12 +45,7 @@ router.get('/settings', authorize(...ROLES), asyncHandler(async (_req, res) => {
 }));
 
 router.patch('/settings', authorize(...ROLES), asyncHandler(async (req, res) => {
-  const allowed = ['orgName', 'orgDescription', 'showPolicy', 'showDocuments',
-                   'showAnnouncements', 'showSurveys', 'showKpis', 'footerText'];
-  const data = {};
-  for (const key of allowed) {
-    if (key in req.body) data[key] = req.body[key];
-  }
+  const data = validateSettings(req.body);
   if (Object.keys(data).length === 0) throw BadRequest('لا توجد حقول للتحديث');
 
   const settings = await prisma.portalSettings.upsert({
@@ -67,19 +68,13 @@ router.get('/announcements', authorize(...ROLES), asyncHandler(async (_req, res)
 }));
 
 router.post('/announcements', authorize(...ROLES), asyncHandler(async (req, res) => {
-  const { title, summary, body, category, isActive, publishedAt, expiresAt } = req.body;
-  if (!title || typeof title !== 'string' || !title.trim()) {
-    throw BadRequest('عنوان الإعلان مطلوب');
-  }
-  if (!body || typeof body !== 'string' || !body.trim()) {
-    throw BadRequest('نص الإعلان مطلوب');
-  }
+  const { title, summary, body, category, isActive, publishedAt, expiresAt } = validateCreate(req.body);
   const item = await prisma.announcement.create({
     data: {
-      title:       title.trim(),
-      summary:     summary?.trim() ?? null,
-      body:        body.trim(),
-      category:    category?.trim() ?? null,
+      title,
+      summary:     summary ?? null,
+      body,
+      category:    category ?? null,
       isActive:    isActive !== false,
       publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
       expiresAt:   expiresAt ? new Date(expiresAt) : null,
@@ -102,18 +97,13 @@ router.patch('/announcements/:id', authorize(...ROLES), asyncHandler(async (req,
   });
   if (!existing) throw NotFound('الإعلان غير موجود');
 
-  const allowed = ['title', 'summary', 'body', 'category', 'isActive', 'publishedAt', 'expiresAt'];
-  const data = {};
-  for (const key of allowed) {
-    if (key in req.body) {
-      if (key === 'publishedAt' || key === 'expiresAt') {
-        data[key] = req.body[key] ? new Date(req.body[key]) : null;
-      } else {
-        data[key] = req.body[key];
-      }
-    }
-  }
-  if (Object.keys(data).length === 0) throw BadRequest('لا توجد حقول للتحديث');
+  const parsed = validateUpdate(req.body);
+  if (Object.keys(parsed).length === 0) throw BadRequest('لا توجد حقول للتحديث');
+
+  // تحويل التواريخ من string إلى Date
+  const data = { ...parsed };
+  if ('publishedAt' in data) data.publishedAt = data.publishedAt ? new Date(data.publishedAt) : null;
+  if ('expiresAt'   in data) data.expiresAt   = data.expiresAt   ? new Date(data.expiresAt)   : null;
 
   const item = await prisma.announcement.update({
     where: { id: req.params.id },

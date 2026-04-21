@@ -11,7 +11,7 @@ const router = Router();
 router.post('/', requireAction('suppliers', 'update'), asyncHandler(async (req, res) => {
   const { supplierId, daysValid = 30 } = req.body;
 
-  const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
+  const supplier = await prisma.supplier.findUnique({ where: { id: supplierId, deletedAt: null } });
   if (!supplier) throw NotFound('المورد غير موجود');
 
   const expiresAt = new Date();
@@ -38,7 +38,7 @@ router.get('/', requireAction('suppliers', 'read'), asyncHandler(async (req, res
   if (req.query.supplierId) where.supplierId = req.query.supplierId;
 
   const tokens = await prisma.evalToken.findMany({
-    where,
+    where: { ...where, deletedAt: null },
     orderBy: { createdAt: 'desc' },
     include: { supplier: { select: { name: true, code: true } } },
   });
