@@ -2,22 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies for Prisma, Puppeteer, and native module builds (bcrypt)
+# Install dependencies for Prisma and native module builds (bcrypt)
 RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
     ca-certificates \
-    ttf-freefont \
     openssl \
     wget \
     python3 \
     make \
     g++
-
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Build context is repo root (see docker-compose.yml).
 # Copy package files + prisma schema BEFORE npm install so postinstall (prisma generate) works.
