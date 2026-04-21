@@ -355,8 +355,8 @@ window.QMS_MODULES_EVALUATION = {
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'type', label: 'النوع' },
       { key: 'title', label: 'العنوان' }, { key: 'sourceType', label: 'المصدر' },
-      { key: 'sourceCode', label: 'رمز المصدر' }, { key: 'status', label: 'الحالة' },
-      { key: 'dueDate', label: 'الاستحقاق' },
+      { key: 'sourceCode', label: 'رمز المصدر' }, { key: 'status', label: 'الحالة', type: 'status' },
+      { key: 'dueDate', label: 'الاستحقاق', type: 'date' },
     ],
     fields: [
       { key: 'type', label: 'نوع الإجراء', required: true, type: 'select', options: [{ v: 'CORRECTIVE', l: 'تصحيحي' }, { v: 'PREVENTIVE', l: 'وقائي' }] },
@@ -368,7 +368,7 @@ window.QMS_MODULES_EVALUATION = {
       { key: 'description', label: 'الوصف', type: 'textarea' },
       { key: 'rootCauseAnalysis', label: 'تحليل جذر السبب', type: 'textarea' },
       { key: 'plannedAction', label: 'الإجراء المخطط', type: 'textarea' },
-      { key: 'ownerId', label: 'المسؤول', type: 'user' },
+      { key: 'ownerId', label: 'المسؤول', type: 'relation', rel: 'users' },
       { key: 'dueDate', label: 'تاريخ الاستحقاق', type: 'date' },
     ],
   },

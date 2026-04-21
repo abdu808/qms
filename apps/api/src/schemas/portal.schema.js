@@ -1,13 +1,19 @@
 import { z } from 'zod';
 
+// يقبل datetime-local (YYYY-MM-DDTHH:mm) أو ISO كامل أو null أو '' (تحويل إلى undefined)
+const flexibleDate = z.preprocess(
+  (v) => (v === null || v === '' || v === undefined) ? undefined : v,
+  z.coerce.date().optional(),
+);
+
 export const announcementCreateSchema = z.object({
   title:       z.string().min(3).max(200),
   summary:     z.string().max(500).optional(),
   body:        z.string().min(10),
   category:    z.enum(['خبر', 'إعلان', 'تحديث', 'إنجاز']).optional(),
   isActive:    z.boolean().default(true),
-  publishedAt: z.string().datetime().optional(),
-  expiresAt:   z.string().datetime().optional().nullable(),
+  publishedAt: flexibleDate,
+  expiresAt:   flexibleDate,
 });
 
 export const announcementUpdateSchema = announcementCreateSchema.partial();

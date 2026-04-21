@@ -20,16 +20,19 @@ const MGMT_REVIEW_MAX_MONTHS = 12;
 
 /** ينشئ إشعاراً فقط إذا لم يكن له مفتاح فريد مطابق (idempotent).
  *  نستخدم createMany({ skipDuplicates }) لتفادي ضرب القاعدة بخطأ unique
- *  على كل استدعاء متكرر — أنظف من try/catch للحالات المتوقعة. */
+ *  على كل استدعاء متكرر — أنظف من try/catch للحالات المتوقعة.
+ *  تُعيد true إذا أُدرج إشعار جديد فعلاً (وليس مكرَّراً) — تُستخدم لبوابة الـ webhook. */
 async function notifyOnce({ userId, type, title, message, link, entityType, entityId, eventKey }) {
-  if (!userId || !eventKey) return;
+  if (!userId || !eventKey) return false;
   try {
-    await prisma.notification.createMany({
+    const r = await prisma.notification.createMany({
       data: [{ userId, type, title, message, link, entityType, entityId, eventKey }],
       skipDuplicates: true,
     });
+    return (r?.count || 0) > 0;
   } catch (e) {
     console.warn('[scheduler] notify failed:', e.message);
+    return false;
   }
 }
 
@@ -87,8 +90,9 @@ async function checkSlaBreaches() {
       : `${icon} شكوى ستنتهي قريباً: ${c.code}`;
     const msg = `${c.subject} — الشدّة: ${c.severity || 'متوسطة'} — عمرها ${c.sla.ageDays} يوماً.`;
     const recipients = new Set([c.assigneeId, ...(isBreach ? qmIds : [])].filter(Boolean));
+    let firedFresh = false;
     for (const uid of recipients) {
-      await notifyOnce({
+      const fresh = await notifyOnce({
         userId: uid,
         type: isBreach ? 'COMPLAINT_SLA_BREACH' : 'COMPLAINT_SLA_DUE_SOON',
         title, message: msg,
@@ -96,9 +100,11 @@ async function checkSlaBreaches() {
         entityType: 'Complaint', entityId: c.id,
         eventKey: dayKey(isBreach ? 'CMP_BREACH' : 'CMP_DUE_SOON', c.id, uid),
       });
+      if (fresh) firedFresh = true;
     }
-    if (isBreach) {
-      emitWebhook('COMPLAINT_SLA_BREACH', { id: c.id, code: c.code, ageDays: c.sla.ageDays, severity: c.severity || 'متوسطة' });
+    // أرسل webhook مرة واحدة يومياً فقط — عند أول انتهاك فعلي (state transition)
+    if (isBreach && firedFresh) {
+      emitWebhook('COMPLAINT_SLA_BREACH', { id: c.id, code: c.code, subject: c.subject, ageDays: c.sla.ageDays, severity: c.severity || 'متوسطة' });
     }
   }
 
@@ -112,8 +118,9 @@ async function checkSlaBreaches() {
       : `${icon} عدم مطابقة ستنتهي قريباً: ${n.code}`;
     const msg = `${n.title} — الشدّة: ${n.severity || 'متوسطة'} — عمرها ${n.sla.ageDays} يوماً.`;
     const recipients = new Set([n.assigneeId, ...(isBreach ? qmIds : [])].filter(Boolean));
+    let firedFresh = false;
     for (const uid of recipients) {
-      await notifyOnce({
+      const fresh = await notifyOnce({
         userId: uid,
         type: isBreach ? 'NCR_SLA_BREACH' : 'NCR_SLA_DUE_SOON',
         title, message: msg,
@@ -121,8 +128,10 @@ async function checkSlaBreaches() {
         entityType: 'NCR', entityId: n.id,
         eventKey: dayKey(isBreach ? 'NCR_BREACH' : 'NCR_DUE_SOON', n.id, uid),
       });
+      if (fresh) firedFresh = true;
     }
-    if (isBreach) {
+    // أرسل webhook مرة واحدة يومياً فقط — عند أول انتهاك فعلي
+    if (isBreach && firedFresh) {
       emitWebhook('NCR_SLA_BREACH', { id: n.id, code: n.code, title: n.title, ageDays: n.sla.ageDays, severity: n.severity || 'متوسطة' });
     }
   }

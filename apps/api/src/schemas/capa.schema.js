@@ -1,4 +1,11 @@
 import { z } from 'zod';
+
+// يقبل YYYY-MM-DD من date inputs أو ISO كامل أو null أو ''
+const flexibleDate = z.preprocess(
+  (v) => (v === null || v === '' || v === undefined) ? undefined : v,
+  z.coerce.date().optional(),
+);
+
 export const capaCreateSchema = z.object({
   type:              z.enum(['CORRECTIVE','PREVENTIVE']).default('CORRECTIVE'),
   title:             z.string().min(3).max(200),
@@ -12,7 +19,7 @@ export const capaCreateSchema = z.object({
   rootCauseAnalysis: z.string().max(2000).optional(),
   plannedAction:     z.string().max(2000).optional(),
   ownerId:           z.string().optional(),
-  dueDate:           z.string().datetime().optional().nullable(),
+  dueDate:           flexibleDate,
 });
 export const capaUpdateSchema = capaCreateSchema.partial().extend({
   implementedAction: z.string().max(2000).optional(),

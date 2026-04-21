@@ -337,6 +337,7 @@ function app() {
       { id: 'competence',             label: 'مصفوفة الكفاءات',      icon: '🧑\u200d🎓' },
       { id: 'performanceReviews',     label: 'تقييم الأداء',          icon: '⭐' },
       { id: 'improvementProjects',    label: 'التحسين المستمر (PDCA)', icon: '🔄' },
+      { id: 'capa',                   label: 'الإجراءات التصحيحية (CAPA)', icon: '🛠️' },
       { id: 'auditChecklists',        label: 'قوالب التدقيق',          icon: '📋' },
       { id: 'communication',          label: 'خطة الاتصال',          icon: '📣' },
       { id: 'complaints',   label: 'الشكاوى',             icon: '💬' },
@@ -367,7 +368,7 @@ function app() {
       { id: 'support',     title: 'الدعم',              icon: '🧑\u200d🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard'] },
-      { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','improvementProjects','slaBoard'] },
+      { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','capa','improvementProjects','slaBoard'] },
       { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
     ],
 
