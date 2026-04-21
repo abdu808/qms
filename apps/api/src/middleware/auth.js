@@ -1,3 +1,16 @@
+/**
+ * authorize(...roles) — يتحقق من الدور فقط (role-based)
+ *   مثال: authorize('SUPER_ADMIN', 'QUALITY_MANAGER')
+ *   متى تستخدمه: عندما يكون الوصول مرتبطاً بالدور مباشرة
+ *
+ * requireAction(resource, action) — يتحقق من صلاحية محددة (permission-based)
+ *   مثال: requireAction('documents', 'approve')
+ *   متى تستخدمه: عندما يكون الوصول مرتبطاً بعملية على resource محدد
+ *   يقرأ من: lib/permissions-matrix.js (عبر lib/permissions.js)
+ *
+ * القاعدة: استخدم requireAction للعمليات الحساسة (approve/delete/export)
+ *           استخدم authorize للصفحات والـ endpoints العامة
+ */
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
 import { Unauthorized, Forbidden } from '../utils/errors.js';

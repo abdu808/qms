@@ -284,8 +284,9 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
         enteredBy: { select: { name: true } },
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
+      take: 500,
     });
-    res.json({ ok: true, items: entries, total: entries.length });
+    res.json({ ok: true, items: entries, total: entries.length, truncated: entries.length >= 500 });
   } catch (e) { next(e); }
 });
 

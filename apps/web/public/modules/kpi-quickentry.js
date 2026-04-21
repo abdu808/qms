@@ -14,7 +14,7 @@
     // ─── State ─────────────────────────────────────────────────
     myDue: { pending: [], entered: [], summary: null, month: null, year: null, loaded: false },
     _kpiDraft: {}, // { [id]: { actualValue, spent, busy, lastImpact } }
-    _undoTicks: 0, // يُحرّك تقدير undoRemainingSec تفاعلياً
+    _undoTimers: new Map(), // { kpiId → timerId } — timer منفصل لكل entry
 
     // ─── Loaders ───────────────────────────────────────────────
     async loadMyDueKpis() {
@@ -102,16 +102,22 @@
     _armUndoCountdown(itemId) {
       const d = this._kpiDraft[itemId];
       if (!d?.lastImpact?.undoExpiresAt) return;
-      const tick = () => {
-        this._undoTicks++;
-        if (!this._kpiDraft[itemId]?.lastImpact) return;
-        if (Date.now() >= (this._kpiDraft[itemId].lastImpact.undoExpiresAt || 0)) return;
-        setTimeout(tick, 500);
-      };
-      setTimeout(tick, 500);
+      // إلغاء أي timer سابق لنفس الـ entry
+      const prev = this._undoTimers.get(itemId);
+      if (prev != null) clearTimeout(prev);
+      const expiresAt = d.lastImpact.undoExpiresAt;
+      const delay = Math.max(0, expiresAt - Date.now());
+      const timerId = setTimeout(() => {
+        this._undoTimers.delete(itemId);
+        // تفعيل Alpine reactivity عبر إعادة تعيين _kpiDraft
+        const draft = this._kpiDraft[itemId];
+        if (draft?.lastImpact && !draft.lastImpact.undoneAt) {
+          this._kpiDraft = { ...this._kpiDraft };
+        }
+      }, delay);
+      this._undoTimers.set(itemId, timerId);
     },
     undoRemainingSec(item) {
-      const _ = this._undoTicks; // اعتماد تفاعلي
       const imp = this._kpiDraft[item.id]?.lastImpact;
       if (!imp?.undoExpiresAt || imp.undoneAt) return 0;
       return Math.max(0, Math.ceil((imp.undoExpiresAt - Date.now()) / 1000));

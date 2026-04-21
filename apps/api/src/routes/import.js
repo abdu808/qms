@@ -8,7 +8,7 @@
 
 import { Router } from 'express';
 import multer     from 'multer';
-import { BadRequest } from '../utils/errors.js';
+import { BadRequest, Forbidden } from '../utils/errors.js';
 import { buildTemplate, parseFile } from './import/_helpers.js';
 import { ENTITIES as PEOPLE_ENTITIES,   IMPORTERS as PEOPLE_IMPORTERS }     from './import/importPeople.js';
 import { ENTITIES as OPS_ENTITIES,      IMPORTERS as OPS_IMPORTERS }         from './import/importOperations.js';
@@ -40,7 +40,7 @@ const upload = multer({
 // ─── صلاحية الاستيراد ────────────────────────────────────────────────────────
 function requireImportRole(req, res, next) {
   if (!['SUPER_ADMIN', 'QUALITY_MANAGER'].includes(req.user?.role)) {
-    return res.status(403).json({ ok: false, message: 'يتطلب صلاحية مدير الجودة أو أعلى' });
+    return next(Forbidden('يتطلب صلاحية مدير الجودة أو أعلى'));
   }
   next();
 }
@@ -112,7 +112,7 @@ router.post('/confirm/:entity', requireImportRole, upload.single('file'), async 
     const { records, errors: parseErrors } = await parseFile(entity, req.file.buffer, ENTITIES);
 
     if (parseErrors.length > 0 && records.length === 0) {
-      return res.status(422).json({ ok: false, message: 'الملف يحتوي على أخطاء — لم يُستورد شيء', errors: parseErrors });
+      throw BadRequest('الملف يحتوي على أخطاء — لم يُستورد شيء');
     }
 
     const result = await importer(records, req.user.id);

@@ -169,31 +169,6 @@
       });
     },
 
-    kpiSeverityColor(s) {
-      return s === 'CRITICAL' ? 'bg-red-100 text-red-700 border-red-300'
-           : s === 'HIGH'     ? 'bg-orange-100 text-orange-700 border-orange-300'
-           : s === 'WARNING'  ? 'bg-yellow-100 text-yellow-700 border-yellow-300'
-                              : 'bg-slate-100 text-slate-600 border-slate-300';
-    },
-    kpiSeverityLabel(s) {
-      return { CRITICAL: 'حرج', HIGH: 'مرتفع', WARNING: 'تنبيه', INFO: 'معلومة' }[s] || s;
-    },
-    kpiRagColor(r) {
-      return r === 'GREEN'  ? 'bg-emerald-500'
-           : r === 'YELLOW' ? 'bg-amber-500'
-           : r === 'RED'    ? 'bg-red-500'
-                            : 'bg-slate-300';
-    },
-    // Row-level visual — حدّ أيمن ملوّن على عمود العنوان
-    kpiRowBorder(r) {
-      return r === 'GREEN'  ? 'border-r-4 border-r-emerald-500'
-           : r === 'YELLOW' ? 'border-r-4 border-r-amber-500'
-           : r === 'RED'    ? 'border-r-4 border-r-red-500'
-                            : 'border-r-4 border-r-slate-300';
-    },
-    kpiRowBg(r) {
-      return r === 'RED' ? 'bg-red-50/40' : '';
-    },
     // هل قراءة الشهر الحالي مفقودة؟ (GRAY في الشهر ≤ الحالي من السنة الحالية)
     kpiIsLate(row) {
       if (!row || !Array.isArray(row.months)) return false;
@@ -208,20 +183,6 @@
       const cell = row.months.find(c => c.month === m);
       return !!cell && cell.actualValue == null;
     },
-    kpiRagLabel(r) {
-      return { GREEN: 'متحقق', YELLOW: 'قيد التحقق', RED: 'متأخر', GRAY: 'لا بيانات' }[r] || r;
-    },
-    kpiMonthName(m) {
-      return ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][m-1] || '';
-    },
-    kpiFmt(v) {
-      if (v == null || isNaN(v)) return '—';
-      const n = Number(v);
-      if (n >= 1000000) return (n/1000000).toFixed(1) + 'م';
-      if (n >= 1000)    return (n/1000).toFixed(1) + 'ك';
-      return Math.abs(n) < 1 ? n.toFixed(2) : Math.round(n).toLocaleString('ar-SA');
-    },
-
     async kpiInit() {
       await Promise.all([this.kpiLoadDashboard(), this.kpiLoadEntryOptions()]);
     },
