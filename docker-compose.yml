@@ -24,8 +24,8 @@ services:
 
   qms-api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/api/Dockerfile
     container_name: qms-api
     restart: unless-stopped
     depends_on:

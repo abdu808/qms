@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 
 import { config } from './config.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
@@ -268,19 +269,24 @@ app.use('/api/reports',                 reportsRoutes);
 app.use('/api/operational-reports',     operationalReportsRoutes);
 app.use('/api/kpi',                     kpiRoutes);
 
-// Serve frontend statically in development (for local testing)
-if (config.env !== 'production') {
+// Serve frontend statically in all environments.
+// Coolify قد يُوجّه الترافيك مباشرة إلى الـ API بدل nginx — لذا نخدم الـ SPA هنا أيضاً.
+{
   const __dir = dirname(fileURLToPath(import.meta.url));
   const webPath = join(__dir, '..', '..', 'web', 'public');
-  app.use(express.static(webPath, {
-    setHeaders: (res, path) => {
-      if (/\.(html|js|css)$/.test(path)) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      }
-    },
-  }));
-  app.get(['/', '/qms', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
-  console.log(`[qms-api] serving frontend from ${webPath}`);
+  if (existsSync(webPath)) {
+    app.use(express.static(webPath, {
+      setHeaders: (res, path) => {
+        if (/\.(html|js|css)$/.test(path)) {
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        }
+      },
+    }));
+    app.get(['/', '/qms', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
+    console.log(`[qms-api] serving frontend from ${webPath}`);
+  } else {
+    console.log(`[qms-api] frontend path not found (${webPath}) — skipping static serving`);
+  }
 }
 
 app.use(notFound);

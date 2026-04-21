@@ -19,19 +19,24 @@ RUN apk add --no-cache \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Copy package files + prisma schema BEFORE npm install so postinstall (prisma generate) works
-COPY package*.json ./
-COPY prisma ./prisma/
+# Build context is repo root (see docker-compose.yml).
+# Copy package files + prisma schema BEFORE npm install so postinstall (prisma generate) works.
+COPY apps/api/package*.json ./
+COPY apps/api/prisma ./prisma/
 
 # Install production deps. postinstall script auto-runs `prisma generate` using the local
 # prisma CLI (now in dependencies). No network download needed at build time.
 RUN npm install --omit=dev
 
-# Copy source
-COPY . .
+# Copy API source
+COPY apps/api/ ./
+
+# Copy web frontend so the API can serve the SPA when Coolify routes `/` directly to it.
+# Expected at ../web/public relative to /app/src (server.js uses join(__dir, '..', '..', 'web', 'public'))
+COPY apps/web/public /web/public
 
 # Create uploads directory and make startup script executable
-RUN mkdir -p /app/uploads && chmod +x /app/startup.sh && chown -R node:node /app
+RUN mkdir -p /app/uploads && chmod +x /app/startup.sh && chown -R node:node /app /web
 
 USER node
 
