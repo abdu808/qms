@@ -38,7 +38,7 @@ const detectors = {
     const items = list.filter(o => o.kpiEntries.length === 0).map(o => ({
       id: o.id, code: o.code, title: o.title,
       reason: `لا توجد أي قراءة KPI لعام ${year}`,
-      actionUrl: `/#/objectives?id=${o.id}`,
+      actionUrl: `/qms#/objectives?id=${o.id}`,
     }));
     return {
       key: 'objectivesWithoutReadings',
@@ -61,7 +61,7 @@ const detectors = {
       title: 'أهداف بلا مالك معيَّن',
       severity: rows.length ? 'HIGH' : 'INFO',
       count: rows.length,
-      items: rows.map(r => ({ ...r, reason: 'ownerId = null', actionUrl: `/#/objectives?id=${r.id}` })),
+      items: rows.map(r => ({ ...r, reason: 'ownerId = null', actionUrl: `/qms#/objectives?id=${r.id}` })),
       hint: 'كل هدف يجب أن يكون له مالك مسؤول عن قراءاته (ISO 6.2.2).',
     };
   },
@@ -87,7 +87,7 @@ const detectors = {
         items.push({
           id: o.id, code: o.code, title: o.title,
           reason: `آخر قراءة قبل ${Math.round((Date.now() - new Date(last.enteredAt)) / 86400000)} يوم`,
-          actionUrl: `/#/objectives?id=${o.id}`,
+          actionUrl: `/qms#/objectives?id=${o.id}`,
         });
       }
     }
@@ -97,7 +97,7 @@ const detectors = {
         items.push({
           id: a.id, code: a.code, title: a.title,
           reason: `آخر قراءة قبل ${Math.round((Date.now() - new Date(last.enteredAt)) / 86400000)} يوم`,
-          actionUrl: `/#/operationalActivities?id=${a.id}`,
+          actionUrl: `/qms#/operationalActivities?id=${a.id}`,
         });
       }
     }
@@ -125,7 +125,7 @@ const detectors = {
       items: rows.map(r => ({
         id: r.id, code: r.code, title: r.subject,
         reason: `بلا assignee منذ ${new Date(r.receivedAt).toLocaleDateString('ar-SA')}`,
-        actionUrl: `/#/complaints?id=${r.id}`,
+        actionUrl: `/qms#/complaints?id=${r.id}`,
       })),
       hint: 'عيِّن مسؤولاً لكل شكوى مفتوحة حتى يمكن متابعتها.',
     };
@@ -148,7 +148,7 @@ const detectors = {
       items: rows.map(r => ({
         id: r.id, code: r.code, title: r.title,
         reason: `الحالة: ${r.status} — correctiveAction فارغ`,
-        actionUrl: `/#/ncr?id=${r.id}`,
+        actionUrl: `/qms#/ncr?id=${r.id}`,
       })),
       hint: 'ISO 10.2: كل NCR بعد تحديد السبب يجب أن يكون له إجراء تصحيحي موثّق.',
     };
@@ -169,7 +169,7 @@ const detectors = {
       items: rows.map(r => ({
         id: r.id, code: r.code, title: r.title,
         reason: r.effective === null ? 'لم يُقيَّم بعد' : 'مُقيَّم كغير فعال',
-        actionUrl: `/#/ncr?id=${r.id}`,
+        actionUrl: `/qms#/ncr?id=${r.id}`,
       })),
       hint: 'ISO 10.2: بعد الإغلاق، يجب التحقق من فعالية الإجراء (خلال 30-90 يوم).',
     };
@@ -186,7 +186,7 @@ const detectors = {
       .map(d => ({
         id: d.id, code: d.code, title: d.title,
         reason: `${d._count.acks || 0} إقرارات فقط`,
-        actionUrl: `/#/documents?id=${d.id}`,
+        actionUrl: `/qms#/documents?id=${d.id}`,
       }));
     return {
       key: 'publishedDocsLowAcks',
@@ -212,7 +212,7 @@ const detectors = {
       items: rows.map(r => ({
         id: r.id, code: r.code, title: r.title,
         reason: `${r.responses || 0} رد فقط${r.period ? ' — فترة ' + r.period : ''}`,
-        actionUrl: `/#/surveys?id=${r.id}`,
+        actionUrl: `/qms#/surveys?id=${r.id}`,
       })),
       hint: 'زيادة عدد الردود يحسّن موثوقية النتائج الإحصائية.',
     };
@@ -236,7 +236,7 @@ const detectors = {
       items: rows.map(r => ({
         id: r.id, code: r.code, title: r.title,
         reason: `المستوى: ${r.level} — خطة المعالجة فارغة`,
-        actionUrl: `/#/risks?id=${r.id}`,
+        actionUrl: `/qms#/risks?id=${r.id}`,
       })),
       hint: 'ISO 6.1: المخاطر الحرجة يجب أن يكون لها خطة معالجة موثّقة.',
     };
@@ -252,7 +252,7 @@ const detectors = {
     const items = sups.filter(s => s.evaluations.length === 0).map(s => ({
       id: s.id, code: s.code, title: s.name,
       reason: `لا يوجد تقييم في ${year}`,
-      actionUrl: `/#/suppliers?id=${s.id}`,
+      actionUrl: `/qms#/suppliers?id=${s.id}`,
     }));
     return {
       key: 'approvedSuppliersWithoutEval',
@@ -276,7 +276,7 @@ const detectors = {
       items: breached.map(c => ({
         id: c.id, code: c.code, title: c.subject,
         reason: `تجاوز ${c.sla.stages.resolve.daysToDue < 0 ? 'مهلة الحل' : 'مهلة الإسناد'} — عمر: ${c.sla.ageDays}ي`,
-        actionUrl: `/#/complaints?id=${c.id}`,
+        actionUrl: `/qms#/complaints?id=${c.id}`,
       })),
       hint: 'راجع السياسة: ISO 9.1.2 — تعامل فوري مع الشكاوى المتأخرة.',
     };
@@ -302,7 +302,7 @@ const detectors = {
         reason: b.assessedAt
           ? `آخر تقييم: ${new Date(b.assessedAt).toLocaleDateString('ar-SA')} — مستحق منذ ${reviewDueDate(b)?.toLocaleDateString('ar-SA')}`
           : 'لم يُقيَّم أصلاً',
-        actionUrl: `/#/beneficiaries?id=${b.id}`,
+        actionUrl: `/qms#/beneficiaries?id=${b.id}`,
       })),
       hint: 'ISO 9.1.2 / P-08 §3: تحديث دوري لتقييم احتياجات المستفيد لضمان العدالة في التوزيع.',
     };
@@ -327,7 +327,7 @@ const detectors = {
       items: rows.map(d => ({
         id: d.id, code: d.code, title: d.title,
         reason: `تاريخ المراجعة المستحقة: ${new Date(d.reviewDate).toLocaleDateString('ar-SA')} — متأخر ${Math.round((Date.now() - new Date(d.reviewDate))/86400000)} يوم`,
-        actionUrl: `/#/documents?id=${d.id}`,
+        actionUrl: `/qms#/documents?id=${d.id}`,
       })),
       hint: 'ISO 7.5.2: الوثائق تخضع لمراجعة دورية للتأكد من ملاءمتها.',
     };
@@ -350,7 +350,7 @@ const detectors = {
         reason: u.lastLoginAt
           ? `آخر دخول: ${new Date(u.lastLoginAt).toLocaleDateString('ar-SA')}`
           : 'لم يسجّل دخولاً مطلقاً',
-        actionUrl: `/#/users?id=${u.id}`,
+        actionUrl: `/qms#/users?id=${u.id}`,
       })),
       hint: 'راجع قائمة المستخدمين — قد تحتاج تعطيل الحسابات غير النشطة.',
     };
@@ -368,7 +368,7 @@ const detectors = {
       items: breached.map(n => ({
         id: n.id, code: n.code, title: n.title,
         reason: `تجاوز SLA — الحالة: ${n.status} — عمر: ${n.sla.ageDays}ي`,
-        actionUrl: `/#/ncr?id=${n.id}`,
+        actionUrl: `/qms#/ncr?id=${n.id}`,
       })),
       hint: 'راجع ISO 10.2: الالتزام بمواعيد تحديد السبب والإجراء والإغلاق.',
     };

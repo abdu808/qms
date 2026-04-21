@@ -1738,7 +1738,8 @@
                                 <span class="font-medium text-gray-800 mr-1" x-text="it.title || ''"></span>
                                 <div class="text-xs text-gray-600" x-text="it.reason"></div>
                               </div>
-                              <a :href="it.actionUrl" class="text-xs text-blue-600 hover:underline whitespace-nowrap">فتح ←</a>
+                              <button @click="goToResource(it.actionUrl.replace(/.*\/#\//, '').split('?')[0])"
+                                      class="text-xs text-blue-600 hover:underline whitespace-nowrap">فتح ←</button>
                             </li>
                           </template>
                         </ul>
