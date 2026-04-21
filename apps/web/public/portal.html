@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>البوابة العامة</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/portal.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+    .prose-ar { line-height: 1.9; white-space: pre-wrap; }
+    .card-hover { transition: box-shadow 0.2s, transform 0.2s; }
+    .card-hover:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.10); transform: translateY(-2px); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800" x-data="portal()" x-init="init()" x-cloak>
+
+  <!-- ══════════════════════════════════════════════════════ HEADER -->
+  <header class="bg-gradient-to-l from-blue-900 to-blue-700 text-white shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 py-8 flex flex-col items-center text-center gap-2">
+      <h1 class="text-3xl font-bold tracking-wide" x-text="settings.orgName || 'البوابة العامة'"></h1>
+      <p class="text-blue-100 text-base max-w-xl" x-show="settings.orgDescription" x-text="settings.orgDescription"></p>
+      <a href="/qms"
+         class="mt-4 inline-block bg-white text-blue-800 font-semibold px-5 py-2 rounded-full text-sm hover:bg-blue-50 transition">
+        دخول النظام الداخلي ←
+      </a>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════ LOADING -->
+  <div x-show="loading" class="flex justify-center items-center py-32 text-gray-400">
+    <svg class="animate-spin h-10 w-10 ml-3" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    </svg>
+    <span>جارٍ التحميل…</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ ERROR -->
+  <div x-show="error && !loading" class="max-w-2xl mx-auto mt-12 bg-red-50 border border-red-200 rounded-xl p-6 text-center text-red-700">
+    <p class="text-lg font-medium" x-text="error"></p>
+    <button @click="init()" class="mt-4 text-sm underline text-red-600">إعادة المحاولة</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ CONTENT -->
+  <main x-show="!loading && !error" class="max-w-5xl mx-auto px-4 py-10 space-y-12">
+
+    <!-- ── سياسة الجودة ───────────────────────────────────────── -->
+    <section x-show="settings.showPolicy && policy">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-2xl">📋</span>
+        <h2 class="text-xl font-bold text-blue-900">سياسة الجودة</h2>
+        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" x-text="'الإصدار ' + (policy?.version || '')"></span>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-3" x-text="policy?.title"></h3>
+        <p class="prose-ar text-gray-700 text-sm" x-text="policy?.content"></p>
+        <template x-if="policy?.commitments">
+          <div class="mt-4 pt-4 border-t border-gray-100">
+            <p class="text-xs font-semibold text-gray-500 mb-2">التعهدات</p>
+            <p class="prose-ar text-gray-700 text-sm" x-text="policy?.commitments"></p>
+          </div>
+        </template>
+        <div class="mt-4 flex gap-4 text-xs text-gray-400" x-show="policy?.approvedBy || policy?.approvedAt">
+          <span x-show="policy?.approvedBy">المعتمد: <span class="font-medium text-gray-600" x-text="policy?.approvedBy"></span></span>
+          <span x-show="policy?.approvedAt">التاريخ: <span class="font-medium text-gray-600" x-text="fmt(policy?.approvedAt)"></span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── الإعلانات ──────────────────────────────────────────── -->
+    <section x-show="settings.showAnnouncements && announcements.length > 0">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-2xl">📢</span>
+        <h2 class="text-xl font-bold text-blue-900">الإعلانات</h2>
+        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full" x-text="announcements.length + ' إعلان'"></span>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <template x-for="a in announcements" :key="a.id">
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 card-hover">
+            <div class="flex justify-between items-start mb-2 gap-2">
+              <h3 class="font-semibold text-gray-900 text-sm leading-snug" x-text="a.title"></h3>
+              <span x-show="a.category"
+                    class="shrink-0 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full"
+                    x-text="a.category"></span>
+            </div>
+            <p x-show="a.summary" class="text-xs text-gray-500 mb-2 line-clamp-2" x-text="a.summary"></p>
+            <p class="text-sm text-gray-700 prose-ar line-clamp-4" x-text="a.body"></p>
+            <p class="mt-3 text-xs text-gray-400" x-text="fmt(a.publishedAt)"></p>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- ── الوثائق المنشورة ───────────────────────────────────── -->
+    <section x-show="settings.showDocuments && documents.length > 0">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-2xl">📄</span>
+        <h2 class="text-xl font-bold text-blue-900">الوثائق المنشورة</h2>
+        <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full" x-text="documents.length + ' وثيقة'"></span>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-500 text-xs">
+            <tr>
+              <th class="px-4 py-3 text-right font-medium">الرمز</th>
+              <th class="px-4 py-3 text-right font-medium">العنوان</th>
+              <th class="px-4 py-3 text-right font-medium hidden sm:table-cell">التصنيف</th>
+              <th class="px-4 py-3 text-right font-medium hidden sm:table-cell">الإصدار</th>
+              <th class="px-4 py-3 text-right font-medium hidden md:table-cell">تاريخ النفاذ</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            <template x-for="d in documents" :key="d.id">
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="d.code"></td>
+                <td class="px-4 py-3 font-medium text-gray-800" x-text="d.title"></td>
+                <td class="px-4 py-3 text-gray-500 hidden sm:table-cell" x-text="d.category || '—'"></td>
+                <td class="px-4 py-3 text-gray-500 hidden sm:table-cell" x-text="d.currentVersion || '—'"></td>
+                <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell" x-text="fmt(d.effectiveDate)"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── الاستبيانات ────────────────────────────────────────── -->
+    <section x-show="settings.showSurveys && surveys.length > 0">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-2xl">📊</span>
+        <h2 class="text-xl font-bold text-blue-900">الاستبيانات المتاحة</h2>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <template x-for="s in surveys" :key="s.id">
+          <a :href="'/survey/' + s.id"
+             class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 card-hover flex flex-col gap-2 hover:border-blue-200 hover:text-blue-700 transition">
+            <h3 class="font-semibold text-sm" x-text="s.title"></h3>
+            <div class="text-xs text-gray-400 flex gap-3">
+              <span x-show="s.target" x-text="'الفئة: ' + s.target"></span>
+              <span x-show="s.period" x-text="s.period"></span>
+            </div>
+            <span class="text-xs text-blue-500 mt-auto">المشاركة ←</span>
+          </a>
+        </template>
+      </div>
+    </section>
+
+    <!-- ── رسالة فارغة إن لم يكن هناك محتوى ─────────────────── -->
+    <div x-show="!settings.showPolicy && !settings.showAnnouncements && !settings.showDocuments && !settings.showSurveys"
+         class="text-center py-20 text-gray-400">
+      <p class="text-4xl mb-3">🏢</p>
+      <p class="text-lg font-medium">مرحباً بكم</p>
+      <p class="text-sm">لا يوجد محتوى منشور حالياً</p>
+    </div>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════ FOOTER -->
+  <footer class="mt-16 bg-blue-900 text-blue-200 text-center text-xs py-5 px-4">
+    <p x-show="settings.footerText" x-text="settings.footerText"></p>
+    <p x-show="!settings.footerText" x-text="settings.orgName || ''"></p>
+    <p class="mt-1 text-blue-400">نظام إدارة الجودة — ISO 9001:2015</p>
+  </footer>
+
+</body>
+</html>

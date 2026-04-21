@@ -65,6 +65,8 @@ import importRoutes from './routes/import.js';
 import myWorkRoutes from './routes/myWork.js';
 import schedulerRoutes from './routes/scheduler.js';
 import reportBuilderRoutes from './routes/reportBuilder.js';
+import publicPortalRoutes from './routes/publicPortal.js';
+import portalAdminRoutes from './routes/portalAdmin.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
@@ -217,6 +219,14 @@ app.use('/ack',
   publicUrlEncoded,
   publicAckRoutes,
 );
+// Public portal — no auth, serves portal content (announcements, docs, surveys, policy)
+app.use('/api/public',
+  publicSecurityHeaders,
+  publicReadLimiter,
+  publicBodyLimit,
+  publicUrlEncoded,
+  publicPortalRoutes,
+);
 
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
@@ -260,6 +270,7 @@ app.use('/api/import',                   importRoutes);
 app.use('/api/my-work',                   myWorkRoutes);
 app.use('/api/scheduler',                 schedulerRoutes);
 app.use('/api/report-builder',            reportBuilderRoutes);
+app.use('/api/portal',                   portalAdminRoutes);
 app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
@@ -282,7 +293,12 @@ app.use('/api/kpi',                     kpiRoutes);
         }
       },
     }));
-    app.get(['/', '/qms', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
+    // البوابة العامة على الجذر
+    if (existsSync(join(webPath, 'portal.html'))) {
+      app.get('/', (req, res) => res.sendFile(join(webPath, 'portal.html')));
+    }
+    // النظام الداخلي على /qms
+    app.get(['/qms', '/qms/*', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
     console.log(`[qms-api] serving frontend from ${webPath}`);
   } else {
     console.log(`[qms-api] frontend path not found (${webPath}) — skipping static serving`);
