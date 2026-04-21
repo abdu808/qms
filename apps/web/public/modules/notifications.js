@@ -33,7 +33,7 @@
       this.notifOpen = false;
       // انتقال للرابط الداخلي إن وُجد (مثال: /#/ncr?id=... → nav للصفحة)
       if (n.link) {
-        const m = n.link.match(/^\/#\/([\w-]+)/);
+        const m = n.link.match(/#\/([\w-]+)/);
         if (m) this.goto(m[1]);
       }
     },

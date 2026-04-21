@@ -33,7 +33,7 @@
     goToAlert(a) {
       this.liveAlertsOpen = false;
       if (!a?.actionUrl) return;
-      const m = a.actionUrl.match(/^\/#\/([\w-]+)/);
+      const m = a.actionUrl.match(/#\/([\w-]+)/);
       if (m) this.goto(m[1]);
     },
     alertSeverityClass(sev) {

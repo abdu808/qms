@@ -17,7 +17,7 @@
  *     count:     3,
  *     items:     [ { id, code, title, … } ],
  *     iso:       '9.1.2',
- *     actionUrl: '/#/complaints?filter=overdue',
+ *     actionUrl: '/qms#/complaints?filter=overdue',
  *   }
  */
 import { prisma } from '../db.js';
@@ -64,7 +64,7 @@ async function overdueComplaints() {
     message: `${count} شكوى مفتوحة تجاوزت ${T.OVERDUE_COMPLAINT_DAYS} يوماً دون حسم`,
     count, items,
     iso: '9.1.2',
-    actionUrl: '/#/complaints?filter=overdue',
+    actionUrl: '/qms#/complaints?filter=overdue',
   };
 }
 
@@ -91,7 +91,7 @@ async function overdueNcrs() {
     message: `${count} عدم مطابقة تجاوزت تاريخ المعالجة المقرَّر`,
     count, items,
     iso: '10.2',
-    actionUrl: '/#/ncr?filter=overdue',
+    actionUrl: '/qms#/ncr?filter=overdue',
   };
 }
 
@@ -120,7 +120,7 @@ async function stuckNcrs() {
     message: `${count} سجل مفتوح أكثر من ${T.NCR_STUCK_DAYS} يوماً دون توثيق إجراء تصحيحي`,
     count, items,
     iso: '10.2',
-    actionUrl: '/#/ncr?filter=stuck',
+    actionUrl: '/qms#/ncr?filter=stuck',
   };
 }
 
@@ -146,7 +146,7 @@ async function criticalRisks() {
     message: `${count} خطر حرج يستوجب تدخلاً فورياً`,
     count, items,
     iso: '6.1',
-    actionUrl: '/#/risks?filter=critical',
+    actionUrl: '/qms#/risks?filter=critical',
   };
 }
 
@@ -174,7 +174,7 @@ async function staleRisks() {
     message: `${count} خطر (مرتفع/حرج) لم يُحدَّث منذ ${T.RISK_REVIEW_STALE_DAYS} يوماً`,
     count, items,
     iso: '6.1',
-    actionUrl: '/#/risks?filter=stale',
+    actionUrl: '/qms#/risks?filter=stale',
   };
 }
 
@@ -202,7 +202,7 @@ async function docsDueForReview() {
     message: `${count} وثيقة منشورة تستحق المراجعة خلال ${T.DOC_REVIEW_WARN_DAYS} يوماً`,
     count, items,
     iso: '7.5.3',
-    actionUrl: '/#/documents?filter=dueForReview',
+    actionUrl: '/qms#/documents?filter=dueForReview',
   };
 }
 
@@ -225,7 +225,7 @@ async function pendingSuppliers() {
     message: `${count} مورد يحتاج إلى تقييم واعتماد`,
     count, items,
     iso: '8.4',
-    actionUrl: '/#/suppliers?filter=pending',
+    actionUrl: '/qms#/suppliers?filter=pending',
   };
 }
 
@@ -263,7 +263,7 @@ async function dueManagementReview() {
     count: 1,
     items: lastCompleted ? [lastCompleted] : [],
     iso: '9.3',
-    actionUrl: '/#/managementReview',
+    actionUrl: '/qms#/managementReview',
   };
 }
 
@@ -287,7 +287,7 @@ async function unapprovedSupplierEvals() {
     message: `${count} تقييم مورد بدرجة دون 60 — يحتاج قراراً بالإبقاء/الاستبعاد`,
     count, items,
     iso: '8.4.2',
-    actionUrl: '/#/supplierEvals?filter=low',
+    actionUrl: '/qms#/supplierEvals?filter=low',
   };
 }
 

@@ -300,7 +300,9 @@ app.use('/api/kpi',                     kpiRoutes);
       app.get('/', (req, res) => res.sendFile(join(webPath, 'portal.html')));
     }
     // النظام الداخلي على /qms
-    app.get(['/qms', '/qms/*', '/login', '/app'], (req, res) => res.sendFile(join(webPath, 'index.html')));
+    app.get(['/qms', '/qms/*'], (req, res) => res.sendFile(join(webPath, 'index.html')));
+    // Backward-compat: روابط قديمة /login و /app → redirect دائم → /qms
+    app.get(['/login', '/app'], (req, res) => res.redirect(301, '/qms'));
     console.log(`[qms-api] serving frontend from ${webPath}`);
   } else {
     console.log(`[qms-api] frontend path not found (${webPath}) — skipping static serving`);
