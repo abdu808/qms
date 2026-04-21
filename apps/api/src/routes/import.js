@@ -460,7 +460,6 @@ async function importUsers(records, _userId) {
 async function importSuppliers(records, _userId) {
   let created = 0, updated = 0;
   const errors = [];
-  let counter = await prisma.supplier.count() + 1;
 
   for (const { row, data } of records) {
     try {
@@ -474,11 +473,11 @@ async function importSuppliers(records, _userId) {
         });
         updated++;
       } else {
-        const code = `SUP-${String(counter).padStart(3, '0')}`;
+        // nextCode يستخدم DB sequence آمن من race conditions
+        const code = data.code || await nextCode('supplier', 'SUP');
         await prisma.supplier.create({
           data: { code, name: data.name, type, crNumber: data.crNumber || null, vatNumber: data.vatNumber || null, contactPerson: data.contactPerson || null, phone: data.phone || null, email: data.email || null, city: data.city || null, notes: data.notes || null },
         });
-        counter++;
         created++;
       }
     } catch (e) {
@@ -771,11 +770,10 @@ async function importTraining(records, _userId) {
 async function importCompetence(records, _userId) {
   let created = 0, updated = 0;
   const errors = [];
-  let counter = await prisma.competenceRequirement.count() + 1;
 
   for (const { row, data } of records) {
     try {
-      const code = data.code || `COMP-${String(counter).padStart(3, '0')}`;
+      const code = data.code || await nextCode('competenceRequirement', 'COMP');
       const payload = {
         jobTitle: data.jobTitle, department: data.department || null,
         requiredSkills: data.requiredSkills || null, minEducation: data.minEducation || null,
@@ -789,7 +787,6 @@ async function importCompetence(records, _userId) {
         updated++;
       } else {
         await prisma.competenceRequirement.create({ data: { code, ...payload } });
-        counter++;
         created++;
       }
     } catch (e) {
@@ -802,11 +799,9 @@ async function importCompetence(records, _userId) {
 async function importSwot(records, _userId) {
   let created = 0, updated = 0;
   const errors = [];
-  let counter = await prisma.swotItem.count() + 1;
-
   for (const { row, data } of records) {
     try {
-      const code = data.code || `SWOT-${String(counter).padStart(3, '0')}`;
+      const code = data.code || await nextCode('swotItem', 'SWOT');
       const type = SWOT_TYPE_MAP[data.type] || data.type;
       const payload = {
         type, category: data.category || null, description: data.description,
@@ -818,7 +813,6 @@ async function importSwot(records, _userId) {
         updated++;
       } else {
         await prisma.swotItem.create({ data: { code, ...payload } });
-        counter++;
         created++;
       }
     } catch (e) {

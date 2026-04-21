@@ -92,7 +92,7 @@ const router = crudRouter({
 });
 
 // POST /:id/approve — اعتماد رسمي (مع خيار publish)
-router.post('/:id/approve', asyncHandler(async (req, res) => {
+router.post('/:id/approve', requireAction('documents', 'approve'), asyncHandler(async (req, res) => {
   const publish = req.body?.publish === true || req.body?.publish === 'true';
   const item = await approveDocument({
     docId:    req.params.id,
@@ -104,7 +104,7 @@ router.post('/:id/approve', asyncHandler(async (req, res) => {
 }));
 
 // POST /:id/obsolete — سحب نهائي للوثيقة
-router.post('/:id/obsolete', asyncHandler(async (req, res) => {
+router.post('/:id/obsolete', requireAction('documents', 'approve'), asyncHandler(async (req, res) => {
   const item = await obsoleteDocument({
     docId:    req.params.id,
     userRole: req.user.role,
@@ -173,7 +173,11 @@ router.get('/:id/download/:versionId', requireAction('documents', 'read'), async
   });
   if (!ver || ver.documentId !== req.params.id) throw NotFound('الملف غير موجود');
 
-  const filePath = path.join(UPLOAD_DIR, ver.filePath);
+  const filePath = path.resolve(UPLOAD_DIR, ver.filePath);
+  // منع Path Traversal — يجب أن يبقى المسار داخل UPLOAD_DIR
+  if (!filePath.startsWith(UPLOAD_DIR + path.sep) && filePath !== UPLOAD_DIR) {
+    throw BadRequest('مسار الملف غير مسموح به');
+  }
   if (!fs.existsSync(filePath)) throw NotFound('الملف المادي غير موجود على الخادم');
 
   const ext = path.extname(ver.filePath);

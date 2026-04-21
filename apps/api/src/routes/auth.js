@@ -121,14 +121,41 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
   if (!stored || stored.revoked || stored.expiresAt < new Date()) throw Unauthorized('الجلسة منتهية');
 
+  // اكتشاف إعادة استخدام token مُبطَل — مؤشر على سرقة — أبطل الجلسة كلها
+  if (stored.revoked) {
+    await prisma.refreshToken.updateMany({ where: { userId: stored.userId }, data: { revoked: true } });
+    throw Unauthorized('تم اكتشاف نشاط مشبوه — سجّل دخولك مجدداً');
+  }
+
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user || !user.active) throw Unauthorized();
+
+  // Token Rotation: أبطل القديم وأنشئ جديداً في transaction واحدة
+  const newRefreshToken = jwt.sign(
+    { sub: user.id },
+    config.jwt.refreshSecret,
+    { expiresIn: config.jwt.refreshExpiresIn },
+  );
+  await prisma.$transaction([
+    prisma.refreshToken.update({ where: { token: refreshToken }, data: { revoked: true } }),
+    prisma.refreshToken.create({
+      data: {
+        userId:    user.id,
+        token:     newRefreshToken,
+        expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
+      },
+    }),
+  ]);
 
   const token = jwt.sign(
     { sub: user.id, email: user.email, role: user.role, name: user.name },
     config.jwt.secret, { expiresIn: config.jwt.expiresIn },
   );
-  res.json({ ok: true, token });
+
+  res.cookie('token', token, {
+    httpOnly: true, secure: config.env === 'production', sameSite: 'lax', maxAge: parseDurationMs(config.jwt.expiresIn),
+  });
+  res.json({ ok: true, token, refreshToken: newRefreshToken });
 }));
 
 router.post('/logout', asyncHandler(async (req, res) => {

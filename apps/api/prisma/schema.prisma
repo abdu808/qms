@@ -475,7 +475,7 @@ model SupplierEval {
   evalTokenId  String?  @unique
   evaluatedAt  DateTime @default(now())
   evaluatorId  String
-  evaluator    User     @relation(fields: [evaluatorId], references: [id])
+  evaluator    User     @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
   period       String?  // مدة التقييم
   criteriaJson String   // JSON: { quality: 20, delivery: 15, ... }
   totalScore   Float
@@ -552,7 +552,7 @@ model DonationEval {
   donationId    String
   donation      Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
   evaluatorId   String
-  evaluator     User     @relation(fields: [evaluatorId], references: [id])
+  evaluator     User     @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
   evaluatedAt   DateTime @default(now())
   conformity    Boolean  // مطابقة المواصفات
   quality       Int      // 1-5
@@ -842,7 +842,7 @@ model TrainingRecord {
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   action     String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, PRINT
   entityType String?  // model name
   entityId   String?

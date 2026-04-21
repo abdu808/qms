@@ -4579,8 +4579,8 @@ function app() {
       if (v === null || v === undefined || v === '') return '<span class="text-gray-300">—</span>';
       if (col.type === 'date')   v = this.fmtDate(v);
       if (col.type === 'bool')   return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
-      if (col.type === 'status') return `<span class="px-2 py-0.5 rounded text-xs ${this.statusColor(v)}">${this.statusLabel(v)}</span>`;
-      if (col.type === 'level')  return `<span class="px-2 py-0.5 rounded text-xs ${this.levelColor(v)}">${v}</span>`;
+      if (col.type === 'status') return `<span class="px-2 py-0.5 rounded text-xs ${this.statusColor(v)}">${this.escape(this.statusLabel(v))}</span>`;
+      if (col.type === 'level')  return `<span class="px-2 py-0.5 rounded text-xs ${this.levelColor(v)}">${this.escape(String(v))}</span>`;
       return this.escape(String(v));
     },
     escape(s) { return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },
@@ -4672,6 +4672,11 @@ function app() {
             const data = await r.json();
             this.token = data.token;
             localStorage.setItem('qms_token', data.token);
+            // Token Rotation: الـ server يُعيد refreshToken جديد — يجب حفظه
+            if (data.refreshToken) {
+              this.refreshToken = data.refreshToken;
+              localStorage.setItem('qms_refresh', data.refreshToken);
+            }
             headers.Authorization = `Bearer ${data.token}`;
             const retry = await fetch(API + path, {
               method, headers, credentials: 'include',

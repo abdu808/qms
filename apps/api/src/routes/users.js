@@ -4,7 +4,7 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { authorize } from '../middleware/auth.js';
-import { NotFound, Conflict } from '../utils/errors.js';
+import { NotFound, Conflict, BadRequest } from '../utils/errors.js';
 import { normalizeEmail, stripUndefined } from '../lib/dataHelpers.js';
 import { createSchema as userCreateSchema, updateSchema as userUpdateSchema } from '../schemas/user.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
@@ -77,8 +77,30 @@ router.put('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(asy
 }));
 
 router.delete('/:id', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw NotFound();
+  // لا يمكن تعطيل المسؤول الوحيد النشط في النظام
+  if (user.role === 'SUPER_ADMIN') {
+    const activeAdmins = await prisma.user.count({ where: { role: 'SUPER_ADMIN', active: true } });
+    if (activeAdmins <= 1) throw Conflict('لا يمكن تعطيل المسؤول الوحيد في النظام');
+  }
   await prisma.user.update({ where: { id: req.params.id }, data: { active: false } });
+  // إبطال جميع جلسات المستخدم المُعطَّل فوراً
+  await prisma.refreshToken.updateMany({ where: { userId: req.params.id }, data: { revoked: true } });
   res.json({ ok: true });
+}));
+
+// POST /:id/restore — إعادة تفعيل مستخدم مُعطَّل (SUPER_ADMIN فقط)
+router.post('/:id/restore', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw NotFound();
+  if (user.active) throw Conflict('المستخدم نشط بالفعل');
+  const restored = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { active: true },
+    select: pub,
+  });
+  res.json({ ok: true, item: restored });
 }));
 
 export default router;

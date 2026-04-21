@@ -32,6 +32,9 @@ const register = (slug, meta) => { REPORTS[slug] = { slug, ...meta }; };
 // ── الأدوات المشتركة ──────────────────────────────────────────
 const daysAgo = (n) => new Date(Date.now() - n * 86400000);
 const daysFromNow = (n) => new Date(Date.now() + n * 86400000);
+// حد أقصى لكل تقرير — يمنع OutOfMemory عند وجود آلاف السجلات.
+// التقارير الإشرافية لا تحتاج أكثر من 500 سجل — ما فوق يحتاج export منفصل.
+const REPORT_LIMIT = 500;
 const NCR_OPEN_STATES = ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'];
 const COMPLAINT_OPEN_STATES = ['NEW', 'UNDER_REVIEW', 'IN_PROGRESS'];
 
@@ -53,6 +56,7 @@ register('overdue-ncrs', {
         assignee:   { select: { id: true, name: true } },
       },
       orderBy: { dueDate: 'asc' },
+      take: REPORT_LIMIT,
     });
     const now = Date.now();
     return items.map(n => ({
@@ -79,6 +83,7 @@ register('open-complaints', {
       where: activeWhere({ status: { in: COMPLAINT_OPEN_STATES } }),
       include: { assignee: { select: { id: true, name: true } } },
       orderBy: { receivedAt: 'asc' },
+      take: REPORT_LIMIT,
     });
     const now = Date.now();
     return items.map(c => ({
@@ -106,13 +111,14 @@ register('overdue-complaints', {
       }),
       include: { assignee: { select: { id: true, name: true } } },
       orderBy: { receivedAt: 'asc' },
+      take: REPORT_LIMIT,
     });
     return items.map(c => ({
       id: c.id, code: c.code, subject: c.subject,
       receivedAt: c.receivedAt,
       ageDays:    Math.floor((Date.now() - new Date(c.receivedAt).getTime()) / 86400000),
-      daysOverdue: Math.floor((Date.now() - cutoff.getTime()) / 86400000)
-                   - Math.floor((Date.now() - new Date(c.receivedAt).getTime()) / 86400000) * -1,
+      // daysOverdue = عمر الشكوى - 14 (الحد المسموح) — النتيجة الصحيحة دائماً موجبة هنا لأن الفلتر يضمن receivedAt < cutoff
+      daysOverdue: Math.max(0, Math.floor((Date.now() - new Date(c.receivedAt).getTime()) / 86400000) - 14),
       assignee:   c.assignee?.name || null,
       status:     c.status,
     }));
@@ -302,12 +308,13 @@ router.get('/:slug', asyncHandler(async (req, res) => {
 
   const items = await report.handler(req);
   res.json({
-    ok:       true,
-    slug:     report.slug,
-    title:    report.title,
-    severity: report.severity,
-    asOf:     new Date().toISOString(),
-    count:    items.length,
+    ok:        true,
+    slug:      report.slug,
+    title:     report.title,
+    severity:  report.severity,
+    asOf:      new Date().toISOString(),
+    count:     items.length,
+    truncated: items.length >= REPORT_LIMIT,
     items,
   });
 }));

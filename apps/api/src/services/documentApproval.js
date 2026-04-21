@@ -44,9 +44,13 @@ export async function approveDocument({ docId, userId, userRole, publish = false
   if (!doc) throw NotFound('الوثيقة غير موجودة');
   if (doc.deletedAt) throw BadRequest('لا يمكن اعتماد وثيقة محذوفة');
 
-  // القاعدة التاريخية: APPROVED مسموحة لإعادة الاعتماد
+  // الوثيقة المعتمدة تنتقل فقط للنشر — لا إعادة اعتماد تُغيّر المعتمد بصمت (ISO 7.5.3)
   if (!['UNDER_REVIEW', 'APPROVED'].includes(doc.status)) {
-    throw BadRequest('لا يمكن اعتماد الوثيقة إلا من حالة "قيد المراجعة" أو بعد اعتمادها');
+    throw BadRequest('لا يمكن اعتماد الوثيقة إلا من حالة "قيد المراجعة" أو "معتمد" (للنشر فقط)');
+  }
+  // وثيقة APPROVED لا يمكن إعادة اعتمادها — فقط نشرها
+  if (doc.status === 'APPROVED' && !publish) {
+    throw BadRequest('الوثيقة معتمدة بالفعل — استخدم خيار النشر (publish) للمضي قدماً');
   }
 
   const nextStatus = publish ? 'PUBLISHED' : 'APPROVED';

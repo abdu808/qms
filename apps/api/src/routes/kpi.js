@@ -292,6 +292,7 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
 // ─── helpers ─────────────────────────────────────────────────
 async function getObjectivesWithEntries(year) {
   const objectives = await prisma.objective.findMany({
+    where: { deletedAt: null }, // استثناء المحذوفات منطقياً
     include: {
       strategicGoal: { select: { title: true, perspective: true } },
       kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
@@ -310,7 +311,7 @@ async function getObjectivesWithEntries(year) {
 }
 async function getActivitiesWithEntries(year) {
   const activities = await prisma.operationalActivity.findMany({
-    where: { year },
+    where: { year, deletedAt: null }, // استثناء المحذوفات منطقياً
     include: {
       strategicGoal: { select: { title: true } },
       kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
