@@ -98,6 +98,9 @@ function app() {
     ...(window.QmsMyKpi              || {}),
     ...(window.QmsKpiTracking        || {}),
     ...(window.QmsQuickActions       || {}),
+    ...(window.QmsWebhookSettings    || {}),
+    ...(window.QmsExecDashboard      || {}),
+    ...(window.QmsCapa               || {}),
 
     user: null,
     token: null,

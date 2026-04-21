@@ -343,4 +343,33 @@ window.QMS_MODULES_EVALUATION = {
         hint: 'لا تُفعّل إلا بعد اعتمادها من الإدارة — عند التفعيل يُطلب الإقرار من المستهدفين' },
     ],
   },
+
+  capa: {
+    endpoint: 'capa',
+    label: 'إجراءات CAPA',
+    icon: '🔄',
+    statusOptions: [
+      { v: '', l: 'كل الحالات' }, { v: 'OPEN', l: 'مفتوح' },
+      { v: 'IN_PROGRESS', l: 'قيد التنفيذ' }, { v: 'VERIFICATION', l: 'قيد التحقق' }, { v: 'CLOSED', l: 'مغلق' },
+    ],
+    cols: [
+      { key: 'code', label: 'الرمز' }, { key: 'type', label: 'النوع' },
+      { key: 'title', label: 'العنوان' }, { key: 'sourceType', label: 'المصدر' },
+      { key: 'sourceCode', label: 'رمز المصدر' }, { key: 'status', label: 'الحالة' },
+      { key: 'dueDate', label: 'الاستحقاق' },
+    ],
+    fields: [
+      { key: 'type', label: 'نوع الإجراء', required: true, type: 'select', options: [{ v: 'CORRECTIVE', l: 'تصحيحي' }, { v: 'PREVENTIVE', l: 'وقائي' }] },
+      { key: 'sourceType', label: 'نوع المصدر', type: 'select', options: [
+        { v: 'NCR', l: 'عدم مطابقة' }, { v: 'COMPLAINT', l: 'شكوى' }, { v: 'RISK', l: 'خطر' }, { v: 'AUDIT', l: 'تدقيق' }, { v: 'MANUAL', l: 'يدوي' },
+      ]},
+      { key: 'sourceCode', label: 'رمز المصدر (مثل NCR-2026-001)' },
+      { key: 'title', label: 'العنوان', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'rootCauseAnalysis', label: 'تحليل جذر السبب', type: 'textarea' },
+      { key: 'plannedAction', label: 'الإجراء المخطط', type: 'textarea' },
+      { key: 'ownerId', label: 'المسؤول', type: 'user' },
+      { key: 'dueDate', label: 'تاريخ الاستحقاق', type: 'date' },
+    ],
+  },
 };

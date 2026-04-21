@@ -20,6 +20,7 @@ import objectivesRoutes from './routes/objectives.js';
 import risksRoutes from './routes/risks.js';
 import complaintsRoutes from './routes/complaints.js';
 import ncrRoutes from './routes/ncr.js';
+import capaRoutes from './routes/capa.js';
 import auditsRoutes from './routes/audits.js';
 import suppliersRoutes from './routes/suppliers.js';
 import supplierEvalsRoutes from './routes/supplierEvals.js';
@@ -33,6 +34,7 @@ import trainingRoutes from './routes/training.js';
 import signaturesRoutes from './routes/signatures.js';
 import auditLogRoutes from './routes/auditLog.js';
 import dashboardRoutes from './routes/dashboard.js';
+import chartsRoutes from './routes/charts.js';
 import exportsRoutes from './routes/exports.js';
 import strategicGoalsRoutes from './routes/strategicGoals.js';
 import operationalActivitiesRoutes from './routes/operationalActivities.js';
@@ -68,6 +70,7 @@ import reportBuilderRoutes from './routes/reportBuilder.js';
 import publicPortalRoutes from './routes/publicPortal.js';
 import portalAdminRoutes from './routes/portalAdmin.js';
 import metaRoutes from './routes/meta.js';
+import webhookSettingsRoutes from './routes/webhookSettings.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
@@ -233,12 +236,14 @@ app.use('/api/public',
 // Authenticated
 app.use('/api', authenticate, denyReadOnly, auditTrail());
 app.use('/api/dashboard',     dashboardRoutes);
+app.use('/api/charts',        chartsRoutes);
 app.use('/api/users',         usersRoutes);
 app.use('/api/departments',   deptsRoutes);
 app.use('/api/objectives',    objectivesRoutes);
 app.use('/api/risks',         risksRoutes);
 app.use('/api/complaints',    complaintsRoutes);
 app.use('/api/ncr',           ncrRoutes);
+app.use('/api/capa',          capaRoutes);
 app.use('/api/audits',        auditsRoutes);
 app.use('/api/suppliers',     suppliersRoutes);
 app.use('/api/supplier-evals', supplierEvalsRoutes);
@@ -273,6 +278,7 @@ app.use('/api/my-work',                   myWorkRoutes);
 app.use('/api/scheduler',                 schedulerRoutes);
 app.use('/api/report-builder',            reportBuilderRoutes);
 app.use('/api/portal',                   portalAdminRoutes);
+app.use('/api/webhook-settings',         webhookSettingsRoutes);
 app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);

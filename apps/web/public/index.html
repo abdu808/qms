@@ -751,6 +751,21 @@
                           x-text="portalAdmin.saving ? 'جارٍ الحفظ…' : 'حفظ الإعدادات'"></button>
                 </div>
               </div>
+              <!-- n8n Webhook Integration -->
+              <template x-if="user?.role === 'SUPER_ADMIN'">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-semibold text-slate-800 text-sm">⚙️ تكامل n8n Webhook</div>
+                      <div class="text-xs text-slate-500 mt-0.5">ربط النظام بـ n8n لإرسال البريد والواتساب تلقائياً</div>
+                    </div>
+                    <button @click="openWebhookSettings()"
+                            class="bg-slate-700 hover:bg-slate-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition">
+                      إعداد Webhook
+                    </button>
+                  </div>
+                </div>
+              </template>
             </div>
 
             <!-- ──── تبويب: الوثائق ────────────────────────────────── -->
@@ -1027,6 +1042,8 @@
                   <button @click="openReport('/api/reports/complaints-analytics?year=' + new Date().getFullYear())" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow">📊 تحليل الشكاوى</button>
                   <button @click="openReport('/api/reports/ncr-analytics?year=' + new Date().getFullYear())" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow">🔍 تحليل NCR (باريتو)</button>
                   <button @click="openReport('/api/reports/risk-register')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow">⚠️ سجل المخاطر</button>
+                  <button @click="openReport('/api/reports/iso-audit?year=' + new Date().getFullYear())" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow">🏅 تقرير ISO 9001</button>
+                  <button x-show="can('dashboard','read')" @click="openExecDashboard()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow">📈 اللوحة التنفيذية</button>
                 </div>
               </div>
             </div>
@@ -5223,6 +5240,154 @@
   </div>
 </template>
 
+  <!-- ═══ اللوحة التنفيذية — Executive Dashboard Modal ════════════════════ -->
+  <div x-show="execDash.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 md:p-6"
+       @keydown.escape.window="closeExecDashboard()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-6 py-4 border-b bg-purple-50 rounded-t-2xl">
+        <h2 class="text-lg font-bold text-purple-800">📈 اللوحة التنفيذية</h2>
+        <button @click="closeExecDashboard()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-6">
+        <div x-show="execDash.loading" class="text-center py-16 text-gray-500">
+          <div class="text-4xl mb-3 animate-spin inline-block">⏳</div>
+          <div>جارٍ تحميل البيانات…</div>
+        </div>
+        <div x-show="execDash.error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm" x-text="execDash.error"></div>
+        <div x-show="!execDash.loading && !execDash.error" class="space-y-6">
+          <!-- KPI Trend -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">📊 مؤشرات الأداء — آخر 6 أشهر</h3>
+            <div class="h-56"><canvas id="chartExecKpiTrend"></canvas></div>
+          </div>
+          <!-- Row: NCR + Complaints -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">🔍 عدم المطابقة حسب الحالة</h3>
+              <div class="h-48"><canvas id="chartExecNcrStatus"></canvas></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">📣 الشكاوى حسب الحالة</h3>
+              <div class="h-48"><canvas id="chartExecComplaintsStatus"></canvas></div>
+            </div>
+          </div>
+          <!-- Row: Risks + Objectives -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">⚠️ توزيع المخاطر</h3>
+              <div class="h-48"><canvas id="chartExecRiskDist"></canvas></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">🎯 الأهداف الاستراتيجية</h3>
+              <div class="h-48"><canvas id="chartExecObjectives"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Webhook Settings Modal (n8n) ════════════════════════════════════ -->
+  <div x-show="webhookCfg.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+       @keydown.escape.window="webhookCfg.open=false">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div class="flex items-center justify-between px-6 py-4 border-b bg-slate-50 rounded-t-2xl">
+        <h2 class="font-bold text-gray-800">⚙️ إعدادات n8n Webhook</h2>
+        <button @click="webhookCfg.open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div x-show="webhookCfg.error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700" x-text="webhookCfg.error"></div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">عنوان n8n Webhook URL</label>
+          <input x-model="webhookCfg.url" type="url" placeholder="https://n8n.example.com/webhook/qms"
+                 class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">المفتاح السري (HMAC Secret)</label>
+          <input x-model="webhookCfg.secret" type="password" placeholder="اتركه فارغاً لعدم التغيير"
+                 class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
+          <p class="text-xs text-gray-400 mt-1">يُستخدم للتحقق من صحة الطلبات في n8n</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" x-model="webhookCfg.enabled" class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+          <span class="text-sm font-medium text-gray-700" x-text="webhookCfg.enabled ? 'مفعَّل ✅' : 'معطَّل'"></span>
+        </div>
+        <!-- Test result -->
+        <div x-show="webhookCfg.testResult" class="rounded-lg px-4 py-3 text-sm"
+             :class="webhookCfg.testResult?.ok ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'"
+             x-text="webhookCfg.testResult?.message"></div>
+        <div class="flex justify-between items-center pt-2">
+          <button @click="testWebhookConnection()" :disabled="webhookCfg.testing || !webhookCfg.url"
+                  class="text-sm px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  x-text="webhookCfg.testing ? 'جارٍ الاختبار…' : '🔌 اختبار الاتصال'"></button>
+          <div class="flex gap-2">
+            <button @click="webhookCfg.open=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">إلغاء</button>
+            <button @click="saveWebhookSettings()" :disabled="webhookCfg.saving"
+                    class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                    x-text="webhookCfg.saving ? 'جارٍ الحفظ…' : 'حفظ الإعدادات'"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CAPA Advance Modal ═══════════════════════════════════════════════ -->
+  <div x-show="capaAdvDlg.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+       @keydown.escape.window="capaAdvDlg.open=false">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div class="flex items-center justify-between px-6 py-4 border-b">
+        <h2 class="font-bold text-gray-800">تقديم حالة CAPA</h2>
+        <button @click="capaAdvDlg.open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <template x-if="capaAdvDlg.item">
+          <div>
+            <div class="text-sm font-semibold text-gray-700 mb-3" x-text="'الإجراء: ' + (capaAdvDlg.item?.title || '')"></div>
+            <!-- IN_PROGRESS fields -->
+            <div x-show="capaAdvDlg.item?.status === 'OPEN' || capaAdvDlg.item?.status === 'IN_PROGRESS'" class="space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">الإجراء المنفَّذ</label>
+                <textarea x-model="capaAdvDlg.implementedAction" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="صف ما تم تنفيذه…"></textarea>
+              </div>
+            </div>
+            <!-- VERIFICATION fields -->
+            <div x-show="capaAdvDlg.item?.status === 'VERIFICATION'" class="space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">ملاحظات التحقق</label>
+                <textarea x-model="capaAdvDlg.verificationNote" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="نتيجة التحقق من فاعلية الإجراء…"></textarea>
+              </div>
+              <div class="flex items-center gap-3">
+                <label class="text-xs font-medium text-gray-600">الإجراء فعّال؟</label>
+                <label class="flex items-center gap-1 text-sm cursor-pointer">
+                  <input type="radio" :value="true" x-model="capaAdvDlg.effective" class="accent-green-600" /> نعم
+                </label>
+                <label class="flex items-center gap-1 text-sm cursor-pointer">
+                  <input type="radio" :value="false" x-model="capaAdvDlg.effective" class="accent-red-600" /> لا
+                </label>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">الدروس المستفادة</label>
+                <textarea x-model="capaAdvDlg.lessonsLearned" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="ما الذي تعلّمناه؟"></textarea>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div class="flex justify-end gap-2 pt-2">
+          <button @click="capaAdvDlg.open=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">إلغاء</button>
+          <button @click="doCapaAdvance()" :disabled="capaAdvDlg.busy"
+                  class="px-4 py-2 text-sm bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                  x-text="capaAdvDlg.busy ? 'جارٍ…' : capaAdvLabel(capaAdvDlg.item?.status)"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script src="/modules/kpi-common.js?v=2026-04-21e"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
@@ -5249,6 +5414,9 @@
 <script src="/modules/my-kpi.js?v=2026-04-21c"></script>
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
+<script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
+<script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
+<script src="/modules/capa.js?v=2026-04-21d"></script>
 <script src="/modules-config/context.js?v=2026-04-21e"></script>
 <script src="/modules-config/planning.js?v=2026-04-21e"></script>
 <script src="/modules-config/support.js?v=2026-04-21e"></script>

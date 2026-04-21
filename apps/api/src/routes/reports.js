@@ -5,8 +5,10 @@
 import { Router } from 'express';
 import complianceReportsRoutes from './reports/complianceReports.js';
 import operationalReportsRoutes from './reports/operationalReports.js';
+import isoAuditReportRoutes from './reports/isoAuditReport.js';
 
 const router = Router();
 router.use('/', complianceReportsRoutes);
 router.use('/', operationalReportsRoutes);
+router.use('/', isoAuditReportRoutes);
 export default router;

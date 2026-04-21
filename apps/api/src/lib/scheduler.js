@@ -9,6 +9,7 @@ import { prisma } from '../db.js';
 import { activeWhere } from './dataHelpers.js';
 import { runBackupCycle } from '../services/backup.js';
 import { scanSla } from './sla.js';
+import { emitWebhook } from './webhookEmitter.js';
 
 const INTERVAL_MS = 60 * 60 * 1000;   // كل ساعة
 const OVERDUE_COMPLAINT_DAYS = 14;
@@ -96,6 +97,9 @@ async function checkSlaBreaches() {
         eventKey: dayKey(isBreach ? 'CMP_BREACH' : 'CMP_DUE_SOON', c.id, uid),
       });
     }
+    if (isBreach) {
+      emitWebhook('COMPLAINT_SLA_BREACH', { id: c.id, code: c.code, ageDays: c.sla.ageDays, severity: c.severity || 'متوسطة' });
+    }
   }
 
   // ── NCRs ─────────────────────────────────────────────────────
@@ -117,6 +121,9 @@ async function checkSlaBreaches() {
         entityType: 'NCR', entityId: n.id,
         eventKey: dayKey(isBreach ? 'NCR_BREACH' : 'NCR_DUE_SOON', n.id, uid),
       });
+    }
+    if (isBreach) {
+      emitWebhook('NCR_SLA_BREACH', { id: n.id, code: n.code, title: n.title, ageDays: n.sla.ageDays, severity: n.severity || 'متوسطة' });
     }
   }
 }
