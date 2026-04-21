@@ -1092,10 +1092,17 @@ const MODULES = {
 function app() {
   return {
     // ── Modules (must come first so inline definitions override if needed) ──
-    ...(window.QmsI18n          || {}),
-    ...(window.QmsInbox         || {}),
-    ...(window.QmsKpiQuickEntry || {}),
-    ...(window.QmsKpiBulk       || {}),
+    ...(window.QmsI18n                || {}),
+    ...(window.QmsInbox               || {}),
+    ...(window.QmsKpiQuickEntry       || {}),
+    ...(window.QmsKpiBulk             || {}),
+    ...(window.QmsDataImport          || {}),
+    ...(window.QmsPortalAdmin         || {}),
+    ...(window.QmsOperationalReports  || {}),
+    ...(window.QmsSlaBoard            || {}),
+    ...(window.QmsDocumentWorkflow    || {}),
+    ...(window.QmsTraining            || {}),
+    ...(window.QmsDocumentVersions    || {}),
 
     user: null,
     token: null,
@@ -1129,26 +1136,6 @@ function app() {
     // ─── تغيير كلمة المرور الإجباري ──────────────────────────────────
     mustChangePw: false,
     changePwForm: { current: '', newPw: '', confirm: '', error: '', loading: false },
-
-    // ─── صفحة استيراد البيانات ────────────────────────────────────────
-    dataImport: {
-      entities: [], selected: '', file: null, fileName: '',
-      preview: null, previewLoading: false,
-      importing: false, result: null, error: '',
-    },
-
-    // ─── إدارة البوابة العامة ─────────────────────────────────────────
-    portalAdmin: {
-      tab: 'announcements',   // 'announcements' | 'settings' | 'documents' | 'surveys'
-      settings: {},
-      announcements: [],
-      documents: [],
-      surveys: [],
-      loading: false,
-      saving: false,
-      form: { open: false, mode: 'create', id: null, title: '', summary: '', body: '', category: '', isActive: true, publishedAt: '', expiresAt: '' },
-      error: '',
-    },
 
     // ─── لوحة مراقب الجودة (GUEST_AUDITOR) ──────────────────────────
     auditorData: null,   // { kpis, isoReport, policy }
@@ -1888,8 +1875,6 @@ function app() {
     // Eval link modal
     evalLinkModal: { open: false, url: '', supplier: null, copied: false },
 
-    trainingRecords: { open: false, training: null, records: [], stats: null, users: [], newRecord: { userId: '', attended: false, score: null, effective: '', certUrl: '' } },
-
     surveysList: [],
     surveyModal: {
       open: false, mode: 'create', id: null,
@@ -2506,62 +2491,6 @@ function app() {
       } finally { f.loading = false; }
     },
 
-    // ─── استيراد البيانات ─────────────────────────────────────────────
-    async loadDataImportEntities() {
-      try {
-        const r = await this.api('GET', '/import/entities');
-        this.dataImport.entities = r.entities || [];
-      } catch(e) { this.toast('تعذر تحميل قائمة الكيانات', 'error'); }
-    },
-    async downloadTemplate(entityKey) {
-      const a = document.createElement('a');
-      a.href = `/api/import/template/${entityKey}`;
-      a.setAttribute('Authorization', `Bearer ${this.token}`);
-      // Use fetch to download with auth header
-      try {
-        const res = await fetch(`/api/import/template/${entityKey}`, {
-          headers: { Authorization: `Bearer ${this.token}` },
-        });
-        if (!res.ok) throw new Error('فشل التحميل');
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `template-${entityKey}.xlsx`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } catch(e) { this.toast('تعذر تحميل النموذج', 'error'); }
-    },
-    async previewImport() {
-      const d = this.dataImport;
-      if (!d.selected || !d.file) { this.toast('اختر نوع البيانات والملف أولاً', 'warn'); return; }
-      d.previewLoading = true; d.preview = null; d.result = null; d.error = '';
-      try {
-        const form = new FormData(); form.append('file', d.file);
-        const res = await fetch(`/api/import/preview/${d.selected}`, {
-          method: 'POST', headers: { Authorization: `Bearer ${this.token}` }, body: form,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error?.message || 'خطأ في التحليل');
-        d.preview = data;
-      } catch(e) { d.error = e.message; } finally { d.previewLoading = false; }
-    },
-    async confirmImport() {
-      const d = this.dataImport;
-      if (!d.selected || !d.file) return;
-      d.importing = true; d.error = '';
-      try {
-        const form = new FormData(); form.append('file', d.file);
-        const res = await fetch(`/api/import/confirm/${d.selected}`, {
-          method: 'POST', headers: { Authorization: `Bearer ${this.token}` }, body: form,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error?.message || 'خطأ في الاستيراد');
-        d.result = data; d.preview = null; d.file = null; d.fileName = '';
-        this.toast(`تم الاستيراد: ${data.created} جديد، ${data.updated} محدَّث ✅`, 'success');
-      } catch(e) { d.error = e.message; } finally { d.importing = false; }
-    },
-
     // ──────────────────────────────────────────────────────────────────────
     // لوحة مراقب الجودة
     // ──────────────────────────────────────────────────────────────────────
@@ -2749,94 +2678,6 @@ function app() {
     },
     healthSeverityLabel(sev) {
       return { CRITICAL: 'حرج', HIGH: 'مرتفع', WARNING: 'تحذير', INFO: 'ملاحظة' }[sev] || sev;
-    },
-
-    // ─── Operational Reports (Report Builder) ─────────────────────────
-    opReportsCatalog: [],      // [{ slug, title, description, severity }]
-    opReportsSummary: null,    // { asOf, totalIssues, reports: [{slug,count,...}] }
-    opReportActive: null,      // currently opened report { slug, title, severity, asOf, count, items }
-    opReportBusy: false,
-
-    async loadOperationalReports() {
-      try {
-        this.opReportActive = null;
-        const [cat, sum] = await Promise.all([
-          this.api('GET', '/operational-reports/catalog'),
-          this.api('GET', '/operational-reports/all/summary'),
-        ]);
-        this.opReportsCatalog = cat.catalog || [];
-        this.opReportsSummary = sum;
-      } catch (e) {
-        this.opReportsCatalog = [];
-        this.opReportsSummary = null;
-        alert(e.message || 'فشل تحميل التقارير التشغيلية');
-      }
-    },
-
-    async openOpReport(slug) {
-      this.opReportBusy = true;
-      try {
-        const r = await this.api('GET', `/operational-reports/${slug}`);
-        this.opReportActive = r;
-      } catch (e) {
-        alert(e.message || 'فشل تحميل التقرير');
-      } finally {
-        this.opReportBusy = false;
-      }
-    },
-
-    closeOpReport() { this.opReportActive = null; },
-
-    opReportSeverityClass(sev) {
-      return { critical: 'bg-red-600', warning: 'bg-amber-500', info: 'bg-sky-500' }[sev] || 'bg-gray-400';
-    },
-    opReportSeverityLabel(sev) {
-      return { critical: 'حرج', warning: 'تحذير', info: 'معلومة' }[sev] || sev;
-    },
-
-    // Helper: يستخرج count لـ slug من opReportsSummary
-    opReportCount(slug) {
-      if (!this.opReportsSummary?.reports) return null;
-      const r = this.opReportsSummary.reports.find(x => x.slug === slug);
-      return r ? r.count : null;
-    },
-
-    // ─── Batch 14: SLA Board (Complaints / NCR) ─────────────────────────
-    slaBoard: null,        // { complaints[], ncrs[], summary }
-    slaPolicy: null,       // SLA_POLICY from server (transparency)
-    async loadSlaBoard() {
-      try {
-        const [b, p] = await Promise.all([
-          this.api('GET', '/sla/board'),
-          this.api('GET', '/sla/policy'),
-        ]);
-        this.slaBoard  = b;
-        this.slaPolicy = p.policy;
-      } catch (e) {
-        this.slaBoard = null;
-        alert(e.message || 'فشل تحميل لوحة SLA');
-      }
-    },
-    slaBadgeClass(status) {
-      return {
-        OK:            'bg-green-100 text-green-800 border border-green-300',
-        MET:           'bg-green-100 text-green-800 border border-green-300',
-        DUE_SOON:      'bg-amber-100 text-amber-800 border border-amber-300',
-        BREACHED:      'bg-red-100 text-red-800 border border-red-400',
-        BREACHED_MET:  'bg-orange-100 text-orange-800 border border-orange-300',
-      }[status] || 'bg-gray-100 text-gray-700 border border-gray-300';
-    },
-    slaBadgeLabel(status) {
-      return {
-        OK:           '✓ ضمن المهلة',
-        MET:          '✅ مُنجَز في الوقت',
-        DUE_SOON:     '⏳ اقترب الاستحقاق',
-        BREACHED:     '⛔ تجاوز SLA',
-        BREACHED_MET: '⚠ مُنجَز متأخراً',
-      }[status] || status;
-    },
-    slaSevLabel(sev) {
-      return { high: 'مرتفعة', med: 'متوسطة', low: 'منخفضة' }[sev] || sev;
     },
 
     // ─── UX-2: Wizard — 3-step guided creation for critical operations ──
@@ -3398,209 +3239,6 @@ function app() {
         this.isoReport = null;
         alert(e.message || 'فشل تحميل تقرير الجاهزية');
       }
-    },
-
-    // ─── Document workflow ─────────────────────────────────────────────
-    async approveDoc(item, publish) {
-      const action = publish ? 'نشر' : 'اعتماد';
-      if (!confirm(`تأكيد ${action} الوثيقة "${item.title}"؟`)) return;
-      try {
-        await this.api('POST', `/documents/${item.id}/approve`, { publish: !!publish });
-        alert(`✅ تم ${action} الوثيقة بنجاح`);
-        await this.loadList();
-      } catch (e) { alert(e.message || `فشل ${action} الوثيقة`); }
-    },
-    async obsoleteDoc(item) {
-      if (!confirm(`سحب الوثيقة "${item.title}" (سحبها يلغي إقرارات المستخدمين)؟`)) return;
-      try {
-        await this.api('POST', `/documents/${item.id}/obsolete`);
-        await this.loadList();
-      } catch (e) { alert(e.message || 'فشل السحب'); }
-    },
-
-    // ─── Generic Maker/Checker/Approver workflow (risks, ncr, supplier-evals) ──
-    // Resources that have workflow endpoints attached (see apps/api/src/lib/workflow.js).
-    workflowResources: ['risks', 'ncr', 'supplier-evals'],
-    hasWorkflow(resource) { return this.workflowResources.includes(resource); },
-
-    workflowStateLabel(state) {
-      return ({
-        DRAFT:        'مسودة',
-        SUBMITTED:    'مُرسَلة',
-        UNDER_REVIEW: 'قيد المراجعة',
-        APPROVED:     'معتمدة',
-        REJECTED:     'مرفوضة',
-      })[state] || state || '—';
-    },
-    workflowStateClass(state) {
-      return ({
-        DRAFT:        'bg-gray-100 text-gray-700',
-        SUBMITTED:    'bg-blue-100 text-blue-700',
-        UNDER_REVIEW: 'bg-yellow-100 text-yellow-800',
-        APPROVED:     'bg-green-100 text-green-700',
-        REJECTED:     'bg-red-100 text-red-700',
-      })[state] || 'bg-gray-100 text-gray-700';
-    },
-
-    // Can the current user fire `event` on this record given its state + role?
-    canWorkflow(item, event, resource) {
-      if (!this.hasWorkflow(resource)) return false;
-      const s = item?.workflowState || 'DRAFT';
-      const role = this.user?.role;
-      const isSubmitter = item?.submittedById && item.submittedById === this.user?.id;
-      switch (event) {
-        case 'submit':
-          return s === 'DRAFT' && this.can(resource, 'create');
-        case 'review':
-          return s === 'SUBMITTED' && this.can(resource, 'update') && (!isSubmitter || role === 'SUPER_ADMIN');
-        case 'approve':
-          return s === 'UNDER_REVIEW' && this.can(resource, 'approve') && (!isSubmitter || role === 'SUPER_ADMIN');
-        case 'reject':
-          return ['SUBMITTED','UNDER_REVIEW'].includes(s) && this.can(resource, 'update');
-        case 'reopen':
-          return s === 'REJECTED' && this.can(resource, 'update');
-        default: return false;
-      }
-    },
-
-    async doWorkflow(item, event, resource) {
-      const labels = { submit:'إرسال', review:'استلام للمراجعة', approve:'اعتماد', reject:'رفض', reopen:'إعادة فتح' };
-      let body = undefined;
-      if (event === 'reject') {
-        const reason = prompt('أدخل سبب الرفض:');
-        if (!reason || !reason.trim()) return;
-        body = { reason: reason.trim() };
-      } else if (!confirm(`تأكيد ${labels[event]} السجل "${item.code || item.title || item.id}"؟`)) {
-        return;
-      }
-      try {
-        await this.api('POST', `/${resource}/${item.id}/${event}`, body);
-        this.toast?.(`✅ تم ${labels[event]} السجل`);
-        await this.loadList();
-      } catch (e) { alert(e.message || `فشل ${labels[event]}`); }
-    },
-
-    // ─── Training records (attendance & effectiveness) ─────────────────
-    async openTrainingRecords(training) {
-      try {
-        const [recs, users] = await Promise.all([
-          this.api('GET', `/training/${training.id}/records`),
-          this.api('GET', '/users?limit=200'),
-        ]);
-        this.trainingRecords = {
-          open: true,
-          training,
-          records: recs.records || [],
-          stats: recs.stats,
-          users: users.items || [],
-          newRecord: { userId: '', attended: false, score: null, effective: '', certUrl: '' },
-        };
-      } catch (e) { alert(e.message || 'فشل تحميل السجلات'); }
-    },
-    async saveTrainingRecord(rec) {
-      const payload = {
-        userId: rec.userId || rec.user?.id,
-        attended: !!rec.attended,
-        score: rec.score === '' ? null : rec.score,
-        effective: rec.effective === '' ? null : rec.effective,
-        certUrl: rec.certUrl || null,
-      };
-      if (!payload.userId) return alert('اختر الموظف أولاً');
-      try {
-        await this.api('POST', `/training/${this.trainingRecords.training.id}/records`, payload);
-        // Refresh
-        const recs = await this.api('GET', `/training/${this.trainingRecords.training.id}/records`);
-        this.trainingRecords.records = recs.records;
-        this.trainingRecords.stats = recs.stats;
-        this.trainingRecords.newRecord = { userId: '', attended: false, score: null, effective: '', certUrl: '' };
-      } catch (e) { alert(e.message || 'فشل الحفظ'); }
-    },
-    async deleteTrainingRecord(userId) {
-      if (!confirm('حذف هذا السجل؟')) return;
-      try {
-        await this.api('DELETE', `/training/${this.trainingRecords.training.id}/records/${userId}`);
-        const recs = await this.api('GET', `/training/${this.trainingRecords.training.id}/records`);
-        this.trainingRecords.records = recs.records;
-        this.trainingRecords.stats = recs.stats;
-      } catch (e) { alert(e.message || 'فشل الحذف'); }
-    },
-
-    // ─── Document version history & upload (ISO 7.5.3) ────────────────
-    docVersions: {
-      open: false, document: null, versions: [],
-      uploadVersion: '', uploadChangeLog: '', file: null,
-      uploading: false, uploadMsg: '', uploadError: false,
-    },
-    async viewDocVersions(item) {
-      try {
-        const res = await this.api('GET', `/documents/${item.id}/versions`);
-        this.docVersions = {
-          open: true, document: res.document, versions: res.versions,
-          uploadVersion: res.document?.currentVersion || '1.0',
-          uploadChangeLog: '', file: null,
-          uploading: false, uploadMsg: '', uploadError: false,
-        };
-      } catch (e) { alert(e.message || 'فشل تحميل الإصدارات'); }
-    },
-    async doUploadDoc() {
-      if (!this.docVersions.file || !this.docVersions.document) return;
-      this.docVersions.uploading = true;
-      this.docVersions.uploadMsg = '';
-      this.docVersions.uploadError = false;
-      try {
-        const form = new FormData();
-        form.append('file', this.docVersions.file);
-        form.append('version', this.docVersions.uploadVersion || '1.0');
-        if (this.docVersions.uploadChangeLog)
-          form.append('changeLog', this.docVersions.uploadChangeLog);
-
-        const token = localStorage.getItem('qms_token');
-        const resp = await fetch(`/api/documents/${this.docVersions.document.id}/upload`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: form,
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.message || 'فشل الرفع');
-
-        // Refresh versions list
-        const res = await this.api('GET', `/documents/${this.docVersions.document.id}/versions`);
-        this.docVersions.versions  = res.versions;
-        this.docVersions.document  = res.document;
-        this.docVersions.file      = null;
-        this.docVersions.uploadChangeLog = '';
-        this.docVersions.uploadMsg = '✅ تم رفع الملف بنجاح';
-        this.docVersions.uploadError = false;
-        // Also refresh the main list so currentVersion is updated
-        await this.loadData();
-      } catch (e) {
-        this.docVersions.uploadMsg = e.message || 'حدث خطأ أثناء الرفع';
-        this.docVersions.uploadError = true;
-      } finally {
-        this.docVersions.uploading = false;
-      }
-    },
-
-    // ─── تنزيل ملف وثيقة مع التوكن ──────────────────────────────────
-    async downloadDocVersion(docId, ver) {
-      try {
-        const token = localStorage.getItem('qms_token');
-        const resp = await fetch(`/api/documents/${docId}/download/${ver.id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!resp.ok) { alert('فشل التنزيل — ' + resp.status); return; }
-
-        const blob = await resp.blob();
-        const url  = URL.createObjectURL(blob);
-        const ext  = ver.mimeType?.includes('pdf') ? '.pdf'
-                   : ver.mimeType?.includes('word') ? '.docx'
-                   : ver.mimeType?.includes('sheet') ? '.xlsx' : '';
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `${docId}_v${ver.version}${ext}`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-      } catch (e) { alert('خطأ أثناء التنزيل: ' + e.message); }
     },
 
     // ─── Print Reports (C2) ───────────────────────────────────────────
@@ -4704,94 +4342,6 @@ function app() {
       }
       return this._handle(res);
     },
-    // ─── إدارة البوابة العامة ─────────────────────────────────────────
-    async loadPortalAdmin() {
-      const p = this.portalAdmin;
-      p.loading = true; p.error = '';
-      try {
-        const [s, a, d, sv] = await Promise.all([
-          this.api('GET', '/portal/settings'),
-          this.api('GET', '/portal/announcements'),
-          this.api('GET', '/portal/documents'),
-          this.api('GET', '/portal/surveys'),
-        ]);
-        p.settings      = s.item  || {};
-        p.announcements = a.items || [];
-        p.documents     = d.items || [];
-        p.surveys       = sv.items || [];
-      } catch (e) { p.error = e.message; }
-      finally { p.loading = false; }
-    },
-
-    async savePortalSettings() {
-      const p = this.portalAdmin;
-      p.saving = true; p.error = '';
-      try {
-        const r = await this.api('PATCH', '/portal/settings', p.settings);
-        p.settings = r.item;
-        this.toast?.('تم حفظ الإعدادات ✓');
-      } catch (e) { p.error = e.message; }
-      finally { p.saving = false; }
-    },
-
-    portalAnnouncementNew() {
-      const f = this.portalAdmin.form;
-      Object.assign(f, { open: true, mode: 'create', id: null, title: '', summary: '', body: '', category: '', isActive: true, publishedAt: '', expiresAt: '' });
-    },
-
-    portalAnnouncementEdit(a) {
-      const f = this.portalAdmin.form;
-      const toLocal = (d) => d ? new Date(d).toISOString().slice(0, 16) : '';
-      Object.assign(f, { open: true, mode: 'edit', id: a.id, title: a.title, summary: a.summary || '', body: a.body, category: a.category || '', isActive: a.isActive, publishedAt: toLocal(a.publishedAt), expiresAt: toLocal(a.expiresAt) });
-    },
-
-    async portalAnnouncementSave() {
-      const p = this.portalAdmin; const f = p.form;
-      p.saving = true; p.error = '';
-      try {
-        const payload = { title: f.title, summary: f.summary, body: f.body, category: f.category, isActive: f.isActive, publishedAt: f.publishedAt || null, expiresAt: f.expiresAt || null };
-        if (f.mode === 'create') {
-          const r = await this.api('POST', '/portal/announcements', payload);
-          p.announcements.unshift(r.item);
-        } else {
-          const r = await this.api('PATCH', `/portal/announcements/${f.id}`, payload);
-          const idx = p.announcements.findIndex(a => a.id === f.id);
-          if (idx !== -1) p.announcements[idx] = r.item;
-        }
-        f.open = false;
-        this.toast?.('تم الحفظ ✓');
-      } catch (e) { p.error = e.message; }
-      finally { p.saving = false; }
-    },
-
-    async portalAnnouncementDelete(id) {
-      if (!confirm('حذف هذا الإعلان؟')) return;
-      const p = this.portalAdmin;
-      try {
-        await this.api('DELETE', `/portal/announcements/${id}`);
-        p.announcements = p.announcements.filter(a => a.id !== id);
-        this.toast?.('تم الحذف');
-      } catch (e) { p.error = e.message; }
-    },
-
-    async portalToggleDocVisibility(doc) {
-      const p = this.portalAdmin;
-      try {
-        const r = await this.api('PATCH', `/portal/documents/${doc.id}/visibility`, { isPublic: !doc.isPublic });
-        const idx = p.documents.findIndex(d => d.id === doc.id);
-        if (idx !== -1) p.documents[idx].isPublic = r.item.isPublic;
-      } catch (e) { p.error = e.message; }
-    },
-
-    async portalToggleSurveyVisibility(survey) {
-      const p = this.portalAdmin;
-      try {
-        const r = await this.api('PATCH', `/portal/surveys/${survey.id}/visibility`, { isPublic: !survey.isPublic });
-        const idx = p.surveys.findIndex(s => s.id === survey.id);
-        if (idx !== -1) p.surveys[idx].isPublic = r.item.isPublic;
-      } catch (e) { p.error = e.message; }
-    },
-
     async _handle(res) {
       let data = null;
       try { data = await res.json(); } catch {}
