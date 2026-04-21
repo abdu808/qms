@@ -295,10 +295,9 @@ app.use('/api/kpi',                     kpiRoutes);
         }
       },
     }));
-    // البوابة العامة على الجذر
-    if (existsSync(join(webPath, 'portal.html'))) {
-      app.get('/', (req, res) => res.sendFile(join(webPath, 'portal.html')));
-    }
+    // البوابة العامة — معطّلة مؤقتاً: / ← redirect → /qms
+    // لتفعيلها: استبدل السطر أدناه بـ res.sendFile(join(webPath, 'portal.html'))
+    app.get('/', (req, res) => res.redirect(302, '/qms'));
     // النظام الداخلي على /qms
     app.get(['/qms', '/qms/*'], (req, res) => res.sendFile(join(webPath, 'index.html')));
     // Backward-compat: روابط قديمة /login و /app → redirect دائم → /qms
