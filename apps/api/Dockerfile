@@ -28,7 +28,7 @@ FROM node:20-alpine AS runtime
 WORKDIR /app
 
 # فقط ما يلزم وقت التشغيل
-RUN apk add --no-cache ca-certificates openssl wget tini \
+RUN apk add --no-cache ca-certificates openssl wget tini postgresql16-client \
     && rm -rf /var/cache/apk/*
 
 COPY --from=builder --chown=node:node /app /app

@@ -25,11 +25,22 @@ const prisma = new PrismaClient({ log: ['warn', 'error'] });
 async function main() {
   console.log('[backfill] بدء ترحيل Survey.resultsJson → SurveyResponse...\n');
 
-  const surveys = await prisma.survey.findMany({
-    where:  { resultsJson: { not: null } },
-    select: { id: true, code: true, resultsJson: true, questionsJson: true },
-    orderBy: { createdAt: 'asc' },
-  });
+  // فحص وجود العمود — في النشر النظيف الجديد الحقل محذوف من السكيما
+  const columnCheck = await prisma.$queryRawUnsafe(`
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'Survey' AND column_name = 'resultsJson' LIMIT 1
+  `);
+  if (!columnCheck || columnCheck.length === 0) {
+    console.log('[backfill] الحقل Survey.resultsJson غير موجود — تخطّي (نشر نظيف أو ترحيل مُطبَّق مسبقاً)');
+    return;
+  }
+
+  const surveys = await prisma.$queryRawUnsafe(`
+    SELECT "id", "code", "resultsJson", "questionsJson"
+    FROM "Survey"
+    WHERE "resultsJson" IS NOT NULL
+    ORDER BY "createdAt" ASC
+  `);
 
   console.log(`[backfill] وُجد ${surveys.length} استبيان(ات) بحقل resultsJson`);
 
