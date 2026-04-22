@@ -1159,7 +1159,7 @@
                   <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">④</span>
                   هل هناك شيء تريد لفت نظر إدارة الجودة إليه؟
                 </h3>
-                <textarea x-model="prog.currentReport.deptFilled.freeText" @blur="progAutoSave()"
+                <textarea x-model="prog.currentReport?.deptFilled?.freeText" @blur="progAutoSave()"
                           :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
                           placeholder="معوقات، احتياجات، تغييرات مرتقبة، إنجازات خارج المؤشرات..."
                           class="w-full border rounded p-2 text-sm min-h-[80px]"></textarea>
@@ -5839,7 +5839,7 @@
 <!-- ═══════════════════════════════════════════════════════════════
      SETUP WIZARD — مساعد البداية (ISO 9001 Quick Start)
 ════════════════════════════════════════════════════════════════ -->
-<template x-if="user && wizard.open">
+<template x-if="user && wizard?.open">
   <div class="fixed inset-0 bg-black/60 z-[400] flex items-center justify-center p-4" @click.self="closeWizard()">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
       <!-- Header -->
