@@ -44,3 +44,16 @@ backups/
 coverage/
 .cache/
 tmp/
+
+# مواد داخلية ومخرجات تحليل — خاصّة بالمنظّمة ولا تُرفع للمستودع العام
+ISO9001/
+apps/api/_analysis/
+apps/api/ingest-inbox/
+
+# ملفات خطط Claude Code المحلية
+.claude/plans/
+
+# ملفات مؤقتة
+*.tmp
+*.bak
+*.orig

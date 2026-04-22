@@ -43,13 +43,14 @@ async function main() {
   });
 
   // ── مدير الجودة ──────────────────────────────────────────────────────────
+  const qmEmail = (process.env.QM_EMAIL || 'quality@example.org').toLowerCase();
   const qmPassword = process.env.QM_PASSWORD || `QM@${new Date().getFullYear()}!${Math.random().toString(36).slice(2, 8)}`;
   const qmPwd = await bcrypt.hash(qmPassword, config.bcryptRounds);
   const qmUser = await prisma.user.upsert({
-    where: { email: 'quality@bir-sabia.org.sa' },
+    where: { email: qmEmail },
     update: {},
     create: {
-      email: 'quality@bir-sabia.org.sa',
+      email: qmEmail,
       passwordHash: qmPwd,
       name: 'مدير الجودة',
       role: 'QUALITY_MANAGER',
@@ -58,7 +59,7 @@ async function main() {
     },
   });
   if (qmUser.createdAt >= new Date(Date.now() - 5000)) {
-    console.log(`[seed] Quality Manager: quality@bir-sabia.org.sa — set QM_PASSWORD env to control password`);
+    console.log(`[seed] Quality Manager: ${qmEmail} — set QM_EMAIL/QM_PASSWORD env to control`);
   }
 
   // ── سياسة الجودة (الإصدار الأول) ─────────────────────────────────────────
