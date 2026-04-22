@@ -92,3 +92,17 @@ export async function testConnection({ apiKey, model = DEFAULT_MODEL }) {
   });
   return { ok: true, model: r.model, tokensOut: r.usage?.output_tokens || 0 };
 }
+
+/**
+ * جلب قائمة الموديلات المتاحة من Anthropic API
+ * يُرجع: [{ id, name, created }]
+ */
+export async function listModels({ apiKey }) {
+  const client = new Anthropic({ apiKey });
+  const page = await client.models.list({ limit: 100 });
+  return (page.data || []).map(m => ({
+    id: m.id,
+    name: m.display_name || m.id,
+    created: m.created_at,
+  }));
+}

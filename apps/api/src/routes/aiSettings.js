@@ -172,10 +172,34 @@ router.get('/usage', authorize(...USER_ROLES), asyncHandler(async (_req, res) =>
 }));
 
 /**
- * GET /api/ai-settings/models — قائمة الموديلات
+ * GET /api/ai-settings/models — قائمة الموديلات (الكتالوج الثابت)
  */
 router.get('/models', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
   res.json({ ok: true, items: MODEL_CATALOG, defaults: DEFAULT_MODELS });
+}));
+
+/**
+ * GET /api/ai-settings/models/live?provider=anthropic
+ * جلب الموديلات المتاحة فعلاً من API المزود (يستخدم المفتاح المحفوظ)
+ */
+router.get('/models/live', authorize(...USER_ROLES), asyncHandler(async (req, res) => {
+  const { provider } = req.query;
+  if (!VALID_PROVIDERS.includes(provider)) {
+    throw BadRequest(`مزود غير صالح. القيم المسموحة: ${VALID_PROVIDERS.join(', ')}`);
+  }
+
+  const s = await getAiSettings();
+  const apiKey = s.keys[provider];
+  if (!apiKey) throw BadRequest(`لا يوجد مفتاح API محفوظ لـ ${provider} — أضف المفتاح أولاً`);
+
+  // dynamic import حتى لا نُحمِّل كل المزودين دفعة واحدة
+  const providerModule = await import(`../lib/ai/providers/${provider}.js`);
+  if (typeof providerModule.listModels !== 'function') {
+    throw BadRequest(`المزود ${provider} لا يدعم جلب الموديلات`);
+  }
+
+  const models = await providerModule.listModels({ apiKey });
+  res.json({ ok: true, provider, models });
 }));
 
 /**

@@ -141,3 +141,20 @@ export async function testConnection({ apiKey, model = DEFAULT_MODEL }) {
     tokensOut: r.response?.usageMetadata?.candidatesTokenCount || 0,
   };
 }
+
+/**
+ * جلب قائمة موديلات Gemini التي تدعم generateContent
+ */
+export async function listModels({ apiKey }) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=100`
+  );
+  if (!r.ok) throw new Error(`Google API: ${r.status} ${r.statusText}`);
+  const data = await r.json();
+  return (data.models || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => ({
+      id: m.name.replace('models/', ''),
+      name: m.displayName || m.name.replace('models/', ''),
+    }));
+}

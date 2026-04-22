@@ -92,3 +92,17 @@ export async function testConnection({ apiKey, model = DEFAULT_MODEL }) {
   });
   return { ok: true, model: r.model, tokensOut: r.usage?.completion_tokens || 0 };
 }
+
+/**
+ * جلب قائمة موديلات Chat من OpenAI API
+ * يُصفّي فقط موديلات GPT وo-series القادرة على Chat
+ */
+export async function listModels({ apiKey }) {
+  const client = new OpenAI({ apiKey });
+  const r = await client.models.list();
+  const CHAT_PREFIXES = ['gpt-4', 'gpt-3.5', 'o1', 'o3', 'o4'];
+  return (r.data || [])
+    .filter(m => CHAT_PREFIXES.some(p => m.id.startsWith(p)))
+    .sort((a, b) => (b.created || 0) - (a.created || 0))
+    .map(m => ({ id: m.id, name: m.id, created: m.created }));
+}

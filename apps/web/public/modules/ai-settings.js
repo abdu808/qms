@@ -33,9 +33,14 @@
       // القيم الجديدة التي يُدخلها المستخدم (تُرسل للسيرفر)
       newKeys: { anthropic: '', openai: '', google: '' },
 
-      // Models catalog
+      // Models catalog (ثابت)
       models: [],
       defaults: { anthropic: '', openai: '', google: '' },
+
+      // Live models من API المزود
+      liveModels: { anthropic: [], openai: [], google: [] },
+      liveModelsLoading: { anthropic: false, openai: false, google: false },
+      liveModelsError: { anthropic: '', openai: '', google: '' },
 
       // Usage summary
       usage: null,
@@ -67,6 +72,8 @@
       c.newKeys = { anthropic: '', openai: '', google: '' };
       c.tab = 'general';
       await Promise.all([this.loadAiSettings(), this.loadAiModels(), this.loadAiUsage()]);
+      // جلب الموديلات الحية بعد تحميل الإعدادات (لمعرفة من لديه مفاتيح)
+      this.fetchAllLiveModels();
     },
 
     async loadAiSettings() {
@@ -93,6 +100,50 @@
         this.aiCfg.models = r.items || [];
         this.aiCfg.defaults = r.defaults || {};
       } catch (e) { /* silent */ }
+    },
+
+    /**
+     * جلب الموديلات الحية من API المزود باستخدام المفتاح المحفوظ
+     */
+    async fetchLiveModels(provider) {
+      const c = this.aiCfg;
+      if (!c.hasKeys[provider]) {
+        c.liveModelsError[provider] = 'أضف مفتاح API أولاً ثم احفظه';
+        return;
+      }
+      c.liveModelsLoading[provider] = true;
+      c.liveModelsError[provider] = '';
+      c.liveModels[provider] = [];
+      try {
+        const r = await this.api('GET', `/ai-settings/models/live?provider=${provider}`);
+        c.liveModels[provider] = r.models || [];
+        // إذا لم يكن الموديل الحالي ضمن القائمة، اضبطه على أول موديل
+        if (c.defaultProvider === provider && c.liveModels[provider].length > 0) {
+          const exists = c.liveModels[provider].some(m => m.id === c.defaultModel);
+          if (!exists) c.defaultModel = c.liveModels[provider][0].id;
+        }
+      } catch (e) {
+        c.liveModelsError[provider] = e.message || 'فشل جلب الموديلات';
+      } finally {
+        c.liveModelsLoading[provider] = false;
+      }
+    },
+
+    /**
+     * جلب الموديلات لكل المزودين الذين لديهم مفاتيح
+     */
+    async fetchAllLiveModels() {
+      const c = this.aiCfg;
+      const providers = ['anthropic', 'openai', 'google'].filter(p => c.hasKeys[p]);
+      await Promise.allSettled(providers.map(p => this.fetchLiveModels(p)));
+    },
+
+    /** الموديلات المتاحة للمزود المحدد (live إذا وُجدت، وإلا الكتالوج الثابت) */
+    modelsForProviderLive(provider) {
+      const live = this.aiCfg.liveModels[provider] || [];
+      if (live.length > 0) return live;
+      // fallback للكتالوج الثابت
+      return (this.aiCfg.models || []).filter(m => m.provider === provider);
     },
 
     async loadAiUsage() {
