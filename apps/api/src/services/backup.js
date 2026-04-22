@@ -27,6 +27,23 @@ function getDatabaseUrl() {
   return process.env.DATABASE_URL || '';
 }
 
+/**
+ * ينظِّف URL من معاملات Prisma (schema, connection_limit, pool_timeout, pgbouncer)
+ * التي لا يفهمها libpq/pg_dump. يُبقي فقط المعاملات القياسية (sslmode, ...).
+ */
+function sanitizeUrlForPgDump(url) {
+  try {
+    const u = new URL(url);
+    const prismaOnly = new Set(['schema', 'connection_limit', 'pool_timeout', 'pgbouncer', 'connect_timeout', 'socket_timeout']);
+    for (const key of [...u.searchParams.keys()]) {
+      if (prismaOnly.has(key)) u.searchParams.delete(key);
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 function ensureDir(dir) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
@@ -49,7 +66,8 @@ export async function runDatabaseBackup() {
   const outPath = join(BACKUP_DIR, `db-${todayStamp()}.sql.gz`);
 
   return new Promise((resolve) => {
-    const proc = spawn('pg_dump', ['--no-owner', '--no-privileges', '--format=plain', url], {
+    const dumpUrl = sanitizeUrlForPgDump(url);
+    const proc = spawn('pg_dump', ['--no-owner', '--no-privileges', '--format=plain', dumpUrl], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stderrBuf = '';
