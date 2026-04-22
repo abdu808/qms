@@ -64,6 +64,40 @@ const refreshLimiter = rateLimit({
   message: { ok: false, error: 'عدد كبير من الطلبات. حاول لاحقاً.' },
 });
 
+// Change-password limiter — يُمنع بروت فورس لكلمة المرور الحالية
+const changePwLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => req.ip,
+  message: { ok: false, error: 'تم تجاوز عدد محاولات تغيير كلمة المرور. حاول بعد 15 دقيقة.' },
+});
+
+/**
+ * يفرض سياسة كلمات المرور:
+ *  - 10 أحرف فأكثر
+ *  - حرف صغير + حرف كبير (لاتيني) + رقم + رمز
+ *  - ليست من قائمة قصيرة من كلمات المرور الشائعة
+ * يرمي BadRequest مع رسالة عربية واضحة.
+ */
+const COMMON_PASSWORDS = new Set([
+  'password', 'password1', 'password123', 'admin', 'admin123', '12345678',
+  'qwerty123', 'letmein', 'welcome', 'changeme', 'changeme123', 'iloveyou',
+  'Admin@2026', 'Changeme@123', 'Password@123',
+]);
+export function enforcePasswordPolicy(pw) {
+  if (typeof pw !== 'string' || pw.length < 10) {
+    throw BadRequest('كلمة المرور يجب أن تكون 10 أحرف على الأقل');
+  }
+  if (!/[a-z]/.test(pw)) throw BadRequest('يجب أن تحتوي على حرف لاتيني صغير');
+  if (!/[A-Z]/.test(pw)) throw BadRequest('يجب أن تحتوي على حرف لاتيني كبير');
+  if (!/[0-9]/.test(pw)) throw BadRequest('يجب أن تحتوي على رقم');
+  if (!/[^A-Za-z0-9]/.test(pw)) throw BadRequest('يجب أن تحتوي على رمز خاص');
+  if (COMMON_PASSWORDS.has(pw)) throw BadRequest('كلمة مرور شائعة جداً — اختر غيرها');
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -84,7 +118,7 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
     throw Unauthorized('بيانات الدخول غير صحيحة');
   }
 
-  const payload = { sub: user.id, email: user.email, role: user.role, name: user.name };
+  const payload = { sub: user.id, email: user.email, role: user.role, name: user.name, departmentId: user.departmentId || null };
   const token = jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
   const refreshToken = jwt.sign({ sub: user.id }, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpiresIn });
 
@@ -101,6 +135,11 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
   res.cookie('token', token, {
     httpOnly: true, secure: config.env === 'production', sameSite: 'lax', maxAge: parseDurationMs(config.jwt.expiresIn),
   });
+  // refresh token أيضاً httpOnly — غير متاح لـ JS، محمي من XSS
+  res.cookie('refresh', refreshToken, {
+    httpOnly: true, secure: config.env === 'production', sameSite: 'lax',
+    maxAge: parseDurationMs(config.jwt.refreshExpiresIn), path: '/api/auth',
+  });
 
   res.json({
     ok: true,
@@ -112,7 +151,8 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
 }));
 
 router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body || {};
+  // يقرأ refreshToken من cookie httpOnly أو من body (backward-compat للعملاء القدامى)
+  const refreshToken = req.cookies?.refresh || req.body?.refreshToken;
   if (!refreshToken) throw Unauthorized();
   let payload;
   try { payload = jwt.verify(refreshToken, config.jwt.refreshSecret); }
@@ -148,22 +188,27 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   ]);
 
   const token = jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name },
+    { sub: user.id, email: user.email, role: user.role, name: user.name, departmentId: user.departmentId || null },
     config.jwt.secret, { expiresIn: config.jwt.expiresIn },
   );
 
   res.cookie('token', token, {
     httpOnly: true, secure: config.env === 'production', sameSite: 'lax', maxAge: parseDurationMs(config.jwt.expiresIn),
   });
+  res.cookie('refresh', newRefreshToken, {
+    httpOnly: true, secure: config.env === 'production', sameSite: 'lax',
+    maxAge: parseDurationMs(config.jwt.refreshExpiresIn), path: '/api/auth',
+  });
   res.json({ ok: true, token, refreshToken: newRefreshToken });
 }));
 
 router.post('/logout', asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body || {};
+  const refreshToken = req.cookies?.refresh || req.body?.refreshToken;
   if (refreshToken) {
     await prisma.refreshToken.updateMany({ where: { token: refreshToken }, data: { revoked: true } });
   }
   res.clearCookie('token');
+  res.clearCookie('refresh', { path: '/api/auth' });
   res.json({ ok: true });
 }));
 
@@ -185,7 +230,7 @@ router.get('/me', asyncHandler(async (req, res) => {
 }));
 
 // تغيير كلمة المرور (مطلوب عند أول دخول أو كلمة مرور مؤقتة)
-router.post('/change-password', asyncHandler(async (req, res) => {
+router.post('/change-password', changePwLimiter, asyncHandler(async (req, res) => {
   const header = req.headers.authorization || '';
   const token  = header.startsWith('Bearer ') ? header.slice(7) : req.cookies?.token;
   if (!token) throw Unauthorized();
@@ -195,7 +240,7 @@ router.post('/change-password', asyncHandler(async (req, res) => {
 
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) throw BadRequest('كلمة المرور الحالية والجديدة مطلوبتان');
-  if (newPassword.length < 8) throw BadRequest('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل');
+  enforcePasswordPolicy(newPassword);
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user) throw Unauthorized();

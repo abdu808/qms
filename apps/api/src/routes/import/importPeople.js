@@ -2,8 +2,18 @@
  * استيراد بيانات الموظفين والكفاءات والتدريب
  */
 import bcrypt        from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { prisma }    from '../../db.js';
 import { nextCode }  from '../../utils/codeGen.js';
+
+/**
+ * يولّد كلمة مرور مؤقتة عشوائية قوية (12 حرفاً URL-safe)
+ * كل مستخدم مُستورَد يحصل على كلمة مختلفة — لا قيمة مُضمَّنة.
+ * الكلمة تُعاد في نتيجة الاستيراد ليسلّمها المسؤول للموظف عبر قناة آمنة.
+ */
+function generateTempPassword() {
+  return randomBytes(9).toString('base64url');
+}
 
 // ─── خرائط تحويل القيم ───────────────────────────────────────────────────────
 export const ROLE_MAP = {
@@ -24,7 +34,7 @@ export const ENTITIES = {
     columns: [
       { key: 'name',           label: 'الاسم الكامل',        required: true,  example: 'أحمد محمد علي',          width: 25 },
       { key: 'email',          label: 'البريد الإلكتروني',   required: true,  example: 'ahmed@birsabia.sa',       width: 30 },
-      { key: 'password',       label: 'كلمة المرور',         required: false, example: 'Changeme@123',            width: 18, note: 'تُترك فارغة → القيمة الافتراضية: Changeme@123' },
+      { key: 'password',       label: 'كلمة المرور',         required: false, example: '',                        width: 18, note: 'اتركها فارغة — سيُولّد النظام كلمة عشوائية مؤقتة لكل مستخدم ويُلزمه بتغييرها عند أول دخول' },
       { key: 'jobTitle',       label: 'المسمى الوظيفي',      required: false, example: 'أخصائي اجتماعي',         width: 22 },
       { key: 'departmentCode', label: 'كود القسم',           required: false, example: 'SOC',                     width: 14, note: 'QM / HR / FIN / ADM / SOC / KAF / EMP / RES / INV / COM / MKT / IT' },
       { key: 'role',           label: 'الدور في النظام',     required: true,  example: 'موظف',                   width: 22, note: 'مسؤول النظام / مدير الجودة / عضو لجنة الجودة / مدير قسم / موظف / مدقق ضيف' },
@@ -71,16 +81,25 @@ export const ENTITIES = {
 export async function importUsers(records, _userId) {
   const depts  = await prisma.department.findMany({ select: { id: true, code: true } });
   const deptMap = Object.fromEntries(depts.map(d => [d.code, d.id]));
-  const DEFAULT_HASH = await bcrypt.hash('Changeme@123', 10);
 
   let created = 0, updated = 0;
   const errors = [];
+  // كلمات مرور مؤقتة للمستخدمين الجدد — يُعيدها لمن قام بالاستيراد
+  // ليسلّمها لكل موظف عبر قناة آمنة (لا تُخزَّن بنص صريح في السيرفر).
+  const tempCredentials = [];
 
   for (const { row, data } of records) {
     try {
       const role   = ROLE_MAP[data.role] || 'EMPLOYEE';
       const deptId = deptMap[data.departmentCode] || null;
-      const hash   = data.password ? await bcrypt.hash(data.password, 10) : DEFAULT_HASH;
+      let tempPw = null;
+      let hash;
+      if (data.password) {
+        hash = await bcrypt.hash(data.password, 10);
+      } else {
+        tempPw = generateTempPassword();
+        hash   = await bcrypt.hash(tempPw, 10);
+      }
       const existing = await prisma.user.findUnique({ where: { email: data.email } });
 
       if (existing) {
@@ -91,15 +110,16 @@ export async function importUsers(records, _userId) {
         updated++;
       } else {
         await prisma.user.create({
-          data: { name: data.name, email: data.email, passwordHash: hash, jobTitle: data.jobTitle || null, departmentId: deptId, role, phone: data.phone || null, mustChangePassword: !data.password },
+          data: { name: data.name, email: data.email, passwordHash: hash, jobTitle: data.jobTitle || null, departmentId: deptId, role, phone: data.phone || null, mustChangePassword: true },
         });
         created++;
+        if (tempPw) tempCredentials.push({ email: data.email, name: data.name, tempPassword: tempPw });
       }
     } catch (e) {
       errors.push({ row, message: e.message });
     }
   }
-  return { created, updated, errors };
+  return { created, updated, errors, tempCredentials };
 }
 
 export async function importTraining(records, _userId) {

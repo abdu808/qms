@@ -99,6 +99,9 @@ function app() {
     ...(window.QmsKpiTracking        || {}),
     ...(window.QmsQuickActions       || {}),
     ...(window.QmsWebhookSettings    || {}),
+    ...(window.QmsAiSettings         || {}),
+    ...(window.QmsConsultant         || {}),
+    ...(window.QmsProgressReports    || {}),
     ...(window.QmsExecDashboard      || {}),
     ...(window.QmsCapa               || {}),
 
@@ -356,6 +359,9 @@ function app() {
       { id: 'reportBuilder', label: 'منشئ التقارير',      icon: '🧾' },
       { id: 'dataImport',        label: 'استيراد البيانات',    icon: '📥' },
       { id: 'portalAdmin',       label: 'البوابة العامة',       icon: '🌐' },
+      { id: 'aiSettings',        label: 'إعداد AI',             icon: '🧠' },
+      { id: 'consultant',        label: 'المستشار الذكي',        icon: '🎓' },
+      { id: 'progressReports',   label: 'المحقق الشهري',        icon: '🔎' },
       { id: 'auditorDashboard',  label: 'لوحة المراقب',         icon: '🔍' },
     ],
 
@@ -367,9 +373,9 @@ function app() {
       { id: 'planning',    title: 'التخطيط',            icon: '🎯', iso: 'ISO 6',     color: 'violet',  items: ['strategicGoals','operationalActivities','objectives','kpiTracking','myKpi','risks'] },
       { id: 'support',     title: 'الدعم',              icon: '🧑\u200d🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
-      { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard'] },
+      { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports'] },
       { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','capa','improvementProjects','slaBoard'] },
-      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
+      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin','aiSettings','consultant'] },
     ],
 
     // ─── دور المراقب الخارجي ──────────────────────────────────────────
@@ -705,6 +711,9 @@ function app() {
       // ── اختصارات لوحة المفاتيح العالمية ──────────────────────────
       window.addEventListener('keydown', (e) => this.handleShortcut(e));
 
+      // ── مؤقّت خمول الجلسة (30 دقيقة) — تسجيل خروج تلقائي ────────
+      this._startIdleTimer();
+
       // ── استعادة تفضيلات القائمة الجانبية ─────────────────────────
       try {
         const fav = JSON.parse(localStorage.getItem('qms_favorites') || 'null');
@@ -717,10 +726,19 @@ function app() {
         this.collapsedGroups = ['settings'];
       }
 
-      this.token = localStorage.getItem('qms_token');
-      this.refreshToken = localStorage.getItem('qms_refresh');
-      if (this.token) {
-        try {
+      // لا تخزين للـ tokens في localStorage — حماية من XSS.
+      // الجلسة تُستعاد من httpOnly cookies فقط عبر /auth/refresh.
+      this.token = null;
+      this.refreshToken = null;
+      try {
+        const r = await fetch(API + '/auth/refresh', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (r.ok) {
+          const data = await r.json();
+          this.token = data.token;
+          this.refreshToken = data.refreshToken;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
           if (!this.isReadOnly()) {
@@ -735,11 +753,8 @@ function app() {
           if (!this.isReadOnly() && !localStorage.getItem('qms_wizard_done')) {
             setTimeout(() => this.showWizard(), 800);
           }
-        } catch {
-          this.token = null;
-          localStorage.removeItem('qms_token');
         }
-      }
+      } catch { /* لا جلسة — عرض شاشة الدخول */ }
     },
 
     // ------ auth ------
@@ -748,8 +763,7 @@ function app() {
       try {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
         this.token = r.token; this.refreshToken = r.refreshToken; this.user = r.user;
-        localStorage.setItem('qms_token', r.token);
-        localStorage.setItem('qms_refresh', r.refreshToken);
+        // Tokens kept in-memory only. Persistence via httpOnly cookies (set by server).
         if (r.mustChangePassword) {
           this.mustChangePw = true;
           return;
@@ -818,13 +832,41 @@ function app() {
     },
 
     async logout() {
-      try { await this.api('POST', '/auth/logout', { refreshToken: this.refreshToken }); } catch {}
-      localStorage.removeItem('qms_token'); localStorage.removeItem('qms_refresh');
+      try { await this.api('POST', '/auth/logout', {}); } catch {}
+      // Cookies تُمسح من الخادم — لا localStorage للتنظيف.
       if (this._notifTimer)  { clearInterval(this._notifTimer);  this._notifTimer  = null; }
       if (this._alertsTimer) { clearInterval(this._alertsTimer); this._alertsTimer = null; }
+      this._stopIdleTimer();
       this.liveAlerts = []; this.liveAlertsSummary = { danger: 0, warn: 0, info: 0, total: 0 };
       this.stateMachines = null;
-      this.user = null; this.token = null;
+      this.user = null; this.token = null; this.refreshToken = null;
+    },
+
+    // ── إدارة مؤقّت خمول الجلسة (idle timeout) ────────────────────
+    // 30 دقيقة بدون تفاعل → تسجيل خروج تلقائي. يتجدّد عند أي mousemove/keydown/click/touch.
+    _idleTimeoutMs: 30 * 60 * 1000,
+    _startIdleTimer() {
+      const reset = () => {
+        if (this._idleTimer) clearTimeout(this._idleTimer);
+        // لا تشغّل المؤقّت إن لم يكن هناك مستخدم مسجَّل
+        if (!this.token) return;
+        this._idleTimer = setTimeout(async () => {
+          this.toast('انتهت الجلسة بسبب الخمول — يُرجى تسجيل الدخول مجدداً', 'warn');
+          await this.logout();
+        }, this._idleTimeoutMs);
+      };
+      this._idleReset = reset;
+      const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+      events.forEach(ev => window.addEventListener(ev, reset, { passive: true }));
+      reset();
+    },
+    _stopIdleTimer() {
+      if (this._idleTimer) { clearTimeout(this._idleTimer); this._idleTimer = null; }
+      if (this._idleReset) {
+        const events = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
+        events.forEach(ev => window.removeEventListener(ev, this._idleReset));
+        this._idleReset = null;
+      }
     },
 
     // ------ navigation ------
@@ -1385,29 +1427,37 @@ function app() {
       })[r] || r;
     },
 
+    // ------ CSRF helper ------
+    _getCsrfToken() {
+      // cookie غير httpOnly اسمه `csrf` — نقرأه مباشرة
+      const m = document.cookie.match(/(?:^|;\s*)csrf=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    },
+
     // ------ API helper ------
     async api(method, path, body = null, authRequired = true) {
       const headers = { 'Content-Type': 'application/json' };
       if (authRequired && this.token) headers.Authorization = `Bearer ${this.token}`;
+      // CSRF token على mutations فقط
+      if (!['GET', 'HEAD'].includes(method.toUpperCase())) {
+        const csrf = this._getCsrfToken();
+        if (csrf) headers['X-CSRF-Token'] = csrf;
+      }
       const res = await fetch(API + path, {
         method, headers, credentials: 'include',
         body: body ? JSON.stringify(body) : undefined,
       });
-      if (res.status === 401 && authRequired && this.refreshToken) {
+      if (res.status === 401 && authRequired) {
         try {
+          // httpOnly cookie يحمل refresh — credentials: 'include' يُرسله تلقائياً.
           const r = await fetch(API + '/auth/refresh', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: this.refreshToken }),
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
           });
           if (r.ok) {
             const data = await r.json();
             this.token = data.token;
-            localStorage.setItem('qms_token', data.token);
-            // Token Rotation: الـ server يُعيد refreshToken جديد — يجب حفظه
-            if (data.refreshToken) {
-              this.refreshToken = data.refreshToken;
-              localStorage.setItem('qms_refresh', data.refreshToken);
-            }
+            if (data.refreshToken) this.refreshToken = data.refreshToken;
             headers.Authorization = `Bearer ${data.token}`;
             const retry = await fetch(API + path, {
               method, headers, credentials: 'include',

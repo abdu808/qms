@@ -17,14 +17,22 @@ if (IS_PROD) {
       process.exit(1);
     }
   }
+  // CORS: في الإنتاج يجب تحديد origin صراحةً — لا نسمح بـ '*' مع credentials
+  if (!process.env.CORS_ORIGIN || process.env.CORS_ORIGIN.trim() === '*') {
+    console.error('[config] FATAL: CORS_ORIGIN must list explicit origins in production (no "*").');
+    process.exit(1);
+  }
 }
+
+// في التطوير: الافتراضي localhost فقط — لا wildcard
+const _corsRaw = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 3000,
   appName: process.env.APP_NAME || 'QMS - جمعية البر بصبيا',
   appUrl: process.env.APP_URL || 'http://localhost:3000',
-  corsOrigin: (process.env.CORS_ORIGIN || '*').split(',').map(s => s.trim()),
+  corsOrigin: _corsRaw.split(',').map(s => s.trim()).filter(Boolean),
   jwt: {
     secret:           process.env.JWT_SECRET     || DEV_DEFAULTS.JWT_SECRET,
     expiresIn:        process.env.JWT_EXPIRES_IN  || '8h',

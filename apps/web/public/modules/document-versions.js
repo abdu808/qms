@@ -36,10 +36,14 @@
         if (this.docVersions.uploadChangeLog)
           form.append('changeLog', this.docVersions.uploadChangeLog);
 
-        const token = localStorage.getItem('qms_token');
+        const uploadHeaders = {};
+        if (this.token) uploadHeaders.Authorization = `Bearer ${this.token}`;
+        const csrf = this._getCsrfToken ? this._getCsrfToken() : '';
+        if (csrf) uploadHeaders['X-CSRF-Token'] = csrf;
         const resp = await fetch(`/api/documents/${this.docVersions.document.id}/upload`, {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+          headers: uploadHeaders,
           body: form,
         });
         const data = await resp.json();
@@ -66,9 +70,9 @@
     // ─── تنزيل ملف وثيقة مع التوكن ──────────────────────────────────
     async downloadDocVersion(docId, ver) {
       try {
-        const token = localStorage.getItem('qms_token');
         const resp = await fetch(`/api/documents/${docId}/download/${ver.id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
+          headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
         });
         if (!resp.ok) { alert('فشل التنزيل — ' + resp.status); return; }
 

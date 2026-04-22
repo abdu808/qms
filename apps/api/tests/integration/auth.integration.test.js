@@ -45,3 +45,67 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('POST /api/auth/refresh — token rotation', () => {
+  it('يُنشئ token جديد ويُبطل القديم', async () => {
+    const u = await createUser({ email: 'rot@test.local' });
+    const res1 = await request(app).post('/api/auth/login').send({ email: u.email, password: 'Test1234!' });
+    const oldRefresh = res1.body.refreshToken;
+    const res2 = await request(app).post('/api/auth/refresh').send({ refreshToken: oldRefresh });
+    expect(res2.status).toBe(200);
+    expect(res2.body.refreshToken).toBeTruthy();
+    expect(res2.body.refreshToken).not.toBe(oldRefresh);
+    // إعادة استخدام القديم يجب أن ترفض
+    const res3 = await request(app).post('/api/auth/refresh').send({ refreshToken: oldRefresh });
+    expect(res3.status).toBe(401);
+  });
+});
+
+describe('POST /api/auth/change-password — policy', () => {
+  it('يرفض كلمة مرور قصيرة', async () => {
+    const u = await createUser({ email: 'pw@test.local' });
+    const { token } = await loginAs(app, u.email);
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'Test1234!', newPassword: 'short' });
+    expect(res.status).toBe(400);
+  });
+
+  it('يرفض كلمة مرور شائعة', async () => {
+    const u = await createUser({ email: 'pw2@test.local' });
+    const { token } = await loginAs(app, u.email);
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'Test1234!', newPassword: 'Password@123' });
+    expect(res.status).toBe(400);
+    expect(res.body.error || res.body.message).toMatch(/شائعة|common/i);
+  });
+
+  it('يقبل كلمة مرور قوية', async () => {
+    const u = await createUser({ email: 'pw3@test.local' });
+    const { token } = await loginAs(app, u.email);
+    const res = await request(app)
+      .post('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'Test1234!', newPassword: 'Str0ng#Passw0rd!9x' });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('RBAC — authorize()', () => {
+  it('يرفض مسار admin لموظف عادي بـ 403', async () => {
+    const emp = await createUser({ email: 'emp@test.local', role: 'EMPLOYEE' });
+    const { token } = await loginAs(app, emp.email);
+    const res = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${token}`);
+    expect([401, 403]).toContain(res.status);
+  });
+
+  it('يرفض غياب الـ token بـ 401', async () => {
+    const res = await request(app).get('/api/users');
+    expect(res.status).toBe(401);
+  });
+});

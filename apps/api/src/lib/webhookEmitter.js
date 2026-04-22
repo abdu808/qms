@@ -5,6 +5,7 @@
  */
 import { createHmac } from 'crypto';
 import { prisma } from '../db.js';
+import { decrypt } from './ai/crypto.js';
 
 // Cache الإعدادات 5 دقائق
 let _cfg = null, _cfgAt = 0;
@@ -17,13 +18,36 @@ async function getConfig() {
       where: { key: { in: ['n8n_webhook_url', 'n8n_webhook_secret', 'n8n_webhook_enabled'] } },
     });
     const m = Object.fromEntries(rows.map(r => [r.key, r.value]));
-    _cfg = { url: m.n8n_webhook_url || '', secret: m.n8n_webhook_secret || '', enabled: m.n8n_webhook_enabled === 'true' };
+    // السر مُخزَّن مُشفَّراً (AES-256-GCM) — فك التشفير هنا؛ الصيغ القديمة غير المُشفَّرة تُترك كما هي
+    const rawSecret = m.n8n_webhook_secret || '';
+    const secret = rawSecret.startsWith('v1:') ? decrypt(rawSecret) : rawSecret;
+    _cfg = { url: m.n8n_webhook_url || '', secret, enabled: m.n8n_webhook_enabled === 'true' };
   } catch { _cfg = { url: '', secret: '', enabled: false }; }
   _cfgAt = Date.now();
   return _cfg;
 }
 
 export function invalidateWebhookCache() { _cfg = null; }
+
+/**
+ * Defense-in-depth: يتحقق أن URL ليس عنواناً داخلياً حتى لو سرّبته حالة سباق في إعدادات الـ DB.
+ * نفس قائمة الحظر في webhookSettings.js.
+ */
+function isSafeOutboundUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    if (!/^https?:$/.test(u.protocol)) return false;
+    const host = u.hostname.toLowerCase();
+    const blocked = [
+      /^localhost$/, /^127\./, /^0\.0\.0\.0$/, /^::1$/,
+      /^10\./, /^192\.168\./,
+      /^172\.(1[6-9]|2\d|3[0-1])\./,
+      /^169\.254\./,
+      /^fc00:/i, /^fd00:/i, /^fe80:/i,
+    ];
+    return !blocked.some(re => re.test(host));
+  } catch { return false; }
+}
 
 /** fetch مع AbortController بدل Promise.race — يمنع تسرّب الـ sockets */
 async function fetchWithTimeout(url, options, ms) {
@@ -53,6 +77,10 @@ export async function emitWebhook(event, data) {
   try {
     const cfg = await getConfig();
     if (!cfg.enabled || !cfg.url) return;
+    if (!isSafeOutboundUrl(cfg.url)) {
+      console.warn(`[webhook] blocked unsafe url: ${cfg.url}`);
+      return;
+    }
     const { body, headers } = buildRequest(event, data, cfg);
     await fetchWithTimeout(cfg.url, { method: 'POST', headers, body }, TIMEOUT_MS);
   } catch (e) {
@@ -64,6 +92,7 @@ export async function emitWebhook(event, data) {
 export async function emitWebhookStrict(event, data) {
   const cfg = await getConfig();
   if (!cfg.url) throw new Error('webhook URL غير مُعيَّن');
+  if (!isSafeOutboundUrl(cfg.url)) throw new Error('عنوان غير آمن (SSRF protection)');
   const { body, headers } = buildRequest(event, data, cfg);
   const res = await fetchWithTimeout(cfg.url, { method: 'POST', headers, body }, TIMEOUT_MS);
   return { status: res.status, ok: res.ok };

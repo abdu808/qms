@@ -5,6 +5,8 @@ services:
     image: postgres:16-alpine
     container_name: qms-db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -28,6 +30,8 @@ services:
       dockerfile: ./apps/api/Dockerfile
     container_name: qms-api
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       qms-db:
         condition: service_healthy
@@ -47,8 +51,17 @@ services:
       APP_NAME: ${APP_NAME}
       APP_URL: ${APP_URL}
       PORT: ${PORT}
+      # Backup (يُشغَّل من داخل scheduler.js في الـ API بعد 02:00 محلياً)
+      QMS_BACKUP: ${QMS_BACKUP:-on}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      QMS_BACKUP_DIR: ${QMS_BACKUP_DIR:-/app/uploads/backups}
+      WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
+      AI_ENCRYPTION_KEY: ${AI_ENCRYPTION_KEY:-}
+      QM_EMAIL: ${QM_EMAIL:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
     volumes:
       - qms_uploads:/app/uploads
+      - ./backups:/app/uploads/backups
     expose:
       - "3000"
     networks:
@@ -65,6 +78,8 @@ services:
       dockerfile: Dockerfile
     container_name: qms-web
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - qms-api
     expose:
@@ -72,8 +87,11 @@ services:
     networks:
       - qms-net
 
-  # qms-backup: مُعطَّل مؤقتاً — كان يتسبب في restarts بسبب setpgid ممنوع في Docker
-  # النسخ الاحتياطي يعمل عبر API الداخلي (QMS_BACKUP=on في متغيرات Coolify)
+  # النسخ الاحتياطي:
+  #   يُشغَّل من داخل scheduler.js في qms-api (QMS_BACKUP=on).
+  #   يكتب إلى volume qms_uploads/backups ويُنعكس على المسار المضيف ./backups.
+  #   للتحقق: docker exec qms-api ls -la /app/uploads/backups
+  # (لا نستخدم حاوية منفصلة لتفادي مشكلة setpgid داخل Alpine.)
 
 volumes:
   qms_db_data:

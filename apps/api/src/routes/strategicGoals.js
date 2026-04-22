@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
+import { authorize } from '../middleware/auth.js';
 import { activeWhere } from '../lib/dataHelpers.js';
 import { NotFound } from '../utils/errors.js';
 
@@ -79,6 +80,81 @@ router.patch('/:id/recompute', requireAction('strategic-goals', 'update'), async
     data: { progress },
   });
   res.json({ ok: true, item: updated });
+}));
+
+/**
+ * DELETE /api/strategic-goals/reset
+ * حذف جميع بيانات الخطة الاستراتيجية والتشغيلية (SUPER_ADMIN فقط)
+ *
+ * حماية:
+ *   - يتطلّب body.confirm === 'RESET-STRATEGIC-PLAN' (رمز تأكيد صريح)
+ *   - يُنشئ نسخة JSON من البيانات قبل الحذف ويُعيد مسارها في الاستجابة
+ */
+// قفل منع التنفيذ المتزامن لعملية الـ reset (عملية مدمِّرة + كتابة ملف backup)
+let _resetInProgress = false;
+
+router.delete('/reset', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) => {
+  const CONFIRM = 'RESET-STRATEGIC-PLAN';
+  if (req.body?.confirm !== CONFIRM) {
+    return res.status(400).json({
+      ok: false,
+      error: `هذه عملية مدمِّرة. أرسل body.confirm="${CONFIRM}" للتأكيد.`,
+    });
+  }
+  // قفل — يُرفض الطلب الثاني المتزامن
+  if (_resetInProgress) {
+    return res.status(409).json({
+      ok: false,
+      error: 'عملية إعادة تعيين أخرى قيد التنفيذ — انتظر حتى تكتمل.',
+      code: 'RESET_IN_PROGRESS',
+    });
+  }
+  _resetInProgress = true;
+  // try/finally لضمان تحرير القفل في كل الحالات
+  try {
+
+  // 0️⃣ نسخة احتياطية JSON قبل الحذف
+  const snapshot = {
+    timestamp:              new Date().toISOString(),
+    byUserId:               req.user?.sub || null,
+    strategicGoals:         await prisma.strategicGoal.findMany(),
+    objectives:             await prisma.objective.findMany(),
+    operationalActivities:  await prisma.operationalActivity.findMany(),
+    kpiEntries:             await prisma.kpiEntry.findMany(),
+  };
+  const { writeFile, mkdir } = await import('fs/promises');
+  const { join } = await import('path');
+  const backupDir  = process.env.QMS_BACKUP_DIR || '/app/uploads/backups';
+  await mkdir(backupDir, { recursive: true }).catch(() => {});
+  const backupPath = join(backupDir, `strategic-plan-${Date.now()}.json`);
+  await writeFile(backupPath, JSON.stringify(snapshot, null, 2), 'utf8');
+
+  // 1️⃣ فك ربط المخاطر بالأهداف (لا نحذف المخاطر)
+  const unlinked = await prisma.risk.updateMany({
+    where: { strategicGoalId: { not: null } },
+    data:  { strategicGoalId: null },
+  });
+
+  // 2️⃣ حذف بالترتيب الصحيح (FK)
+  const kpi = await prisma.kpiEntry.deleteMany({});
+  const obj = await prisma.objective.deleteMany({});
+  const act = await prisma.operationalActivity.deleteMany({});
+  const gol = await prisma.strategicGoal.deleteMany({});
+
+  res.json({
+    ok: true,
+    backup: backupPath,
+    deleted: {
+      kpiEntries:           kpi.count,
+      objectives:           obj.count,
+      operationalActivities: act.count,
+      strategicGoals:        gol.count,
+      risksUnlinked:         unlinked.count,
+    },
+  });
+  } finally {
+    _resetInProgress = false;
+  }
 }));
 
 router.use('/', base);

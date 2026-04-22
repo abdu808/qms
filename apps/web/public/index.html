@@ -5,9 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>نظام إدارة الجودة - جمعية البر بصبيا</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🕊️%3C/text%3E%3C/svg%3E" />
+<!-- Tailwind play CDN — يعمل كـ JIT داخل المتصفح فلا يمكن ربطه بـ SRI ثابت.
+     للحدّ الأقصى من الأمان استبدله بـ bundle محلي في مرحلة إنتاج ناضجة. -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Alpine + Chart.js مثبَّتان على إصدار محدَّد + SRI (integrity) — إن اختُرقت CDN
+     سيرفض المتصفح تنفيذ JS معدَّل. crossorigin="anonymous" ضروري لفحص التكامل. -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"
+        integrity="sha384-ZzplbkDNw4d2hjWc+D9EcDIgXEUybwPr2Slhix4BTtvQO3JbK60Av543BvQT9gTu"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
+        crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <!--
   Safelist for Tailwind Play CDN — ensures dynamic group colors are generated
@@ -47,7 +55,7 @@
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium mb-1">كلمة المرور الحالية (المؤقتة)</label>
-            <input type="password" x-model="changePwForm.current" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400" placeholder="Changeme@123" />
+            <input type="password" x-model="changePwForm.current" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-400" placeholder="كلمة المرور المؤقتة المُسلَّمة لك" />
           </div>
           <div>
             <label class="block text-sm font-medium mb-1">كلمة المرور الجديدة</label>
@@ -550,6 +558,665 @@
             </template>
           </div>
           <!-- ═══ البوابة العامة (إدارة) ══════════════════════════════ -->
+          <!-- ════ المستشار الاستراتيجي الذكي ════════════════════════════ -->
+          <div x-show="page==='consultant'" x-cloak
+               x-init="$watch('page', v => { if (v==='consultant') loadConsultContext() })"
+               class="space-y-4">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">🎓 المستشار الاستراتيجي الذكي</h2>
+                <p class="text-sm text-gray-500 mt-1">صلاحيات: جميع أقسام الجودة · مستثنى: الإعدادات وإدارة المستخدمين</p>
+              </div>
+              <div class="flex items-center gap-2">
+
+                <!-- ─── Toggle الوضع ─────────────────────────────── -->
+                <div class="flex rounded-lg border border-gray-300 overflow-hidden text-xs font-medium">
+                  <button @click="consult.mode='auto'"
+                          :class="consult.mode==='auto'
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-white text-gray-600 hover:bg-gray-50'"
+                          class="px-3 py-2 transition-colors">
+                    ⚡ تلقائي
+                  </button>
+                  <button @click="consult.mode='review'"
+                          :class="consult.mode==='review'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-white text-gray-600 hover:bg-gray-50'"
+                          class="px-3 py-2 transition-colors border-r border-gray-300">
+                    🔍 مراجعة
+                  </button>
+                </div>
+
+                <!-- وصف الوضع الحالي -->
+                <span x-show="consult.mode==='auto'"  class="text-xs text-indigo-600 hidden md:block">AI ينفِّذ مباشرةً</span>
+                <span x-show="consult.mode==='review'" class="text-xs text-amber-600 hidden md:block">AI يقترح · أنت توافق</span>
+
+                <button @click="consultReset()" class="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">↻ جديد</button>
+
+                <!-- زر إعادة ضبط الخطة — للأدمن فقط -->
+                <button x-show="user?.role === 'SUPER_ADMIN'"
+                        @click="consultResetStrategicData()"
+                        class="text-xs px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-medium">
+                  🗑 حذف الخطة
+                </button>
+              </div>
+            </div>
+
+            <!-- السياق الحالي -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" x-show="consult.context">
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="text-xs text-gray-500">الأهداف الاستراتيجية</div>
+                <div class="text-xl font-bold text-indigo-700" x-text="consult.context?.summary?.strategicGoals || 0"></div>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="text-xs text-gray-500">الأنشطة التشغيلية</div>
+                <div class="text-xl font-bold text-violet-700" x-text="consult.context?.summary?.operationalActivities || 0"></div>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="text-xs text-gray-500">الأهداف (Objectives)</div>
+                <div class="text-xl font-bold text-emerald-700" x-text="consult.context?.summary?.objectives || 0"></div>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="text-xs text-gray-500">قراءات KPI</div>
+                <div class="text-xl font-bold text-amber-700" x-text="consult.context?.summary?.kpiEntries || 0"></div>
+              </div>
+            </div>
+
+            <!-- ملخص الفجوات -->
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3" x-show="consult.context?.gaps">
+              <div class="text-sm font-semibold text-red-800 mb-2">🔴 الفجوات المكتشفة</div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div>أهداف بلا مستهدف: <span class="font-bold" x-text="consult.context?.gaps?.goalsWithoutTarget || 0"></span></div>
+                <div>أهداف بلا مسؤول: <span class="font-bold" x-text="consult.context?.gaps?.goalsWithoutResponsible || 0"></span></div>
+                <div>أهداف بلا أنشطة: <span class="font-bold" x-text="consult.context?.gaps?.goalsWithoutActivities || 0"></span></div>
+                <div>أنشطة بلا هدف: <span class="font-bold" x-text="consult.context?.gaps?.activitiesNotLinkedToGoal || 0"></span></div>
+                <div>أنشطة بلا مسؤول: <span class="font-bold" x-text="consult.context?.gaps?.activitiesWithoutResponsible || 0"></span></div>
+                <div>أنشطة بلا مستهدف: <span class="font-bold" x-text="consult.context?.gaps?.activitiesWithoutTarget || 0"></span></div>
+                <div>Objectives بلا مالك: <span class="font-bold" x-text="consult.context?.gaps?.objectivesWithoutOwner || 0"></span></div>
+              </div>
+            </div>
+
+            <!-- قوالب سريعة -->
+            <div class="flex flex-wrap gap-2" x-show="consult.messages.length === 0">
+              <template x-for="tpl in consult.templates" :key="tpl.id">
+                <button @click="consultUseTemplate(tpl)"
+                        class="text-xs px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700"
+                        x-text="tpl.label"></button>
+              </template>
+            </div>
+
+            <!-- تبديل عرض الأدوات -->
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <label class="flex items-center gap-1 cursor-pointer select-none">
+                <input type="checkbox" x-model="consult.showTools" class="rounded">
+                <span>عرض نشاط الأدوات</span>
+              </label>
+              <span class="text-gray-300">|</span>
+              <span class="text-gray-400">المستشار ينفِّذ التغييرات تلقائياً أثناء المحادثة</span>
+            </div>
+
+            <!-- المحادثة -->
+            <div id="consult-messages" class="bg-white border border-gray-200 rounded-lg p-4 space-y-4 overflow-y-auto" style="min-height: 300px; max-height: 560px;">
+              <div x-show="consult.messages.length === 0" class="text-center text-gray-400 py-12">
+                <div class="text-4xl mb-2">🎓</div>
+                <div class="text-sm">ابدأ محادثة — المستشار يقرأ قاعدة البيانات ويُعدِّل مباشرةً</div>
+                <div class="text-xs mt-1 text-gray-300">اختر قالباً من الأسفل أو اكتب سؤالك</div>
+              </div>
+
+              <template x-for="(msg, idx) in consult.messages" :key="idx">
+                <div>
+                  <!-- رسالة المستخدم -->
+                  <div x-show="msg.role === 'user'" class="flex justify-end">
+                    <div class="bg-indigo-600 text-white rounded-lg p-3 text-sm max-w-[80%]"
+                         x-html="formatConsultMessage(msg.content)"></div>
+                  </div>
+
+                  <!-- رد المستشار -->
+                  <div x-show="msg.role === 'assistant'" class="flex justify-start flex-col gap-1 max-w-[88%]">
+
+                    <!-- ① نشاط الأدوات (قابل للطي) -->
+                    <div x-show="consult.showTools && msg.toolsUsed?.length > 0"
+                         class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs">
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-slate-600">🔧 العمليات المُنفَّذة
+                          (<span x-text="toolsSummary(msg.toolsUsed)"></span>)</span>
+                        <span class="text-slate-400 text-[10px]">
+                          <span x-text="msg.iterations"></span> جولة ·
+                          <span x-text="(msg.usage?.costUSD * 100 || 0).toFixed(3)"></span>¢
+                        </span>
+                      </div>
+                      <div class="space-y-1">
+                        <template x-for="(t, ti) in msg.toolsUsed" :key="ti">
+                          <div :class="t.ok ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'"
+                               class="flex items-start gap-2 p-1.5 rounded border">
+                            <span x-text="t.ok ? '✅' : '❌'" class="flex-shrink-0"></span>
+                            <div class="flex-1 min-w-0">
+                              <span class="font-medium text-slate-700" x-text="toolLabel(t.tool)"></span>
+                              <span class="text-slate-500 mx-1">→</span>
+                              <span :class="t.ok ? 'text-green-800' : 'text-red-800'" x-text="t.summary"></span>
+                            </div>
+                            <span class="text-slate-300 text-[9px] flex-shrink-0" x-text="t.durationMs + 'ms'"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+
+                    <!-- ② نص الرد -->
+                    <div x-show="msg.content"
+                         class="bg-gray-100 text-gray-900 rounded-lg p-3 text-sm"
+                         x-html="formatConsultMessage(msg.content)"></div>
+
+                    <!-- ③ الإجراءات المقترحة (وضع المراجعة) -->
+                    <div x-show="msg.pendingActions?.length > 0 && !msg.applied"
+                         class="bg-amber-50 border border-amber-300 rounded-lg p-3">
+                      <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-amber-800">
+                          🔍 وضع المراجعة — <span x-text="msg.pendingActions.length"></span> إجراء مقترح
+                        </span>
+                        <span class="text-[10px] text-amber-600">لم يُنفَّذ بعد</span>
+                      </div>
+                      <div class="space-y-1 mb-3">
+                        <template x-for="(a, i) in msg.pendingActions" :key="i">
+                          <div class="flex items-center gap-2 bg-white border border-amber-200 rounded p-2 text-xs">
+                            <span class="text-amber-500 flex-shrink-0">⏳</span>
+                            <span class="font-medium text-gray-700" x-text="toolLabel(a.tool)"></span>
+                            <span class="text-gray-400 mx-0.5">—</span>
+                            <span class="text-gray-600 truncate" x-text="JSON.stringify(a.input).slice(0,80)"></span>
+                          </div>
+                        </template>
+                      </div>
+                      <button @click="consultApplyPending(msg)"
+                              :disabled="consult.applying"
+                              class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors">
+                        <span x-show="!consult.applying">✅ تطبيق الكل (<span x-text="msg.pendingActions.length"></span> إجراء)</span>
+                        <span x-show="consult.applying">⏳ جاري التطبيق...</span>
+                      </button>
+                    </div>
+
+                    <!-- ④ نتائج التطبيق -->
+                    <div x-show="msg.applied && msg.applyResults?.length"
+                         class="bg-green-50 border border-green-200 rounded-lg p-2 text-xs">
+                      <div class="font-semibold text-green-800 mb-1">✅ تم التطبيق</div>
+                      <template x-for="(r, i) in (msg.applyResults||[])" :key="i">
+                        <div :class="r.ok ? 'text-green-700' : 'text-red-700'" x-text="r.summary || r.error"></div>
+                      </template>
+                    </div>
+                  </div>
+
+                  <!-- رسائل النظام -->
+                  <div x-show="msg.role === 'system'" class="flex justify-center">
+                    <div :class="msg.isSuccess === false ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-green-50 border-green-200 text-green-900'"
+                         class="border rounded-lg p-2 text-xs max-w-[90%]"
+                         x-html="formatConsultMessage(msg.content)"></div>
+                  </div>
+
+                  <!-- رسائل الملفات المرفوعة -->
+                  <div x-show="msg.role === 'file'" class="flex justify-start">
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs max-w-[90%] space-y-2">
+                      <!-- رأس: عدد الملفات والإحصاء -->
+                      <div class="flex items-center gap-3 font-semibold text-slate-700 border-b border-slate-200 pb-2">
+                        <span>📦</span>
+                        <span x-text="(msg.count || 1) + ' ملف'"></span>
+                        <span x-show="msg.succeeded > 0" class="text-green-600 font-normal"
+                              x-text="msg.succeeded + ' ✅'"></span>
+                        <span x-show="msg.failed > 0" class="text-red-500 font-normal"
+                              x-text="msg.failed + ' ❌'"></span>
+                        <span x-show="msg.totalCreated > 0"
+                              class="mr-auto bg-green-100 text-green-700 px-2 py-0.5 rounded-full"
+                              x-text="'أُنشئ ' + msg.totalCreated + ' سجل'"></span>
+                      </div>
+                      <!-- تفاصيل كل ملف -->
+                      <div class="text-slate-600 leading-relaxed" x-html="formatConsultMessage(msg.chatMessage)"></div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- مؤشر التفكير -->
+              <div x-show="consult.thinking" class="flex justify-start">
+                <div class="bg-slate-100 rounded-lg p-3 text-sm text-slate-600 flex items-center gap-2">
+                  <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                  <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                  <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay:300ms"></span>
+                  <span class="text-xs text-slate-500 mr-1">المستشار يعمل...</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- الإدخال -->
+            <div class="space-y-2">
+
+              <!-- قائمة الملفات المُرفقة -->
+              <div x-show="consult.attachments.length > 0"
+                   class="bg-indigo-50 border border-indigo-200 rounded-lg p-2 space-y-1">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-semibold text-indigo-700">
+                    📎 <span x-text="consult.attachments.length"></span> ملف مُرفق
+                  </span>
+                  <div class="flex gap-2">
+                    <button @click="consultPickFile()"
+                            :disabled="consult.uploading"
+                            class="text-xs text-indigo-600 hover:underline disabled:opacity-40">+ إضافة ملف</button>
+                    <button @click="consultUpload()"
+                            :disabled="consult.uploading"
+                            class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs rounded-lg disabled:opacity-50 font-medium">
+                      <span x-show="!consult.uploading">⬆ معالجة الكل</span>
+                      <span x-show="consult.uploading" class="flex items-center gap-1">
+                        <span class="inline-block w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay:0ms"></span>
+                        <span class="inline-block w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay:150ms"></span>
+                        <span class="inline-block w-2 h-2 bg-white rounded-full animate-bounce" style="animation-delay:300ms"></span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <template x-for="(att, idx) in consult.attachments" :key="idx">
+                  <div class="flex items-center gap-2 bg-white rounded px-2 py-1 text-xs">
+                    <span class="text-slate-400">📄</span>
+                    <span class="flex-1 text-slate-700 truncate" x-text="att.name"></span>
+                    <span class="text-slate-400 shrink-0" x-text="formatFileSize(att.size)"></span>
+                    <button @click="consultRemoveAttachment(idx)"
+                            :disabled="consult.uploading"
+                            class="text-slate-300 hover:text-red-500 disabled:opacity-30 shrink-0">✕</button>
+                  </div>
+                </template>
+              </div>
+
+              <!-- صندوق الإدخال -->
+              <div class="flex gap-2">
+                <input type="file" id="consult-file-input" class="hidden"
+                       accept=".pdf,.docx,.pptx,.xlsx,.xls,.txt,.md"
+                       multiple
+                       @change="consultFileSelected($event)">
+                <button @click="consultPickFile()"
+                        :disabled="consult.thinking || consult.uploading"
+                        title="إرفاق ملفات (PDF، Word، Excel...) — يمكن تحديد أكثر من ملف"
+                        class="px-3 py-2 border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 rounded-lg text-gray-500 hover:text-indigo-600 disabled:opacity-40 transition-colors shrink-0">
+                  📎
+                </button>
+
+                <textarea x-model="consult.input"
+                          @keydown.enter.meta.prevent="consultSend()"
+                          @keydown.enter.ctrl.prevent="consultSend()"
+                          :disabled="consult.thinking"
+                          rows="2"
+                          placeholder="اكتب سؤالك أو أرفق ملفات... (Ctrl+Enter للإرسال)"
+                          class="flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+                <button @click="consultSend()"
+                        :disabled="consult.thinking || !consult.input.trim()"
+                        class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 font-semibold shrink-0">
+                  إرسال
+                </button>
+              </div>
+            </div>
+
+            <div x-show="consult.error" class="text-sm text-red-600 bg-red-50 p-2 rounded" x-text="consult.error"></div>
+          </div>
+
+          <!-- ════ المحقق الشهري — Digital Quality Employee ════════════════════ -->
+          <div x-show="page==='progressReports'" x-cloak
+               x-init="$watch('page', v => { if (v==='progressReports') { if (progCanUseDashboard()) { progLoadDashboard(); } else { progLoadMine(); } } })"
+               class="space-y-5">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">🔎 المحقق الشهري</h2>
+                <p class="text-sm text-gray-500 mt-1">نظام متابعة شهري ذكي — يولِّد أسئلة تحقيقية مخصَّصة لكل قسم ويقارن الأداء</p>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <button x-show="progCanUseDashboard()" @click="prog.viewMode='dashboard'; progLoadDashboard()"
+                        :class="prog.viewMode==='dashboard' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border'"
+                        class="px-3 py-1.5 rounded text-sm">📊 لوحة مدير الجودة</button>
+                <button x-show="progCanFillReport()" @click="progGoToList()"
+                        :class="prog.viewMode==='list' ? 'bg-violet-600 text-white' : 'bg-white text-gray-700 border'"
+                        class="px-3 py-1.5 rounded text-sm">📋 تقارير قسمي</button>
+              </div>
+            </div>
+
+            <div x-show="prog.error" class="text-sm text-red-600 bg-red-50 p-3 rounded" x-text="prog.error"></div>
+
+            <!-- ═════ لوحة مدير الجودة ═════ -->
+            <div x-show="prog.viewMode==='dashboard'" class="space-y-5">
+              <div class="bg-white rounded-lg border p-4">
+                <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+                  <div class="flex items-center gap-2">
+                    <label class="text-sm font-semibold">الفترة:</label>
+                    <select x-model.number="prog.qmMonth" @change="progLoadDashboard()" class="text-sm border rounded px-2 py-1">
+                      <template x-for="m in 12"><option :value="m" x-text="progMonthLabel(m)"></option></template>
+                    </select>
+                    <input type="number" x-model.number="prog.qmYear" @change="progLoadDashboard()"
+                           class="text-sm border rounded px-2 py-1 w-24">
+                  </div>
+                  <button @click="progRunContradictionCheck()" :disabled="prog.qmDetecting"
+                          class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm disabled:opacity-50">
+                    <span x-show="!prog.qmDetecting">🔍 كشف التناقضات الآن</span>
+                    <span x-show="prog.qmDetecting">⏳ جارٍ الفحص...</span>
+                  </button>
+                </div>
+
+                <!-- KPI strip -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div class="bg-green-50 rounded p-3 border border-green-100">
+                    <div class="text-xs text-green-700">متميِّزة</div>
+                    <div class="text-2xl font-bold text-green-800" x-text="prog.qmCompare.filter(r => r.classification==='EXCELLENT').length"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-3 border">
+                    <div class="text-xs text-gray-600">مستقرة</div>
+                    <div class="text-2xl font-bold" x-text="prog.qmCompare.filter(r => r.classification==='STABLE').length"></div>
+                  </div>
+                  <div class="bg-amber-50 rounded p-3 border border-amber-100">
+                    <div class="text-xs text-amber-700">منذرة</div>
+                    <div class="text-2xl font-bold text-amber-800" x-text="prog.qmCompare.filter(r => r.classification==='WARNING').length"></div>
+                  </div>
+                  <div class="bg-red-50 rounded p-3 border border-red-100">
+                    <div class="text-xs text-red-700">متعثِّرة</div>
+                    <div class="text-2xl font-bold text-red-800" x-text="prog.qmCompare.filter(r => r.classification==='DISTRESSED').length"></div>
+                  </div>
+                </div>
+
+                <!-- Compare table -->
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600 text-xs">
+                      <tr>
+                        <th class="text-right py-2 px-2">القسم</th>
+                        <th class="text-center py-2 px-2">الدرجة</th>
+                        <th class="text-center py-2 px-2">الشهر السابق</th>
+                        <th class="text-center py-2 px-2">التغير</th>
+                        <th class="text-center py-2 px-2">التصنيف</th>
+                        <th class="text-center py-2 px-2">الحالة</th>
+                        <th class="text-center py-2 px-2">إجراء</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="r in prog.qmCompare" :key="r.departmentId">
+                        <tr class="border-t hover:bg-gray-50">
+                          <td class="py-2 px-2 font-semibold" x-text="r.name"></td>
+                          <td class="text-center font-bold" x-text="r.score != null ? r.score + '/100' : '—'"></td>
+                          <td class="text-center text-gray-500" x-text="r.previousScore != null ? r.previousScore : '—'"></td>
+                          <td class="text-center">
+                            <span x-show="r.delta != null" :class="r.delta > 0 ? 'text-green-600' : r.delta < 0 ? 'text-red-600' : 'text-gray-500'"
+                                  x-text="(r.delta > 0 ? '↑ +' : r.delta < 0 ? '↓ ' : '→ ') + (r.delta ?? '')"></span>
+                          </td>
+                          <td class="text-center">
+                            <span :class="progClassBadge(r.classification).cls" class="text-xs px-2 py-0.5 rounded" x-text="progClassBadge(r.classification).label"></span>
+                          </td>
+                          <td class="text-center">
+                            <span :class="progStatusBadge(r.status).cls" class="text-xs px-2 py-0.5 rounded" x-text="progStatusBadge(r.status).label"></span>
+                          </td>
+                          <td class="text-center">
+                            <button x-show="r.status==='SUBMITTED'" @click="progApproveReport(r.departmentId)" class="text-xs text-green-600 hover:underline mr-1">اعتماد</button>
+                            <button x-show="r.status==='SUBMITTED'" @click="progReturnReport(r.departmentId)" class="text-xs text-amber-600 hover:underline mr-1">إعادة</button>
+                          </td>
+                        </tr>
+                      </template>
+                      <tr x-show="!prog.qmCompare.length && !prog.qmLoading">
+                        <td colspan="7" class="text-center text-gray-400 py-4">لا توجد تقارير لهذا الشهر</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Trends -->
+              <div class="bg-white rounded-lg border p-4">
+                <h3 class="font-bold text-sm mb-3">📈 الاتجاهات — آخر 6 شهور</h3>
+                <div class="space-y-2">
+                  <template x-for="t in prog.qmTrends" :key="t.departmentId">
+                    <div class="flex items-center justify-between py-2 border-b last:border-0">
+                      <span class="font-semibold text-sm" x-text="t.department?.name"></span>
+                      <div class="flex items-center gap-4 text-xs">
+                        <span class="text-gray-500">درجات: <span class="font-mono" x-text="t.series.map(s => s.score ?? '—').join(' → ')"></span></span>
+                        <span :class="t.direction==='IMPROVING' ? 'text-green-600' : t.direction==='DECLINING' ? 'text-red-600' : 'text-gray-500'"
+                              x-text="t.direction==='IMPROVING' ? '↗ تحسُّن' : t.direction==='DECLINING' ? '↘ انحدار' : '→ مستقر'"></span>
+                        <span class="text-gray-400" x-text="'ميل: ' + t.slope"></span>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="!prog.qmTrends.length" class="text-center text-gray-400 text-sm py-3">بيانات غير كافية (الاتجاه يحتاج شهرين على الأقل)</div>
+                </div>
+              </div>
+
+              <!-- Investigation flags -->
+              <div class="bg-white rounded-lg border p-4">
+                <h3 class="font-bold text-sm mb-3">🚩 علامات التحقيق (<span x-text="prog.qmFlags.length"></span>)</h3>
+                <div class="space-y-2">
+                  <template x-for="f in prog.qmFlags" :key="f.id">
+                    <div class="flex items-start justify-between p-3 rounded border bg-gray-50">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="text-xs px-2 py-0.5 rounded"
+                                :class="{'bg-red-100 text-red-700': f.severity==='CRITICAL' || f.severity==='HIGH',
+                                         'bg-amber-100 text-amber-700': f.severity==='MEDIUM',
+                                         'bg-gray-100 text-gray-600': f.severity==='LOW'}"
+                                x-text="f.type + ' • ' + f.severity"></span>
+                        </div>
+                        <div class="font-semibold text-sm" x-text="f.title"></div>
+                        <div class="text-xs text-gray-600 mt-1" x-text="f.description"></div>
+                      </div>
+                      <button @click="progResolveFlag(f.id)" class="text-xs text-blue-600 hover:underline">حل</button>
+                    </div>
+                  </template>
+                  <div x-show="!prog.qmFlags.length" class="text-center text-gray-400 text-sm py-3">✅ لا علامات مفتوحة</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ═════ رئيس القسم: قائمة تقاريره ═════ -->
+            <div x-show="prog.viewMode==='list'" class="space-y-4">
+              <div class="bg-white rounded-lg border p-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="font-bold">تقاريري الشهرية</h3>
+                  <button @click="progOpenMyReport()"
+                          class="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded">
+                    📝 تقرير هذا الشهر
+                  </button>
+                </div>
+                <div class="space-y-2">
+                  <template x-for="r in prog.myReports" :key="r.id">
+                    <div class="flex items-center justify-between p-3 rounded border hover:bg-gray-50">
+                      <div class="flex items-center gap-3">
+                        <div class="text-lg font-bold" x-text="progMonthLabel(r.month) + ' ' + r.year"></div>
+                        <span :class="progStatusBadge(r.status).cls" class="text-xs px-2 py-0.5 rounded" x-text="progStatusBadge(r.status).label"></span>
+                        <span x-show="r.score != null" class="text-sm text-gray-600" x-text="r.score + '/100'"></span>
+                      </div>
+                      <button @click="progOpenMyReport({ year: r.year, month: r.month })" class="text-sm text-blue-600 hover:underline">فتح ←</button>
+                    </div>
+                  </template>
+                  <div x-show="!prog.myReports.length" class="text-center text-gray-400 text-sm py-6">لم تُنشئ تقارير بعد — اضغط "تقرير هذا الشهر"</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ═════ رئيس القسم: نموذج التحرير ═════ -->
+            <div x-show="prog.viewMode==='edit' && prog.currentReport" class="space-y-5">
+
+              <!-- Header -->
+              <div class="bg-gradient-to-l from-violet-50 to-white rounded-lg border border-violet-200 p-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <div class="text-xs text-violet-700 font-semibold">تقرير شهري</div>
+                    <div class="text-xl font-bold" x-text="(prog.currentReport?.department?.name || '') + ' — ' + progMonthLabel(prog.currentReport?.month) + ' ' + prog.currentReport?.year"></div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span :class="progStatusBadge(prog.currentReport?.status).cls" class="text-xs px-2 py-0.5 rounded" x-text="progStatusBadge(prog.currentReport?.status).label"></span>
+                    <button @click="progGoToList()" class="text-xs text-gray-500 hover:underline">↩ العودة للقائمة</button>
+                  </div>
+                </div>
+                <div x-show="prog.currentReport?.returnedReason" class="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded">
+                  <strong>أُعيد للتعديل:</strong> <span x-text="prog.currentReport?.returnedReason"></span>
+                </div>
+              </div>
+
+              <!-- الطبقة 1: بيانات النظام (قراءة) -->
+              <div class="bg-white rounded-lg border p-4">
+                <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
+                  <span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">①</span>
+                  بيانات النظام (تلقائي — للقراءة)
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">أنشطة</div>
+                    <div class="text-lg font-bold" x-text="prog.currentReport?.autoFilled?.activities?.length || 0"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">مخاطر نشطة</div>
+                    <div class="text-lg font-bold" x-text="prog.currentReport?.autoFilled?.risks?.length || 0"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">NCRs مفتوحة</div>
+                    <div class="text-lg font-bold text-amber-700" x-text="prog.currentReport?.autoFilled?.ncrs?.length || 0"></div>
+                  </div>
+                  <div class="bg-gray-50 rounded p-2">
+                    <div class="text-xs text-gray-500">CAPAs</div>
+                    <div class="text-lg font-bold text-red-700" x-text="prog.currentReport?.autoFilled?.capas?.length || 0"></div>
+                  </div>
+                </div>
+
+                <details class="mt-3 text-xs">
+                  <summary class="cursor-pointer text-gray-600">تفاصيل البنود ▾</summary>
+                  <div class="mt-2 space-y-1">
+                    <template x-for="a in prog.currentReport?.autoFilled?.activities || []" :key="a.id">
+                      <div class="flex justify-between py-1 border-b"><span x-text="a.title"></span><span class="text-gray-500" x-text="a.progress + '%'"></span></div>
+                    </template>
+                    <template x-for="c in prog.currentReport?.autoFilled?.capas || []" :key="c.id">
+                      <div class="flex justify-between py-1 border-b"><span x-text="c.code + ' — ' + c.title"></span>
+                        <span :class="c.daysOverdue > 0 ? 'text-red-600' : 'text-gray-500'" x-text="c.daysOverdue > 0 ? ('متأخر ' + c.daysOverdue + ' يوم') : c.status"></span>
+                      </div>
+                    </template>
+                  </div>
+                </details>
+              </div>
+
+              <!-- الطبقة 2: KPIs تنتظر قيمة -->
+              <div class="bg-white rounded-lg border p-4" x-show="prog.currentReport?.autoFilled?.kpisNeedingValue?.length">
+                <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
+                  <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs">②</span>
+                  مؤشرات تنتظر قيمة هذا الشهر
+                </h3>
+                <div class="space-y-3">
+                  <template x-for="(kv, idx) in prog.currentReport?.deptFilled?.kpiValues || []" :key="kv.objectiveId">
+                    <div class="p-3 bg-emerald-50 rounded border border-emerald-100">
+                      <div class="flex justify-between flex-wrap gap-2 mb-2">
+                        <div class="font-semibold text-sm" x-text="kv.title"></div>
+                        <div class="text-xs text-gray-500">
+                          <template x-for="k in prog.currentReport?.autoFilled?.kpisNeedingValue || []">
+                            <span x-show="k.id===kv.objectiveId">
+                              الهدف: <span x-text="k.target"></span> <span x-text="k.unit || ''"></span>
+                              <span x-show="k.lastValue != null"> · آخر قيمة: <span x-text="k.lastValue"></span></span>
+                            </span>
+                          </template>
+                        </div>
+                      </div>
+                      <div class="grid grid-cols-3 gap-2">
+                        <input type="number" x-model="kv.value" @blur="progAutoSave()"
+                               :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
+                               placeholder="القيمة" class="border rounded px-2 py-1 text-sm col-span-1">
+                        <input type="text" x-model="kv.note" @blur="progAutoSave()"
+                               :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
+                               placeholder="ملاحظة (اختياري)" class="border rounded px-2 py-1 text-sm col-span-2">
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="!(prog.currentReport?.deptFilled?.kpiValues?.length)" class="text-sm text-gray-400 text-center py-2">✅ لا مؤشرات ناقصة لهذا الشهر</div>
+                </div>
+              </div>
+
+              <!-- الطبقة 3: أسئلة التحقيق من AI -->
+              <div class="bg-white rounded-lg border border-violet-200 p-4">
+                <h3 class="font-bold text-sm mb-3 flex items-center gap-2">
+                  <span class="bg-violet-100 text-violet-700 px-2 py-0.5 rounded text-xs">③</span>
+                  أسئلة التحقيق — مُولَّدة من AI لقسمك
+                </h3>
+                <div class="space-y-3">
+                  <template x-for="(ans, idx) in prog.currentReport?.deptFilled?.aiAnswers || []" :key="ans.questionId">
+                    <div class="p-3 rounded bg-violet-50 border border-violet-100">
+                      <template x-for="q in prog.currentReport?.aiQuestions || []">
+                        <div x-show="q.id===ans.questionId">
+                          <div class="flex items-start gap-2 mb-2">
+                            <span class="text-xs px-2 py-0.5 rounded font-semibold"
+                                  :class="{'bg-red-100 text-red-700': q.severity==='HIGH',
+                                           'bg-amber-100 text-amber-700': q.severity==='MEDIUM',
+                                           'bg-gray-100 text-gray-600': q.severity==='LOW'}"
+                                  x-text="'س' + (idx+1)"></span>
+                            <div class="flex-1 font-semibold text-sm" x-text="q.question"></div>
+                          </div>
+                          <div class="text-[10px] text-violet-600 mb-2" x-show="q.reasoning" x-text="'🧠 ' + q.reasoning"></div>
+                        </div>
+                      </template>
+                      <textarea x-model="ans.answer" @blur="progAutoSave()"
+                                :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
+                                placeholder="إجابتك..."
+                                class="w-full border rounded p-2 text-sm min-h-[70px]"></textarea>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- الطبقة 4: سؤال مفتوح -->
+              <div class="bg-white rounded-lg border p-4">
+                <h3 class="font-bold text-sm mb-2 flex items-center gap-2">
+                  <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">④</span>
+                  هل هناك شيء تريد لفت نظر إدارة الجودة إليه؟
+                </h3>
+                <textarea x-model="prog.currentReport.deptFilled.freeText" @blur="progAutoSave()"
+                          :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
+                          placeholder="معوقات، احتياجات، تغييرات مرتقبة، إنجازات خارج المؤشرات..."
+                          class="w-full border rounded p-2 text-sm min-h-[80px]"></textarea>
+              </div>
+
+              <!-- درجة (معتمَد) -->
+              <div x-show="prog.currentReport?.score != null" class="bg-gradient-to-l from-indigo-50 to-white rounded-lg border border-indigo-200 p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-xs text-indigo-700">درجة الأداء المحسوبة</div>
+                    <div class="text-3xl font-bold text-indigo-800" x-text="prog.currentReport?.score + '/100'"></div>
+                  </div>
+                  <div class="grid grid-cols-5 gap-2 text-xs text-center">
+                    <template x-for="[key, label] in [['kpi','KPIs'],['activity','أنشطة'],['compliance','امتثال'],['promise','وعود'],['investigation','تحقيق']]" :key="key">
+                      <div class="bg-white rounded px-2 py-1 border">
+                        <div class="text-gray-500" x-text="label"></div>
+                        <div class="font-bold" x-text="(prog.currentReport?.scoreBreakdown?.[key] ?? '—') + (prog.currentReport?.scoreBreakdown?.[key] != null ? '%' : '')"></div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              <!-- إرسال -->
+              <div x-show="['DRAFT','RETURNED'].includes(prog.currentReport?.status)" class="flex items-center justify-between bg-white border rounded-lg p-3">
+                <div class="text-xs text-gray-500">
+                  <span x-show="prog.saving">💾 جارٍ الحفظ...</span>
+                  <span x-show="!prog.saving">✅ الحفظ تلقائي عند مغادرة أي حقل</span>
+                </div>
+                <button @click="progSubmit()" :disabled="prog.submitting"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm disabled:opacity-50">
+                  <span x-show="!prog.submitting">✉️ إرسال التقرير للاعتماد</span>
+                  <span x-show="prog.submitting">⏳ جارٍ الإرسال...</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ════ صفحة إعداد AI — تفتح المودال مباشرة ════ -->
+          <div x-show="page==='aiSettings'" x-cloak x-init="$watch('page', v => { if (v==='aiSettings') openAiSettings() })" class="space-y-5">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800">🧠 إعداد الذكاء الاصطناعي</h2>
+                <p class="text-sm text-gray-500 mt-1">Claude · GPT · Gemini — لتحليل الوثائق، التلخيص، والـ Agent</p>
+              </div>
+            </div>
+            <div class="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
+              <div class="text-5xl mb-3">🧠</div>
+              <div class="text-lg font-semibold text-violet-800 mb-2">إعدادات AI متعدِّد المزوّدين</div>
+              <p class="text-sm text-violet-600 mb-4">أضف مفاتيح API، فعِّل النظام، اختبر الاتصال، وتابع الاستهلاك</p>
+              <button @click="openAiSettings()"
+                      class="bg-violet-700 hover:bg-violet-800 text-white text-sm px-6 py-2.5 rounded-lg font-medium transition">
+                فتح الإعدادات
+              </button>
+            </div>
+          </div>
+
           <div x-show="page==='portalAdmin'" x-cloak class="space-y-5">
 
             <!-- رأس الصفحة -->
@@ -762,6 +1429,20 @@
                     <button @click="openWebhookSettings()"
                             class="bg-slate-700 hover:bg-slate-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition">
                       إعداد Webhook
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <template x-if="user?.role === 'SUPER_ADMIN' || user?.role === 'QUALITY_MANAGER'">
+                <div class="bg-violet-50 border border-violet-200 rounded-xl p-4">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-semibold text-violet-800 text-sm">🧠 الذكاء الاصطناعي (Multi-Provider)</div>
+                      <div class="text-xs text-violet-600 mt-0.5">Claude · GPT · Gemini — لتحليل الوثائق، التلخيص، والـ Agent لاحقاً</div>
+                    </div>
+                    <button @click="openAiSettings()"
+                            class="bg-violet-700 hover:bg-violet-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition">
+                      إعداد AI
                     </button>
                   </div>
                 </div>
@@ -5336,6 +6017,308 @@
     </div>
   </div>
 
+  <!-- ═══ AI Settings Modal (Multi-Provider) ═══════════════════════════════ -->
+  <div x-show="aiCfg.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+       @keydown.escape.window="aiCfg.open=false">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-l from-violet-50 to-indigo-50 rounded-t-2xl">
+        <h2 class="font-bold text-gray-800">🧠 إعدادات الذكاء الاصطناعي</h2>
+        <button @click="aiCfg.open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex border-b bg-gray-50">
+        <button @click="aiCfg.tab='general'" :class="aiCfg.tab==='general' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition">⚙️ عام</button>
+        <button @click="aiCfg.tab='keys'" :class="aiCfg.tab==='keys' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition">🔑 المفاتيح</button>
+        <button @click="aiCfg.tab='usage'; loadAiUsage()" :class="aiCfg.tab==='usage' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition">📊 الاستخدام</button>
+        <button @click="aiCfg.tab='playground'" :class="aiCfg.tab==='playground' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition">🧪 تجربة</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto flex-1">
+        <div x-show="aiCfg.error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 mb-4" x-text="aiCfg.error"></div>
+
+        <!-- ═══ Tab: General ═══ -->
+        <div x-show="aiCfg.tab==='general'" class="space-y-4">
+          <div class="flex items-center gap-3 bg-gray-50 rounded-lg p-3">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" x-model="aiCfg.enabled" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+            </label>
+            <div class="flex-1">
+              <div class="text-sm font-semibold text-gray-800" x-text="aiCfg.enabled ? 'طبقة AI مفعَّلة ✅' : 'طبقة AI معطَّلة'"></div>
+              <div class="text-xs text-gray-500">عند التعطيل لن تعمل أي ميزات ذكية (التحليل، التلخيص، Playground)</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">المزود الافتراضي</label>
+              <select x-model="aiCfg.defaultProvider" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="google">Google (Gemini)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">الموديل الافتراضي</label>
+              <select x-model="aiCfg.defaultModel" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <template x-for="m in modelsForProvider(aiCfg.defaultProvider)" :key="m.model">
+                  <option :value="m.model" x-text="m.label + ' — ' + m.good"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">الميزانية الشهرية (USD)</label>
+            <div class="flex items-center gap-2">
+              <input x-model.number="aiCfg.monthlyBudgetUsd" type="number" min="0" step="1"
+                     class="flex-1 border rounded-lg px-3 py-2 text-sm" dir="ltr" />
+              <span class="text-sm text-gray-500">دولار / شهر</span>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">عند تجاوز الحد سيُرفَض أي استدعاء جديد تلقائياً (اكتب 0 لإلغاء الحد)</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">حماية البيانات الحساسة (PII)</label>
+            <select x-model="aiCfg.piiRedaction" class="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="optional">اختياري — الميزة تُقرِّر</option>
+              <option value="always">دائماً — أزل الهويات والجوالات والإيميل من كل طلب</option>
+              <option value="never">أبداً — أرسل كما هو</option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">يُطبَّق على: الهوية الوطنية، الجوال السعودي، الإيميل، IBAN، بطاقات الائتمان</p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" x-model="aiCfg.logRequests" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+            </label>
+            <span class="text-sm text-gray-700">تسجيل الاستدعاءات (مطلوب لتتبع الميزانية والاستخدام)</span>
+          </div>
+
+          <div class="flex justify-end pt-3 border-t">
+            <button @click="saveAiSettings()" :disabled="aiCfg.saving"
+                    class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                    x-text="aiCfg.saving ? 'جارٍ الحفظ…' : 'حفظ الإعدادات العامة'"></button>
+          </div>
+        </div>
+
+        <!-- ═══ Tab: Keys ═══ -->
+        <div x-show="aiCfg.tab==='keys'" class="space-y-4">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+            🔐 المفاتيح مُشفَّرة بـ AES-256-GCM في قاعدة البيانات ولا تُعرض كاملة بعد الحفظ. يمكنك إدخال مفتاح جديد لاستبدال القديم.
+          </div>
+
+          <template x-for="provider in ['anthropic', 'openai', 'google']" :key="provider">
+            <div class="border rounded-lg p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-semibold text-sm text-gray-800" x-text="aiProviderLabel(provider)"></div>
+                  <div class="text-xs" :class="aiCfg.hasKeys[provider] ? 'text-emerald-600' : 'text-gray-400'"
+                       x-text="aiCfg.hasKeys[provider] ? '✓ مفتاح محفوظ: ' + aiCfg.keys[provider] : 'لا يوجد مفتاح'"></div>
+                </div>
+                <button x-show="aiCfg.hasKeys[provider]" @click="deleteAiKey(provider)" :disabled="aiCfg.saving"
+                        class="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded">حذف</button>
+              </div>
+              <div class="flex items-center gap-2">
+                <input x-model="aiCfg.newKeys[provider]" type="password"
+                       :placeholder="aiCfg.hasKeys[provider] ? 'اتركه فارغاً لعدم التغيير' : 'أدخل مفتاح API'"
+                       class="flex-1 border rounded-lg px-3 py-2 text-sm font-mono" dir="ltr" />
+                <button @click="testAiProvider(provider)"
+                        :disabled="aiCfg.testing[provider] || (!aiCfg.newKeys[provider] && !aiCfg.hasKeys[provider])"
+                        class="text-xs px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                        x-text="aiCfg.testing[provider] ? '…' : '🔌 اختبار'"></button>
+              </div>
+              <div x-show="aiCfg.testResult[provider]" class="rounded-md px-3 py-2 text-xs"
+                   :class="aiCfg.testResult[provider]?.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'"
+                   x-text="aiCfg.testResult[provider]?.message"></div>
+            </div>
+          </template>
+
+          <div class="flex justify-end pt-3 border-t">
+            <button @click="saveAiKeys()" :disabled="aiCfg.saving"
+                    class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                    x-text="aiCfg.saving ? 'جارٍ الحفظ…' : 'حفظ المفاتيح الجديدة'"></button>
+          </div>
+        </div>
+
+        <!-- ═══ Tab: Usage ═══ -->
+        <div x-show="aiCfg.tab==='usage'" class="space-y-4">
+          <template x-if="!aiCfg.usage">
+            <div class="text-center text-gray-400 py-8 text-sm">جارٍ تحميل الاستخدام…</div>
+          </template>
+          <template x-if="aiCfg.usage">
+            <div class="space-y-4">
+              <!-- Budget bar -->
+              <div class="bg-white border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <div class="text-xs text-gray-500">استهلاك الميزانية الشهرية</div>
+                    <div class="text-2xl font-bold text-gray-800">
+                      <span x-text="aiFormatUsd(aiCfg.usage.monthly.costUSD)"></span>
+                      <span class="text-sm text-gray-400" x-show="aiCfg.usage.budgetUsd > 0">
+                        / <span x-text="aiFormatUsd(aiCfg.usage.budgetUsd)"></span>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs text-gray-500">الطلبات</div>
+                    <div class="text-lg font-bold text-gray-800" x-text="aiCfg.usage.monthly.requestCount"></div>
+                  </div>
+                </div>
+                <div x-show="aiCfg.usage.budgetUsd > 0" class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div class="h-full transition-all" :class="aiBudgetBarColor(aiCfg.usage.budgetUsedPercent)"
+                       :style="'width: ' + Math.min(100, aiCfg.usage.budgetUsedPercent) + '%'"></div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>Input: <span x-text="aiCfg.usage.monthly.inputTokens.toLocaleString()"></span> tok</span>
+                  <span>Output: <span x-text="aiCfg.usage.monthly.outputTokens.toLocaleString()"></span> tok</span>
+                </div>
+              </div>
+
+              <!-- By feature -->
+              <div class="bg-white border rounded-lg p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-3">حسب الميزة</div>
+                <template x-if="aiCfg.usage.byFeature.length === 0">
+                  <div class="text-xs text-gray-400 text-center py-3">لا يوجد استخدام بعد</div>
+                </template>
+                <div class="space-y-2">
+                  <template x-for="f in aiCfg.usage.byFeature" :key="f.feature">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-gray-700 font-mono" x-text="f.feature"></span>
+                      <span class="text-gray-500">
+                        <span x-text="f.requests"></span> طلب ·
+                        <span class="font-semibold text-gray-800" x-text="aiFormatUsd(f.costUSD)"></span>
+                      </span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- By provider -->
+              <div class="bg-white border rounded-lg p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-3">حسب المزود</div>
+                <div class="space-y-2">
+                  <template x-for="p in aiCfg.usage.byProvider" :key="p.provider">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-gray-700" x-text="aiProviderLabel(p.provider)"></span>
+                      <span class="text-gray-500">
+                        <span x-text="p.requests"></span> طلب ·
+                        <span class="font-semibold text-gray-800" x-text="aiFormatUsd(p.costUSD)"></span>
+                      </span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Recent -->
+              <div class="bg-white border rounded-lg p-4">
+                <div class="text-sm font-semibold text-gray-700 mb-3">آخر 10 استدعاءات</div>
+                <template x-if="aiCfg.usage.recent.length === 0">
+                  <div class="text-xs text-gray-400 text-center py-3">لا يوجد</div>
+                </template>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-xs">
+                    <thead class="text-gray-500">
+                      <tr>
+                        <th class="text-right px-2 py-1 font-medium">الميزة</th>
+                        <th class="text-right px-2 py-1 font-medium">الموديل</th>
+                        <th class="text-right px-2 py-1 font-medium">التكلفة</th>
+                        <th class="text-right px-2 py-1 font-medium">المدة</th>
+                        <th class="text-right px-2 py-1 font-medium">الوقت</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                      <template x-for="r in aiCfg.usage.recent" :key="r.id">
+                        <tr :class="!r.success ? 'bg-red-50' : ''">
+                          <td class="px-2 py-1.5 font-mono" x-text="r.feature"></td>
+                          <td class="px-2 py-1.5 text-gray-600" x-text="r.model"></td>
+                          <td class="px-2 py-1.5 font-semibold" x-text="aiFormatUsd(r.costUSD)"></td>
+                          <td class="px-2 py-1.5 text-gray-500" x-text="r.durationMs + 'ms'"></td>
+                          <td class="px-2 py-1.5 text-gray-400" x-text="aiFormatDate(r.createdAt)"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ═══ Tab: Playground ═══ -->
+        <div x-show="aiCfg.tab==='playground'" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">المزود (اختياري)</label>
+              <select x-model="aiCfg.playground.provider" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">الافتراضي</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI</option>
+                <option value="google">Google</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">الموديل (اختياري)</label>
+              <select x-model="aiCfg.playground.model" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">الافتراضي</option>
+                <template x-for="m in (aiCfg.playground.provider ? modelsForProvider(aiCfg.playground.provider) : aiCfg.models)" :key="m.model">
+                  <option :value="m.model" x-text="m.label"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">System prompt (اختياري)</label>
+            <textarea x-model="aiCfg.playground.system" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="مثال: أنت مساعد خبير بالعربية…"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">السؤال</label>
+            <textarea x-model="aiCfg.playground.prompt" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="اكتب سؤالك هنا…"></textarea>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 text-xs">
+              <input type="checkbox" x-model="aiCfg.playground.piiRedact" class="accent-violet-600">
+              <span class="text-gray-700">إزالة البيانات الحساسة قبل الإرسال (PII)</span>
+            </label>
+          </div>
+
+          <div>
+            <button @click="runAiPlayground()" :disabled="aiCfg.playground.loading || !aiCfg.playground.prompt"
+                    class="w-full px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold text-sm disabled:opacity-50"
+                    x-text="aiCfg.playground.loading ? 'جارٍ المعالجة…' : '🚀 إرسال'"></button>
+          </div>
+
+          <div x-show="aiCfg.playground.error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700" x-text="aiCfg.playground.error"></div>
+
+          <template x-if="aiCfg.playground.response">
+            <div class="bg-gray-50 border rounded-lg p-4 space-y-3">
+              <div class="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed" x-text="aiCfg.playground.response.content"></div>
+              <div class="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-2 border-t">
+                <span>المزود: <span class="font-semibold" x-text="aiCfg.playground.response.provider"></span></span>
+                <span>الموديل: <span class="font-semibold" x-text="aiCfg.playground.response.model"></span></span>
+                <span>Input: <span x-text="aiCfg.playground.response.usage?.inputTokens"></span> tok</span>
+                <span>Output: <span x-text="aiCfg.playground.response.usage?.outputTokens"></span> tok</span>
+                <span>التكلفة: <span class="font-semibold" x-text="aiFormatUsd(aiCfg.playground.response.usage?.costUSD)"></span></span>
+                <span>المدة: <span x-text="aiCfg.playground.response.durationMs + 'ms'"></span></span>
+                <span x-show="aiCfg.playground.response.piiRedacted" class="text-amber-600">🔒 تم إزالة PII</span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ CAPA Advance Modal ═══════════════════════════════════════════════ -->
   <div x-show="capaAdvDlg.open" x-cloak
        class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -5415,6 +6398,9 @@
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
+<script src="/modules/ai-settings.js?v=2026-04-21a"></script>
+<script src="/modules/consultant.js?v=2026-04-22a"></script>
+<script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
 <script src="/modules-config/context.js?v=2026-04-21e"></script>

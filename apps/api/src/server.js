@@ -7,11 +7,13 @@ import rateLimit from 'express-rate-limit';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { randomUUID } from 'crypto';
 
 import { config } from './config.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import { authenticate, denyReadOnly } from './middleware/auth.js';
 import { auditTrail } from './middleware/audit.js';
+import { issueCsrfCookie, verifyCsrf } from './middleware/csrf.js';
 
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
@@ -71,19 +73,31 @@ import publicPortalRoutes from './routes/publicPortal.js';
 import portalAdminRoutes from './routes/portalAdmin.js';
 import metaRoutes from './routes/meta.js';
 import webhookSettingsRoutes from './routes/webhookSettings.js';
+import aiSettingsRoutes from './routes/aiSettings.js';
+import consultantRoutes from './routes/consultant.js';
+import progressReportsRoutes from './routes/progressReports.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
 // Node.js v20+ يُنهي العملية عند أي rejected promise بدون handler.
 // نُسجّل الخطأ ونبقى نشطين — الخادم يجب أن يعمل حتى في مواجهة الأخطاء غير المتوقعة.
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[server] unhandledRejection — preventing crash:', reason?.message || reason);
-  // لا process.exit — نترك الخادم يعمل
-});
-process.on('uncaughtException', (err) => {
-  console.error('[server] uncaughtException — preventing crash:', err?.message || err);
-  // لا process.exit — نترك الخادم يعمل
-});
+// سياسة موصى بها: سجّل + أغلق بنعومة + اترك مديراً خارجياً (Docker/Coolify) يُعيد التشغيل.
+// الحالة بعد استثناء غير ملتقَط قد تكون فاسدة — الاستمرار خطر.
+let _shuttingDown = false;
+function gracefulShutdown(reason, err) {
+  if (_shuttingDown) return;
+  _shuttingDown = true;
+  console.error(`[server] fatal ${reason} — graceful shutdown:`, err?.stack || err?.message || err);
+  // امنح الطلبات الجارية 10 ثوانٍ للانتهاء قبل الخروج
+  setTimeout(() => process.exit(1), 10_000).unref();
+  try {
+    if (typeof _httpServer?.close === 'function') _httpServer.close(() => process.exit(1));
+  } catch {
+    process.exit(1);
+  }
+}
+process.on('unhandledRejection', (reason) => gracefulShutdown('unhandledRejection', reason));
+process.on('uncaughtException',  (err)    => gracefulShutdown('uncaughtException',  err));
 
 // ── تسجيل سبب الخروج (يساعد في تشخيص SIGTERM/SIGKILL) ──────────────────
 process.on('exit', (code) => {
@@ -103,12 +117,69 @@ process.on('SIGINT', () => {
 const app = express();
 
 app.set('trust proxy', 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+// ── Content-Security-Policy ──────────────────────────────────────────────
+// نسمح فقط لنطاق الموقع + CDNs المستخدمة في الواجهة (Tailwind, Alpine, Chart.js, Google Fonts).
+// report-only في التطوير كي لا تكسر التجربة، تنفيذ صارم في الإنتاج.
+const CSP_DIRECTIVES = {
+  defaultSrc: ["'self'"],
+  // 'unsafe-inline' لازمة لـ Tailwind play-CDN/Alpine x-data/x-init + بعض السكربتات الصغيرة
+  scriptSrc: [
+    "'self'", "'unsafe-inline'", "'unsafe-eval'",
+    'https://cdn.tailwindcss.com',
+    'https://cdn.jsdelivr.net',
+  ],
+  styleSrc: [
+    "'self'", "'unsafe-inline'",
+    'https://fonts.googleapis.com',
+    'https://cdn.jsdelivr.net',
+  ],
+  fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+  imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+  connectSrc: ["'self'"],
+  frameAncestors: ["'none'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  upgradeInsecureRequests: config.env === 'production' ? [] : null,
+};
+// helmet يقبل null-removal تلقائياً لو حذفنا المفتاح
+if (!CSP_DIRECTIVES.upgradeInsecureRequests) delete CSP_DIRECTIVES.upgradeInsecureRequests;
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: CSP_DIRECTIVES,
+    reportOnly: config.env !== 'production',
+  },
+  crossOriginEmbedderPolicy: false,  // نحتاج أصول من CDN
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // HSTS: يُجبر المتصفحات على HTTPS لمدة سنة + includeSubDomains — إنتاج فقط
+  hsts: config.env === 'production' ? {
+    maxAge: 31_536_000,
+    includeSubDomains: true,
+    preload: false,
+  } : false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Body size: default 1MB — كافٍ لمعظم POST JSON. uploads المُلفات تذهب عبر multer بحدّها الخاص.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
-app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
+
+// ── Request-ID middleware: يضيف X-Request-Id لكل طلب — يسهّل التتبّع عبر logs ──
+app.use((req, res, next) => {
+  req.id = req.headers['x-request-id'] || randomUUID();
+  res.setHeader('X-Request-Id', req.id);
+  next();
+});
+
+// morgan: أضف request-id إلى السجل
+morgan.token('rid', (req) => req.id || '-');
+const logFmt = config.env === 'production'
+  ? ':remote-addr - :method :url :status :res[content-length] - :response-time ms rid=:rid'
+  : 'dev';
+app.use(morgan(logFmt));
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500 });
 app.use('/api/', apiLimiter);
@@ -156,6 +227,29 @@ app.use((req, res, next) => {
     }
   });
   next();
+});
+
+// robots.txt — منع فهرسة منطقة التطبيق الداخلي (/qms, /api). البوابة العامة '/' مفتوحة.
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain').send([
+    'User-agent: *',
+    'Disallow: /qms',
+    'Disallow: /api',
+    'Disallow: /eval',
+    'Disallow: /ack',
+    'Allow: /',
+  ].join('\n'));
+});
+
+// security.txt — RFC 9116. البريد والبوليسي من env لتجنّب hard-coding.
+app.get(['/.well-known/security.txt', '/security.txt'], (_req, res) => {
+  const contact = process.env.SECURITY_CONTACT || 'mailto:admin@bir-sabia.org.sa';
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  res.type('text/plain').send([
+    `Contact: ${contact}`,
+    `Expires: ${expires}`,
+    'Preferred-Languages: ar, en',
+  ].join('\n'));
 });
 
 // Health — shallow liveness (fast, used by Coolify/Cloudflare probes)
@@ -233,8 +327,8 @@ app.use('/api/public',
   publicPortalRoutes,
 );
 
-// Authenticated
-app.use('/api', authenticate, denyReadOnly, auditTrail());
+// Authenticated — بعد authenticate نضمن أن طلبات mutations تحمل CSRF token صالح
+app.use('/api', authenticate, denyReadOnly, issueCsrfCookie, verifyCsrf, auditTrail());
 app.use('/api/dashboard',     dashboardRoutes);
 app.use('/api/charts',        chartsRoutes);
 app.use('/api/users',         usersRoutes);
@@ -279,6 +373,9 @@ app.use('/api/scheduler',                 schedulerRoutes);
 app.use('/api/report-builder',            reportBuilderRoutes);
 app.use('/api/portal',                   portalAdminRoutes);
 app.use('/api/webhook-settings',         webhookSettingsRoutes);
+app.use('/api/ai-settings',              aiSettingsRoutes);
+app.use('/api/consultant',               consultantRoutes);
+app.use('/api/progress-reports',         progressReportsRoutes);
 app.use('/api/management-review',        managementReviewRoutes);
 app.use('/api/competence',               competenceRoutes);
 app.use('/api/communication',            communicationRoutes);
@@ -346,8 +443,9 @@ app.use(errorHandler);
 // test (NODE_ENV='test' or QMS_NO_LISTEN='1' suppress listen).
 export { app };
 
+let _httpServer = null;
 if (process.env.NODE_ENV !== 'test' && process.env.QMS_NO_LISTEN !== '1') {
-  app.listen(config.port, () => {
+  _httpServer = app.listen(config.port, () => {
     console.log(`[qms-api] listening on :${config.port} (${config.env})`);
     startScheduler();
   });
