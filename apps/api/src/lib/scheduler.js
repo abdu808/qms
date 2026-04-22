@@ -10,6 +10,7 @@ import { activeWhere } from './dataHelpers.js';
 import { runBackupCycle } from '../services/backup.js';
 import { scanSla } from './sla.js';
 import { emitWebhook } from './webhookEmitter.js';
+import { generateReport as svcGenerateProgressReport } from '../services/progressReportService.js';
 
 const INTERVAL_MS = 60 * 60 * 1000;   // كل ساعة
 const OVERDUE_COMPLAINT_DAYS = 14;
@@ -363,6 +364,101 @@ async function checkDueManagementReview() {
   }
 }
 
+/**
+ * المحقق الشهري — توليد تقارير كل قسم في بداية الشهر، وتذكير رؤساء الأقسام
+ * بالمسودات المتأخرة. يعمل مرة في اليوم (بعد الساعة 6 صباحاً).
+ *
+ *   • يوم 1–3 من الشهر: توليد تلقائي لتقرير الشهر السابق لكل قسم نشط.
+ *   • بعد يوم 5: تذكير أصحاب المسودات التي لم تُرسل.
+ *   • بعد يوم 15: تصعيد إلى مديري الجودة.
+ */
+async function runProgressReportMonthly() {
+  const now   = new Date();
+  const day   = now.getDate();
+  const year  = now.getFullYear();
+  const thisM = now.getMonth() + 1;
+  // الشهر المستهدف = الشهر السابق
+  const targetMonth = thisM === 1 ? 12 : thisM - 1;
+  const targetYear  = thisM === 1 ? year - 1 : year;
+
+  // ── (1) التوليد الآلي في الأيام الأولى من الشهر ────────────────
+  if (day <= 3) {
+    const depts = await prisma.department.findMany({
+      where: activeWhere({}),
+      select: { id: true, name: true },
+    });
+    for (const d of depts) {
+      try {
+        // idempotent: generateReport يُعيد الموجود إن وُجد
+        await svcGenerateProgressReport({
+          departmentId: d.id, year: targetYear, month: targetMonth,
+          forceRegenerate: false,
+        });
+      } catch (e) {
+        console.warn(`[scheduler] progress-report generate failed for ${d.name}:`, e.message);
+      }
+    }
+  }
+
+  // ── (2) تذكير المسودات المتأخرة بعد اليوم 5 ─────────────────────
+  if (day >= 5) {
+    const drafts = await prisma.progressReport.findMany({
+      where: {
+        deletedAt: null,
+        year: targetYear, month: targetMonth,
+        status: { in: ['DRAFT', 'RETURNED'] },
+      },
+      select: { id: true, departmentId: true, status: true },
+    });
+    if (drafts.length) {
+      const deptIds = [...new Set(drafts.map(d => d.departmentId))];
+      const managers = await prisma.user.findMany({
+        where: { role: 'DEPT_MANAGER', active: true, departmentId: { in: deptIds } },
+        select: { id: true, departmentId: true, name: true },
+      });
+      const mByDept = {};
+      for (const m of managers) mByDept[m.departmentId] = m;
+
+      for (const r of drafts) {
+        const mgr = mByDept[r.departmentId];
+        if (!mgr) continue;
+        await notifyOnce({
+          userId: mgr.id,
+          type: 'PROGRESS_REPORT_DUE',
+          title: `🔎 تقرير شهر ${targetMonth}/${targetYear} — يحتاج إكمال`,
+          message: r.status === 'RETURNED'
+            ? 'أُعيد إليك التقرير للتعديل — يرجى مراجعة الملاحظات وإعادة الإرسال.'
+            : 'مسودة التقرير الشهري لا تزال غير مُرسلة — يرجى تعبئتها وإرسالها.',
+          link: `/qms#/progressReports?id=${r.id}`,
+          entityType: 'ProgressReport',
+          entityId: r.id,
+          eventKey: dayKey('PR_DRAFT_DUE', r.id),
+        });
+      }
+    }
+
+    // ── (3) تصعيد إلى QM بعد اليوم 15 ─────────────────────────────
+    if (day >= 15 && drafts.length) {
+      const qms = await prisma.user.findMany({
+        where: { role: { in: ['QUALITY_MANAGER', 'SUPER_ADMIN'] }, active: true },
+        select: { id: true },
+      });
+      for (const u of qms) {
+        await notifyOnce({
+          userId: u.id,
+          type: 'PROGRESS_REPORT_ESCALATION',
+          title: `🚨 تقارير شهر ${targetMonth}/${targetYear} متأخرة`,
+          message: `${drafts.length} قسم(أقسام) لم تُرسل تقريرها الشهري بعد مرور ${day} يوماً.`,
+          link: '/qms#/progressReports',
+          entityType: 'ProgressReport',
+          entityId: null,
+          eventKey: dayKey('PR_ESCALATION', u.id, targetYear, targetMonth),
+        });
+      }
+    }
+  }
+}
+
 async function runAllChecks() {
   const started = Date.now();
   try {
@@ -396,6 +492,29 @@ async function runDailyJobsIfDue() {
   try {
     await dailyDataHealthScan();
   } catch (e) { console.warn('[scheduler] daily jobs failed:', e.message); }
+  try {
+    await runProgressReportMonthly();
+  } catch (e) { console.warn('[scheduler] progress-report monthly failed:', e.message); }
+  try {
+    await cleanupExpiredRefreshTokens();
+  } catch (e) { console.warn('[scheduler] refresh-token cleanup failed:', e.message); }
+}
+
+/**
+ * DB-001: ينظّف refresh tokens المنتهية أو المُبطَلة الأقدم من 30 يوماً.
+ * يمنع تضخّم الجدول ويُقلّل سطح الهجوم عند dump.
+ */
+async function cleanupExpiredRefreshTokens() {
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const r = await prisma.refreshToken.deleteMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { revoked: true, createdAt: { lt: cutoff } },
+      ],
+    },
+  });
+  if (r.count) console.log(`[scheduler] cleaned ${r.count} expired/revoked refresh tokens`);
 }
 
 /**
@@ -551,4 +670,5 @@ export const _internals = {
   checkStaleRisks, checkMissingPolicyAcks, checkMissingAckDocuments,
   checkStuckNcrs, checkDueManagementReview,
   dailyDataHealthScan, sendWeeklyExecSummary,
+  runProgressReportMonthly,
 };

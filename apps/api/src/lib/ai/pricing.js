@@ -1,0 +1,74 @@
+/**
+ * pricing.js — أسعار نماذج AI + دوال الحساب
+ *
+ * الأسعار بالدولار لكل مليون توكن (input / output) — محدَّثة 2026-01.
+ * عند إضافة نموذج جديد: أضفه هنا مع السعر الصحيح من الموقع الرسمي.
+ *
+ * ملاحظة: الأسعار قابلة للتغيير من المزود — راجعها دورياً.
+ */
+
+// USD per 1M tokens — { in, out }
+export const PRICING = {
+  // ──────── Anthropic ────────
+  'claude-haiku-4-5':          { in: 1.00,  out: 5.00  },
+  'claude-sonnet-4-5':         { in: 3.00,  out: 15.00 },
+  'claude-opus-4-5':           { in: 15.00, out: 75.00 },
+  // أسماء مستعارة شائعة
+  'claude-3-5-haiku-latest':   { in: 0.80,  out: 4.00  },
+  'claude-3-5-sonnet-latest':  { in: 3.00,  out: 15.00 },
+
+  // ──────── OpenAI ────────
+  'gpt-4o-mini':               { in: 0.15,  out: 0.60  },
+  'gpt-4o':                    { in: 2.50,  out: 10.00 },
+  'gpt-4-turbo':               { in: 10.00, out: 30.00 },
+  'o1-mini':                   { in: 3.00,  out: 12.00 },
+
+  // ──────── Google Gemini ────────
+  'gemini-2.0-flash':          { in: 0.10,  out: 0.40  },
+  'gemini-2.0-flash-lite':     { in: 0.075, out: 0.30  },
+  'gemini-1.5-flash':          { in: 0.075, out: 0.30  },
+  'gemini-1.5-pro':            { in: 1.25,  out: 5.00  },
+};
+
+// الافتراضي لكل مزود — يُستخدم لو اختار المستخدم provider فقط بدون تحديد model
+export const DEFAULT_MODELS = {
+  anthropic: 'claude-haiku-4-5',
+  openai:    'gpt-4o-mini',
+  google:    'gemini-2.0-flash',
+};
+
+// قائمة قابلة للعرض في UI
+export const MODEL_CATALOG = [
+  { provider: 'anthropic', model: 'claude-haiku-4-5',   label: 'Claude Haiku 4.5',  tier: 'cheap',   good: 'أسرع وأرخص — مثالي للعربية والمهام اليومية' },
+  { provider: 'anthropic', model: 'claude-sonnet-4-5',  label: 'Claude Sonnet 4.5', tier: 'balanced',good: 'متوازن — للتحليل العميق' },
+  { provider: 'anthropic', model: 'claude-opus-4-5',    label: 'Claude Opus 4.5',   tier: 'premium', good: 'الأعلى جودة — للمهام المعقدة' },
+  { provider: 'openai',    model: 'gpt-4o-mini',        label: 'GPT-4o Mini',       tier: 'cheap',   good: 'رخيص جداً — Function calling ممتاز' },
+  { provider: 'openai',    model: 'gpt-4o',             label: 'GPT-4o',            tier: 'balanced',good: 'متعدد الوسائط' },
+  { provider: 'google',    model: 'gemini-2.0-flash',   label: 'Gemini 2.0 Flash',  tier: 'cheap',   good: 'سريع ورخيص — مجاني ضمن حد يومي' },
+  { provider: 'google',    model: 'gemini-1.5-pro',     label: 'Gemini 1.5 Pro',    tier: 'balanced',good: 'سياق طويل حتى 2M token' },
+];
+
+/**
+ * يحسب التكلفة بالدولار
+ * @returns رقم دولار (مثال: 0.000435)
+ */
+export function computeCost(model, inputTokens, outputTokens) {
+  const p = PRICING[model];
+  if (!p) return 0; // نموذج غير معروف — لا نخفق، نكتفي بالصفر
+  const inCost  = (Number(inputTokens)  || 0) * p.in  / 1_000_000;
+  const outCost = (Number(outputTokens) || 0) * p.out / 1_000_000;
+  return Math.round((inCost + outCost) * 1_000_000) / 1_000_000; // تقريب لـ 6 خانات
+}
+
+/** تقدير تكلفة قبل الاستدعاء (approx — يفترض نسبة output/input = 0.5) */
+export function estimateCost(model, estInputTokens, estOutputTokens = null) {
+  const outTok = estOutputTokens ?? Math.round(estInputTokens * 0.5);
+  return computeCost(model, estInputTokens, outTok);
+}
+
+/** عدّ تقريبي للـ tokens — يعمل للعربية والإنجليزية */
+export function estimateTokens(text) {
+  if (!text) return 0;
+  // التقدير: 1 token ≈ 4 حروف للإنجليزية، 2-3 للعربية. نستخدم 3.5 كوسط.
+  return Math.ceil(String(text).length / 3.5);
+}

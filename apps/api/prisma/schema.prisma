@@ -93,6 +93,7 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])   // يُسرّع cleanup اليومي لانتهاء الصلاحية (DB-001)
 }
 
 // =====================================================
@@ -1564,4 +1565,140 @@ model MigrationLog {
   appliedAt DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("_MigrationLog")
+}
+
+// =====================================================
+// AI USAGE LOG — تتبع استخدام الذكاء الاصطناعي
+// =====================================================
+// يُسجِّل كل استدعاء لـ provider AI (Anthropic / OpenAI / Google) بهدف:
+//  - مراقبة التكلفة الشهرية وفرض الميزانية
+//  - تحليل الاستخدام حسب الميزة (ingestion / summary / agent)
+//  - تشخيص الأخطاء وتتبع الأداء
+
+model AiUsageLog {
+  id           String   @id @default(cuid())
+  provider     String   // "anthropic" | "openai" | "google"
+  model        String   // "claude-haiku-4-5" | "gpt-4o-mini" | "gemini-2.0-flash"
+  feature      String   // "ingestion" | "summary" | "agent" | "chat" | "polish" | "test"
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUSD      Float    @default(0) // التكلفة المحسوبة
+  durationMs   Int      @default(0)
+  userId       String?
+  success      Boolean  @default(true)
+  errorMessage String?
+  piiRedacted  Boolean  @default(false)
+  metadata     String?  // JSON: { files: [], requestId: ... }
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([feature, createdAt])
+  @@index([provider, createdAt])
+  @@index([userId])
+}
+
+// =====================================================
+// PROGRESS REPORTS — المحقق الشهري (Digital Quality Employee)
+// =====================================================
+
+enum ProgressReportStatus {
+  DRAFT         // مُولَّد تلقائياً، لم يُرسَل
+  SUBMITTED     // أرسله رئيس القسم
+  APPROVED      // اعتمده مدير الجودة
+  RETURNED      // أُعيد للتعديل
+}
+
+model ProgressReport {
+  id             String   @id @default(cuid())
+  departmentId   String
+  year           Int
+  month          Int      // 1-12
+  status         ProgressReportStatus @default(DRAFT)
+
+  // auto-filled من QMS (snapshot وقت التوليد)
+  autoFilled     String   @db.Text   // JSON: { activities, kpis, ncrs, capas, risks, complaints, trainings }
+
+  // ما أدخله رئيس القسم
+  deptFilled     String?  @db.Text   // JSON: { kpiValues[], aiAnswers[], freeText }
+
+  // أسئلة التحقيق المُولَّدة من AI
+  aiQuestions    String   @db.Text   // JSON: [{ id, question, linkedField, severity, reasoning }]
+
+  // التقييم الآلي
+  score          Int?                 // 0-100
+  scoreBreakdown String?  @db.Text    // JSON: { kpiScore, activityScore, complianceScore, promiseScore, investigationScore }
+
+  // Workflow
+  submittedAt    DateTime?
+  submittedById  String?
+  approvedAt     DateTime?
+  approvedById   String?
+  returnedAt     DateTime?
+  returnedReason String?
+
+  // المحقق ذكي: الوعود المستخرجة من هذا التقرير للشهر القادم
+  extractedPromises String? @db.Text  // JSON: [{ text, dueDate, source }]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  flags          InvestigationFlag[]
+
+  @@unique([departmentId, year, month])
+  @@index([departmentId])
+  @@index([status])
+  @@index([year, month])
+  @@index([deletedAt])
+}
+
+enum FlagType {
+  CONTRADICTION     // تناقض بين قسمين
+  OVERDUE_PROMISE   // وعد سابق لم يتحقق
+  TREND_DROP        // هبوط في مؤشر
+  ANOMALY           // شذوذ رقمي
+  MISSING_DATA      // بيانات مفقودة
+  BEHAVIORAL        // نمط سلوكي متكرر
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FlagStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+model InvestigationFlag {
+  id             String   @id @default(cuid())
+  reportId       String?
+  report         ProgressReport? @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  departmentId   String?
+  type           FlagType
+  severity       FlagSeverity @default(MEDIUM)
+  status         FlagStatus   @default(OPEN)
+
+  title          String
+  description    String   @db.Text
+  evidence       String?  @db.Text   // JSON: references to source data
+  aiGenerated    Boolean  @default(true)
+
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([status])
+  @@index([type])
+  @@index([reportId])
 }
