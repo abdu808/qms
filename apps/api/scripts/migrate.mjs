@@ -38,15 +38,57 @@ async function getApplied() {
 }
 
 async function applyFile(name, sql) {
-  // تقسيم SQL إلى عبارات منفصلة (بدون BEGIN/COMMIT — Prisma يُدير المعاملة)
-  // نُزيل BEGIN; و COMMIT; لأن $executeRawUnsafe لا يدعم التعاملات المتداخلة
-  const statements = sql
-    .replace(/--[^\n]*/g, '')              // احذف التعليقات
+  // تقسيم SQL إلى عبارات منفصلة — يحترم كتل dollar-quoted ($$...$$ أو $tag$...$tag$)
+  // ونصوص ' ' و "  " لتجنّب كسر PL/pgSQL DO $$ ... $$ blocks
+  const clean = sql
+    .replace(/--[^\n]*/g, '')              // احذف التعليقات السطرية
     .replace(/\bBEGIN\s*;/gi, '')          // احذف BEGIN;
-    .replace(/\bCOMMIT\s*;/gi, '')         // احذف COMMIT;
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .replace(/\bCOMMIT\s*;/gi, '');        // احذف COMMIT;
+
+  const statements = [];
+  let buf = '';
+  let i = 0;
+  let dollarTag = null;   // e.g. "$$" أو "$foo$" — null يعني خارج dollar-quote
+  let inSingle = false;   // داخل '...'
+  let inDouble = false;   // داخل "..."
+
+  while (i < clean.length) {
+    const ch = clean[i];
+    const rest = clean.slice(i);
+
+    if (dollarTag) {
+      if (rest.startsWith(dollarTag)) { buf += dollarTag; i += dollarTag.length; dollarTag = null; continue; }
+      buf += ch; i++; continue;
+    }
+    if (inSingle) {
+      buf += ch; i++;
+      if (ch === "'") inSingle = false;
+      continue;
+    }
+    if (inDouble) {
+      buf += ch; i++;
+      if (ch === '"') inDouble = false;
+      continue;
+    }
+
+    // خارج أي سياق quoted
+    if (ch === '$') {
+      const m = rest.match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/);
+      if (m) { dollarTag = m[0]; buf += dollarTag; i += dollarTag.length; continue; }
+    }
+    if (ch === "'") { inSingle = true; buf += ch; i++; continue; }
+    if (ch === '"') { inDouble = true; buf += ch; i++; continue; }
+    if (ch === ';') {
+      const stmt = buf.trim();
+      if (stmt) statements.push(stmt);
+      buf = '';
+      i++;
+      continue;
+    }
+    buf += ch; i++;
+  }
+  const tail = buf.trim();
+  if (tail) statements.push(tail);
 
   for (const stmt of statements) {
     await prisma.$executeRawUnsafe(stmt);
