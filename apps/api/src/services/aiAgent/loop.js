@@ -53,6 +53,8 @@ export async function runAgentLoop({
 
   let finalReply     = '';
   let iterations     = 0;
+  let usedProvider   = null;
+  let usedModel      = null;
   const toolsUsed    = [];    // auto mode: ما نُفِّذ
   const pendingActions = [];  // review mode: ما اقترحه AI
 
@@ -73,6 +75,8 @@ export async function runAgentLoop({
     usageTotals.inputTokens  += result.usage?.inputTokens  || 0;
     usageTotals.outputTokens += result.usage?.outputTokens || 0;
     usageTotals.costUSD      += result.usage?.costUSD      || 0;
+    // سجِّل المزود والموديل من أول استدعاء
+    if (!usedProvider) { usedProvider = result.provider; usedModel = result.model; }
 
     if (result.content) finalReply = result.content;
 
@@ -150,7 +154,9 @@ export async function runAgentLoop({
     toolsUsed:      toolsUsed.filter(t => !t.readOnly), // لا نعرض get_system_state
     pendingActions,
     iterations,
-    usage: usageTotals,
+    usage:    usageTotals,
+    provider: usedProvider,
+    model:    usedModel,
     mode,
   };
 }

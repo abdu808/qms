@@ -16,6 +16,7 @@
 import { PrismaClient } from '@prisma/client';
 import { runAgentLoop, applyPendingActions } from './aiAgent/loop.js';
 import { executeTool }  from './aiAgent/tools.js';
+import { getAiSettings } from '../lib/ai/settings.js';
 
 const prisma = new PrismaClient();
 
@@ -224,6 +225,9 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
 
+  // قراءة الإعدادات لمعرفة المزود والموديل الفعليين
+  const settings = await getAiSettings();
+
   const result = await runAgentLoop({
     systemPrompt: SYSTEM_PROMPT,
     messages,
@@ -239,10 +243,11 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
 
   return {
     reply:      result.reply,
-    toolsUsed:  result.toolsUsed,   // ← جديد: ماذا فعل AI من أدوات
+    toolsUsed:  result.toolsUsed,   // ماذا فعل AI من أدوات
     iterations: result.iterations,
     usage:      result.usage,
-    provider:   'anthropic',
+    provider:   result.provider || settings.defaultProvider,
+    model:      result.model    || settings.defaultModel,
     context: {
       gaps:    ctx.gaps.counts,
       summary: ctx.summary,
