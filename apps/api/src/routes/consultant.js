@@ -148,8 +148,9 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
         ok: true, filename,
         analysis: a,
         stored,
-        textLength:    extracted.text?.length || 0,
-        extractedText: extracted.text?.slice(0, 12_000) || '',
+        textLength: extracted.text?.length || 0,
+        // لا نُرجع النص الكامل للفرونت-إند — السجلات أُنشئت في DB
+        // والمستشار يقرأها مباشرةً عبر get_system_state (أكفأ وأخف على الشبكة)
       };
     } catch (e) {
       return { ok: false, filename, error: e.message };

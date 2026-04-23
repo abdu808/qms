@@ -246,25 +246,18 @@
         this.consult.attachments = [];
         if (j.totalCreated > 0) await this.loadConsultContext();
 
-        // ── تحليل تلقائي: أرسل محتوى الملفات للمستشار ليربط ويحسِّن ────────
+        // ── تحليل تلقائي: أرسل رسالة موجزة — المستشار يقرأ DB بنفسه ────────
+        // لا نُرسل النص المستخرج من الملفات — السجلات أُنشئت في قاعدة البيانات
+        // والمستشار لديه get_system_state ليقرأها مباشرةً (أكفأ وأخف)
         if (j.succeeded > 0) {
           const fileNames = (j.files || []).filter(f => f.ok).map(f => f.filename).join('، ');
-          const totalCreatedMsg = j.totalCreated > 0
-            ? `أُنشئ ${j.totalCreated} سجل منها.`
-            : 'لم يُنشأ سجلات تلقائياً — تحتاج ربطاً يدوياً.';
+          const createdSummary = j.totalCreated > 0
+            ? `أُنشئ ${j.totalCreated} سجل تلقائياً.`
+            : 'لم يُنشأ سجلات تلقائياً — تحتاج مراجعة يدوية.';
 
-          // نص المحتوى المستخرج من كل الملفات (للمستشار كسياق)
-          // كل ملف يحصل على حتى 15,000 حرف — الإجمالي لا يتجاوز 60,000
-          const PER_FILE_LIMIT = 15_000;
-          const extractedChunks = (j.files || [])
-            .filter(f => f.ok && f.extractedText)
-            .map(f => `=== ${f.filename} ===\n${f.extractedText.slice(0, PER_FILE_LIMIT)}`)
-            .join('\n\n')
-            .slice(0, 60_000);
+          const autoPrompt =
+`تم رفع ${j.succeeded} ملف: ${fileNames}. ${createdSummary}
 
-          const autoPrompt = `تم رفع ${j.succeeded} ملف: ${fileNames}. ${totalCreatedMsg}
-
-${extractedChunks ? `\nمحتوى الملفات:\n${extractedChunks}\n` : ''}
 المطلوب منك:
 ① اقرأ حالة النظام الحالية بـ get_system_state
 ② راجع ما أُنشئ وتأكد من صحة البيانات
@@ -274,10 +267,7 @@ ${extractedChunks ? `\nمحتوى الملفات:\n${extractedChunks}\n` : ''}
 ⑥ قدِّم ملخصاً نقطياً بما فعلت وما تبقى`;
 
           this.consult.input = autoPrompt;
-          // تأخير قصير ثم إرسال تلقائي (فقط إذا لم يتجاوز 95,000 حرف)
-          if (autoPrompt.length <= 95_000) {
-            setTimeout(() => this.consultSend(), 600);
-          }
+          setTimeout(() => this.consultSend(), 600);
         }
 
       } catch (e) {
