@@ -97,7 +97,17 @@
         if (!raw) return;
         const msgs = JSON.parse(raw);
         if (Array.isArray(msgs) && msgs.length > 0) {
-          this.consult.messages = msgs;
+          // نظّف رسائل البرومت التلقائي القديمة (كانت تُحقن تلقائياً بعد رفع الملفات)
+          const filtered = msgs.filter(m =>
+            !(m.role === 'user' && typeof m.content === 'string' &&
+              m.content.includes('المطلوب منك:') &&
+              m.content.includes('get_system_state'))
+          );
+          this.consult.messages = filtered;
+          if (filtered.length !== msgs.length) {
+            // احفظ النسخة المنظفة
+            try { localStorage.setItem('qms_consult_history', JSON.stringify(filtered)); } catch {}
+          }
         }
       } catch {
         localStorage.removeItem('qms_consult_history');

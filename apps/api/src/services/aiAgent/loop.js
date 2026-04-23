@@ -18,8 +18,9 @@
 import { aiComplete } from '../../lib/ai/index.js';
 import { AGENT_TOOLS, READ_ONLY_TOOLS, executeTool } from './tools.js';
 
-const MAX_ITERATIONS          = 15;
+const MAX_ITERATIONS          = 10;  // خُفِّض من 15 — كل دورة ~6-10 ثوانٍ، الحد الأقصى ~85 ثانية
 const MAX_TOOL_CALLS_PER_ITER = 25;  // AI يحتاج سعة لمعالجة ملفات بها إدارات/مؤشرات متعددة دفعةً واحدة
+const LOOP_TIMEOUT_MS         = 82_000; // 82 ثانية — هامش آمن تحت 100 ثانية لـ Cloudflare
 
 // أدوات الحذف — تتطلب موافقة المسؤول دائماً بغض النظر عن الوضع أو الدور
 const DELETE_TOOLS = new Set([
@@ -75,8 +76,16 @@ export async function runAgentLoop({
   const pendingActions = [];  // review mode: ما اقترحه AI
 
   const usageTotals = { inputTokens: 0, outputTokens: 0, costUSD: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+  const loopStart   = Date.now();
 
   while (iterations < MAX_ITERATIONS) {
+    // ── حارس الوقت: توقف آمن قبل timeout Cloudflare (100s) ──────────────────
+    if (Date.now() - loopStart > LOOP_TIMEOUT_MS) {
+      finalReply = (finalReply || '⚠️ لم أتمكن من إكمال العملية') +
+        '\n\n⏱️ **تنبيه:** انتهى الوقت المتاح — ما تم إنجازه موضح أعلاه. أرسل رسالة أخرى للاستكمال.';
+      console.warn(`[loop] timeout after ${Date.now() - loopStart}ms at iteration ${iterations}`);
+      break;
+    }
     iterations++;
 
     const result = await aiComplete({
