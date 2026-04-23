@@ -58,7 +58,7 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
     if (!m || typeof m !== 'object') throw BadRequest('كل رسالة يجب أن تكون كائناً');
     if (!['user', 'assistant'].includes(m.role)) throw BadRequest('role: user أو assistant فقط');
     if (typeof m.content !== 'string' || !m.content.trim()) throw BadRequest('content مطلوب');
-    if (m.content.length > 8000) throw BadRequest('رسالة طويلة جداً (الحد 8000 حرف)');
+    if (m.content.length > 100_000) throw BadRequest('رسالة طويلة جداً (الحد 100,000 حرف)');
   }
 
   const callerUserId = req.user?.sub || req.user?.id;
