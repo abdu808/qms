@@ -24,6 +24,9 @@ export const PRICING = {
   'o1-mini':                   { in: 3.00,  out: 12.00 },
 
   // ──────── Google Gemini ────────
+  'gemini-2.5-flash':          { in: 0.30,  out: 2.50  },
+  'gemini-2.5-flash-lite':     { in: 0.10,  out: 0.40  },
+  'gemini-2.5-pro':            { in: 1.25,  out: 10.00 },
   'gemini-2.0-flash':          { in: 0.10,  out: 0.40  },
   'gemini-2.0-flash-lite':     { in: 0.075, out: 0.30  },
   'gemini-1.5-flash':          { in: 0.075, out: 0.30  },
@@ -34,7 +37,7 @@ export const PRICING = {
 export const DEFAULT_MODELS = {
   anthropic: 'claude-haiku-4-5',
   openai:    'gpt-4o-mini',
-  google:    'gemini-2.0-flash',
+  google:    'gemini-2.5-flash',
 };
 
 // قائمة قابلة للعرض في UI
@@ -44,8 +47,9 @@ export const MODEL_CATALOG = [
   { provider: 'anthropic', model: 'claude-opus-4-5',    label: 'Claude Opus 4.5',   tier: 'premium', good: 'الأعلى جودة — للمهام المعقدة' },
   { provider: 'openai',    model: 'gpt-4o-mini',        label: 'GPT-4o Mini',       tier: 'cheap',   good: 'رخيص جداً — Function calling ممتاز' },
   { provider: 'openai',    model: 'gpt-4o',             label: 'GPT-4o',            tier: 'balanced',good: 'متعدد الوسائط' },
-  { provider: 'google',    model: 'gemini-2.0-flash',   label: 'Gemini 2.0 Flash',  tier: 'cheap',   good: 'سريع ورخيص — مجاني ضمن حد يومي' },
-  { provider: 'google',    model: 'gemini-1.5-pro',     label: 'Gemini 1.5 Pro',    tier: 'balanced',good: 'سياق طويل حتى 2M token' },
+  { provider: 'google',    model: 'gemini-2.5-flash',   label: 'Gemini 2.5 Flash',  tier: 'cheap',   good: 'الأحدث — سريع ورخيص، مجاني ضمن حد يومي' },
+  { provider: 'google',    model: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', tier: 'cheap', good: 'أرخص نسخة من 2.5 — للمهام البسيطة' },
+  { provider: 'google',    model: 'gemini-2.5-pro',     label: 'Gemini 2.5 Pro',    tier: 'balanced',good: 'سياق طويل + تفكير عميق' },
 ];
 
 /**
