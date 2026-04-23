@@ -24,6 +24,15 @@ const force     = process.argv.includes('--force');
 const prisma = new PrismaClient({ log: ['warn', 'error'] });
 
 async function main() {
+  // ── بوابة أمان: يعمل فقط بطلب صريح ─────────────────────────────────
+  // SEED_FROM_JSON=on  →  يقرأ الملف ويعبّئ DB
+  // بدونها            →  يتخطّى (حتى لو seed-data.json موجود)
+  // السبب: seed-data.json خاص بكل منظمة، لا ينبغي تعبئته تلقائياً في كل deploy
+  if (process.env.SEED_FROM_JSON !== 'on' && !force) {
+    console.log('ℹ️  SEED_FROM_JSON!=on — تخطّي (شغّل مع SEED_FROM_JSON=on أو --force للتنفيذ)');
+    return;
+  }
+
   if (!existsSync(SEED_PATH)) {
     console.log(`ℹ️  ${SEED_PATH} غير موجود — تخطّي seed-from-json`);
     return;
