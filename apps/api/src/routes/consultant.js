@@ -74,7 +74,18 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
     const out = await chat({ messages, callerUserId, callerRole, mode });
     res.json({ ok: true, ...out });
   } catch (e) {
-    res.status(e.status || 500).json({ ok: false, error: e.message, code: e.code });
+    // سجِّل السبب الكامل في الخادم حتى نستطيع تشخيصه
+    console.error('[consultant/chat] error:', {
+      message: e.message,
+      code:    e.code,
+      status:  e.status,
+      stack:   e.stack?.split('\n').slice(0, 5).join('\n'),
+    });
+    // الواجهة تبحث عن data.error.message — أرسل كائناً مُهيكَلاً
+    res.status(e.status || 500).json({
+      ok: false,
+      error: { message: e.message, code: e.code },
+    });
   }
 }));
 

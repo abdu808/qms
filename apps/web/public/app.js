@@ -1498,7 +1498,12 @@ function app() {
       let data = null;
       try { data = await res.json(); } catch {}
       if (!res.ok) {
-        const msg = data?.error?.message || `HTTP ${res.status}`;
+        // دعم صيغتين: { error: { message: '...' } } أو { error: '...' }
+        const errObj = data?.error;
+        const msg = (typeof errObj === 'string' && errObj)
+          || errObj?.message
+          || data?.message
+          || `HTTP ${res.status}`;
         throw new Error(msg);
       }
       return data;
