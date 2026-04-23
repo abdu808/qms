@@ -97,10 +97,20 @@ export async function testConnection({ apiKey, model = DEFAULT_MODEL }) {
  * جلب قائمة الموديلات المتاحة من Anthropic API
  * يُرجع: [{ id, name, created }]
  */
+/**
+ * جلب قائمة موديلات Claude عبر REST API مباشرةً
+ * (SDK v0.32 لا يدعم client.models — نستخدم fetch كحل مستقل عن إصدار SDK)
+ */
 export async function listModels({ apiKey }) {
-  const client = new Anthropic({ apiKey });
-  const page = await client.models.list({ limit: 100 });
-  return (page.data || []).map(m => ({
+  const r = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+  });
+  if (!r.ok) throw new Error(`Anthropic API: ${r.status} ${r.statusText}`);
+  const data = await r.json();
+  return (data.data || []).map(m => ({
     id: m.id,
     name: m.display_name || m.id,
     created: m.created_at,
