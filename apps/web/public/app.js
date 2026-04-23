@@ -532,7 +532,7 @@ function app() {
     },
     // مجموعات مرئية في الوضع الموجَّه — home + acks + planning (للجميع لأن myKpi يومي).
     // أدوار الجودة/الإدارة تزيد evaluation (شكاوى/مراجعات) و improvement (NCR).
-    GUIDED_GROUP_IDS: ['home', 'acks', 'planning'],
+    GUIDED_GROUP_IDS: ['home', 'acks', 'planning', 'help'],
     visibleMenuGroups() {
       if (this.isReadOnly()) return this.menuGroupsForRole();
       if (this.isAdvanced()) return this.menuGroups;
