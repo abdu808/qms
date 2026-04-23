@@ -48,7 +48,7 @@ router.get('/context', authorize(...ROLES), asyncHandler(async (_req, res) => {
 
 // ── POST /chat ────────────────────────────────────────────────────────────────
 router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
-  const { messages, mode: requestedMode = 'auto' } = req.body || {};
+  const { messages, mode: requestedMode = 'auto', model: modelOverride, provider: providerOverride } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     throw BadRequest('messages: مصفوفة غير فارغة مطلوبة');
@@ -71,7 +71,7 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
   const mode = WRITE_ROLES.includes(callerRole) ? requestedMode : 'review';
 
   try {
-    const out = await chat({ messages, callerUserId, callerRole, mode });
+    const out = await chat({ messages, callerUserId, callerRole, mode, modelOverride, providerOverride });
     res.json({ ok: true, ...out });
   } catch (e) {
     // سجِّل السبب الكامل في الخادم حتى نستطيع تشخيصه

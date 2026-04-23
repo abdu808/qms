@@ -243,7 +243,7 @@ function analyzeGaps({ goals, activities, objectives }) {
  * @param {string} [params.callerRole]  — دور المستخدم الأصلي
  * @param {string} [params.mode]  — 'auto' | 'review'
  */
-export async function chat({ messages, callerUserId, callerRole, mode = 'auto' }) {
+export async function chat({ messages, callerUserId, callerRole, mode = 'auto', modelOverride, providerOverride }) {
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
 
@@ -251,7 +251,13 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto' }
   const settings = await getAiSettings();
 
   // اختر الموديل المناسب للطلب
-  const routed = await routeRequest(messages, false);
+  let routed;
+  if (modelOverride) {
+    const provider = providerOverride || settings.defaultProvider;
+    routed = { provider, model: modelOverride, tier: 'MANUAL', fallback: false };
+  } else {
+    routed = await routeRequest(messages, false);
+  }
 
   const result = await runAgentLoop({
     systemPrompt: buildSystemPrompt(),

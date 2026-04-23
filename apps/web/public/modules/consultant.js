@@ -62,6 +62,10 @@
       mode:        'auto',     // 'auto' | 'review'
       showTools:   true,
       attachments: [],         // [{ name, size, _file }] — قائمة الملفات المُختارة
+      modelLock:    null,    // null=تلقائي, string=موديل محدد يُرسَل للـ API
+      lastModel:    '',      // آخر موديل استُخدم (من الـ response)
+      lastProvider: '',      // آخر مزود
+      modelOptions: [],      // قائمة الموديلات المتاحة
       templates: [
         { id: 'analyze',       label: '🔍 تحليل شامل للنظام',          prompt: 'حلِّل حالة نظام الجودة كاملاً: استخدم scan_overdue لمعرفة التأخيرات، ثم اقرأ الأهداف والمخاطر وNCRs وCAPAs. قدِّم تقريراً بالأولويات والإجراءات العاجلة.' },
         { id: 'fill_gaps',     label: '🔧 أصلح فجوات الخطة',           prompt: 'افحص الفجوات الحالية في الخطة الاستراتيجية وأصلح ما تستطيع: اربط الأنشطة، أضف مسؤولين، واملأ الحقول الناقصة.' },
@@ -107,6 +111,13 @@
       if (this.consult.messages.length === 0) this._consultRestoreHistory();
       try {
         this.consult.loading = true;
+        // جلب قائمة الموديلات مرة واحدة
+        if (!this.consult.modelOptions.length) {
+          try {
+            const mj = await this.api('GET', '/ai-settings/models');
+            if (mj.ok) this.consult.modelOptions = mj.items || [];
+          } catch {}
+        }
         const j = await this.api('GET', '/consultant/context');
         if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
         this.consult.context = { summary: j.context.summary, gaps: j.context.gaps.counts };
@@ -134,7 +145,14 @@
         .map(m => ({ role: m.role, content: m.content }));
 
       try {
-        const j = await this.api('POST', '/consultant/chat', { messages: history, mode: this.consult.mode });
+        const body = { messages: history, mode: this.consult.mode };
+        if (this.consult.modelLock) {
+          // استخراج provider/model من "provider/model" format
+          const [p, ...m] = this.consult.modelLock.split('/');
+          body.provider = p;
+          body.model = m.join('/');
+        }
+        const j = await this.api('POST', '/consultant/chat', body);
         if (!j.ok) throw new Error(j.error?.message || j.error || 'خطأ في الاستدعاء');
 
         this.consult.messages.push({
@@ -152,6 +170,7 @@
           applyResults:      null,
         });
 
+        if (j.model) { this.consult.lastModel = j.model; this.consult.lastProvider = j.provider || ''; }
         if (j.context) this.consult.context = j.context;
         this._consultSaveHistory();
 
@@ -202,6 +221,14 @@
 
     // ─── مساعدات العرض ───────────────────────────────────────────────────
     toolLabel(name) { return TOOL_LABELS[name] || `🔧 ${name}`; },
+
+    modelShortName(model) {
+      if (!model) return '';
+      const found = this.consult.modelOptions.find(m => m.model === model);
+      if (found) return found.label;
+      // fallback: strip date suffix and shorten
+      return model.replace(/-\d{8}$/, '').replace('claude-', 'C-').replace('gemini-', 'G-').replace('gpt-', 'GPT-');
+    },
 
     toolsSummary(toolsUsed) {
       if (!toolsUsed?.length) return '';
