@@ -19,7 +19,7 @@ import { aiComplete } from '../../lib/ai/index.js';
 import { AGENT_TOOLS, READ_ONLY_TOOLS, executeTool } from './tools.js';
 
 const MAX_ITERATIONS          = 15;
-const MAX_TOOL_CALLS_PER_ITER = 10;
+const MAX_TOOL_CALLS_PER_ITER = 25;  // AI يحتاج سعة لمعالجة ملفات بها إدارات/مؤشرات متعددة دفعةً واحدة
 
 // أدوات الحذف — تتطلب موافقة المسؤول دائماً بغض النظر عن الوضع أو الدور
 const DELETE_TOOLS = new Set([
@@ -103,12 +103,20 @@ export async function runAgentLoop({
     // لا أدوات → انتهت الحلقة
     if (!result.toolCalls?.length || result.stopReason === 'end_turn') break;
 
-    // أضف رد AI لتاريخ المحادثة
-    history.push({ role: 'assistant', content: buildAssistantBlocks(result) });
+    // قص الأدوات إلى الحد الأعلى — يجب أن نحافظ على ثابت Anthropic:
+    // كل tool_use في رسالة المساعد يحتاج tool_result مقابل في الرسالة التالية.
+    // لو تجاوز Claude الحد، نأخذ أول N فقط ونتجاهل الباقي تماماً (من الرسالة ومن النتائج).
+    const processedCalls = result.toolCalls.slice(0, MAX_TOOL_CALLS_PER_ITER);
+    if (result.toolCalls.length > MAX_TOOL_CALLS_PER_ITER) {
+      console.warn(`[loop] AI طلب ${result.toolCalls.length} أداة، حُدّت إلى ${MAX_TOOL_CALLS_PER_ITER}`);
+    }
+
+    // أضف رد AI لتاريخ المحادثة — فقط الأدوات التي سنُعالجها (للحفاظ على الثابت)
+    history.push({ role: 'assistant', content: buildAssistantBlocks(result, processedCalls) });
 
     // نفِّذ / اجمع الأدوات
     const toolResults = [];
-    for (const call of result.toolCalls.slice(0, MAX_TOOL_CALLS_PER_ITER)) {
+    for (const call of processedCalls) {
       const isReadOnly  = READ_ONLY_TOOLS.has(call.name);
       const isDelete    = DELETE_TOOLS.has(call.name);
 
@@ -296,10 +304,12 @@ function compressToolResults(historyEntry) {
   return { ...historyEntry, content: compressed };
 }
 
-function buildAssistantBlocks(result) {
+function buildAssistantBlocks(result, toolCalls = null) {
+  // toolCalls اختياري — لو مُرِّر، نستخدمه بدل result.toolCalls (للحالة التي قصصنا فيها الأدوات)
+  const calls = toolCalls || result.toolCalls || [];
   const blocks = [];
   if (result.content) blocks.push({ type: 'text', text: result.content });
-  for (const tc of (result.toolCalls || [])) {
+  for (const tc of calls) {
     blocks.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.input });
   }
   return blocks;
