@@ -78,6 +78,22 @@ export async function runAgentLoop({
   const usageTotals = { inputTokens: 0, outputTokens: 0, costUSD: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   const loopStart   = Date.now();
 
+  // fallback chain عند نفاد الحصة / 429 — يتخطى المزود المُعطَّل للباقي من الحلقة
+  // ترتيب: Google (الأرخص) → Anthropic Haiku → OpenAI gpt-4o-mini
+  const FALLBACK_CHAIN = [
+    { provider: 'anthropic', model: 'claude-haiku-4-5' },
+    { provider: 'openai',    model: 'gpt-4o-mini' },
+  ];
+  let fallbackIndex = -1;
+  let currentProvider = provider;
+  let currentModel    = model;
+
+  function isQuotaError(err) {
+    const msg = String(err?.message || '');
+    const status = err?.status || err?.statusCode;
+    return status === 429 || /429|Too Many Requests|Resource exhausted|quota|rate limit/i.test(msg);
+  }
+
   while (iterations < MAX_ITERATIONS) {
     // ── حارس الوقت: توقف آمن قبل timeout Cloudflare (100s) ──────────────────
     if (Date.now() - loopStart > LOOP_TIMEOUT_MS) {
@@ -88,16 +104,30 @@ export async function runAgentLoop({
     }
     iterations++;
 
-    const result = await aiComplete({
-      system:   systemPrompt,
-      messages: history,
-      tools:    AGENT_TOOLS,
-      maxTokens,
-      feature,
-      userId: callerUserId,
-      provider,   // override المزود (undefined → يستخدم الإعداد الافتراضي)
-      model,      // override الموديل
-    });
+    let result;
+    try {
+      result = await aiComplete({
+        system:   systemPrompt,
+        messages: history,
+        tools:    AGENT_TOOLS,
+        maxTokens,
+        feature,
+        userId: callerUserId,
+        provider: currentProvider,
+        model:    currentModel,
+      });
+    } catch (err) {
+      if (isQuotaError(err) && fallbackIndex < FALLBACK_CHAIN.length - 1) {
+        fallbackIndex++;
+        const next = FALLBACK_CHAIN[fallbackIndex];
+        console.warn(`[loop] quota/429 on ${currentProvider}/${currentModel} — fallback to ${next.provider}/${next.model}`);
+        currentProvider = next.provider;
+        currentModel    = next.model;
+        iterations--; // أعد المحاولة بنفس الـ iteration
+        continue;
+      }
+      throw err;
+    }
 
     usageTotals.inputTokens     += result.usage?.inputTokens     || 0;
     usageTotals.outputTokens    += result.usage?.outputTokens    || 0;
