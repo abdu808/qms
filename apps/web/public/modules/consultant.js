@@ -285,29 +285,8 @@
         this.consult.attachments = [];
         if (j.totalCreated > 0) await this.loadConsultContext();
 
-        // ── تحليل تلقائي: أرسل رسالة موجزة — المستشار يقرأ DB بنفسه ────────
-        // لا نُرسل النص المستخرج من الملفات — السجلات أُنشئت في قاعدة البيانات
-        // والمستشار لديه get_system_state ليقرأها مباشرةً (أكفأ وأخف)
-        if (j.succeeded > 0) {
-          const fileNames = (j.files || []).filter(f => f.ok).map(f => f.filename).join('، ');
-          const createdSummary = j.totalCreated > 0
-            ? `أُنشئ ${j.totalCreated} سجل تلقائياً.`
-            : 'لم يُنشأ سجلات تلقائياً — تحتاج مراجعة يدوية.';
-
-          const autoPrompt =
-`تم رفع ${j.succeeded} ملف: ${fileNames}. ${createdSummary}
-
-المطلوب منك:
-① اقرأ حالة النظام الحالية بـ get_system_state
-② راجع ما أُنشئ وتأكد من صحة البيانات
-③ أضِف أي محاور (perspective) أو مؤشرات (kpi) أو أهداف ناقصة
-④ اربط الأنشطة التشغيلية بأهدافها الاستراتيجية
-⑤ أنشئ أهدافاً تشغيلية (Objectives) مع KPIs لكل هدف استراتيجي إن لم تكن موجودة
-⑥ قدِّم ملخصاً نقطياً بما فعلت وما تبقى`;
-
-          this.consult.input = autoPrompt;
-          setTimeout(() => this.consultSend(), 600);
-        }
+        // لا نُرسل أي برومت تلقائي — المستخدم يكتب ما يريد بنفسه.
+        // الملفات المرفوعة ليست بالضرورة مؤشرات/أهداف، والبرومت الثابت كان يُضلِّل المودل.
 
       } catch (e) {
         this.consult.error = e.message;
