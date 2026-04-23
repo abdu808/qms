@@ -26,6 +26,13 @@
       monthlyBudgetUsd: 50,
       piiRedaction: 'optional',
       logRequests: true,
+      routingEnabled: false,
+      routingTiers: {
+        SIMPLE: 'google/gemini-2.5-flash',
+        TOOLS:  'anthropic/claude-haiku-4-5',
+        DEEP:   'anthropic/claude-sonnet-4-5',
+        FILES:  'anthropic/claude-opus-4-7',
+      },
 
       // Keys (عرض مُخفَّى فقط)
       keys: { anthropic: '', openai: '', google: '' },
@@ -87,6 +94,13 @@
         c.monthlyBudgetUsd = Number(it.monthlyBudgetUsd ?? 50);
         c.piiRedaction     = it.piiRedaction || 'optional';
         c.logRequests      = it.logRequests !== false;
+        c.routingEnabled   = it.routing?.enabled || false;
+        c.routingTiers     = {
+          SIMPLE: it.routing?.SIMPLE || 'google/gemini-2.5-flash',
+          TOOLS:  it.routing?.TOOLS  || 'anthropic/claude-haiku-4-5',
+          DEEP:   it.routing?.DEEP   || 'anthropic/claude-sonnet-4-5',
+          FILES:  it.routing?.FILES  || 'anthropic/claude-opus-4-7',
+        };
         c.keys             = it.keys || { anthropic: '', openai: '', google: '' };
         c.hasKeys          = it.hasKeys || { anthropic: false, openai: false, google: false };
       } catch (e) {
@@ -168,6 +182,11 @@
           monthlyBudgetUsd: Number(c.monthlyBudgetUsd) || 0,
           piiRedaction: c.piiRedaction,
           logRequests: c.logRequests,
+          routingEnabled:    c.routingEnabled,
+          routingTierSIMPLE: c.routingTiers.SIMPLE,
+          routingTierTOOLS:  c.routingTiers.TOOLS,
+          routingTierDEEP:   c.routingTiers.DEEP,
+          routingTierFILES:  c.routingTiers.FILES,
         });
         this.toast?.('تم حفظ إعدادات AI ✓');
       } catch (e) {

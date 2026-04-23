@@ -11,6 +11,11 @@
  *   ai_monthly_budget_usd           — رقم (مثال: "50")
  *   ai_pii_redaction                — "always" | "never" | "optional"
  *   ai_log_requests                 — "true" | "false"
+ *   ai_routing_enabled              — "true" | "false"
+ *   ai_routing_tier_simple          — "provider/model" مثال: "google/gemini-2.5-flash"
+ *   ai_routing_tier_tools           — "provider/model"
+ *   ai_routing_tier_deep            — "provider/model"
+ *   ai_routing_tier_files           — "provider/model"
  */
 import { prisma } from '../../db.js';
 import { encrypt, decrypt } from './crypto.js';
@@ -26,7 +31,20 @@ const KEYS = [
   'ai_monthly_budget_usd',
   'ai_pii_redaction',
   'ai_log_requests',
+  'ai_routing_enabled',
+  'ai_routing_tier_simple',
+  'ai_routing_tier_tools',
+  'ai_routing_tier_deep',
+  'ai_routing_tier_files',
 ];
+
+/** الإعدادات الافتراضية لمستويات التوجيه (مُعرَّفة هنا لتجنب الاستيراد الدائري) */
+const ROUTING_DEFAULTS = {
+  SIMPLE: 'google/gemini-2.5-flash',
+  TOOLS:  'anthropic/claude-haiku-4-5',
+  DEEP:   'anthropic/claude-sonnet-4-5',
+  FILES:  'anthropic/claude-opus-4-7',
+};
 
 // cache قصير لتخفيف ضغط DB (30 ثانية)
 let _cache = null;
@@ -56,6 +74,13 @@ export async function getAiSettings() {
       monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 50),
       piiRedaction:     m.ai_pii_redaction     || 'optional', // always | never | optional
       logRequests:      m.ai_log_requests !== 'false',        // default true
+      routing: {
+        enabled: m.ai_routing_enabled === 'true',
+        SIMPLE:  m.ai_routing_tier_simple || ROUTING_DEFAULTS.SIMPLE,
+        TOOLS:   m.ai_routing_tier_tools  || ROUTING_DEFAULTS.TOOLS,
+        DEEP:    m.ai_routing_tier_deep   || ROUTING_DEFAULTS.DEEP,
+        FILES:   m.ai_routing_tier_files  || ROUTING_DEFAULTS.FILES,
+      },
       keys: {
         anthropic: decrypt(m.ai_anthropic_api_key || ''),
         openai:    decrypt(m.ai_openai_api_key    || ''),
@@ -79,6 +104,13 @@ export async function getAiSettings() {
       monthlyBudgetUsd: 50,
       piiRedaction: 'optional',
       logRequests: true,
+      routing: {
+        enabled: false,
+        SIMPLE:  ROUTING_DEFAULTS.SIMPLE,
+        TOOLS:   ROUTING_DEFAULTS.TOOLS,
+        DEEP:    ROUTING_DEFAULTS.DEEP,
+        FILES:   ROUTING_DEFAULTS.FILES,
+      },
       keys: { anthropic: '', openai: '', google: '' },
       hasKeys: { anthropic: false, openai: false, google: false },
     };

@@ -6116,6 +6116,52 @@
             <span class="text-sm text-gray-700">تسجيل الاستدعاءات (مطلوب لتتبع الميزانية والاستخدام)</span>
           </div>
 
+          <!-- ── توجيه الموديلات الذكي ───────────────────────────── -->
+          <div class="border-t border-gray-200 pt-4 mt-2">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-sm font-semibold text-gray-800">🧠 التوجيه الذكي للموديلات</p>
+                <p class="text-xs text-gray-500 mt-0.5">اختر موديل مختلف لكل نوع من الطلبات تلقائياً</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" x-model="aiCfg.routingEnabled" class="sr-only peer">
+                <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-500"></div>
+              </label>
+            </div>
+
+            <div x-show="aiCfg.routingEnabled" x-transition class="space-y-2">
+              <!-- SIMPLE -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs w-32 text-gray-500 flex-shrink-0">⚡ بسيط (سؤال)</span>
+                <input x-model="aiCfg.routingTiers.SIMPLE" type="text"
+                       placeholder="google/gemini-2.5-flash"
+                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+              </div>
+              <!-- TOOLS -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs w-32 text-gray-500 flex-shrink-0">🛠️ أدوات (تعديل)</span>
+                <input x-model="aiCfg.routingTiers.TOOLS" type="text"
+                       placeholder="anthropic/claude-haiku-4-5"
+                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+              </div>
+              <!-- DEEP -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs w-32 text-gray-500 flex-shrink-0">🔍 عميق (تحليل)</span>
+                <input x-model="aiCfg.routingTiers.DEEP" type="text"
+                       placeholder="anthropic/claude-sonnet-4-5"
+                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+              </div>
+              <!-- FILES -->
+              <div class="flex items-center gap-2">
+                <span class="text-xs w-32 text-gray-500 flex-shrink-0">📄 ملفات (تحليل)</span>
+                <input x-model="aiCfg.routingTiers.FILES" type="text"
+                       placeholder="anthropic/claude-opus-4-7"
+                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+              </div>
+              <p class="text-xs text-gray-400 mt-1">الصيغة: <code class="bg-gray-100 px-1 rounded">provider/model-name</code> مثال: <code class="bg-gray-100 px-1 rounded">anthropic/claude-haiku-4-5</code></p>
+            </div>
+          </div>
+
           <div class="flex justify-end pt-3 border-t">
             <button @click="saveAiSettings()" :disabled="aiCfg.saving"
                     class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"

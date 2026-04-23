@@ -17,6 +17,7 @@ import { PrismaClient } from '@prisma/client';
 import { runAgentLoop, applyPendingActions } from './aiAgent/loop.js';
 import { executeTool }  from './aiAgent/tools.js';
 import { getAiSettings } from '../lib/ai/settings.js';
+import { routeRequest } from './aiAgent/router.js';
 
 const prisma = new PrismaClient();
 
@@ -228,14 +229,20 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
   // قراءة الإعدادات لمعرفة المزود والموديل الفعليين
   const settings = await getAiSettings();
 
+  // اختر الموديل المناسب للطلب
+  const routed = await routeRequest(messages, false);
+
   const result = await runAgentLoop({
     systemPrompt: SYSTEM_PROMPT,
     messages,
     actingUserId,
     callerUserId,
     mode,
-    feature:   'consultant',
-    maxTokens: 4096,
+    feature:     'consultant',
+    maxTokens:   4096,
+    provider:    routed.provider,   // override المزود
+    model:       routed.model,       // override الموديل
+    routingTier: routed.tier,        // للـ logging
   });
 
   // لقطة حالية بعد انتهاء الحلقة (لتحديث الـ UI)
@@ -251,6 +258,7 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
     cacheWrite:  result.usage?.cacheWriteTokens || 0,
     provider:    result.provider || settings.defaultProvider,
     model:       result.model    || settings.defaultModel,
+    routingTier: result.routingTier,
     context: {
       gaps:    ctx.gaps.counts,
       summary: ctx.summary,

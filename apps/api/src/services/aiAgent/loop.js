@@ -47,6 +47,9 @@ export async function runAgentLoop({
   mode = 'auto',
   feature = 'consultant',
   maxTokens = 4096,
+  provider,    // override المزود (من الموجِّه الذكي)
+  model,       // override الموديل (من الموجِّه الذكي)
+  routingTier, // للـ logging
 }) {
   const isReview = mode === 'review';
   const history  = buildHistory(messages);
@@ -70,6 +73,8 @@ export async function runAgentLoop({
       maxTokens,
       feature,
       userId: callerUserId,
+      provider,   // override المزود (undefined → يستخدم الإعداد الافتراضي)
+      model,      // override الموديل
     });
 
     usageTotals.inputTokens     += result.usage?.inputTokens     || 0;
@@ -178,6 +183,7 @@ export async function runAgentLoop({
     },
     provider: usedProvider,
     model:    usedModel,
+    routingTier,
     mode,
   };
 }

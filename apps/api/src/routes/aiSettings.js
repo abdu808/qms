@@ -41,6 +41,7 @@ router.get('/', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
       monthlyBudgetUsd: s.monthlyBudgetUsd,
       piiRedaction: s.piiRedaction,
       logRequests: s.logRequests,
+      routing: s.routing,
       keys: {
         anthropic: s.hasKeys.anthropic ? maskKey(s.keys.anthropic) : '',
         openai:    s.hasKeys.openai    ? maskKey(s.keys.openai)    : '',
@@ -90,6 +91,22 @@ router.put('/', authorize(...ADMIN_ROLES), asyncHandler(async (req, res) => {
 
   if (b.logRequests !== undefined) {
     await setSetting('ai_log_requests', String(!!b.logRequests));
+  }
+
+  // إعدادات التوجيه الذكي
+  if (b.routingEnabled !== undefined) {
+    await setSetting('ai_routing_enabled', String(!!b.routingEnabled));
+  }
+  const tierMap = { SIMPLE: 'simple', TOOLS: 'tools', DEEP: 'deep', FILES: 'files' };
+  for (const [tier, key] of Object.entries(tierMap)) {
+    const val = b[`routingTier${tier}`];
+    if (val !== undefined) {
+      // التحقق من الصيغة: "provider/model"
+      if (!/^(anthropic|openai|google)\/.+/.test(val)) {
+        throw BadRequest(`قيمة غير صالحة للمستوى ${tier}: ${val}`);
+      }
+      await setSetting(`ai_routing_tier_${key}`, val);
+    }
   }
 
   res.json({ ok: true, message: 'تم حفظ الإعدادات' });
