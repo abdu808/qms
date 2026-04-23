@@ -18,8 +18,18 @@
 import { aiComplete } from '../../lib/ai/index.js';
 import { AGENT_TOOLS, READ_ONLY_TOOLS, executeTool } from './tools.js';
 
-const MAX_ITERATIONS        = 8;
+const MAX_ITERATIONS          = 8;
 const MAX_TOOL_CALLS_PER_ITER = 10;
+
+// أدوات الحذف — تتطلب موافقة المسؤول دائماً بغض النظر عن الوضع أو الدور
+const DELETE_TOOLS = new Set([
+  'delete_strategic_goal',
+  'delete_operational_activity',
+  'delete_objective',
+]);
+
+// الأدوار التي تستطيع تنفيذ الكتابة مباشرةً دون مراجعة
+const WRITE_ROLES = new Set(['SUPER_ADMIN', 'QUALITY_MANAGER']);
 
 /**
  * @param {object}  params
@@ -28,6 +38,7 @@ const MAX_TOOL_CALLS_PER_ITER = 10;
  * @param {string}  params.actingUserId      — للـ audit trail
  * @param {string}  params.callerUserId      — للـ usage logging
  * @param {string}  [params.mode]            — 'auto' | 'review' (افتراضي: auto)
+ * @param {string}  [params.callerRole]      — دور المستخدم الأصلي (SUPER_ADMIN | QUALITY_MANAGER | DEPT_MANAGER | ...)
  * @param {string}  [params.feature]
  * @param {number}  [params.maxTokens]
  *
@@ -45,13 +56,15 @@ export async function runAgentLoop({
   actingUserId,
   callerUserId,
   mode = 'auto',
+  callerRole,  // دور المستخدم الأصلي
   feature = 'consultant',
   maxTokens = 4096,
   provider,    // override المزود (من الموجِّه الذكي)
   model,       // override الموديل (من الموجِّه الذكي)
   routingTier, // للـ logging
 }) {
-  const isReview = mode === 'review';
+  const isReview    = mode === 'review';
+  const canAutoWrite = WRITE_ROLES.has(callerRole); // هل يستطيع الكتابة المباشرة؟
   const history  = buildHistory(messages);
 
   let finalReply     = '';
@@ -96,31 +109,50 @@ export async function runAgentLoop({
     // نفِّذ / اجمع الأدوات
     const toolResults = [];
     for (const call of result.toolCalls.slice(0, MAX_TOOL_CALLS_PER_ITER)) {
-      const isReadOnly = READ_ONLY_TOOLS.has(call.name);
+      const isReadOnly  = READ_ONLY_TOOLS.has(call.name);
+      const isDelete    = DELETE_TOOLS.has(call.name);
 
-      // ── في وضع المراجعة: نفِّذ القراءة فقط — اجمع الكتابة ──────────────
-      if (isReview && !isReadOnly) {
-        // أخبر AI أن الإجراء مُقترَح ينتظر الموافقة
+      // ── رفض الكتابة للأدوار غير المخولة (EMPLOYEE وما دون) ─────────────
+      if (!isReadOnly && !canAutoWrite && !isReview) {
+        // هذا لا يحدث عملياً لأن consultant.js يُجبر review للأدوار غير المخولة
+        // لكن كطبقة دفاع ثانية
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: call.id,
+          content: JSON.stringify({
+            ok: false,
+            error: '🚫 ليس لديك صلاحية تنفيذ هذا الإجراء مباشرةً. تواصل مع مسؤول النظام.',
+          }),
+          is_error: true,
+        });
+        continue;
+      }
+
+      // ── أدوات الحذف: دائماً في وضع المراجعة حتى لـ QUALITY_MANAGER ──────
+      // ── وضع المراجعة العادي: اجمع أدوات الكتابة ─────────────────────────
+      if (!isReadOnly && (isReview || isDelete)) {
         const pendingLabel = toolLabel(call.name);
+        const deleteNote   = isDelete ? ' ⚠️ إجراء حذف — يتطلب موافقة المسؤول' : '';
         toolResults.push({
           type: 'tool_result',
           tool_use_id: call.id,
           content: JSON.stringify({
             ok: true,
             pending: true,
-            summary: `⏳ مُقترَح (${pendingLabel}) — ينتظر موافقة المستخدم قبل التنفيذ`,
+            summary: `⏳ مُقترَح (${pendingLabel})${deleteNote} — ينتظر موافقة المستخدم قبل التنفيذ`,
           }),
         });
         pendingActions.push({
-          id:    call.id,
-          tool:  call.name,
-          input: call.input,
-          label: pendingLabel,
+          id:       call.id,
+          tool:     call.name,
+          input:    call.input,
+          label:    pendingLabel,
+          isDelete, // علامة للـ UI للتمييز
         });
         continue;
       }
 
-      // ── تنفيذ الأداة (auto mode أو أدوات القراءة) ─────────────────────────
+      // ── تنفيذ الأداة (auto mode + أدوات القراءة) ─────────────────────────
       const t0 = Date.now();
       let toolResult;
       try {

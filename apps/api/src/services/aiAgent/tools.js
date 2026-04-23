@@ -1048,11 +1048,14 @@ export async function executeTool(name, input, actingUserId) {
     case 'delete_operational_activity': {
       const { id, reason } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
-      const act = await prisma.operationalActivity.findUnique({ where:{id}, select:{id:true,code:true,title:true} });
+      const act = await prisma.operationalActivity.findUnique({ where:{id}, select:{id:true,code:true,title:true,deletedAt:true} });
       if (!act) return { ok:false, error:`النشاط ${id} غير موجود`, summary:'فشل: غير موجود' };
-      // حذف KpiEntry المرتبطة أولاً
-      await prisma.kpiEntry.deleteMany({ where:{activityId:id} });
-      await prisma.operationalActivity.delete({ where:{id} });
+      if (act.deletedAt) return { ok:false, error:`النشاط ${act.code} محذوف مسبقاً`, summary:'فشل: محذوف مسبقاً' };
+      // Soft delete — نحتفظ بالبيانات لمتطلبات ISO 9001
+      await prisma.operationalActivity.update({
+        where: { id },
+        data: { deletedAt: new Date(), notes: reason ? `محذوف: ${reason}` : undefined },
+      });
       return { ok:true, summary:`🗑 حُذف النشاط ${act.code}: "${act.title}"${reason ? ` — ${reason}` : ''}` };
     }
 

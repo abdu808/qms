@@ -593,12 +593,6 @@
 
                 <button @click="consultReset()" class="text-sm px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg">↻ جديد</button>
 
-                <!-- زر إعادة ضبط الخطة — للأدمن فقط -->
-                <button x-show="user?.role === 'SUPER_ADMIN'"
-                        @click="consultResetStrategicData()"
-                        class="text-xs px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-medium">
-                  🗑 حذف الخطة
-                </button>
               </div>
             </div>
 

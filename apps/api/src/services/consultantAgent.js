@@ -220,9 +220,10 @@ function analyzeGaps({ goals, activities, objectives }) {
  * @param {object} params
  * @param {Array}  params.messages
  * @param {string} params.callerUserId
+ * @param {string} [params.callerRole]  — دور المستخدم الأصلي
  * @param {string} [params.mode]  — 'auto' | 'review'
  */
-export async function chat({ messages, callerUserId, mode = 'auto' }) {
+export async function chat({ messages, callerUserId, callerRole, mode = 'auto' }) {
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
 
@@ -237,6 +238,7 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
     messages,
     actingUserId,
     callerUserId,
+    callerRole,   // دور المستخدم الأصلي (لمنطق صلاحيات الحذف)
     mode,
     feature:     'consultant',
     maxTokens:   4096,

@@ -24,7 +24,10 @@ import { analyzeFile }   from '../../scripts/ingest/analyzer.mjs';
 import { uploadItem, getAdminUserId } from '../../scripts/ingest/uploader.mjs';
 
 const router = Router();
-const ROLES  = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
+// DEPT_MANAGER مسموح له بالقراءة والاقتراح فقط (review mode إجباري)
+const ROLES      = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'DEPT_MANAGER'];
+// الأدوار التي تستطيع تنفيذ الكتابة مباشرةً (auto mode)
+const WRITE_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
 
 // ── multer: حفظ مؤقت في /tmp ──────────────────────────────────────────────────
 const upload = multer({
@@ -45,12 +48,12 @@ router.get('/context', authorize(...ROLES), asyncHandler(async (_req, res) => {
 
 // ── POST /chat ────────────────────────────────────────────────────────────────
 router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
-  const { messages, mode = 'auto' } = req.body || {};
+  const { messages, mode: requestedMode = 'auto' } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     throw BadRequest('messages: مصفوفة غير فارغة مطلوبة');
   }
-  if (!['auto', 'review'].includes(mode)) {
+  if (!['auto', 'review'].includes(requestedMode)) {
     throw BadRequest('mode يجب أن يكون auto أو review');
   }
 
@@ -62,9 +65,13 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
   }
 
   const callerUserId = req.user?.sub || req.user?.id;
+  const callerRole   = req.user?.role;
+
+  // DEPT_MANAGER → review mode إجباري (لا يستطيع تنفيذ الكتابة مباشرةً)
+  const mode = WRITE_ROLES.includes(callerRole) ? requestedMode : 'review';
 
   try {
-    const out = await chat({ messages, callerUserId, mode });
+    const out = await chat({ messages, callerUserId, callerRole, mode });
     res.json({ ok: true, ...out });
   } catch (e) {
     res.status(e.status || 500).json({ ok: false, error: e.message, code: e.code });
