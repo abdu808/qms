@@ -14,10 +14,22 @@
  *   applyActions(actions, userId)   — مسار التوافق للأمام (legacy)
  */
 import { PrismaClient } from '@prisma/client';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { runAgentLoop, applyPendingActions } from './aiAgent/loop.js';
 import { executeTool }  from './aiAgent/tools.js';
 import { getAiSettings } from '../lib/ai/settings.js';
 import { routeRequest } from './aiAgent/router.js';
+
+// ── تحميل ملف المعرفة المؤسسية (مرة واحدة عند الإقلاع) ────────────────────────
+const __dirname = dirname(fileURLToPath(import.meta.url));
+let _orgKnowledge = '';
+try {
+  _orgKnowledge = readFileSync(join(__dirname, 'aiAgent/org-knowledge.md'), 'utf8');
+} catch {
+  console.warn('⚠️  org-knowledge.md غير موجود — سيعمل المستشار بدون سياق مؤسسي');
+}
 
 const prisma = new PrismaClient();
 
@@ -56,7 +68,15 @@ async function getAiAgentUserId() {
 //  System Prompt — شخصية المستشار (v2: نص أقصر وأوضح — الأدوات تتكلم عن نفسها)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
+// ملف المعرفة يُضاف إلى نهاية الـ system prompt عند البناء
+const buildSystemPrompt = () => {
+  const knowledgeSection = _orgKnowledge
+    ? `\n\n━━━ قاعدة المعرفة المؤسسية ━━━\n${_orgKnowledge}`
+    : '';
+  return BASE_SYSTEM_PROMPT + knowledgeSection;
+};
+
+const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 
 لديك 31 أداة مباشرة تتصل بقاعدة البيانات الفعلية — استخدمها بنشاط.
 
@@ -234,7 +254,7 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto' }
   const routed = await routeRequest(messages, false);
 
   const result = await runAgentLoop({
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: buildSystemPrompt(),
     messages,
     actingUserId,
     callerUserId,
