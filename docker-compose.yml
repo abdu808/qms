@@ -62,6 +62,8 @@ services:
       # SEED_FROM_JSON=on  →  تعبئة seed-data.json الخاصّة بالمنظمة (مرة واحدة فقط)
       # بعد أول deploy ناجح: أعدها إلى off لتجنب إعادة التعبئة في كل إعادة تشغيل
       SEED_FROM_JSON: ${SEED_FROM_JSON:-off}
+      # محتوى seed-data.json مُشفّراً base64 (بديل لنسخ الملف يدوياً — مناسب لـ Coolify)
+      SEED_DATA_JSON_B64: ${SEED_DATA_JSON_B64:-}
     volumes:
       - qms_uploads:/app/uploads
       - ./backups:/app/uploads/backups
