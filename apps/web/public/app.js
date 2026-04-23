@@ -363,6 +363,7 @@ function app() {
       { id: 'consultant',        label: 'المستشار الذكي',        icon: '🎓' },
       { id: 'progressReports',   label: 'المحقق الشهري',        icon: '🔎' },
       { id: 'auditorDashboard',  label: 'لوحة المراقب',         icon: '🔍' },
+      { id: 'userGuide',         label: 'دليل المستخدم',         icon: '📖' },
     ],
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
@@ -376,6 +377,7 @@ function app() {
       { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports'] },
       { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','capa','improvementProjects','slaBoard'] },
       { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin','aiSettings','consultant'] },
+      { id: 'help',        title: 'المساعدة',           icon: '📖', iso: '',          color: 'indigo',  items: ['userGuide'] },
     ],
 
     // ─── دور المراقب الخارجي ──────────────────────────────────────────
