@@ -1,5 +1,11 @@
 /**
- * extractors.mjs — استخراج النص من DOCX / PPTX / XLSX / TXT / MD
+ * extractors.mjs — استخراج المحتوى من الملفات
+ *
+ * السياسة:
+ *   PDF + صور  →  buffer (يُرسَل مباشرةً إلى AI كـ vision document)
+ *   DOCX/PPTX  →  نص مُستخرَج محلياً (mammoth/officeparser — دقيق للنص المُهيكَل)
+ *   XLSX       →  جدول Markdown (ExcelJS — أدق من OCR للجداول)
+ *   TXT/MD     →  نص خام
  */
 import mammoth from 'mammoth';
 import officeparser from 'officeparser';
@@ -8,14 +14,35 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 
 /**
- * يستخرج النص من ملف حسب الامتداد
- * @returns { text, kind, meta? }
+ * يستخرج المحتوى من ملف حسب الامتداد
+ * @returns { text?, buffer?, mediaType?, kind, meta?, vision? }
+ *   - vision=true  →  الملف يُرسَل مباشرةً للـ AI كصورة/PDF (analyzer يُنشئ content block)
+ *   - text         →  نص عادي (analyzer يُرسله كـ user message)
  */
-export const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.txt', '.md'];
+export const SUPPORTED_EXTENSIONS = [
+  '.pdf', '.docx', '.pptx', '.xlsx', '.xls', '.txt', '.md',
+  '.png', '.jpg', '.jpeg', '.webp', '.gif',
+];
+
+// امتدادات تُرسَل للـ AI كـ vision (مباشرةً، بدون استخراج نص محلي)
+const VISION_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
+
+const IMAGE_MIME = {
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif':  'image/gif',
+};
+
+export function isVisionExtension(ext) {
+  return VISION_EXTENSIONS.has(ext.toLowerCase());
+}
 
 export async function extractText(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.pdf')  return await extractPdf(filePath);
+  if (IMAGE_MIME[ext]) return await extractImage(filePath, ext);
   if (ext === '.docx') return await extractDocx(filePath);
   if (ext === '.pptx') return await extractPptx(filePath);
   if (ext === '.xlsx' || ext === '.xls') return await extractXlsx(filePath);
@@ -23,25 +50,47 @@ export async function extractText(filePath) {
   throw new Error(`امتداد غير مدعوم: ${ext} — المدعوم: ${SUPPORTED_EXTENSIONS.join(', ')}`);
 }
 
+/**
+ * PDF — نُعيد الـ buffer دائماً ليُرسَل للـ AI كـ document block.
+ * نُحاول أيضاً استخراج نص محلي كـ hint (للفهرسة والبحث اللاحق) — لكن AI يقرأ من الـ buffer.
+ */
 async function extractPdf(filePath) {
-  const text = await new Promise((resolve, reject) => {
-    officeparser.parseOffice(filePath, (data, err) => {
-      if (err) return reject(err);
-      resolve(data || '');
-    });
-  });
-  const extracted = String(text || '').trim();
+  const buffer = await readFile(filePath);
 
-  // كشف PDF ممسوح ضوئياً (صور بدون نص مُضمَّن)
-  if (extracted.length < 50) {
-    return {
-      text: '',
-      kind: 'pdf',
-      scanned: true,
-      warning: 'يبدو أن هذا الملف ممسوح ضوئياً (صور بدون نص). لا يمكن استخراج النص تلقائياً — يُنصح بتحويله إلى PDF نصي أو إدخال البيانات يدوياً.',
-    };
-  }
-  return { text: extracted, kind: 'pdf' };
+  // محاولة استخراج نص محلي — للفهرسة والبحث، لا للتحليل
+  let textHint = '';
+  try {
+    const text = await new Promise((resolve, reject) => {
+      officeparser.parseOffice(filePath, (data, err) => {
+        if (err) return reject(err);
+        resolve(data || '');
+      });
+    });
+    textHint = String(text || '').trim();
+  } catch { /* PDF ممسوح — لا مشكلة، AI يقرأه */ }
+
+  return {
+    kind: 'pdf',
+    vision: true,
+    buffer,
+    mediaType: 'application/pdf',
+    text: textHint,      // قد يكون فارغاً (ممسوح) — AI لن يعتمد عليه
+    scanned: textHint.length < 50,
+  };
+}
+
+/**
+ * صورة — تُرسَل مباشرةً للـ AI
+ */
+async function extractImage(filePath, ext) {
+  const buffer = await readFile(filePath);
+  return {
+    kind: 'image',
+    vision: true,
+    buffer,
+    mediaType: IMAGE_MIME[ext],
+    text: '',
+  };
 }
 
 async function extractDocx(filePath) {

@@ -129,25 +129,18 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
     try {
       await rename(tmpPath, namedPath);
 
-      // 1️⃣ استخراج النص
+      // 1️⃣ استخراج المحتوى (نص أو buffer للـ vision)
       const extracted = await extractText(namedPath);
 
-      // كشف PDF ممسوح ضوئياً — لا فائدة من التحليل
-      if (extracted.scanned) {
-        return {
-          ok: false,
-          filename,
-          error: extracted.warning,
-          scanned: true,
-        };
-      }
-
-      // 2️⃣ تحليل AI
+      // 2️⃣ تحليل AI — PDF/صور تُرسَل كـ vision، بقية الأنواع كنص
       const analyzed = await analyzeFile({
         filename,
-        folder: 'consultant-upload',
-        text:   extracted.text,
-        kind:   extracted.kind || ext.replace('.', ''),
+        folder:    'consultant-upload',
+        text:      extracted.text,
+        kind:      extracted.kind || ext.replace('.', ''),
+        buffer:    extracted.buffer,
+        mediaType: extracted.mediaType,
+        vision:    extracted.vision,
       });
       const a = analyzed.analysis;
 

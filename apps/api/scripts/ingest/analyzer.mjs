@@ -68,12 +68,17 @@ const SYSTEM_PROMPT = `أنت مساعد خبير في نظام إدارة ال�
 
 /**
  * يُحلِّل ملف واحد
- * @param {{ filename: string, folder: string, text: string, kind: string }} file
+ * @param {{ filename, folder, text?, kind, buffer?, mediaType?, vision? }} file
  * @returns { analysis, usage }
+ *
+ * إذا كان vision=true → يُرسَل الـ buffer مباشرةً للـ AI كـ document/image block.
+ * وإلا → يُرسَل النص المُستخرَج محلياً.
  */
 export async function analyzeFile(file) {
-  const { filename, folder, text, kind } = file;
-  if (!text || text.length < 30) {
+  const { filename, folder, text, kind, buffer, mediaType, vision } = file;
+
+  // غير vision: يجب وجود نص
+  if (!vision && (!text || text.length < 30)) {
     return {
       analysis: {
         title: filename.replace(/\.[^.]+$/, ''),
@@ -93,32 +98,61 @@ export async function analyzeFile(file) {
     };
   }
 
-  const snippet = truncateForAi(text, 25_000);
-  const userPrompt = `اسم الملف: ${filename}
+  // بناء رسالة user — إما vision (document/image) أو نص
+  let userContent;
+  const instructions = `اسم الملف: ${filename}
 المجلد: ${folder}
 نوع الملف: ${kind}
+
+استخرج metadata بصيغة JSON تطابق الـ schema المطلوب. اقرأ الملف المُرفق بعناية — الجداول، العناوين، الأقسام — واستخرج الأهداف والمؤشرات إن وُجدت.`;
+
+  if (vision && buffer) {
+    // إرسال الملف مباشرةً للـ AI (PDF أو صورة)
+    const base64 = buffer.toString('base64');
+    const isPdf = mediaType === 'application/pdf';
+    userContent = [
+      {
+        type: isPdf ? 'document' : 'image',
+        source: { type: 'base64', media_type: mediaType, data: base64 },
+      },
+      { type: 'text', text: instructions },
+    ];
+  } else {
+    // نص عادي
+    const snippet = truncateForAi(text, 25_000);
+    userContent = `${instructions}
 
 محتوى الملف:
 """
 ${snippet}
-"""
-
-استخرج metadata بصيغة JSON تطابق الـ schema المطلوب.`;
+"""`;
+  }
 
   // ── محاولة مع retry واحدة عند فشل JSON ───────────────────────────────────
   async function attempt(isRetry = false) {
-    const prompt = isRetry
-      ? userPrompt + '\n\nتنبيه: أرجع JSON صالحاً فقط — بدون أي نص خارجه، بدون markdown.'
-      : userPrompt;
+    let msg = userContent;
+    if (isRetry) {
+      const suffix = '\n\nتنبيه: أرجع JSON صالحاً فقط — بدون أي نص خارجه، بدون markdown.';
+      if (typeof msg === 'string') {
+        msg = msg + suffix;
+      } else {
+        // content array — عدّل آخر text block
+        msg = msg.map((b, i) =>
+          (i === msg.length - 1 && b.type === 'text')
+            ? { ...b, text: b.text + suffix }
+            : b
+        );
+      }
+    }
 
     return await aiComplete({
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: msg }],
       feature: 'ingestion',
       jsonSchema: ANALYSIS_SCHEMA,
       temperature: isRetry ? 0.0 : 0.2,
       maxTokens: 2500,
-      metadata: { filename, folder, kind, textLength: text.length, retry: isRetry },
+      metadata: { filename, folder, kind, vision: !!vision, textLength: text?.length || 0, retry: isRetry },
     });
   }
 

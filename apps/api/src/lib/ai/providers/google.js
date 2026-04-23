@@ -64,11 +64,20 @@ export async function complete({
     const parts = [];
     for (const b of m.content) {
       if (b.type === 'text')       parts.push({ text: b.text || '' });
-      if (b.type === 'tool_use')   parts.push({ functionCall: { name: b.name, args: b.input || {} } });
-      if (b.type === 'tool_result') parts.push({ functionResponse: {
+      else if (b.type === 'tool_use')   parts.push({ functionCall: { name: b.name, args: b.input || {} } });
+      else if (b.type === 'tool_result') parts.push({ functionResponse: {
         name: b.tool_use_id || 'tool',
         response: { content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content) },
       }});
+      // ── Vision: document (PDF) / image — تحويل من صيغة Anthropic إلى inlineData ──
+      else if ((b.type === 'document' || b.type === 'image') && b.source?.type === 'base64') {
+        parts.push({
+          inlineData: {
+            mimeType: b.source.media_type,
+            data:     b.source.data,
+          },
+        });
+      }
     }
     return parts.length ? parts : [{ text: '' }];
   }
@@ -80,12 +89,18 @@ export async function complete({
       parts: toGeminiParts(m),
     });
   }
+  // lastUserMessage يمكن أن يكون string أو array of parts (للـ vision)
+  let lastUserParts = null;
   if (msgs.length > 0) {
     const last = msgs[msgs.length - 1];
     if (last.role === 'user') {
-      lastUserMessage = typeof last.content === 'string'
-        ? last.content
-        : (last.content?.[0]?.text || '');
+      if (typeof last.content === 'string') {
+        lastUserMessage = last.content;
+      } else {
+        // content array — نُحوِّلها إلى parts
+        lastUserParts = toGeminiParts(last);
+        lastUserMessage = '';
+      }
     } else {
       history.push({ role: 'model', parts: toGeminiParts(last) });
       lastUserMessage = '';
@@ -93,7 +108,7 @@ export async function complete({
   }
 
   const chat = geminiModel.startChat({ history });
-  const response = await chat.sendMessage(lastUserMessage, { signal });
+  const response = await chat.sendMessage(lastUserParts || lastUserMessage, { signal });
   const res = response.response;
 
   const text = res.text() || '';
