@@ -17,8 +17,10 @@ import {
   getAiSettings, setSetting, setApiKey,
   aiTestConnection, aiComplete,
   getUsageSummary, MODEL_CATALOG, DEFAULT_MODELS,
+  computeCost,
 } from '../lib/ai/index.js';
 import { maskKey, isMasked } from '../lib/ai/crypto.js';
+import { prisma } from '../db.js';
 
 const router = Router();
 const ADMIN_ROLES = ['SUPER_ADMIN'];
@@ -185,6 +187,43 @@ router.get('/usage', authorize(...USER_ROLES), asyncHandler(async (_req, res) =>
         ? Math.round((summary.monthly.costUSD / settings.monthlyBudgetUsd) * 100)
         : 0,
     },
+  });
+}));
+
+/**
+ * POST /api/ai-settings/usage/backfill-costs
+ * إعادة حساب التكلفة للسجلات القديمة (costUSD=0 ولديها tokens)
+ * يُستخدم بعد تصحيح جدول الأسعار أو تطابق أسماء النماذج.
+ */
+router.post('/usage/backfill-costs', authorize(...ADMIN_ROLES), asyncHandler(async (_req, res) => {
+  const rows = await prisma.aiUsageLog.findMany({
+    where: {
+      costUSD: 0,
+      OR: [{ inputTokens: { gt: 0 } }, { outputTokens: { gt: 0 } }],
+    },
+    select: { id: true, model: true, inputTokens: true, outputTokens: true },
+  });
+
+  let updated = 0;
+  let skipped = 0;
+  let totalRecovered = 0;
+  for (const r of rows) {
+    const cost = computeCost(r.model, r.inputTokens, r.outputTokens);
+    if (cost > 0) {
+      await prisma.aiUsageLog.update({ where: { id: r.id }, data: { costUSD: cost } });
+      updated++;
+      totalRecovered += cost;
+    } else {
+      skipped++;
+    }
+  }
+
+  res.json({
+    ok: true,
+    scanned: rows.length,
+    updated,
+    skipped,
+    totalRecovered: Math.round(totalRecovered * 10000) / 10000,
   });
 }));
 

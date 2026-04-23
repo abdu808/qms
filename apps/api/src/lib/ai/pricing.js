@@ -52,8 +52,23 @@ export const MODEL_CATALOG = [
  * يحسب التكلفة بالدولار
  * @returns رقم دولار (مثال: 0.000435)
  */
+/** يجد سعر نموذج مع تجاهل لاحقة التاريخ (مثل -20251001) */
+function findPricing(model) {
+  if (!model) return null;
+  if (PRICING[model]) return PRICING[model];
+  // جرِّب حذف لاحقة التاريخ: claude-haiku-4-5-20251001 → claude-haiku-4-5
+  const stripped = String(model).replace(/-\d{8}$/, '').replace(/-latest$/, '');
+  if (PRICING[stripped]) return PRICING[stripped];
+  // جرِّب مطابقة البادئة (أطول مفتاح موافق)
+  const keys = Object.keys(PRICING).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (model.startsWith(k)) return PRICING[k];
+  }
+  return null;
+}
+
 export function computeCost(model, inputTokens, outputTokens) {
-  const p = PRICING[model];
+  const p = findPricing(model);
   if (!p) return 0; // نموذج غير معروف — لا نخفق، نكتفي بالصفر
   const inCost  = (Number(inputTokens)  || 0) * p.in  / 1_000_000;
   const outCost = (Number(outputTokens) || 0) * p.out / 1_000_000;
