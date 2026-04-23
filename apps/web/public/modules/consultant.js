@@ -84,9 +84,21 @@
     // ─── localStorage: حفظ واستعادة المحادثة ────────────────────────────────
     _consultSaveHistory() {
       try {
+        // نحفظ رسائل الملفات كملخص خفيف (chatMessage فقط) حتى لا نضيع السياق
+        // بعد إعادة تحميل الصفحة.
         const toSave = this.consult.messages
-          .filter(m => m.role !== 'file') // لا نحفظ رسائل الملفات (ثقيلة)
-          .slice(-40);                    // آخر 40 رسالة فقط
+          .map(m => {
+            if (m.role !== 'file') return m;
+            return {
+              role: 'file',
+              count: m.count,
+              succeeded: m.succeeded,
+              failed: m.failed,
+              totalCreated: m.totalCreated,
+              chatMessage: m.chatMessage, // نص الملخص فقط — files array يُحذف (ثقيل)
+            };
+          })
+          .slice(-40);
         localStorage.setItem('qms_consult_history', JSON.stringify(toSave));
       } catch {}
     },
@@ -150,9 +162,19 @@
       this.consult.thinking = true;
       this.consult.error    = '';
 
+      // بناء التاريخ: نحتفظ برسائل الملفات ونحولها إلى user message
+      // حتى يرى النموذج سياق ما رُفع ومعالجته في الدورات اللاحقة.
       const history = this.consult.messages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({ role: m.role, content: m.content }));
+        .filter(m => m.role === 'user' || m.role === 'assistant' || m.role === 'file')
+        .map(m => {
+          if (m.role === 'file') {
+            const txt = m.chatMessage ||
+              `رفعتُ ${m.count || ''} ملف${m.succeeded ? ` (${m.succeeded} نجح، ${m.failed || 0} فشل)` : ''}` +
+              (m.totalCreated ? ` — تم إنشاء ${m.totalCreated} عنصر.` : '');
+            return { role: 'user', content: `[سياق الملفات المرفوعة]\n${txt}` };
+          }
+          return { role: m.role, content: m.content };
+        });
 
       try {
         const body = { messages: history, mode: this.consult.mode };
