@@ -49,22 +49,10 @@ else
   echo "[startup] ── المراحل 6-8 (بيانات تعريفية) متخطّاة — SEED_DEMO_DATA غير مُفعَّل ──"
 fi
 
-# المرحلة 9 (اختيارية): تعبئة seed-data.json — خاصّة بكل منظمة.
+# المرحلة 9 (اختيارية): تعبئة seed-data.json عند أول deploy.
 # SEED_FROM_JSON=on عند أول deploy فقط، ثم أعدها إلى off.
-#
-# مصدر الملف: إما prisma/seed-data.json موجود مسبقاً (يُنقَل يدوياً)،
-# أو SEED_DATA_JSON_B64 env var (نفكّ تشفيره هنا) — مناسب لـ Coolify.
 if [ "${SEED_FROM_JSON:-off}" = "on" ]; then
   echo "[startup] ── المرحلة 9: تعبئة seed-data.json (SEED_FROM_JSON=on) ──"
-
-  # فكّ base64 إذا وُجد — يكتب إلى prisma/seed-data.json
-  if [ -n "${SEED_DATA_JSON_B64:-}" ]; then
-    echo "[startup] فكّ SEED_DATA_JSON_B64 → prisma/seed-data.json"
-    echo "$SEED_DATA_JSON_B64" | base64 -d > prisma/seed-data.json \
-      && echo "[startup]   ✅ تم (حجم: $(wc -c < prisma/seed-data.json) بايت)" \
-      || echo "[startup]   ❌ فشل فكّ base64 — تحقّق من صحّة المتغيّر"
-  fi
-
   node scripts/seed-from-json.mjs || echo "[startup] تخطّي — فشل seed-from-json (غير حرج)"
 fi
 

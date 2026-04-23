@@ -50,8 +50,6 @@ ISO9001/
 apps/api/_analysis/
 apps/api/ingest-inbox/
 
-# بيانات الـ seed الخاصّة بكل منظمة — تُنقل يدوياً لكل نشر
-apps/api/prisma/seed-data.json
 seed-data.b64
 
 # ملفات خطط Claude Code المحلية
