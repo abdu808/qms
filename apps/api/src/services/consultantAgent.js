@@ -261,7 +261,7 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto' }
     callerRole,   // دور المستخدم الأصلي (لمنطق صلاحيات الحذف)
     mode,
     feature:     'consultant',
-    maxTokens:   4096,
+    maxTokens:   8192,
     provider:    routed.provider,   // override المزود
     model:       routed.model,       // override الموديل
     routingTier: routed.tier,        // للـ logging

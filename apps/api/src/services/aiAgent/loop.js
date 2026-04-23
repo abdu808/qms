@@ -18,7 +18,7 @@
 import { aiComplete } from '../../lib/ai/index.js';
 import { AGENT_TOOLS, READ_ONLY_TOOLS, executeTool } from './tools.js';
 
-const MAX_ITERATIONS          = 8;
+const MAX_ITERATIONS          = 15;
 const MAX_TOOL_CALLS_PER_ITER = 10;
 
 // أدوات الحذف — تتطلب موافقة المسؤول دائماً بغض النظر عن الوضع أو الدور

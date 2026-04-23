@@ -165,7 +165,7 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
       // 4️⃣ نصّ الملف — للخطط التشغيلية والاستراتيجية يُرسَل للمستشار كـ context
       // حتى يستطيع إنشاء الأنشطة والأهداف من البيانات الفعلية
       const needsAiProcessing = ['operational_plan', 'strategic_plan'].includes(a.category) && !stored?.count;
-      const textForAi = needsAiProcessing ? extracted.text?.slice(0, 5000) : null;
+      const textForAi = needsAiProcessing ? extracted.text?.slice(0, 60000) : null;
 
       return {
         ok: true, filename,
