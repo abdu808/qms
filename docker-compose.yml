@@ -59,6 +59,9 @@ services:
       AI_ENCRYPTION_KEY: ${AI_ENCRYPTION_KEY:-}
       QM_EMAIL: ${QM_EMAIL:-}
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      # SEED_FROM_JSON=on  →  تعبئة seed-data.json الخاصّة بالمنظمة (مرة واحدة فقط)
+      # بعد أول deploy ناجح: أعدها إلى off لتجنب إعادة التعبئة في كل إعادة تشغيل
+      SEED_FROM_JSON: ${SEED_FROM_JSON:-off}
     volumes:
       - qms_uploads:/app/uploads
       - ./backups:/app/uploads/backups

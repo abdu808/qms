@@ -49,5 +49,13 @@ else
   echo "[startup] ── المراحل 6-8 (بيانات تعريفية) متخطّاة — SEED_DEMO_DATA غير مُفعَّل ──"
 fi
 
-echo "[startup] ── المرحلة 9: تشغيل الخادم ──"
+# المرحلة 9 (اختيارية): تعبئة seed-data.json — خاصّة بكل منظمة.
+# SEED_FROM_JSON=on عند أول deploy فقط، ثم أعدها إلى off.
+# الملف prisma/seed-data.json يجب أن يكون موجوداً (يُنقَل يدوياً — مُستبعَد من git).
+if [ "${SEED_FROM_JSON:-off}" = "on" ]; then
+  echo "[startup] ── المرحلة 9: تعبئة seed-data.json (SEED_FROM_JSON=on) ──"
+  node scripts/seed-from-json.mjs || echo "[startup] تخطّي — فشل seed-from-json (غير حرج)"
+fi
+
+echo "[startup] ── المرحلة 10: تشغيل الخادم ──"
 exec node src/server.js
