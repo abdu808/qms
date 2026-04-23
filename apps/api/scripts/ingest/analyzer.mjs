@@ -105,15 +105,30 @@ ${snippet}
 
 استخرج metadata بصيغة JSON تطابق الـ schema المطلوب.`;
 
-  const result = await aiComplete({
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userPrompt }],
-    feature: 'ingestion',
-    jsonSchema: ANALYSIS_SCHEMA,
-    temperature: 0.2,
-    maxTokens: 2500,  // زيادة للخطط الاستراتيجية التي تحتاج استخراج مصفوفة أهداف
-    metadata: { filename, folder, kind, textLength: text.length },
-  });
+  // ── محاولة مع retry واحدة عند فشل JSON ───────────────────────────────────
+  async function attempt(isRetry = false) {
+    const prompt = isRetry
+      ? userPrompt + '\n\nتنبيه: أرجع JSON صالحاً فقط — بدون أي نص خارجه، بدون markdown.'
+      : userPrompt;
+
+    return await aiComplete({
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+      feature: 'ingestion',
+      jsonSchema: ANALYSIS_SCHEMA,
+      temperature: isRetry ? 0.0 : 0.2,
+      maxTokens: 2500,
+      metadata: { filename, folder, kind, textLength: text.length, retry: isRetry },
+    });
+  }
+
+  let result = await attempt(false);
+
+  // فشل parsing → retry بدرجة حرارة صفر وتوجيه أوضح
+  if (!result.json) {
+    console.warn(`[analyzer] JSON parse failed for "${filename}", retrying...`);
+    result = await attempt(true);
+  }
 
   if (result.json) {
     return {
@@ -124,20 +139,20 @@ ${snippet}
     };
   }
 
-  // فشل parsing — نُرجع نتيجة fallback
+  // فشل الـ retry أيضاً — fallback آمن
   return {
     analysis: {
       title: filename.replace(/\.[^.]+$/, ''),
       category: 'other',
       suggestedModule: 'Document',
-      summary: '⚠️ فشل تحليل AI — استجابة غير صالحة JSON.',
+      summary: '⚠️ فشل تحليل AI بعد إعادة المحاولة — سيُحفَظ كوثيقة عامة.',
       keywords: [],
       extractedDate: '',
       version: '',
       approvedBy: '',
       confidence: 'low',
       isoClause: '',
-      notes: `JSON parse error: ${result.jsonParseError || 'unknown'}. الاستجابة الخام: ${(result.content || '').slice(0, 200)}`,
+      notes: `JSON parse error: ${result.jsonParseError || 'unknown'}`,
     },
     usage: result.usage,
     provider: result.provider,

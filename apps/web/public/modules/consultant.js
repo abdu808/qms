@@ -77,9 +77,34 @@
       ],
     },
 
+    // ─── localStorage: حفظ واستعادة المحادثة ────────────────────────────────
+    _consultSaveHistory() {
+      try {
+        const toSave = this.consult.messages
+          .filter(m => m.role !== 'file') // لا نحفظ رسائل الملفات (ثقيلة)
+          .slice(-40);                    // آخر 40 رسالة فقط
+        localStorage.setItem('qms_consult_history', JSON.stringify(toSave));
+      } catch {}
+    },
+
+    _consultRestoreHistory() {
+      try {
+        const raw = localStorage.getItem('qms_consult_history');
+        if (!raw) return;
+        const msgs = JSON.parse(raw);
+        if (Array.isArray(msgs) && msgs.length > 0) {
+          this.consult.messages = msgs;
+        }
+      } catch {
+        localStorage.removeItem('qms_consult_history');
+      }
+    },
+
     // ─── تحميل السياق ─────────────────────────────────────────────────────
     async loadConsultContext() {
       if (!this.token) return;
+      // استعادة المحادثة السابقة من localStorage (مرة واحدة فقط عند الفتح)
+      if (this.consult.messages.length === 0) this._consultRestoreHistory();
       try {
         this.consult.loading = true;
         const j = await this.api('GET', '/consultant/context');
@@ -113,18 +138,20 @@
         if (!j.ok) throw new Error(j.error?.message || j.error || 'خطأ في الاستدعاء');
 
         this.consult.messages.push({
-          role:           'assistant',
-          content:        j.reply,
-          toolsUsed:      j.toolsUsed      || [],
-          pendingActions: j.pendingActions  || [],
-          iterations:     j.iterations      || 0,
-          usage:          j.usage,
-          mode:           j.mode,
-          applied:        false,
-          applyResults:   null,
+          role:              'assistant',
+          content:           j.reply,
+          toolsUsed:         j.toolsUsed         || [],
+          pendingActions:    j.pendingActions     || [],
+          iterations:        j.iterations         || 0,
+          hitIterationLimit: j.hitIterationLimit  || false,
+          usage:             j.usage,
+          mode:              j.mode,
+          applied:           false,
+          applyResults:      null,
         });
 
         if (j.context) this.consult.context = j.context;
+        this._consultSaveHistory();
 
       } catch (e) {
         this.consult.error = e.message;
@@ -294,6 +321,7 @@
       this.consult.input        = '';
       this.consult.error        = '';
       this.consult.attachments  = [];
+      try { localStorage.removeItem('qms_consult_history'); } catch {}
     },
 
     async consultResetStrategicData() {

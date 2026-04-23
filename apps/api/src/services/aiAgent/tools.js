@@ -82,7 +82,9 @@ export const AGENT_TOOLS = [
 - الفجوات والمشاكل الحالية
 - الرد على "تحقق" / "ماذا في النظام"
 
-الخيارات: goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")`,
+الخيارات: goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")
+limit: عدد السجلات لكل قسم (افتراضي 50، أقصى 200) — استخدم قيمة أصغر لتسريع الاستجابة
+offset: للصفحات التالية (0, 50, 100...)`,
     input_schema: {
       type: 'object',
       properties: {
@@ -94,6 +96,8 @@ export const AGENT_TOOLS = [
           },
           description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps)',
         },
+        limit:  { type: 'number', description: 'حد السجلات لكل قسم (افتراضي 50، أقصى 200)' },
+        offset: { type: 'number', description: 'تخطي N سجل للصفحة التالية (افتراضي 0)' },
       },
     },
   },
@@ -826,27 +830,38 @@ export async function executeTool(name, input, actingUserId) {
     case 'get_system_state': {
       const want = new Set(input.sections || ['goals','activities','objectives','gaps']);
       if (want.has('all')) ['goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
+
+      // Pagination: حد أقصى 200، افتراضي 50
+      const pgLimit  = Math.min(Math.max(Number(input.limit  || 50), 1), 200);
+      const pgOffset = Math.max(Number(input.offset || 0), 0);
       const result = {};
 
       if (want.has('goals')) {
-        result.goals = await prisma.strategicGoal.findMany({
+        const total = await prisma.strategicGoal.count({ where: { deletedAt: null } });
+        const items = await prisma.strategicGoal.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, target:true, responsible:true, kpi:true,
             baseline:true, startYear:true, endYear:true, progress:true, status:true,
             activities: { select:{ id:true, code:true, title:true } } },
         });
+        result.goals = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('activities')) {
-        result.activities = await prisma.operationalActivity.findMany({
-          orderBy: { code: 'asc' },
+        const total = await prisma.operationalActivity.count();
+        const items = await prisma.operationalActivity.findMany({
+          orderBy: { code: 'asc' }, take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, strategicGoalId:true, department:true,
             responsible:true, targetValue:true, kpiType:true, progress:true, status:true,
             startDate:true, endDate:true, budget:true },
         });
+        result.activities = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('objectives')) {
-        result.objectives = await prisma.objective.findMany({
+        const total = await prisma.objective.count({ where: { deletedAt: null } });
+        const items = await prisma.objective.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, kpi:true, target:true, unit:true,
             baseline:true, currentValue:true, progress:true, status:true,
             startDate:true, dueDate:true, ownerId:true, departmentId:true, strategicGoalId:true,
@@ -854,6 +869,7 @@ export async function executeTool(name, input, actingUserId) {
             department:{ select:{ id:true, name:true } },
             strategicGoal:{ select:{ id:true, code:true } } },
         });
+        result.objectives = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('users')) {
         result.users = await prisma.user.findMany({
@@ -867,41 +883,56 @@ export async function executeTool(name, input, actingUserId) {
         });
       }
       if (want.has('risks')) {
-        result.risks = await prisma.risk.findMany({
+        const total = await prisma.risk.count({ where: { deletedAt: null } });
+        const items = await prisma.risk.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, type:true, title:true, probability:true, impact:true,
             score:true, level:true, status:true, treatment:true, ownerId:true,
             owner:{ select:{ id:true, name:true } } },
         });
+        result.risks = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('ncrs')) {
-        result.ncrs = await prisma.nCR.findMany({
+        const total = await prisma.nCR.count({ where: { deletedAt: null } });
+        const items = await prisma.nCR.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, severity:true, status:true,
             rootCause:true, dueDate:true,
             assignee:{ select:{ id:true, name:true } } },
         });
+        result.ncrs = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('capas')) {
-        result.capas = await prisma.capa.findMany({
+        const total = await prisma.capa.count({ where: { deletedAt: null } });
+        const items = await prisma.capa.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, type:true, title:true, status:true, dueDate:true,
             owner:{ select:{ id:true, name:true } } },
         });
+        result.capas = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('audits')) {
-        result.audits = await prisma.audit.findMany({
+        const total = await prisma.audit.count({ where: { deletedAt: null } });
+        const items = await prisma.audit.findMany({
           where: { deletedAt: null }, orderBy: { plannedDate: 'desc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, type:true, status:true, plannedDate:true,
             leadAuditor:{ select:{ id:true, name:true } } },
         });
+        result.audits = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('complaints')) {
-        result.complaints = await prisma.complaint.findMany({
-          where: { deletedAt: null }, orderBy: { receivedAt: 'desc' }, take: 20,
+        const total = await prisma.complaint.count({ where: { deletedAt: null } });
+        const items = await prisma.complaint.findMany({
+          where: { deletedAt: null }, orderBy: { receivedAt: 'desc' },
+          take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, subject:true, status:true, severity:true, receivedAt:true,
             assignee:{ select:{ id:true, name:true } } },
         });
+        result.complaints = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('swot')) {
         result.swot = await prisma.swotItem.findMany({

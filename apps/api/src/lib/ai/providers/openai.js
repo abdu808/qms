@@ -20,10 +20,42 @@ export async function complete({
   const client = new OpenAI({ apiKey });
 
   // OpenAI يستخدم role=system كرسالة ضمن messages
+  // تحويل صيغة Anthropic (content-array) إلى صيغة OpenAI
   const msgs = [];
   if (system) msgs.push({ role: 'system', content: system });
   for (const m of (messages || [])) {
-    msgs.push({ role: m.role, content: m.content });
+    if (typeof m.content === 'string') {
+      msgs.push({ role: m.role, content: m.content });
+    } else if (Array.isArray(m.content)) {
+      // صيغة Anthropic للـ assistant مع tool_use blocks
+      if (m.role === 'assistant') {
+        const textBlocks = m.content.filter(b => b.type === 'text').map(b => b.text).join('');
+        const toolUseBlocks = m.content.filter(b => b.type === 'tool_use');
+        const msg = { role: 'assistant', content: textBlocks || null };
+        if (toolUseBlocks.length > 0) {
+          msg.tool_calls = toolUseBlocks.map(b => ({
+            id: b.id,
+            type: 'function',
+            function: { name: b.name, arguments: JSON.stringify(b.input || {}) },
+          }));
+        }
+        msgs.push(msg);
+      } else if (m.role === 'user') {
+        // tool_result blocks → role:tool messages
+        const toolResults = m.content.filter(b => b.type === 'tool_result');
+        const textBlocks  = m.content.filter(b => b.type === 'text');
+        if (textBlocks.length > 0) {
+          msgs.push({ role: 'user', content: textBlocks.map(b => b.text).join('') });
+        }
+        for (const tr of toolResults) {
+          msgs.push({
+            role: 'tool',
+            tool_call_id: tr.tool_use_id,
+            content: typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content),
+          });
+        }
+      }
+    }
   }
 
   const body = {

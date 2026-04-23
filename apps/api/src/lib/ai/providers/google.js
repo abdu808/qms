@@ -52,24 +52,42 @@ export async function complete({
 
   const geminiModel = genAI.getGenerativeModel(modelConfig);
 
-  // تحويل messages إلى صيغة Gemini (history + current)
+  // تحويل messages إلى صيغة Gemini — مع دعم صيغة Anthropic (content-array)
   const history = [];
   let lastUserMessage = '';
   const msgs = messages || [];
+
+  /** تحويل رسالة واحدة إلى Gemini parts */
+  function toGeminiParts(m) {
+    if (typeof m.content === 'string') return [{ text: m.content }];
+    if (!Array.isArray(m.content)) return [{ text: '' }];
+    const parts = [];
+    for (const b of m.content) {
+      if (b.type === 'text')       parts.push({ text: b.text || '' });
+      if (b.type === 'tool_use')   parts.push({ functionCall: { name: b.name, args: b.input || {} } });
+      if (b.type === 'tool_result') parts.push({ functionResponse: {
+        name: b.tool_use_id || 'tool',
+        response: { content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content) },
+      }});
+    }
+    return parts.length ? parts : [{ text: '' }];
+  }
 
   for (let i = 0; i < msgs.length - 1; i++) {
     const m = msgs[i];
     history.push({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content || '') }],
+      parts: toGeminiParts(m),
     });
   }
   if (msgs.length > 0) {
     const last = msgs[msgs.length - 1];
-    lastUserMessage = String(last.content || '');
-    if (last.role !== 'user') {
-      // إن كانت آخر رسالة من المساعد، نضيفها للـ history ونُرسل سلسلة فارغة
-      history.push({ role: 'model', parts: [{ text: lastUserMessage }] });
+    if (last.role === 'user') {
+      lastUserMessage = typeof last.content === 'string'
+        ? last.content
+        : (last.content?.[0]?.text || '');
+    } else {
+      history.push({ role: 'model', parts: toGeminiParts(last) });
       lastUserMessage = '';
     }
   }

@@ -125,6 +125,16 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
       // 1️⃣ استخراج النص
       const extracted = await extractText(namedPath);
 
+      // كشف PDF ممسوح ضوئياً — لا فائدة من التحليل
+      if (extracted.scanned) {
+        return {
+          ok: false,
+          filename,
+          error: extracted.warning,
+          scanned: true,
+        };
+      }
+
       // 2️⃣ تحليل AI
       const analyzed = await analyzeFile({
         filename,

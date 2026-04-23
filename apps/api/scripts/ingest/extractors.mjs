@@ -30,7 +30,18 @@ async function extractPdf(filePath) {
       resolve(data || '');
     });
   });
-  return { text: String(text || '').trim(), kind: 'pdf' };
+  const extracted = String(text || '').trim();
+
+  // كشف PDF ممسوح ضوئياً (صور بدون نص مُضمَّن)
+  if (extracted.length < 50) {
+    return {
+      text: '',
+      kind: 'pdf',
+      scanned: true,
+      warning: 'يبدو أن هذا الملف ممسوح ضوئياً (صور بدون نص). لا يمكن استخراج النص تلقائياً — يُنصح بتحويله إلى PDF نصي أو إدخال البيانات يدوياً.',
+    };
+  }
+  return { text: extracted, kind: 'pdf' };
 }
 
 async function extractDocx(filePath) {

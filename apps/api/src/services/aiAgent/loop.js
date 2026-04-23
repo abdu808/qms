@@ -149,11 +149,23 @@ export async function runAgentLoop({
     history.push({ role: 'user', content: toolResults });
   }
 
+  // تحذير إن وصلنا للحد الأقصى للتكرارات دون إنهاء طبيعي
+  const hitLimit = iterations >= MAX_ITERATIONS;
+  if (hitLimit) {
+    console.warn(`[loop] reached MAX_ITERATIONS (${MAX_ITERATIONS}) — task may be incomplete`);
+    if (finalReply) {
+      finalReply += '\n\n⚠️ **تنبيه:** وصل المستشار للحد الأقصى من الخطوات. قد تكون بعض المهام لم تكتمل — يمكنك إرسال "أكمل" ليتابع.';
+    } else {
+      finalReply = '⚠️ وصل المستشار للحد الأقصى من الخطوات دون رد نهائي. أرسل "أكمل" ليتابع العمل.';
+    }
+  }
+
   return {
     reply:          finalReply,
-    toolsUsed:      toolsUsed.filter(t => !t.readOnly), // لا نعرض get_system_state
+    toolsUsed:      toolsUsed.filter(t => !t.readOnly),
     pendingActions,
     iterations,
+    hitIterationLimit: hitLimit,
     usage:    usageTotals,
     provider: usedProvider,
     model:    usedModel,

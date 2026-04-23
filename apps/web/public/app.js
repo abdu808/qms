@@ -1449,9 +1449,9 @@ function app() {
         method, headers, credentials: 'include',
         body: body ? JSON.stringify(body) : undefined,
       });
+      // ── 401: تجديد JWT تلقائياً ───────────────────────────────────────────
       if (res.status === 401 && authRequired) {
         try {
-          // httpOnly cookie يحمل refresh — credentials: 'include' يُرسله تلقائياً.
           const r = await fetch(API + '/auth/refresh', {
             method: 'POST', credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -1469,6 +1469,28 @@ function app() {
           }
         } catch {}
         this.logout();
+      }
+      // ── 403 CSRF: اجلب token جديد عبر GET ثم أعد الطلب مرة واحدة ─────────
+      if (res.status === 403) {
+        let data403 = null;
+        try { data403 = await res.clone().json(); } catch {}
+        if (data403?.code === 'CSRF_INVALID') {
+          try {
+            // GET أي مسار موثَّق يُعيد إصدار cookie csrf
+            await fetch(API + '/auth/me', { credentials: 'include',
+              headers: this.token ? { Authorization: `Bearer ${this.token}` } : {} });
+            // الآن نُعيد قراءة الـ token الجديد ونُعيد الطلب
+            const newCsrf = this._getCsrfToken();
+            if (newCsrf) {
+              headers['X-CSRF-Token'] = newCsrf;
+              const retry = await fetch(API + path, {
+                method, headers, credentials: 'include',
+                body: body ? JSON.stringify(body) : undefined,
+              });
+              return this._handle(retry);
+            }
+          } catch {}
+        }
       }
       return this._handle(res);
     },
