@@ -6123,37 +6123,40 @@
               </label>
             </div>
 
-            <div x-show="aiCfg.routingEnabled" x-transition class="space-y-2">
-              <!-- SIMPLE -->
-              <div class="flex items-center gap-2">
-                <span class="text-xs w-32 text-gray-500 flex-shrink-0">⚡ بسيط (سؤال)</span>
-                <input x-model="aiCfg.routingTiers.SIMPLE" type="text"
-                       placeholder="google/gemini-2.5-flash"
-                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+            <!-- x-if يمنع Alpine من تقييم التعابير الداخلية قبل تحميل routingTiers -->
+            <template x-if="aiCfg.routingEnabled && aiCfg.routingTiers">
+              <div class="space-y-2">
+                <!-- SIMPLE -->
+                <div class="flex items-center gap-2">
+                  <span class="text-xs w-32 text-gray-500 flex-shrink-0">⚡ بسيط (سؤال)</span>
+                  <input x-model="aiCfg.routingTiers.SIMPLE" type="text"
+                         placeholder="google/gemini-2.5-flash"
+                         class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+                </div>
+                <!-- TOOLS -->
+                <div class="flex items-center gap-2">
+                  <span class="text-xs w-32 text-gray-500 flex-shrink-0">🛠️ أدوات (تعديل)</span>
+                  <input x-model="aiCfg.routingTiers.TOOLS" type="text"
+                         placeholder="anthropic/claude-haiku-4-5"
+                         class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+                </div>
+                <!-- DEEP -->
+                <div class="flex items-center gap-2">
+                  <span class="text-xs w-32 text-gray-500 flex-shrink-0">🔍 عميق (تحليل)</span>
+                  <input x-model="aiCfg.routingTiers.DEEP" type="text"
+                         placeholder="anthropic/claude-sonnet-4-5"
+                         class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+                </div>
+                <!-- FILES -->
+                <div class="flex items-center gap-2">
+                  <span class="text-xs w-32 text-gray-500 flex-shrink-0">📄 ملفات (تحليل)</span>
+                  <input x-model="aiCfg.routingTiers.FILES" type="text"
+                         placeholder="anthropic/claude-opus-4-7"
+                         class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">الصيغة: <code class="bg-gray-100 px-1 rounded">provider/model-name</code> مثال: <code class="bg-gray-100 px-1 rounded">anthropic/claude-haiku-4-5</code></p>
               </div>
-              <!-- TOOLS -->
-              <div class="flex items-center gap-2">
-                <span class="text-xs w-32 text-gray-500 flex-shrink-0">🛠️ أدوات (تعديل)</span>
-                <input x-model="aiCfg.routingTiers.TOOLS" type="text"
-                       placeholder="anthropic/claude-haiku-4-5"
-                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
-              </div>
-              <!-- DEEP -->
-              <div class="flex items-center gap-2">
-                <span class="text-xs w-32 text-gray-500 flex-shrink-0">🔍 عميق (تحليل)</span>
-                <input x-model="aiCfg.routingTiers.DEEP" type="text"
-                       placeholder="anthropic/claude-sonnet-4-5"
-                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
-              </div>
-              <!-- FILES -->
-              <div class="flex items-center gap-2">
-                <span class="text-xs w-32 text-gray-500 flex-shrink-0">📄 ملفات (تحليل)</span>
-                <input x-model="aiCfg.routingTiers.FILES" type="text"
-                       placeholder="anthropic/claude-opus-4-7"
-                       class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono focus:ring-1 focus:ring-brand-400">
-              </div>
-              <p class="text-xs text-gray-400 mt-1">الصيغة: <code class="bg-gray-100 px-1 rounded">provider/model-name</code> مثال: <code class="bg-gray-100 px-1 rounded">anthropic/claude-haiku-4-5</code></p>
-            </div>
+            </template>
           </div>
 
           <div class="flex justify-end pt-3 border-t">
@@ -6903,7 +6906,7 @@
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
-<script src="/modules/ai-settings.js?v=2026-04-22b"></script>
+<script src="/modules/ai-settings.js?v=2026-04-23a"></script>
 <script src="/modules/consultant.js?v=2026-04-23e"></script>
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
