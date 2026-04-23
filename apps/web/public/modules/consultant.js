@@ -82,11 +82,8 @@
       if (!this.token) return;
       try {
         this.consult.loading = true;
-        const r = await fetch('/api/consultant/context', {
-          headers: { Authorization: 'Bearer ' + this.token },
-        });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
+        const j = await this.api('GET', '/consultant/context');
+        if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
         this.consult.context = { summary: j.context.summary, gaps: j.context.gaps.counts };
       } catch (e) {
         this.consult.error = e.message;
@@ -112,13 +109,8 @@
         .map(m => ({ role: m.role, content: m.content }));
 
       try {
-        const r = await fetch('/api/consultant/chat', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token },
-          body:    JSON.stringify({ messages: history, mode: this.consult.mode }),
-        });
-        const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.error?.message || j.error || 'خطأ في الاستدعاء');
+        const j = await this.api('POST', '/consultant/chat', { messages: history, mode: this.consult.mode });
+        if (!j.ok) throw new Error(j.error?.message || j.error || 'خطأ في الاستدعاء');
 
         this.consult.messages.push({
           role:           'assistant',
@@ -156,13 +148,8 @@
 
       this.consult.applying = true;
       try {
-        const r = await fetch('/api/consultant/apply-pending', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + this.token },
-          body:    JSON.stringify({ pendingActions: msg.pendingActions }),
-        });
-        const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.error?.message || j.error || 'فشل التطبيق');
+        const j = await this.api('POST', '/consultant/apply-pending', { pendingActions: msg.pendingActions });
+        if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل التطبيق');
 
         msg.applied      = true;
         msg.applyResults = j.results;
@@ -236,10 +223,11 @@
       }
 
       try {
+        const uploadHeaders = { Authorization: 'Bearer ' + this.token };
+        const csrf = this._getCsrfToken?.();
+        if (csrf) uploadHeaders['X-CSRF-Token'] = csrf;
         const r = await fetch('/api/consultant/upload', {
-          method:  'POST',
-          headers: { Authorization: 'Bearer ' + this.token },
-          body:    form,
+          method: 'POST', headers: uploadHeaders, credentials: 'include', body: form,
         });
         const j = await r.json();
         if (!r.ok || !j.ok) throw new Error(j.error?.message || j.error || 'فشل رفع الملفات');
