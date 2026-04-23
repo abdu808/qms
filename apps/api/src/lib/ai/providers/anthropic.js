@@ -32,15 +32,28 @@ export async function complete({
     temperature,
     messages: messages || [],
   };
-  if (system) body.system = system;
+  // System prompt — نُفعِّل الكاش إن كان النص طويلاً (> 1024 توكن تقريباً = 4096 حرف)
+  if (system) {
+    if (system.length > 4096) {
+      body.system = [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+    } else {
+      body.system = system;
+    }
+  }
 
-  // Tools (native Anthropic tool-use)
+  // Tools — نُفعِّل الكاش على آخر أداة (Anthropic يكشّ كل ما قبلها تلقائياً)
+  // الكاش يوفر ~90% على توكنات الأدوات في الاستدعاءات المتكررة خلال 5 دقائق
   if (tools && tools.length > 0) {
-    body.tools = tools.map(t => ({
+    const mapped = tools.map(t => ({
       name: t.name,
       description: t.description,
       input_schema: t.input_schema || t.inputSchema,
     }));
+    // أضف cache_control على آخر أداة فقط
+    if (mapped.length > 0) {
+      mapped[mapped.length - 1].cache_control = { type: 'ephemeral' };
+    }
+    body.tools = mapped;
   }
 
   // JSON mode via prompting (Anthropic لا يدعم JSON mode صريح — نفرضه عبر system)
@@ -61,9 +74,11 @@ export async function complete({
 
   const result = {
     content,
-    inputTokens:  response.usage?.input_tokens  || 0,
-    outputTokens: response.usage?.output_tokens || 0,
-    stopReason:   response.stop_reason,
+    inputTokens:       response.usage?.input_tokens              || 0,
+    outputTokens:      response.usage?.output_tokens             || 0,
+    cacheReadTokens:   response.usage?.cache_read_input_tokens   || 0,
+    cacheWriteTokens:  response.usage?.cache_creation_input_tokens || 0,
+    stopReason:        response.stop_reason,
     raw: response,
   };
   if (toolCalls.length) result.toolCalls = toolCalls;

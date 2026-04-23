@@ -242,12 +242,15 @@ export async function chat({ messages, callerUserId, mode = 'auto' }) {
   const ctx = await buildContext({ compact: true });
 
   return {
-    reply:      result.reply,
-    toolsUsed:  result.toolsUsed,   // ماذا فعل AI من أدوات
-    iterations: result.iterations,
-    usage:      result.usage,
-    provider:   result.provider || settings.defaultProvider,
-    model:      result.model    || settings.defaultModel,
+    reply:       result.reply,
+    toolsUsed:   result.toolsUsed,
+    iterations:  result.iterations,
+    hitIterationLimit: result.hitIterationLimit,
+    usage:       result.usage,
+    cacheRead:   result.usage?.cacheReadTokens  || 0,
+    cacheWrite:  result.usage?.cacheWriteTokens || 0,
+    provider:    result.provider || settings.defaultProvider,
+    model:       result.model    || settings.defaultModel,
     context: {
       gaps:    ctx.gaps.counts,
       summary: ctx.summary,

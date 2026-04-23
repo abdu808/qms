@@ -58,7 +58,7 @@ export async function runAgentLoop({
   const toolsUsed    = [];    // auto mode: ما نُفِّذ
   const pendingActions = [];  // review mode: ما اقترحه AI
 
-  const usageTotals = { inputTokens: 0, outputTokens: 0, costUSD: 0 };
+  const usageTotals = { inputTokens: 0, outputTokens: 0, costUSD: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
   while (iterations < MAX_ITERATIONS) {
     iterations++;
@@ -72,9 +72,11 @@ export async function runAgentLoop({
       userId: callerUserId,
     });
 
-    usageTotals.inputTokens  += result.usage?.inputTokens  || 0;
-    usageTotals.outputTokens += result.usage?.outputTokens || 0;
-    usageTotals.costUSD      += result.usage?.costUSD      || 0;
+    usageTotals.inputTokens     += result.usage?.inputTokens     || 0;
+    usageTotals.outputTokens    += result.usage?.outputTokens    || 0;
+    usageTotals.costUSD         += result.usage?.costUSD         || 0;
+    usageTotals.cacheReadTokens  += result.cacheReadTokens       || 0;
+    usageTotals.cacheWriteTokens += result.cacheWriteTokens      || 0;
     // سجِّل المزود والموديل من أول استدعاء
     if (!usedProvider) { usedProvider = result.provider; usedModel = result.model; }
 
@@ -146,7 +148,8 @@ export async function runAgentLoop({
       });
     }
 
-    history.push({ role: 'user', content: toolResults });
+    // ضغط نتائج الأدوات الكبيرة قبل إضافتها للتاريخ (يوفر توكنات في iterations التالية)
+    history.push(compressToolResults({ role: 'user', content: toolResults }));
   }
 
   // تحذير إن وصلنا للحد الأقصى للتكرارات دون إنهاء طبيعي
@@ -166,7 +169,13 @@ export async function runAgentLoop({
     pendingActions,
     iterations,
     hitIterationLimit: hitLimit,
-    usage:    usageTotals,
+    usage: {
+      inputTokens:      usageTotals.inputTokens,
+      outputTokens:     usageTotals.outputTokens,
+      costUSD:          usageTotals.costUSD,
+      cacheReadTokens:  usageTotals.cacheReadTokens,
+      cacheWriteTokens: usageTotals.cacheWriteTokens,
+    },
     provider: usedProvider,
     model:    usedModel,
     mode,
@@ -215,6 +224,38 @@ function buildHistory(messages) {
   return messages
     .filter(m => m.role !== 'system')
     .map(m => ({ role: m.role, content: m.content }));
+}
+
+/**
+ * يضغط نتائج الأدوات الكبيرة في التاريخ لتوفير التوكنات.
+ * نتائج get_system_state > 3000 حرف تُختصر بإحصائيات فقط.
+ * يُطبَّق على التاريخ المتراكم داخل الحلقة.
+ */
+function compressToolResults(historyEntry) {
+  if (!Array.isArray(historyEntry.content)) return historyEntry;
+  const compressed = historyEntry.content.map(block => {
+    if (block.type !== 'tool_result') return block;
+    const raw = typeof block.content === 'string' ? block.content : JSON.stringify(block.content);
+    if (raw.length <= 3000) return block;
+    // استخرج إحصائية بسيطة بدلاً من البيانات الكاملة
+    try {
+      const parsed = JSON.parse(raw);
+      const summary = {};
+      for (const [k, v] of Object.entries(parsed)) {
+        if (v && typeof v === 'object' && 'items' in v) {
+          summary[k] = `${v.items?.length || 0}/${v.total || '?'} سجل`;
+        } else if (Array.isArray(v)) {
+          summary[k] = `${v.length} سجل`;
+        } else {
+          summary[k] = v;
+        }
+      }
+      return { ...block, content: `[مضغوط] ${JSON.stringify(summary)}` };
+    } catch {
+      return { ...block, content: raw.slice(0, 2000) + '\n...[مقتطع لتوفير التوكنات]' };
+    }
+  });
+  return { ...historyEntry, content: compressed };
 }
 
 function buildAssistantBlocks(result) {

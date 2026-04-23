@@ -144,6 +144,8 @@ export async function aiComplete(params = {}) {
     toolCalls: result.toolCalls,
     stopReason: result.stopReason,
     usage: { inputTokens, outputTokens, costUSD },
+    cacheReadTokens:  result.cacheReadTokens  || 0,
+    cacheWriteTokens: result.cacheWriteTokens || 0,
     provider, model, durationMs,
     piiRedacted,
   };

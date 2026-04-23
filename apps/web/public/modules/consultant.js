@@ -145,6 +145,8 @@
           iterations:        j.iterations         || 0,
           hitIterationLimit: j.hitIterationLimit  || false,
           usage:             j.usage,
+          cacheRead:         j.cacheRead          || 0,
+          cacheWrite:        j.cacheWrite         || 0,
           mode:              j.mode,
           applied:           false,
           applyResults:      null,
@@ -206,6 +208,16 @@
       const ok = toolsUsed.filter(t => t.ok).length;
       const failed = toolsUsed.length - ok;
       return `${toolsUsed.length} عملية${ok ? ` · ${ok}✅` : ''}${failed ? ` · ${failed}❌` : ''}`;
+    },
+
+    usageSummary(usage, cacheRead, cacheWrite) {
+      if (!usage) return '';
+      const parts = [];
+      if (usage.inputTokens)  parts.push(`↑${usage.inputTokens.toLocaleString()}`);
+      if (usage.outputTokens) parts.push(`↓${usage.outputTokens.toLocaleString()}`);
+      if (cacheRead)  parts.push(`📦كاش ${cacheRead.toLocaleString()}`);
+      if (usage.costUSD > 0) parts.push(`$${usage.costUSD.toFixed(4)}`);
+      return parts.join(' · ');
     },
 
     formatConsultMessage(content) {
