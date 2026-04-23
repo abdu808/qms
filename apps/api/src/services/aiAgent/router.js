@@ -30,11 +30,23 @@ const TOOLS_KEYWORDS = /أضف|انشئ|أنشئ|إنشاء|عدّل|تعديل|
 export function classifyRequest(messages, hasFiles = false) {
   if (hasFiles) return 'FILES';
 
-  // نأخذ آخر رسالة من المستخدم
-  const lastUser = [...messages].reverse().find(m => m.role === 'user');
-  const text = typeof lastUser?.content === 'string'
-    ? lastUser.content
-    : (lastUser?.content?.[0]?.text || '');
+  // ابحث عن أول رسالة مستخدم تحتوي نصاً حقيقياً (ليست tool_result فقط)
+  // هذا يحافظ على التصنيف المبني على رسالة المستخدم الأصلية
+  // حتى لو كانت آخر رسالة "user" هي tool_results داخل الحلقة الوكيلة
+  let text = '';
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== 'user') continue;
+    if (typeof m.content === 'string' && m.content.trim()) {
+      text = m.content;
+      break;
+    }
+    if (Array.isArray(m.content)) {
+      // استخرج النص من أول text block — تجاهل tool_result blocks
+      const textBlock = m.content.find(b => b?.type === 'text' && b.text);
+      if (textBlock) { text = textBlock.text; break; }
+    }
+  }
 
   if (DEEP_KEYWORDS.test(text))  return 'DEEP';
   if (TOOLS_KEYWORDS.test(text)) return 'TOOLS';

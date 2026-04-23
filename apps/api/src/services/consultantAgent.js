@@ -13,7 +13,7 @@
  *   chat({ messages, callerUserId }) — محادثة مع AI + تنفيذ أدوات
  *   applyActions(actions, userId)   — مسار التوافق للأمام (legacy)
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -30,8 +30,6 @@ try {
 } catch {
   console.warn('⚠️  org-knowledge.md غير موجود — سيعمل المستشار بدون سياق مؤسسي');
 }
-
-const prisma = new PrismaClient();
 
 /** حساب خدمة المستشار — يُحمَّل مرة واحدة ويُخزَّن */
 let _aiAgentUserId = null;

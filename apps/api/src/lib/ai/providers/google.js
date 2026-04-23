@@ -19,6 +19,20 @@ export async function complete({
 
   const genAI = new GoogleGenerativeAI(apiKey);
 
+  // خريطة tool_use.id → function name — نحتاجها لتحويل tool_result إلى functionResponse
+  // لأن Gemini يطلب name = اسم الدالة، بينما Anthropic يستخدم opaque id.
+  const toolIdToName = new Map();
+  // أولاً اجمع من كل الرسائل ids → names لاستخدامها لاحقاً في tool_result
+  for (const m of messages || []) {
+    if (Array.isArray(m.content)) {
+      for (const b of m.content) {
+        if (b.type === 'tool_use' && b.id && b.name) {
+          toolIdToName.set(b.id, b.name);
+        }
+      }
+    }
+  }
+
   const modelConfig = {
     model,
     generationConfig: {
@@ -65,10 +79,13 @@ export async function complete({
     for (const b of m.content) {
       if (b.type === 'text')       parts.push({ text: b.text || '' });
       else if (b.type === 'tool_use')   parts.push({ functionCall: { name: b.name, args: b.input || {} } });
-      else if (b.type === 'tool_result') parts.push({ functionResponse: {
-        name: b.tool_use_id || 'tool',
-        response: { content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content) },
-      }});
+      else if (b.type === 'tool_result') {
+        const fnName = toolIdToName.get(b.tool_use_id) || 'tool';
+        parts.push({ functionResponse: {
+          name: fnName,
+          response: { content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content) },
+        }});
+      }
       // ── Vision: document (PDF) / image — تحويل من صيغة Anthropic إلى inlineData ──
       else if ((b.type === 'document' || b.type === 'image') && b.source?.type === 'base64') {
         parts.push({
@@ -116,10 +133,15 @@ export async function complete({
   // استخراج tool calls
   const toolCalls = [];
   const candidates = res.candidates || [];
+  // generate stable synthetic ids so the loop can pair tool_result → tool_use
+  // (Gemini لا يُرجع id، لكن Anthropic/loop يحتاجه)
+  let _toolIdCounter = 0;
   for (const c of candidates) {
     for (const part of (c.content?.parts || [])) {
       if (part.functionCall) {
+        const id = `gem_${Date.now().toString(36)}_${_toolIdCounter++}`;
         toolCalls.push({
+          id,
           name: part.functionCall.name,
           input: part.functionCall.args || {},
         });

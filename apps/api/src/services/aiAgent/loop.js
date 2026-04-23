@@ -292,20 +292,30 @@ function compressToolResults(historyEntry) {
     if (block.type !== 'tool_result') return block;
     const raw = typeof block.content === 'string' ? block.content : JSON.stringify(block.content);
     if (raw.length <= 3000) return block;
-    // استخرج إحصائية بسيطة بدلاً من البيانات الكاملة
     try {
       const parsed = JSON.parse(raw);
-      const summary = {};
-      for (const [k, v] of Object.entries(parsed)) {
-        if (v && typeof v === 'object' && 'items' in v) {
-          summary[k] = `${v.items?.length || 0}/${v.total || '?'} سجل`;
+      // الحفاظ على شكل الـ envelope — ok / summary / error كما هي
+      // واستبدال data فقط بملخص إحصائي
+      const digest = {};
+      const source = parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+      for (const [k, v] of Object.entries(source)) {
+        if (v && typeof v === 'object' && Array.isArray(v.items)) {
+          digest[k] = `${v.items.length}${v.total ? `/${v.total}` : ''} سجل [مضغوط]`;
         } else if (Array.isArray(v)) {
-          summary[k] = `${v.length} سجل`;
+          digest[k] = `${v.length} سجل [مضغوط]`;
+        } else if (v && typeof v === 'object') {
+          digest[k] = '[كائن مضغوط]';
         } else {
-          summary[k] = v;
+          digest[k] = v;
         }
       }
-      return { ...block, content: `[مضغوط] ${JSON.stringify(summary)}` };
+      const compact = {
+        ok: parsed.ok !== undefined ? parsed.ok : true,
+        summary: parsed.summary || '[تم ضغط البيانات لتوفير التوكنات]',
+        data: digest,
+      };
+      if (parsed.error) compact.error = parsed.error;
+      return { ...block, content: JSON.stringify(compact) };
     } catch {
       return { ...block, content: raw.slice(0, 2000) + '\n...[مقتطع لتوفير التوكنات]' };
     }

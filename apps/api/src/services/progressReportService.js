@@ -12,10 +12,8 @@
  *   extractPromises()          — يستخرج الوعود من إجابات التقرير للشهر القادم
  * ══════════════════════════════════════════════════════
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../db.js';
 import { aiComplete } from '../lib/ai/index.js';
-
-const prisma = new PrismaClient();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. جمع السياق الخاص بقسم — البيانات التي ستبني عليها الطبقات الأربع

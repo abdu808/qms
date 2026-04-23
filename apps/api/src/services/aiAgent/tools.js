@@ -42,15 +42,13 @@
  * ── التدقيق (1 أداة) ──
  *   17. plan_audit
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../db.js';
 import {
   generateReport as svcGenerateReport,
   compareDepartments as svcCompareDepartments,
   detectTrends as svcDetectTrends,
   detectCrossContradictions as svcDetectCross,
 } from '../progressReportService.js';
-
-const prisma = new PrismaClient();
 
 /** الأدوات التي تقرأ فقط (تُنفَّذ دائماً حتى في وضع المراجعة) */
 export const READ_ONLY_TOOLS = new Set([
@@ -1027,10 +1025,12 @@ export async function executeTool(name, input, actingUserId) {
       if (!goal) return { ok:false, error:`الهدف ${id} غير موجود`, summary:'فشل: غير موجود' };
       if (goal.deletedAt) return { ok:false, error:`الهدف ${goal.code} محذوف مسبقاً`, summary:'فشل: محذوف مسبقاً' };
       // فك ربط الأنشطة والأهداف التشغيلية أولاً
-      await prisma.operationalActivity.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} });
-      await prisma.objective.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} });
-      await prisma.risk.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} });
-      await prisma.strategicGoal.update({ where:{id}, data:{deletedAt:new Date(), notes: reason ? `محذوف: ${reason}` : undefined} });
+      await prisma.$transaction([
+        prisma.operationalActivity.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} }),
+        prisma.objective.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} }),
+        prisma.risk.updateMany({ where:{strategicGoalId:id}, data:{strategicGoalId:null} }),
+        prisma.strategicGoal.update({ where:{id}, data:{deletedAt:new Date(), notes: reason ? `محذوف: ${reason}` : undefined} }),
+      ]);
       return { ok:true, summary:`🗑 حُذف الهدف ${goal.code}: "${goal.title}"${reason ? ` — ${reason}` : ''}` };
     }
 
@@ -1188,9 +1188,16 @@ export async function executeTool(name, input, actingUserId) {
           create: { objectiveId, year:yr, month:mo, actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
           update: { actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
         });
+        // استعلم عن آخر قراءة زمنياً بعد الـ upsert (قد تكون الجديدة أو الأحدث)
+        const latest = await prisma.kpiEntry.findFirst({
+          where: { objectiveId },
+          orderBy: [{ year: 'desc' }, { month: 'desc' }],
+          select: { actualValue: true },
+        });
+        const latestVal = latest ? parseFloat(latest.actualValue) : parseFloat(value);
         await prisma.objective.update({ where:{id:objectiveId}, data:{
-          currentValue: parseFloat(value),
-          progress: obj.target ? Math.min(100, Math.round((parseFloat(value)/obj.target)*100)) : undefined,
+          currentValue: latestVal,
+          progress: obj.target ? Math.min(100, Math.round((latestVal/obj.target)*100)) : undefined,
         }});
         return { ok:true, summary:`✅ سُجِّلت قيمة KPI للهدف ${obj.code}: ${value} (${yr}/${mo})` };
       } else {
@@ -1202,8 +1209,14 @@ export async function executeTool(name, input, actingUserId) {
           update: { actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
         });
         if (act.targetValue) {
+          const latestAct = await prisma.kpiEntry.findFirst({
+            where: { activityId },
+            orderBy: [{ year: 'desc' }, { month: 'desc' }],
+            select: { actualValue: true },
+          });
+          const latestValA = latestAct ? parseFloat(latestAct.actualValue) : parseFloat(value);
           await prisma.operationalActivity.update({ where:{id:activityId}, data:{
-            progress: Math.min(100, Math.round((parseFloat(value)/act.targetValue)*100)),
+            progress: Math.min(100, Math.round((latestValA/act.targetValue)*100)),
           }});
         }
         return { ok:true, summary:`✅ سُجِّلت قيمة KPI للنشاط ${act.code}: ${value} (${yr}/${mo})` };
