@@ -152,7 +152,8 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
       const a = analyzed.analysis;
 
       // 3️⃣ إنشاء السجلات
-      const shouldStore = ['StrategicGoal', 'QualityPolicy', 'Announcement', 'Document'].includes(a.suggestedModule);
+      const AUTO_STORE_MODULES = ['StrategicGoal', 'QualityPolicy', 'Announcement', 'Document'];
+      const shouldStore = AUTO_STORE_MODULES.includes(a.suggestedModule);
       let stored = null;
       if (shouldStore) {
         stored = await uploadItem(
@@ -161,13 +162,17 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
         );
       }
 
+      // 4️⃣ نصّ الملف — للخطط التشغيلية والاستراتيجية يُرسَل للمستشار كـ context
+      // حتى يستطيع إنشاء الأنشطة والأهداف من البيانات الفعلية
+      const needsAiProcessing = ['operational_plan', 'strategic_plan'].includes(a.category) && !stored?.count;
+      const textForAi = needsAiProcessing ? extracted.text?.slice(0, 5000) : null;
+
       return {
         ok: true, filename,
         analysis: a,
         stored,
         textLength: extracted.text?.length || 0,
-        // لا نُرجع النص الكامل للفرونت-إند — السجلات أُنشئت في DB
-        // والمستشار يقرأها مباشرةً عبر get_system_state (أكفأ وأخف على الشبكة)
+        textForAi,  // نص للمستشار — فارغ للملفات التي أُنشئت سجلاتها بالفعل
       };
     } catch (e) {
       return { ok: false, filename, error: e.message };
@@ -198,6 +203,23 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
   }
   for (const r of failed) {
     lines.push(`❌ **${r.filename}** — ${r.error}`);
+  }
+
+  // ── إرفاق نص الملفات التي تحتاج معالجة AI (خطط تشغيلية/استراتيجية) ─────────
+  const filesForAi = succeeded.filter(r => r.textForAi);
+  if (filesForAi.length > 0) {
+    lines.push('');
+    lines.push('---');
+    lines.push(`📋 **${filesForAi.length} ملف${filesForAi.length > 1 ? 'ات تحتاج' : ' يحتاج'} معالجة — أنشئ الأنشطة التشغيلية والأهداف من النص التالي تلقائياً:**`);
+    lines.push('');
+    for (const r of filesForAi) {
+      lines.push(`### 📄 ${r.filename} (${r.analysis.category})`);
+      lines.push('```');
+      lines.push(r.textForAi);
+      lines.push('```');
+      lines.push('');
+    }
+    lines.push('> استخرج الأنشطة التشغيلية والأهداف وأنشئها مباشرةً في النظام باستخدام أدواتك. لا تطلب مني إدخال البيانات يدوياً.');
   }
 
   // عدد ما أُنشئ إجمالاً
