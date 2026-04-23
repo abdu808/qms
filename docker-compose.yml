@@ -83,11 +83,11 @@ services:
       - no-new-privileges:true
     depends_on:
       qms-api:
-        condition: service_healthy  # ← انتظر حتى يكون API جاهزاً فعلاً
+        condition: service_healthy
     expose:
       - "80"
-    ports:
-      - "8080:80"
+    # لا نستخدم ports: لأن Traefik يوصل الـ traffic عبر Docker network مباشرةً
+    # ports: - "8080:80"  ← كان يتعارض مع Coolify/Traefik اللي يحجزان 8080 دائماً
     networks:
       - qms-net
 
