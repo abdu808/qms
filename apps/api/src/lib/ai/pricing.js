@@ -40,11 +40,11 @@ export const DEFAULT_MODELS = {
   google:    'gemini-2.5-flash', // محفوظ للمستقبل
 };
 
-// قائمة الموديلات المُفعَّلة — Anthropic فقط
+// قائمة الموديلات المُفعَّلة — Anthropic فقط (3 مستويات)
 export const MODEL_CATALOG = [
-  { provider: 'anthropic', model: 'claude-haiku-4-5',   label: 'Claude Haiku 4.5',  tier: 'quick',   good: 'أسئلة سريعة — اقتصادي ($1/1M)' },
-  { provider: 'anthropic', model: 'claude-sonnet-4-5',  label: 'Claude Sonnet 4.5', tier: 'standard',good: 'الافتراضي — تحليل استراتيجي ومتابعة شاملة' },
-  { provider: 'anthropic', model: 'claude-opus-4-7',    label: 'Claude Opus 4.7',   tier: 'premium', good: 'تقارير شهرية معقدة — أعلى جودة' },
+  { provider: 'anthropic', model: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5',  tier: 'quick',   good: 'أسئلة سريعة، متابعة يومية — اقتصادي جداً ($1/1M)' },
+  { provider: 'anthropic', model: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', tier: 'standard', good: 'الافتراضي — تحليل استراتيجي وتقارير شاملة ($3/1M)' },
+  { provider: 'anthropic', model: 'claude-opus-4-5',   label: 'Claude Opus 4.5',   tier: 'premium',  good: 'التقييم الربع سنوي العميق — أعلى جودة ($15/1M)' },
 ];
 
 /**
