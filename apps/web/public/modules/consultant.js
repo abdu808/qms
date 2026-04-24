@@ -179,13 +179,61 @@
       try {
         const body = { messages: history, mode: this.consult.mode };
         if (this.consult.modelLock) {
-          // استخراج provider/model من "provider/model" format
           const [p, ...m] = this.consult.modelLock.split('/');
           body.provider = p;
           body.model = m.join('/');
         }
-        const j = await this.api('POST', '/consultant/chat', body);
-        if (!j.ok) throw new Error(j.error?.message || j.error || 'خطأ في الاستدعاء');
+
+        // ── SSE Streaming — يقرأ النبضات ويتحمل الطلبات الطويلة ────────────
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.token) headers.Authorization = `Bearer ${this.token}`;
+        const csrf = this._getCsrfToken?.();
+        if (csrf) headers['X-CSRF-Token'] = csrf;
+
+        const response = await fetch((window.QMS_API || '/api') + '/consultant/chat', {
+          method: 'POST', headers, credentials: 'include',
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok && response.status !== 200) {
+          const err = await response.json().catch(() => ({ error: { message: 'خطأ في الخادم' } }));
+          throw new Error(err.error?.message || 'خطأ في الاستدعاء');
+        }
+
+        // قراءة SSE stream
+        const reader  = response.body.getReader();
+        const decoder = new TextDecoder();
+        let   buffer  = '';
+        let   j       = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          // معالجة أسطر SSE المكتملة
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // الجزء غير المكتمل
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.ok !== undefined) {
+                  j = parsed; // هذه النتيجة النهائية
+                } else if (!parsed.ok && parsed.error) {
+                  throw new Error(parsed.error?.message || 'خطأ من الخادم');
+                }
+                // ping events تُتجاهَل (لا بيانات مفيدة)
+              } catch (parseErr) {
+                if (parseErr.message !== 'خطأ من الخادم') continue; // تجاهل أخطاء JSON
+                throw parseErr;
+              }
+            }
+          }
+        }
+
+        if (!j) throw new Error('لم يصل رد من الخادم');
+        if (!j.ok) throw new Error(j.error?.message || 'خطأ في الاستدعاء');
 
         this.consult.messages.push({
           role:              'assistant',

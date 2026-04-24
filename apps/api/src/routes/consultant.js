@@ -67,26 +67,38 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
 
   const callerUserId = req.user?.sub || req.user?.id;
   const callerRole   = req.user?.role;
+  const mode         = WRITE_ROLES.includes(callerRole) ? requestedMode : 'review';
 
-  // DEPT_MANAGER → review mode إجباري (لا يستطيع تنفيذ الكتابة مباشرةً)
-  const mode = WRITE_ROLES.includes(callerRole) ? requestedMode : 'review';
+  // ── SSE Streaming — يمنع Cloudflare من قطع الاتصال عند 100 ثانية ────────
+  // نُرسل نبضات keep-alive كل 15 ثانية أثناء معالجة الطلب الطويل.
+  res.setHeader('Content-Type',  'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('X-Accel-Buffering', 'no'); // تعطيل nginx buffering
+  res.setHeader('Connection',    'keep-alive');
+  res.flushHeaders?.();
+
+  const sseWrite = (event, data) => {
+    try { res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); } catch {}
+  };
+
+  // نبضات كل 15 ثانية → Cloudflare يرى حركة بيانات ولا يقطع
+  const pingTimer = setInterval(() => sseWrite('ping', { t: Date.now() }), 15_000);
+  // إرسال "بدأ التفكير" فوراً
+  sseWrite('thinking', { status: 'started' });
 
   try {
     const out = await chat({ messages, callerUserId, callerRole, mode, modelOverride, providerOverride });
-    res.json({ ok: true, ...out });
+    clearInterval(pingTimer);
+    sseWrite('result', { ok: true, ...out });
   } catch (e) {
-    // سجِّل السبب الكامل في الخادم حتى نستطيع تشخيصه
+    clearInterval(pingTimer);
     console.error('[consultant/chat] error:', {
-      message: e.message,
-      code:    e.code,
-      status:  e.status,
+      message: e.message, code: e.code, status: e.status,
       stack:   e.stack?.split('\n').slice(0, 5).join('\n'),
     });
-    // الواجهة تبحث عن data.error.message — أرسل كائناً مُهيكَلاً
-    res.status(e.status || 500).json({
-      ok: false,
-      error: { message: e.message, code: e.code },
-    });
+    sseWrite('error', { ok: false, error: { message: e.message, code: e.code } });
+  } finally {
+    res.end();
   }
 }));
 
