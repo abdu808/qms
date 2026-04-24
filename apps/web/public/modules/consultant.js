@@ -155,7 +155,7 @@
     async refreshConsultModels() {
       try {
         const live = await this.api('GET', '/ai-settings/models/live?provider=anthropic');
-        if (live.ok && live.models?.length) {
+        if (live?.ok && live.models?.length) {
           this.consult.modelOptions = live.models.map(m => this._normalizeModel(m, 'anthropic'));
           return;
         }
@@ -163,7 +163,7 @@
       // احتياط: الكتالوج الثابت
       try {
         const mj = await this.api('GET', '/ai-settings/models');
-        if (mj.ok) this.consult.modelOptions = mj.items || [];
+        if (mj?.ok) this.consult.modelOptions = mj.items || [];
       } catch {}
     },
 
@@ -178,8 +178,9 @@
         // تحميل قائمة الجلسات
         this.loadSessions();
         const j = await this.api('GET', '/consultant/context');
+        if (!j) throw new Error('فشل تحميل السياق — لم يصل رد من الخادم');
         if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
-        this.consult.context = { summary: j.context.summary, gaps: j.context.gaps.counts };
+        this.consult.context = { summary: j.context?.summary, gaps: j.context?.gaps?.counts };
       } catch (e) {
         this.consult.error = e.message;
       } finally {
@@ -205,7 +206,7 @@
       this.consult.sessionsLoading = true;
       try {
         const r = await this.api('GET', '/consult-sessions');
-        if (r.ok) this.consult.sessions = r.items || [];
+        if (r?.ok) this.consult.sessions = r.items || [];
       } catch { /* silent */ }
       finally { this.consult.sessionsLoading = false; }
     },
@@ -232,7 +233,7 @@
           ...usage,
           lastModel: c.lastModel || '',
         });
-        if (r.ok && r.item?.id) {
+        if (r?.ok && r.item?.id) {
           c.sessionId = r.item.id;
         }
       } catch { /* silent — لا نكسر المحادثة */ }
@@ -243,7 +244,7 @@
       const c = this.consult;
       try {
         const r = await this.api('GET', `/consult-sessions/${session.id}`);
-        if (!r.ok) return;
+        if (!r?.ok) return;
         c.messages   = r.item.messages || [];
         c.sessionId  = r.item.id;
         c.lastModel  = r.item.lastModel || '';
@@ -346,15 +347,20 @@
             if (line.startsWith('data: ')) {
               try {
                 const parsed = JSON.parse(line.slice(6));
+                if (!parsed || typeof parsed !== 'object') continue; // تجاهل null / قيم بدائية
                 if (parsed.ok !== undefined) {
                   j = parsed; // هذه النتيجة النهائية
-                } else if (!parsed.ok && parsed.error) {
-                  throw new Error(parsed.error?.message || 'خطأ من الخادم');
+                } else if (parsed.error) {
+                  // رسالة خطأ بدون حقل ok (نادرة — من middleware)
+                  throw new Error(
+                    (typeof parsed.error === 'string' ? parsed.error : parsed.error?.message)
+                    || 'خطأ من الخادم'
+                  );
                 }
-                // ping events تُتجاهَل (لا بيانات مفيدة)
+                // ping / thinking events تُتجاهَل
               } catch (parseErr) {
-                if (parseErr.message !== 'خطأ من الخادم') continue; // تجاهل أخطاء JSON
-                throw parseErr;
+                if (parseErr.message === 'خطأ من الخادم') throw parseErr;
+                continue; // تجاهل أخطاء JSON وأي أخطاء أخرى غير متوقعة
               }
             }
           }
