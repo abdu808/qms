@@ -1,0 +1,100 @@
+{
+  "name": "QMS — التقرير الأسبوعي (كل أحد)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * 0" }]
+        }
+      },
+      "name": "كل أحد الساعة 8 صباحاً",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QMS_API_URL }}/api/automation/weekly-report",
+        "method": "POST",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.QMS_WEBHOOK_SECRET }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "targetAudience", "value": "management" },
+            { "name": "language", "value": "ar" }
+          ]
+        }
+      },
+      "name": "توليد التقرير الأسبوعي",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const report = $input.first().json.report;\nconst stats = report.stats;\n\n// رسالة WhatsApp مختصرة للإدارة\nconst shortMsg = `📊 *التقرير الأسبوعي — نظام الجودة*\\n` +\n  `${new Date().toLocaleDateString('ar-SA')}\\n\\n` +\n  `${stats.healthLabel} درجة صحة النظام: *${stats.healthScore}/100*\\n\\n` +\n  report.text.slice(0, 1000) + (report.text.length > 1000 ? '\\n...\\n_(التقرير الكامل في البريد الإلكتروني)_' : '');\n\nreturn [{ json: { shortMsg, fullReport: report.text, stats } }];"
+      },
+      "name": "تنسيق الرسائل",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.WHATSAPP_GROUP_ID }}",
+        "text": "={{ $json.shortMsg }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "name": "WhatsApp — ملخص للإدارة",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $env.MANAGEMENT_EMAILS }}",
+        "subject": "📊 التقرير الأسبوعي لنظام الجودة — {{ $now.toFormat('yyyy-MM-dd') }}",
+        "message": "={{ $json.fullReport }}",
+        "options": { "appendAttribution": false }
+      },
+      "name": "Email — التقرير الكامل",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 380]
+    }
+  ],
+  "connections": {
+    "كل أحد الساعة 8 صباحاً": {
+      "main": [[{ "node": "توليد التقرير الأسبوعي", "type": "main", "index": 0 }]]
+    },
+    "توليد التقرير الأسبوعي": {
+      "main": [[{ "node": "تنسيق الرسائل", "type": "main", "index": 0 }]]
+    },
+    "تنسيق الرسائل": {
+      "main": [
+        [
+          { "node": "WhatsApp — ملخص للإدارة", "type": "main", "index": 0 },
+          { "node": "Email — التقرير الكامل", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "يولِّد تقريراً أسبوعياً بالذكاء الاصطناعي كل أحد الساعة 8 صباحاً ويرسله للإدارة عبر WhatsApp (ملخص) والبريد الإلكتروني (التقرير الكامل).",
+    "env_vars_required": [
+      "QMS_API_URL — مثال: https://quality.aqiltech.sa",
+      "QMS_WEBHOOK_SECRET — من إعدادات النظام > إعدادات AI",
+      "WHATSAPP_GROUP_ID — معرف المجموعة",
+      "MANAGEMENT_EMAILS — بريد الإدارة (مفصول بفواصل)"
+    ]
+  }
+}

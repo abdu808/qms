@@ -67,18 +67,25 @@ export const READ_ONLY_TOOLS = new Set([
 //  تعريفات الأدوات (Anthropic tool_use format)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// الأدوات الإدارية/الهيكلية — تبقى في executeTool لكن لا تُرسَل للوكيل افتراضياً.
-// تُنجَز عبر واجهة النظام أو عند رفع الملفات.
+// أدوات مخفية تماماً عن الوكيل — حذف هيكلي (خطر عالٍ جداً)
 const ADMIN_TOOL_NAMES = new Set([
-  'update_strategic_goal',
   'delete_strategic_goal',
+  'delete_operational_activity',
+  'delete_objective',
+]);
+
+/**
+ * أدوات تظهر للوكيل وتُنفَّذ — لكنها تتطلب موافقة بشرية دائماً
+ * حتى في auto mode (لأنها تُنشئ أو تُعدِّل الهيكل التخطيطي).
+ * الاستثناء الوحيد: SUPER_ADMIN يمكنه تجاوز هذا القيد.
+ */
+export const ALWAYS_REVIEW_TOOLS = new Set([
+  'update_strategic_goal',
   'create_operational_activity',
   'update_operational_activity',
-  'delete_operational_activity',
   'link_activity_to_goal',
   'create_objective',
   'update_objective',
-  'delete_objective',
   'assign_responsible',
   'assign_owner',
   'create_swot_item',

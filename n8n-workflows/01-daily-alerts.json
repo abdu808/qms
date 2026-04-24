@@ -1,0 +1,117 @@
+{
+  "name": "QMS — تنبيهات يومية صباحية",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 7 * * 1-6" }]
+        }
+      },
+      "name": "كل يوم الساعة 7 صباحاً (الأحد–الجمعة)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QMS_API_URL }}/api/automation/alerts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.QMS_WEBHOOK_SECRET }}" }
+          ]
+        }
+      },
+      "name": "جلب التنبيهات",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.counts.critical + $json.data.counts.high }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ]
+        }
+      },
+      "name": "يوجد بنود حرجة/عالية؟",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.data;\nconst counts = data.counts;\nconst alerts = data.alerts;\n\n// أول 5 تنبيهات بأعلى أولوية\nconst top5 = alerts.slice(0, 5);\nconst lines = top5.map((a, i) => {\n  const icon = a.severity === 'CRITICAL' ? '🔴' : a.severity === 'HIGH' ? '🟠' : '🟡';\n  return `${icon} *${a.code || '—'}* — ${a.message}`;\n}).join('\\n');\n\nconst msg = `⚠️ *تنبيهات نظام الجودة — ${new Date().toLocaleDateString('ar-SA')}*\\n\\n` +\n  `🔴 حرج: ${counts.critical}   🟠 عالٍ: ${counts.high}   🟡 متوسط: ${counts.medium}\\n\\n` +\n  `*أبرز البنود:*\\n${lines}\\n\\n` +\n  `📋 الإجمالي: ${counts.total} تنبيه — يستدعي الانتباه: ${counts.critical + counts.high}`;\n\nreturn [{ json: { message: msg, requiresAction: counts.critical + counts.high } }];"
+      },
+      "name": "تنسيق الرسالة",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 220]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.WHATSAPP_GROUP_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "name": "إرسال WhatsApp / Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1120, 220],
+      "notes": "استبدل بـ WhatsApp node إن كنت تستخدم WhatsApp Business API"
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $env.QUALITY_MANAGER_EMAIL }}",
+        "subject": "⚠️ تنبيهات جودة — {{ $now.toFormat('yyyy-MM-dd') }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "name": "إرسال بريد إلكتروني",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 360]
+    }
+  ],
+  "connections": {
+    "كل يوم الساعة 7 صباحاً (الأحد–الجمعة)": {
+      "main": [[{ "node": "جلب التنبيهات", "type": "main", "index": 0 }]]
+    },
+    "جلب التنبيهات": {
+      "main": [[{ "node": "يوجد بنود حرجة/عالية؟", "type": "main", "index": 0 }]]
+    },
+    "يوجد بنود حرجة/عالية؟": {
+      "main": [
+        [{ "node": "تنسيق الرسالة", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "تنسيق الرسالة": {
+      "main": [
+        [
+          { "node": "إرسال WhatsApp / Telegram", "type": "main", "index": 0 },
+          { "node": "إرسال بريد إلكتروني", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "يجلب التنبيهات كل صباح من /api/automation/alerts ويرسلها عبر WhatsApp/Email إذا كانت هناك بنود حرجة أو عالية الأولوية.",
+    "env_vars_required": [
+      "QMS_API_URL — مثال: https://quality.aqiltech.sa",
+      "QMS_WEBHOOK_SECRET — من إعدادات النظام > إعدادات AI",
+      "WHATSAPP_GROUP_ID — معرف مجموعة WhatsApp أو Telegram",
+      "QUALITY_MANAGER_EMAIL — بريد مدير الجودة"
+    ]
+  }
+}

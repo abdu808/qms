@@ -16,7 +16,7 @@
  * ══════════════════════════════════════════════════════
  */
 import { aiComplete } from '../../lib/ai/index.js';
-import { AGENT_TOOLS, READ_ONLY_TOOLS, executeTool } from './tools.js';
+import { AGENT_TOOLS, READ_ONLY_TOOLS, ALWAYS_REVIEW_TOOLS, executeTool } from './tools.js';
 
 const MAX_ITERATIONS          = 10;  // خُفِّض من 15 — كل دورة ~6-10 ثوانٍ، الحد الأقصى ~85 ثانية
 const MAX_TOOL_CALLS_PER_ITER = 25;  // AI يحتاج سعة لمعالجة ملفات بها إدارات/مؤشرات متعددة دفعةً واحدة
@@ -156,8 +156,10 @@ export async function runAgentLoop({
     // نفِّذ / اجمع الأدوات
     const toolResults = [];
     for (const call of processedCalls) {
-      const isReadOnly  = READ_ONLY_TOOLS.has(call.name);
-      const isDelete    = DELETE_TOOLS.has(call.name);
+      const isReadOnly    = READ_ONLY_TOOLS.has(call.name);
+      const isDelete      = DELETE_TOOLS.has(call.name);
+      // أدوات الإنشاء/التعديل الهيكلي: تتطلب موافقة دائماً ما لم يكن SUPER_ADMIN
+      const isAlwaysReview = ALWAYS_REVIEW_TOOLS.has(call.name) && callerRole !== 'SUPER_ADMIN';
 
       // ── رفض الكتابة للأدوار غير المخولة (EMPLOYEE وما دون) ─────────────
       if (!isReadOnly && !canAutoWrite && !isReview) {
@@ -175,26 +177,27 @@ export async function runAgentLoop({
         continue;
       }
 
-      // ── أدوات الحذف: دائماً في وضع المراجعة حتى لـ QUALITY_MANAGER ──────
-      // ── وضع المراجعة العادي: اجمع أدوات الكتابة ─────────────────────────
-      if (!isReadOnly && (isReview || isDelete)) {
+      // ── أدوات الحذف / الهيكلية / وضع المراجعة: اجمع كـ pendingActions ──
+      if (!isReadOnly && (isReview || isDelete || isAlwaysReview)) {
         const pendingLabel = toolLabel(call.name);
-        const deleteNote   = isDelete ? ' ⚠️ إجراء حذف — يتطلب موافقة المسؤول' : '';
+        const deleteNote      = isDelete      ? ' ⚠️ إجراء حذف — يتطلب موافقة المسؤول' : '';
+        const structuralNote  = isAlwaysReview && !isDelete ? ' 🏗️ تعديل هيكلي — يتطلب مراجعتك' : '';
         toolResults.push({
           type: 'tool_result',
           tool_use_id: call.id,
           content: JSON.stringify({
             ok: true,
             pending: true,
-            summary: `⏳ مُقترَح (${pendingLabel})${deleteNote} — ينتظر موافقة المستخدم قبل التنفيذ`,
+            summary: `⏳ مُقترَح (${pendingLabel})${deleteNote}${structuralNote} — ينتظر موافقتك قبل التنفيذ`,
           }),
         });
         pendingActions.push({
-          id:       call.id,
-          tool:     call.name,
-          input:    call.input,
-          label:    pendingLabel,
-          isDelete, // علامة للـ UI للتمييز
+          id:            call.id,
+          tool:          call.name,
+          input:         call.input,
+          label:         pendingLabel,
+          isDelete,
+          isStructural:  isAlwaysReview,
         });
         continue;
       }

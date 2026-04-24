@@ -1,0 +1,117 @@
+{
+  "name": "QMS — رسائل مديري الأقسام (أسبوعية)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 0" }]
+        }
+      },
+      "name": "كل أحد الساعة 9 صباحاً",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QMS_API_URL }}/api/automation/departments",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.QMS_WEBHOOK_SECRET }}" }
+          ]
+        }
+      },
+      "name": "جلب حالة الأقسام",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "name": "تقسيم لكل قسم",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.priority }}",
+              "rightValue": "OK",
+              "operator": { "type": "string", "operation": "notEquals" }
+            },
+            {
+              "leftValue": "={{ $json.manager }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEquals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "يوجد مدير + غير OK؟",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const dept = $input.first().json;\nconst s = dept.status;\nconst priorityIcon = dept.priority === 'CRITICAL' ? '🔴' : dept.priority === 'HIGH' ? '🟠' : '🟡';\n\nconst lines = [];\nif (s.activitiesOverdue > 0) lines.push(`• ${s.activitiesOverdue} نشاط تشغيلي متأخر`);\nif (s.ncrsOpen > 0) lines.push(`• ${s.ncrsOpen} NCR مفتوح`);\nif (s.capasOverdue > 0) lines.push(`• ${s.capasOverdue} CAPA متأخر`);\nif (s.objectivesOverdue > 0) lines.push(`• ${s.objectivesOverdue} هدف تشغيلي متأخر`);\n\nconst msg = `${priorityIcon} *متابعة أداء قسم: ${dept.name}*\\n` +\n  `${new Date().toLocaleDateString('ar-SA')}\\n\\n` +\n  `*يحتاج متابعتك:*\\n${lines.join('\\n')}\\n\\n` +\n  `يرجى مراجعة النظام وتحديث الحالة.\\n` +\n  `🔗 ${$env.QMS_API_URL}`;\n\nreturn [{ json: { msg, managerEmail: dept.manager?.email, deptName: dept.name } }];"
+      },
+      "name": "بناء رسالة القسم",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $json.managerEmail }}",
+        "subject": "📋 متابعة أداء قسم {{ $json.deptName }} — {{ $now.toFormat('yyyy-MM-dd') }}",
+        "message": "={{ $json.msg }}",
+        "options": {}
+      },
+      "name": "إرسال لمدير القسم",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    }
+  ],
+  "connections": {
+    "كل أحد الساعة 9 صباحاً": {
+      "main": [[{ "node": "جلب حالة الأقسام", "type": "main", "index": 0 }]]
+    },
+    "جلب حالة الأقسام": {
+      "main": [[{ "node": "تقسيم لكل قسم", "type": "main", "index": 0 }]]
+    },
+    "تقسيم لكل قسم": {
+      "main": [[{ "node": "يوجد مدير + غير OK؟", "type": "main", "index": 0 }]]
+    },
+    "يوجد مدير + غير OK؟": {
+      "main": [
+        [{ "node": "بناء رسالة القسم", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "بناء رسالة القسم": {
+      "main": [[{ "node": "إرسال لمدير القسم", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "كل أحد الساعة 9 صباحاً: يجلب حالة كل قسم ويرسل رسالة مخصصة لمدير كل قسم يعاني من تأخر في الأنشطة أو الأهداف أو NCR مفتوح.",
+    "env_vars_required": [
+      "QMS_API_URL — مثال: https://quality.aqiltech.sa",
+      "QMS_WEBHOOK_SECRET — من إعدادات النظام > إعدادات AI"
+    ],
+    "notes": "يجب أن يكون لكل مدير قسم بريد إلكتروني مُسجَّل في النظام وربطه بالقسم (departmentId)."
+  }
+}
