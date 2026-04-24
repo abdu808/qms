@@ -3,19 +3,14 @@
  *
  * Keys المُستخدَمة:
  *   ai_enabled                      — "true" | "false"
- *   ai_default_provider             — "anthropic" | "openai" | "google"
- *   ai_default_model                — اسم الموديل
+ *   ai_default_provider             — "anthropic" (الوحيد المُفعَّل)
+ *   ai_default_model                — اسم الموديل (افتراضي: claude-sonnet-4-5)
  *   ai_anthropic_api_key            — مُشفَّر (v1:...)
- *   ai_openai_api_key               — مُشفَّر
- *   ai_google_api_key               — مُشفَّر
- *   ai_monthly_budget_usd           — رقم (مثال: "50")
+ *   ai_openai_api_key               — محفوظ للمستقبل (غير مُستخدَم)
+ *   ai_google_api_key               — محفوظ للمستقبل (غير مُستخدَم)
+ *   ai_monthly_budget_usd           — رقم (مثال: "30")
  *   ai_pii_redaction                — "always" | "never" | "optional"
  *   ai_log_requests                 — "true" | "false"
- *   ai_routing_enabled              — "true" | "false"
- *   ai_routing_tier_simple          — "provider/model" مثال: "google/gemini-2.5-flash"
- *   ai_routing_tier_tools           — "provider/model"
- *   ai_routing_tier_deep            — "provider/model"
- *   ai_routing_tier_files           — "provider/model"
  */
 import { prisma } from '../../db.js';
 import { encrypt, decrypt } from './crypto.js';
@@ -26,25 +21,12 @@ const KEYS = [
   'ai_default_provider',
   'ai_default_model',
   'ai_anthropic_api_key',
-  'ai_openai_api_key',
-  'ai_google_api_key',
+  'ai_openai_api_key',    // محفوظ للمستقبل
+  'ai_google_api_key',    // محفوظ للمستقبل
   'ai_monthly_budget_usd',
   'ai_pii_redaction',
   'ai_log_requests',
-  'ai_routing_enabled',
-  'ai_routing_tier_simple',
-  'ai_routing_tier_tools',
-  'ai_routing_tier_deep',
-  'ai_routing_tier_files',
 ];
-
-/** الإعدادات الافتراضية لمستويات التوجيه (مُعرَّفة هنا لتجنب الاستيراد الدائري) */
-const ROUTING_DEFAULTS = {
-  SIMPLE: 'google/gemini-2.5-flash',
-  TOOLS:  'anthropic/claude-haiku-4-5',
-  DEEP:   'anthropic/claude-sonnet-4-5',
-  FILES:  'anthropic/claude-opus-4-7',
-};
 
 // cache قصير لتخفيف ضغط DB (30 ثانية)
 let _cache = null;
@@ -69,24 +51,16 @@ export async function getAiSettings() {
 
     _cache = {
       enabled:          m.ai_enabled === 'true',
-      defaultProvider:  m.ai_default_provider  || 'anthropic',
-      defaultModel:     m.ai_default_model     || DEFAULT_MODELS.anthropic,
-      monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 50),
-      piiRedaction:     m.ai_pii_redaction     || 'optional', // always | never | optional
-      logRequests:      m.ai_log_requests !== 'false',        // default true
-      routing: {
-        enabled: m.ai_routing_enabled === 'true',
-        SIMPLE:  m.ai_routing_tier_simple || ROUTING_DEFAULTS.SIMPLE,
-        TOOLS:   m.ai_routing_tier_tools  || ROUTING_DEFAULTS.TOOLS,
-        DEEP:    m.ai_routing_tier_deep   || ROUTING_DEFAULTS.DEEP,
-        FILES:   m.ai_routing_tier_files  || ROUTING_DEFAULTS.FILES,
-      },
+      defaultProvider:  'anthropic',    // Anthropic فقط
+      defaultModel:     m.ai_default_model || DEFAULT_MODELS.anthropic,
+      monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 30),
+      piiRedaction:     m.ai_pii_redaction || 'optional',
+      logRequests:      m.ai_log_requests !== 'false',
       keys: {
         anthropic: decrypt(m.ai_anthropic_api_key || ''),
-        openai:    decrypt(m.ai_openai_api_key    || ''),
-        google:    decrypt(m.ai_google_api_key    || ''),
+        openai:    decrypt(m.ai_openai_api_key    || ''), // محفوظ — غير مُستخدَم
+        google:    decrypt(m.ai_google_api_key    || ''), // محفوظ — غير مُستخدَم
       },
-      // نحتفظ بالأصلي للتحقق من وجود مفتاح بدون كشفه
       hasKeys: {
         anthropic: !!m.ai_anthropic_api_key,
         openai:    !!m.ai_openai_api_key,
@@ -101,16 +75,9 @@ export async function getAiSettings() {
       enabled: false,
       defaultProvider: 'anthropic',
       defaultModel: DEFAULT_MODELS.anthropic,
-      monthlyBudgetUsd: 50,
+      monthlyBudgetUsd: 30,
       piiRedaction: 'optional',
       logRequests: true,
-      routing: {
-        enabled: false,
-        SIMPLE:  ROUTING_DEFAULTS.SIMPLE,
-        TOOLS:   ROUTING_DEFAULTS.TOOLS,
-        DEEP:    ROUTING_DEFAULTS.DEEP,
-        FILES:   ROUTING_DEFAULTS.FILES,
-      },
       keys: { anthropic: '', openai: '', google: '' },
       hasKeys: { anthropic: false, openai: false, google: false },
     };

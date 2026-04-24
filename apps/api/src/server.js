@@ -75,6 +75,7 @@ import metaRoutes from './routes/meta.js';
 import webhookSettingsRoutes from './routes/webhookSettings.js';
 import aiSettingsRoutes from './routes/aiSettings.js';
 import consultantRoutes from './routes/consultant.js';
+import automationRoutes from './routes/automation.js';
 import progressReportsRoutes from './routes/progressReports.js';
 import { startScheduler } from './lib/scheduler.js';
 
@@ -373,6 +374,7 @@ app.use('/api/scheduler',                 schedulerRoutes);
 app.use('/api/report-builder',            reportBuilderRoutes);
 app.use('/api/portal',                   portalAdminRoutes);
 app.use('/api/webhook-settings',         webhookSettingsRoutes);
+app.use('/api/automation',              automationRoutes);
 app.use('/api/ai-settings',              aiSettingsRoutes);
 app.use('/api/consultant',               consultantRoutes);
 app.use('/api/progress-reports',         progressReportsRoutes);

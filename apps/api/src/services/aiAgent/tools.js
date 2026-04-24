@@ -67,7 +67,25 @@ export const READ_ONLY_TOOLS = new Set([
 //  تعريفات الأدوات (Anthropic tool_use format)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const AGENT_TOOLS = [
+// الأدوات الإدارية/الهيكلية — تبقى في executeTool لكن لا تُرسَل للوكيل افتراضياً.
+// تُنجَز عبر واجهة النظام أو عند رفع الملفات.
+const ADMIN_TOOL_NAMES = new Set([
+  'update_strategic_goal',
+  'delete_strategic_goal',
+  'create_operational_activity',
+  'update_operational_activity',
+  'delete_operational_activity',
+  'link_activity_to_goal',
+  'create_objective',
+  'update_objective',
+  'delete_objective',
+  'assign_responsible',
+  'assign_owner',
+  'create_swot_item',
+  'update_swot_item',
+]);
+
+const ALL_TOOLS = [
 
   // ══════════════════════════════════════════════════
   // 1. قراءة حالة النظام (دائماً متاحة)
@@ -816,6 +834,14 @@ status: PLANNED | IN_PROGRESS | COMPLETED`,
     },
   },
 ];
+
+// الوكيل يرى فقط الأدوات التشغيلية/التحليلية (22 أداة بدل 35)
+// الأدوات الهيكلية (create/delete objectives, activities, goals...) تبقى في executeTool
+// لكن لا تُرسَل للنموذج تجنباً للتعقيد وزيادة التوكنات
+export const AGENT_TOOLS = ALL_TOOLS.filter(t => !ADMIN_TOOL_NAMES.has(t.name));
+
+// الأدوات الإدارية — للاستخدام المستقبلي (agent إداري منفصل)
+export const ADMIN_TOOLS = ALL_TOOLS.filter(t => ADMIN_TOOL_NAMES.has(t.name));
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  منفِّذ الأدوات

@@ -25,13 +25,11 @@ import { computeCost } from './pricing.js';
 import { logUsage, assertBudget } from './usage.js';
 import { redactMessages, redactPii } from './pii.js';
 import * as anthropicProvider from './providers/anthropic.js';
-import * as openaiProvider    from './providers/openai.js';
-import * as googleProvider    from './providers/google.js';
 
+// المزوِّد الوحيد المُفعَّل: Anthropic
+// تم إيقاف Google وOpenAI لتبسيط الكود وتقليل الأخطاء
 const PROVIDERS = {
   anthropic: anthropicProvider,
-  openai:    openaiProvider,
-  google:    googleProvider,
 };
 
 const DEFAULT_TIMEOUT_MS = 60_000;

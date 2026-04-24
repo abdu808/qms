@@ -19,6 +19,7 @@ import { authorize }     from '../middleware/auth.js';
 import { BadRequest }    from '../utils/errors.js';
 import { buildContext, chat, applyActions, getAiAgentUserIdInternal } from '../services/consultantAgent.js';
 import { applyPendingActions } from '../services/aiAgent/loop.js';
+import { processOperationalPlan } from '../services/aiAgent/fileProcessor.js';
 import { extractText, SUPPORTED_EXTENSIONS } from '../../scripts/ingest/extractors.mjs';
 import { analyzeFile }   from '../../scripts/ingest/analyzer.mjs';
 import { uploadItem, getAdminUserId } from '../../scripts/ingest/uploader.mjs';
@@ -166,17 +167,22 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
         );
       }
 
-      // 4️⃣ نصّ الملف — للخطط التشغيلية والاستراتيجية يُرسَل للمستشار كـ context
-      // حتى يستطيع إنشاء الأنشطة والأهداف من البيانات الفعلية
-      const needsAiProcessing = ['operational_plan', 'strategic_plan'].includes(a.category) && !stored?.count;
-      const textForAi = needsAiProcessing ? extracted.text?.slice(0, 60000) : null;
+      // 4️⃣ الخطط التشغيلية — معالجة مباشرة بنداء AI واحد (بدون حلقة وكيل)
+      let operationalResult = null;
+      if (['operational_plan'].includes(a.category) && extracted.text?.length > 100) {
+        operationalResult = await processOperationalPlan({
+          text:     extracted.text,
+          filename,
+          userId:   createdById,
+        });
+      }
 
       return {
         ok: true, filename,
         analysis: a,
         stored,
+        operationalResult,
         textLength: extracted.text?.length || 0,
-        textForAi,  // نص للمستشار — فارغ للملفات التي أُنشئت سجلاتها بالفعل
       };
     } catch (e) {
       return { ok: false, filename, error: e.message };
@@ -195,6 +201,8 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
     const a = r.analysis;
     lines.push(`📎 **${r.filename}** — ${a.category || '—'}`);
     lines.push(`   ${a.summary || ''}`);
+
+    // الأهداف الاستراتيجية
     if (r.stored?.success && r.stored.count > 0) {
       lines.push(`   ✅ أُنشئ ${r.stored.count} هدف استراتيجي:`);
       (r.stored.goals || []).filter(g => !g.skipped).forEach(g => lines.push(`      • ${g.code} — ${g.title}`));
@@ -202,6 +210,21 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
     } else if (r.stored?.success) {
       lines.push(`   ✅ ${r.stored.code} — ${r.stored.title}`);
     }
+
+    // الأنشطة والأهداف التشغيلية (معالجة مباشرة)
+    const op = r.operationalResult;
+    if (op) {
+      if (op.activities?.length) {
+        lines.push(`   ✅ أُنشئ ${op.activities.length} نشاط تشغيلي:`);
+        op.activities.forEach(a => lines.push(`      • ${a.code} — ${a.title}`));
+      }
+      if (op.objectives?.length) {
+        lines.push(`   ✅ أُنشئ ${op.objectives.length} هدف تشغيلي:`);
+        op.objectives.forEach(o => lines.push(`      • ${o.code} — ${o.title}`));
+      }
+      if (op.summary) lines.push(`   📋 ${op.summary}`);
+    }
+
     if (a.notes) lines.push(`   ⚠️ ${a.notes}`);
     lines.push('');
   }
@@ -209,25 +232,15 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
     lines.push(`❌ **${r.filename}** — ${r.error}`);
   }
 
-  // ── إرفاق نص الملفات التي تحتاج معالجة AI (خطط تشغيلية/استراتيجية) ─────────
-  const filesForAi = succeeded.filter(r => r.textForAi);
-  if (filesForAi.length > 0) {
-    lines.push('');
-    lines.push('---');
-    lines.push(`📋 **${filesForAi.length} ملف${filesForAi.length > 1 ? 'ات تحتاج' : ' يحتاج'} معالجة — أنشئ الأنشطة التشغيلية والأهداف من النص التالي تلقائياً:**`);
-    lines.push('');
-    for (const r of filesForAi) {
-      lines.push(`### 📄 ${r.filename} (${r.analysis.category})`);
-      lines.push('```');
-      lines.push(r.textForAi);
-      lines.push('```');
-      lines.push('');
-    }
-    lines.push('> استخرج الأنشطة التشغيلية والأهداف وأنشئها مباشرةً في النظام باستخدام أدواتك. لا تطلب مني إدخال البيانات يدوياً.');
-  }
-
   // عدد ما أُنشئ إجمالاً
-  const totalCreated = succeeded.reduce((s, r) => s + (r.stored?.count || (r.stored?.success ? 1 : 0)), 0);
+  const totalCreated = succeeded.reduce((s, r) => {
+    let n = r.stored?.count || (r.stored?.success ? 1 : 0);
+    if (r.operationalResult) {
+      n += (r.operationalResult.activities?.length || 0);
+      n += (r.operationalResult.objectives?.length || 0);
+    }
+    return s + n;
+  }, 0);
 
   res.json({
     ok:          true,

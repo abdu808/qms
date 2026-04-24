@@ -33,23 +33,18 @@ export const PRICING = {
   'gemini-1.5-pro':            { in: 1.25,  out: 5.00  },
 };
 
-// الافتراضي لكل مزود — يُستخدم لو اختار المستخدم provider فقط بدون تحديد model
+// الافتراضي — Sonnet دائماً (التحليل والمتابعة يتطلبان جودة عالية)
 export const DEFAULT_MODELS = {
-  anthropic: 'claude-haiku-4-5',
-  openai:    'gpt-4o-mini',
-  google:    'gemini-2.5-flash',
+  anthropic: 'claude-sonnet-4-5',
+  openai:    'gpt-4o-mini',    // محفوظ للمستقبل
+  google:    'gemini-2.5-flash', // محفوظ للمستقبل
 };
 
-// قائمة قابلة للعرض في UI
+// قائمة الموديلات المُفعَّلة — Anthropic فقط
 export const MODEL_CATALOG = [
-  { provider: 'anthropic', model: 'claude-haiku-4-5',   label: 'Claude Haiku 4.5',  tier: 'cheap',   good: 'أسرع وأرخص — مثالي للعربية والمهام اليومية' },
-  { provider: 'anthropic', model: 'claude-sonnet-4-5',  label: 'Claude Sonnet 4.5', tier: 'balanced',good: 'متوازن — للتحليل العميق' },
-  { provider: 'anthropic', model: 'claude-opus-4-5',    label: 'Claude Opus 4.5',   tier: 'premium', good: 'الأعلى جودة — للمهام المعقدة' },
-  { provider: 'openai',    model: 'gpt-4o-mini',        label: 'GPT-4o Mini',       tier: 'cheap',   good: 'رخيص جداً — Function calling ممتاز' },
-  { provider: 'openai',    model: 'gpt-4o',             label: 'GPT-4o',            tier: 'balanced',good: 'متعدد الوسائط' },
-  { provider: 'google',    model: 'gemini-2.5-flash',   label: 'Gemini 2.5 Flash',  tier: 'cheap',   good: 'الأحدث — سريع ورخيص، مجاني ضمن حد يومي' },
-  { provider: 'google',    model: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', tier: 'cheap', good: 'أرخص نسخة من 2.5 — للمهام البسيطة' },
-  { provider: 'google',    model: 'gemini-2.5-pro',     label: 'Gemini 2.5 Pro',    tier: 'balanced',good: 'سياق طويل + تفكير عميق' },
+  { provider: 'anthropic', model: 'claude-haiku-4-5',   label: 'Claude Haiku 4.5',  tier: 'quick',   good: 'أسئلة سريعة — اقتصادي ($1/1M)' },
+  { provider: 'anthropic', model: 'claude-sonnet-4-5',  label: 'Claude Sonnet 4.5', tier: 'standard',good: 'الافتراضي — تحليل استراتيجي ومتابعة شاملة' },
+  { provider: 'anthropic', model: 'claude-opus-4-7',    label: 'Claude Opus 4.7',   tier: 'premium', good: 'تقارير شهرية معقدة — أعلى جودة' },
 ];
 
 /**
