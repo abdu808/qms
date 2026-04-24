@@ -127,19 +127,49 @@
     },
 
     // ─── تحميل السياق ─────────────────────────────────────────────────────
+    /**
+     * يُطبِّع موديل من Live API إلى الصيغة المتوقعة من الـ picker
+     * { provider, model, label, good, tier }
+     */
+    _normalizeModel(m, provider = 'anthropic') {
+      const id   = m.id || m.model || '';
+      const name = m.name || m.label || m.display_name || id;
+      const low  = id.toLowerCase();
+      const tier = low.includes('opus')   ? 'premium'
+                 : low.includes('haiku')  ? 'quick'
+                 : low.includes('sonnet') ? 'standard'
+                 : 'standard';
+      const good = low.includes('opus')   ? 'أعلى جودة — مثالي للتحليل المعمق'
+                 : low.includes('haiku')  ? 'سريع واقتصادي — للأسئلة البسيطة'
+                 : low.includes('sonnet') ? 'توازن ممتاز — الاستخدام اليومي'
+                 : '';
+      return { provider, model: id, label: name, good, tier };
+    },
+
+    /** يجلب الموديلات الحية ثم يُحدِّث consult.modelOptions */
+    async refreshConsultModels() {
+      try {
+        const live = await this.api('GET', '/ai-settings/models/live?provider=anthropic');
+        if (live.ok && live.models?.length) {
+          this.consult.modelOptions = live.models.map(m => this._normalizeModel(m, 'anthropic'));
+          return;
+        }
+      } catch {}
+      // احتياط: الكتالوج الثابت
+      try {
+        const mj = await this.api('GET', '/ai-settings/models');
+        if (mj.ok) this.consult.modelOptions = mj.items || [];
+      } catch {}
+    },
+
     async loadConsultContext() {
       if (!this.token) return;
       // استعادة المحادثة السابقة من localStorage (مرة واحدة فقط عند الفتح)
       if (this.consult.messages.length === 0) this._consultRestoreHistory();
       try {
         this.consult.loading = true;
-        // جلب قائمة الموديلات مرة واحدة
-        if (!this.consult.modelOptions.length) {
-          try {
-            const mj = await this.api('GET', '/ai-settings/models');
-            if (mj.ok) this.consult.modelOptions = mj.items || [];
-          } catch {}
-        }
+        // جلب قائمة الموديلات — الحية من API أولاً، والكتالوج احتياط
+        if (!this.consult.modelOptions.length) await this.refreshConsultModels();
         const j = await this.api('GET', '/consultant/context');
         if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
         this.consult.context = { summary: j.context.summary, gaps: j.context.gaps.counts };
