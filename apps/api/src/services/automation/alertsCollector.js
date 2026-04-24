@@ -44,7 +44,7 @@ export async function collectAlerts({ thresholdDays = 7 } = {}) {
   }
 
   // ── 2. CAPAs تستحق قريباً أو متأخرة ─────────────────────────────────────
-  const urgentCapas = await prisma.cAPA.findMany({
+  const urgentCapas = await prisma.capa.findMany({
     where: {
       status: { notIn: ['CLOSED', 'CANCELLED'] },
       dueDate: { lt: soon },

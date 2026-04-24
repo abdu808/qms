@@ -63,8 +63,8 @@ router.get('/status', requireWebhookAuth, asyncHandler(async (_req, res) => {
     prisma.operationalActivity.count({ where: { status: 'COMPLETED' } }),
     prisma.nCR.count({ where: { status: { not: 'CLOSED' } } }),
     prisma.nCR.count({ where: { status: { not: 'CLOSED' }, dueDate: { lt: new Date() } } }),
-    prisma.cAPA.count({ where: { status: { notIn: ['CLOSED', 'CANCELLED'] } } }),
-    prisma.cAPA.count({ where: { status: { notIn: ['CLOSED', 'CANCELLED'] }, dueDate: { lt: new Date() } } }),
+    prisma.capa.count({ where: { status: { notIn: ['CLOSED', 'CANCELLED'] } } }),
+    prisma.capa.count({ where: { status: { notIn: ['CLOSED', 'CANCELLED'] }, dueDate: { lt: new Date() } } }),
     prisma.complaint.count({ where: { status: { notIn: ['CLOSED', 'REJECTED'] } } }),
     prisma.complaint.count({ where: { status: { in: ['RESOLVED', 'CLOSED'] } } }),
     prisma.audit.count({ where: { status: 'PLANNED' } }),
@@ -131,7 +131,7 @@ router.get('/departments', requireWebhookAuth, asyncHandler(async (req, res) => 
       prisma.nCR.count({
         where: { departmentId: dept.id, status: { not: 'CLOSED' } },
       }),
-      prisma.cAPA.count({
+      prisma.capa.count({
         where: {
           status: { notIn: ['CLOSED', 'CANCELLED'] },
           dueDate: { lt: now },
