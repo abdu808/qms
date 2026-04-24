@@ -9,7 +9,7 @@ function startOfMonth() {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 }
 
-/** يُسجِّل استدعاء AI */
+/** يُسجِّل استدعاء AI ويُرجع ID السجل */
 export async function logUsage({
   provider, model, feature,
   inputTokens = 0, outputTokens = 0,
@@ -18,7 +18,7 @@ export async function logUsage({
   piiRedacted = false, metadata = null,
 }) {
   try {
-    await prisma.aiUsageLog.create({
+    const record = await prisma.aiUsageLog.create({
       data: {
         provider: String(provider || 'unknown'),
         model:    String(model || 'unknown'),
@@ -34,9 +34,11 @@ export async function logUsage({
         metadata:     metadata ? (typeof metadata === 'string' ? metadata : JSON.stringify(metadata)) : null,
       },
     });
+    return record.id;
   } catch (e) {
     // لا نُكسر الـ flow إن فشل التسجيل
     console.warn('[ai/usage] log failed:', e.message);
+    return null;
   }
 }
 
@@ -73,6 +75,67 @@ export async function assertBudget(budgetUSD, estimatedCost = 0) {
     err.code = 'AI_BUDGET_EXCEEDED';
     err.status = 429;
     throw err;
+  }
+}
+
+/** تقييم استدعاء موجود */
+export async function rateUsage(logId, rating, note = null) {
+  if (!logId || ![-1, 1].includes(rating)) return false;
+  try {
+    await prisma.aiUsageLog.update({
+      where: { id: logId },
+      data: {
+        rating: rating,
+        ratingNote: note ? String(note).slice(0, 200) : null,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.warn('[ai/usage] rateUsage failed:', e.message);
+    return false;
+  }
+}
+
+/** ملخص الاستخدام مُفصَّل حسب الميزة مع بيانات التقييم */
+export async function getUsageByFeature(months = 1) {
+  const from = new Date();
+  from.setMonth(from.getMonth() - months);
+  try {
+    const rows = await prisma.aiUsageLog.groupBy({
+      by: ['feature', 'model'],
+      where: { createdAt: { gte: from } },
+      _sum: { costUSD: true, inputTokens: true, outputTokens: true },
+      _count: { _all: true },
+      _avg: { durationMs: true },
+    });
+    // التقييمات منفصلة (groupBy لا يدعم rating مباشرة)
+    const ratings = await prisma.aiUsageLog.groupBy({
+      by: ['feature'],
+      where: { createdAt: { gte: from }, rating: { not: null } },
+      _sum: { rating: true },
+      _count: { _all: true },
+    });
+    const ratingMap = Object.fromEntries(ratings.map(r => [r.feature, {
+      total: r._count._all,
+      sum: r._sum.rating || 0,
+    }]));
+    return rows.map(r => ({
+      feature: r.feature,
+      model: r.model,
+      requests: r._count._all,
+      costUSD: Number(r._sum.costUSD || 0),
+      inputTokens: Number(r._sum.inputTokens || 0),
+      outputTokens: Number(r._sum.outputTokens || 0),
+      avgDurationMs: Math.round(r._avg.durationMs || 0),
+      ratedCount: ratingMap[r.feature]?.total || 0,
+      ratingSum: ratingMap[r.feature]?.sum || 0,
+      satisfaction: ratingMap[r.feature]?.total
+        ? Math.round(((ratingMap[r.feature].sum + ratingMap[r.feature].total) / (2 * ratingMap[r.feature].total)) * 100)
+        : null,
+    }));
+  } catch (e) {
+    console.warn('[ai/usage] getUsageByFeature failed:', e.message);
+    return [];
   }
 }
 

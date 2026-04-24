@@ -26,6 +26,17 @@ const KEYS = [
   'ai_monthly_budget_usd',
   'ai_pii_redaction',
   'ai_log_requests',
+  'ai_feature_models',
+];
+
+/** كتالوج الميزات — يُعرَّف في الكود، التعيينات تُحفَظ في DB */
+export const FEATURE_CATALOG = [
+  { id: 'consultant',         label: 'المستشار الذكي (محادثة)',   icon: '💬', defaultModel: 'claude-sonnet-4-5' },
+  { id: 'file_processor',     label: 'تحليل الملفات',              icon: '📄', defaultModel: 'claude-opus-4-5'  },
+  { id: 'weekly_report',      label: 'التقرير الأسبوعي',           icon: '📊', defaultModel: 'claude-haiku-4-5' },
+  { id: 'investigator',       label: 'المحقق الشهري',              icon: '🔍', defaultModel: 'claude-sonnet-4-5' },
+  { id: 'investigator-cross', label: 'التحليل المقارن',            icon: '📈', defaultModel: 'claude-sonnet-4-5' },
+  { id: 'playground',         label: 'الملعب التجريبي',            icon: '🧪', defaultModel: 'claude-sonnet-4-5' },
 ];
 
 // cache قصير لتخفيف ضغط DB (30 ثانية)
@@ -49,6 +60,13 @@ export async function getAiSettings() {
     const rows = await prisma.setting.findMany({ where: { key: { in: KEYS } } });
     const m = Object.fromEntries(rows.map(r => [r.key, r.value]));
 
+    const rawFeatureModels = m.ai_feature_models ? (() => { try { return JSON.parse(m.ai_feature_models); } catch { return {}; } })() : {};
+    // دمج الافتراضيات مع المحفوظ
+    const featureModels = {};
+    for (const f of FEATURE_CATALOG) {
+      featureModels[f.id] = rawFeatureModels[f.id] || f.defaultModel;
+    }
+
     _cache = {
       enabled:          m.ai_enabled === 'true',
       defaultProvider:  'anthropic',    // Anthropic فقط
@@ -56,6 +74,7 @@ export async function getAiSettings() {
       monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 30),
       piiRedaction:     m.ai_pii_redaction || 'optional',
       logRequests:      m.ai_log_requests !== 'false',
+      featureModels,
       keys: {
         anthropic: decrypt(m.ai_anthropic_api_key || ''),
         openai:    decrypt(m.ai_openai_api_key    || ''), // محفوظ — غير مُستخدَم
@@ -91,6 +110,20 @@ export async function setSetting(key, value) {
     where: { key },
     create: { key, value: String(value) },
     update: { value: String(value) },
+  });
+  invalidateAiSettingsCache();
+}
+
+/** يحفظ تعيينات الموديلات للميزات */
+export async function setFeatureModels(assignments) {
+  const safe = {};
+  for (const f of FEATURE_CATALOG) {
+    if (assignments[f.id]) safe[f.id] = String(assignments[f.id]);
+  }
+  await prisma.setting.upsert({
+    where: { key: 'ai_feature_models' },
+    create: { key: 'ai_feature_models', value: JSON.stringify(safe) },
+    update: { value: JSON.stringify(safe) },
   });
   invalidateAiSettingsCache();
 }

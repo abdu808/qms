@@ -753,6 +753,25 @@
                          class="bg-gray-100 text-gray-900 rounded-lg p-3 text-sm"
                          x-html="formatConsultMessage(msg.content)"></div>
 
+                    <!-- ② بعد الرد: أزرار التقييم -->
+                    <div x-show="msg.logId && msg.content" class="flex items-center gap-1.5 pr-1">
+                      <span class="text-[10px] text-gray-400">مفيد؟</span>
+                      <button @click="rateConsultResponse(msg, 1)"
+                              :disabled="msg.rating !== null"
+                              :class="msg.rating === 1 ? 'text-green-600 bg-green-50 border-green-200' : 'text-gray-400 hover:text-green-600 hover:bg-green-50 border-gray-200'"
+                              class="border rounded px-1.5 py-0.5 text-sm transition disabled:cursor-default"
+                              title="رد جيد">👍</button>
+                      <button @click="rateConsultResponse(msg, -1)"
+                              :disabled="msg.rating !== null"
+                              :class="msg.rating === -1 ? 'text-red-500 bg-red-50 border-red-200' : 'text-gray-400 hover:text-red-500 hover:bg-red-50 border-gray-200'"
+                              class="border rounded px-1.5 py-0.5 text-sm transition disabled:cursor-default"
+                              title="رد سيء">👎</button>
+                      <span x-show="msg.rating !== null"
+                            :class="msg.rating === 1 ? 'text-green-600' : 'text-red-500'"
+                            class="text-[10px]"
+                            x-text="msg.rating === 1 ? 'شكراً 👌' : 'سجّلنا ملاحظتك'"></span>
+                    </div>
+
                     <!-- ③ الإجراءات المقترحة (وضع المراجعة) -->
                     <div x-show="msg.pendingActions?.length > 0 && !msg.applied"
                          class="bg-amber-50 border border-amber-300 rounded-lg p-3">
@@ -6082,6 +6101,8 @@
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">⚙️ عام</button>
         <button @click="aiCfg.tab='keys'" :class="aiCfg.tab==='keys' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">🔑 المفاتيح</button>
+        <button @click="aiCfg.tab='features'; loadFeatureModels()" :class="aiCfg.tab==='features' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition">🎯 الميزات</button>
         <button @click="aiCfg.tab='usage'; loadAiUsage()" :class="aiCfg.tab==='usage' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">📊 الاستخدام</button>
         <button @click="aiCfg.tab='playground'" :class="aiCfg.tab==='playground' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
@@ -6259,6 +6280,93 @@
             <button @click="saveAiKeys()" :disabled="aiCfg.saving"
                     class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"
                     x-text="aiCfg.saving ? 'جارٍ الحفظ…' : 'حفظ المفاتيح الجديدة'"></button>
+          </div>
+        </div>
+
+        <!-- ═══ Tab: Features — توجيه الموديلات ═══ -->
+        <div x-show="aiCfg.tab==='features'" class="space-y-4">
+
+          <!-- وصف -->
+          <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 text-xs text-violet-800">
+            <p class="font-semibold mb-1">🎯 كل ميزة تعمل بالموديل الأنسب لها</p>
+            <p class="text-violet-600">غيِّر الموديل متى شئت — إذا لاحظت ضعفاً في جودة ميزة حوِّلها لموديل أقوى، وإذا كانت المهام بسيطة وفِّر بموديل أرخص.</p>
+          </div>
+
+          <!-- جدول الميزات -->
+          <template x-if="aiCfg.featureModels.loading">
+            <div class="text-center py-8 text-gray-400 text-sm">⏳ جارٍ تحميل الميزات…</div>
+          </template>
+
+          <template x-if="!aiCfg.featureModels.loading">
+            <div class="space-y-2">
+              <template x-for="f in aiCfg.featureModels.catalog" :key="f.id">
+                <div class="border border-gray-200 rounded-xl p-3 bg-white hover:border-violet-300 transition">
+                  <div class="flex items-start gap-3">
+
+                    <!-- أيقونة + اسم الميزة -->
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg" x-text="f.icon"></span>
+                        <span class="font-semibold text-sm text-gray-800" x-text="f.label"></span>
+                        <!-- بادج الموديل الافتراضي -->
+                        <span x-show="f.assignedModel === f.defaultModel"
+                              class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">افتراضي</span>
+                        <span x-show="f.assignedModel !== f.defaultModel"
+                              class="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium">مُخصَّص ✓</span>
+                      </div>
+
+                      <!-- إحصاء الشهر -->
+                      <div x-data="{ stat: featureUsageStat(f.id) }" class="flex items-center gap-3 text-[10px] text-gray-500 mb-2">
+                        <span x-show="stat.requests > 0">📊 <span x-text="stat.requests"></span> طلب</span>
+                        <span x-show="stat.costUSD > 0">💰 $<span x-text="stat.costUSD.toFixed(4)"></span></span>
+                        <span x-show="stat.satisfaction !== null">
+                          <span :class="stat.satisfaction >= 70 ? 'text-green-600' : stat.satisfaction >= 40 ? 'text-amber-600' : 'text-red-500'">
+                            ⭐ <span x-text="stat.satisfaction"></span>% رضا
+                            (<span x-text="stat.ratedCount"></span> تقييم)
+                          </span>
+                        </span>
+                        <span x-show="stat.requests === 0" class="text-gray-300 italic">لا استخدام هذا الشهر</span>
+                      </div>
+                    </div>
+
+                    <!-- اختيار الموديل -->
+                    <div class="flex-shrink-0 w-52">
+                      <select x-model="f.assignedModel"
+                              class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-violet-400 bg-white">
+                        <!-- الموديلات الحية (إذا جُلبت) -->
+                        <template x-if="(aiCfg.liveModels.anthropic||[]).length > 0">
+                          <template x-for="m in aiCfg.liveModels.anthropic" :key="m.id">
+                            <option :value="m.id" x-text="m.name || m.id"></option>
+                          </template>
+                        </template>
+                        <!-- fallback: الكتالوج الثابت -->
+                        <template x-if="!(aiCfg.liveModels.anthropic||[]).length">
+                          <template x-for="m in aiCfg.models.filter(m=>m.provider==='anthropic')" :key="m.model">
+                            <option :value="m.model" x-text="m.label"></option>
+                          </template>
+                        </template>
+                      </select>
+                      <!-- تلميح: الموديل الافتراضي -->
+                      <p class="text-[10px] text-gray-400 mt-1 text-right">
+                        افتراضي: <span class="font-mono" x-text="f.defaultModel.replace('claude-','').replace('-4-5','')"></span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- أزرار التحكم -->
+          <div class="flex items-center justify-between pt-3 border-t">
+            <button @click="loadFeatureModels()"
+                    :disabled="aiCfg.featureModels.loading"
+                    class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+              🔄 تحديث الإحصاء
+            </button>
+            <button @click="saveFeatureModels()" :disabled="aiCfg.featureModels.saving"
+                    class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                    x-text="aiCfg.featureModels.saving ? 'جارٍ الحفظ…' : 'حفظ التعيينات'"></button>
           </div>
         </div>
 
@@ -6963,8 +7071,8 @@
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
-<script src="/modules/ai-settings.js?v=2026-04-24a"></script>
-<script src="/modules/consultant.js?v=2026-04-24a"></script>
+<script src="/modules/ai-settings.js?v=2026-04-24b"></script>
+<script src="/modules/consultant.js?v=2026-04-24b"></script>
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>

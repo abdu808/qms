@@ -19,6 +19,8 @@ import {
   getUsageSummary, MODEL_CATALOG, DEFAULT_MODELS,
   computeCost,
 } from '../lib/ai/index.js';
+import { FEATURE_CATALOG, setFeatureModels } from '../lib/ai/settings.js';
+import { rateUsage, getUsageByFeature } from '../lib/ai/usage.js';
 import { maskKey, isMasked } from '../lib/ai/crypto.js';
 import { prisma } from '../db.js';
 
@@ -285,6 +287,49 @@ router.post('/complete', authorize(...USER_ROLES), asyncHandler(async (req, res)
       code: e.code,
     });
   }
+}));
+
+/**
+ * GET /api/ai-settings/feature-models — كتالوج الميزات + التعيينات الحالية
+ */
+router.get('/feature-models', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
+  const s = await getAiSettings();
+  const catalog = FEATURE_CATALOG.map(f => ({
+    ...f,
+    assignedModel: s.featureModels[f.id] || f.defaultModel,
+  }));
+  res.json({ ok: true, catalog, assignments: s.featureModels });
+}));
+
+/**
+ * PUT /api/ai-settings/feature-models — حفظ تعيينات الموديلات
+ * body: { consultant: "claude-haiku-4-5", file_processor: "claude-opus-4-5", ... }
+ */
+router.put('/feature-models', authorize(...ADMIN_ROLES), asyncHandler(async (req, res) => {
+  const assignments = req.body || {};
+  if (typeof assignments !== 'object') throw BadRequest('body يجب أن يكون كائناً');
+  await setFeatureModels(assignments);
+  res.json({ ok: true, message: 'تم حفظ تعيينات الموديلات' });
+}));
+
+/**
+ * POST /api/ai-settings/usage/:id/rate — تقييم رد AI
+ * body: { rating: 1 | -1, note?: string }
+ */
+router.post('/usage/:id/rate', authorize(...USER_ROLES), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { rating, note } = req.body || {};
+  if (![1, -1].includes(Number(rating))) throw BadRequest('rating يجب أن يكون 1 أو -1');
+  const ok = await rateUsage(id, Number(rating), note);
+  res.json({ ok, message: ok ? 'تم حفظ التقييم' : 'السجل غير موجود' });
+}));
+
+/**
+ * GET /api/ai-settings/usage/by-feature — تفاصيل الاستخدام حسب الميزة
+ */
+router.get('/usage/by-feature', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
+  const data = await getUsageByFeature(1); // آخر شهر
+  res.json({ ok: true, data });
 }));
 
 export default router;

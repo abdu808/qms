@@ -77,6 +77,8 @@ export async function runAgentLoop({
 
   const usageTotals = { inputTokens: 0, outputTokens: 0, costUSD: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
   const loopStart   = Date.now();
+  // تتبع آخر logId
+  let lastLogId = null;
 
   // fallback chain عند نفاد الحصة / 429 — يتخطى المزود المُعطَّل للباقي من الحلقة
   // ترتيب: Google (الأرخص) → Anthropic Haiku → OpenAI gpt-4o-mini
@@ -136,6 +138,8 @@ export async function runAgentLoop({
     usageTotals.cacheWriteTokens += result.cacheWriteTokens      || 0;
     // سجِّل المزود والموديل من أول استدعاء
     if (!usedProvider) { usedProvider = result.provider; usedModel = result.model; }
+    // تتبع آخر logId
+    if (result.logId) lastLogId = result.logId;
 
     if (result.content) finalReply = result.content;
 
@@ -267,6 +271,7 @@ export async function runAgentLoop({
     model:    usedModel,
     routingTier,
     mode,
+    lastLogId,
   };
 }
 

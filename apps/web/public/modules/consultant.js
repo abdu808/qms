@@ -182,6 +182,17 @@
 
     consultUseTemplate(tpl) { this.consult.input = tpl.prompt; },
 
+    /** تقييم رد المستشار — 1=إيجابي، -1=سلبي */
+    async rateConsultResponse(msg, rating) {
+      if (!msg.logId || msg.rating !== null) return;
+      msg.rating = rating; // تحديث فوري (optimistic)
+      try {
+        await this.api('POST', `/ai-settings/usage/${msg.logId}/rate`, { rating });
+      } catch {
+        msg.rating = null; // تراجع عند الفشل
+      }
+    },
+
     // ─── إرسال رسالة ──────────────────────────────────────────────────────
     async consultSend() {
       const text = (this.consult.input || '').trim();
@@ -278,6 +289,8 @@
           mode:              j.mode,
           applied:           false,
           applyResults:      null,
+          logId:             j.logId              || null,  // للتقييم
+          rating:            null,                          // null | 1 | -1
         });
 
         if (j.model) { this.consult.lastModel = j.model; this.consult.lastProvider = j.provider || ''; }

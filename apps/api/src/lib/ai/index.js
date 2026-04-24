@@ -22,7 +22,8 @@
  */
 import { getAiSettings } from './settings.js';
 import { computeCost } from './pricing.js';
-import { logUsage, assertBudget } from './usage.js';
+import { logUsage, assertBudget, rateUsage } from './usage.js';
+export { rateUsage } from './usage.js';
 import { redactMessages, redactPii } from './pii.js';
 import * as anthropicProvider from './providers/anthropic.js';
 
@@ -49,7 +50,9 @@ export async function aiComplete(params = {}) {
 
   // اختيار المزود والموديل
   const provider = params.provider || settings.defaultProvider;
-  const model    = params.model    || settings.defaultModel;
+  // feature model override: إذا لم يُحدَّد موديل صريح، استخدم تعيين الميزة
+  const featureModel = settings.featureModels?.[params.feature];
+  const model = params.model || featureModel || settings.defaultModel;
   const providerImpl = PROVIDERS[provider];
   if (!providerImpl) {
     throw new Error(`مزود AI غير مدعوم: ${provider}`);
@@ -128,7 +131,7 @@ export async function aiComplete(params = {}) {
   const costUSD      = computeCost(model, inputTokens, outputTokens);
 
   // تسجيل الاستخدام
-  await safeLog({
+  const logId = await safeLog({
     provider, model, feature: params.feature || 'unknown',
     inputTokens, outputTokens, costUSD, durationMs,
     userId: params.userId, success, errorMessage, piiRedacted,
@@ -146,6 +149,7 @@ export async function aiComplete(params = {}) {
     cacheWriteTokens: result.cacheWriteTokens || 0,
     provider, model, durationMs,
     piiRedacted,
+    logId,
   };
 }
 
@@ -159,8 +163,8 @@ function shouldApplyRedaction(globalMode, featureRequested) {
 
 /** تسجيل لا يكسر الـ flow */
 async function safeLog(data, enabled) {
-  if (!enabled) return;
-  try { await logUsage(data); } catch { /* silent */ }
+  if (!enabled) return null;
+  try { return await logUsage(data); } catch { return null; }
 }
 
 /**
@@ -174,6 +178,6 @@ export async function aiTestConnection({ provider, model, apiKey }) {
 
 // re-exports للراحة
 export { getAiSettings, setSetting, setApiKey, invalidateAiSettingsCache } from './settings.js';
-export { getMonthlyCost, getUsageSummary } from './usage.js';
+export { getMonthlyCost, getUsageSummary, getUsageByFeature } from './usage.js';
 export { MODEL_CATALOG, DEFAULT_MODELS, computeCost, estimateTokens } from './pricing.js';
 export { redactPii } from './pii.js';

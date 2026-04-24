@@ -58,6 +58,14 @@
       testResult: { anthropic: null, openai: null, google: null },
       error: '',
 
+      // Feature Models (توجيه الموديلات حسب الميزة)
+      featureModels: {
+        catalog:        [],   // [{id, label, icon, defaultModel, assignedModel}]
+        usageByFeature: [],   // [{feature, model, requests, costUSD, satisfaction}]
+        saving:  false,
+        loading: false,
+      },
+
       // Playground
       playground: {
         prompt: '',
@@ -78,7 +86,7 @@
       c.testResult = { anthropic: null, openai: null, google: null };
       c.newKeys = { anthropic: '', openai: '', google: '' };
       c.tab = 'general';
-      await Promise.all([this.loadAiSettings(), this.loadAiModels(), this.loadAiUsage()]);
+      await Promise.all([this.loadAiSettings(), this.loadAiModels(), this.loadAiUsage(), this.loadFeatureModels()]);
       // جلب الموديلات الحية بعد تحميل الإعدادات (لمعرفة من لديه مفاتيح)
       this.fetchAllLiveModels();
     },
@@ -285,6 +293,56 @@
       } finally {
         p.loading = false;
       }
+    },
+
+    // ── Feature Models ────────────────────────────────────────────────────────
+
+    /** يجلب كتالوج الميزات + التعيينات الحالية + إحصاء الاستخدام */
+    async loadFeatureModels() {
+      const c = this.aiCfg.featureModels;
+      c.loading = true;
+      try {
+        const [r, u] = await Promise.allSettled([
+          this.api('GET', '/ai-settings/feature-models'),
+          this.api('GET', '/ai-settings/usage/by-feature'),
+        ]);
+        if (r.status === 'fulfilled' && r.value.ok) {
+          c.catalog = r.value.catalog || [];
+        }
+        if (u.status === 'fulfilled' && u.value.ok) {
+          c.usageByFeature = u.value.data || [];
+        }
+      } catch { /* silent */ }
+      finally { c.loading = false; }
+    },
+
+    /** يحفظ التعيينات الجديدة */
+    async saveFeatureModels() {
+      const c = this.aiCfg.featureModels;
+      c.saving = true;
+      try {
+        const assignments = {};
+        for (const f of c.catalog) {
+          assignments[f.id] = f.assignedModel || f.defaultModel;
+        }
+        await this.api('PUT', '/ai-settings/feature-models', assignments);
+        this.toast?.('تم حفظ توجيه الموديلات ✓');
+      } catch (e) {
+        this.toast?.(e.message, 'error');
+      } finally {
+        c.saving = false;
+      }
+    },
+
+    /** إحصاء ميزة محددة من usageByFeature */
+    featureUsageStat(featureId) {
+      const rows = (this.aiCfg.featureModels.usageByFeature || []).filter(r => r.feature === featureId);
+      return rows.reduce((acc, r) => ({
+        requests: acc.requests + r.requests,
+        costUSD: acc.costUSD + r.costUSD,
+        ratedCount: acc.ratedCount + r.ratedCount,
+        satisfaction: r.satisfaction != null ? r.satisfaction : acc.satisfaction,
+      }), { requests: 0, costUSD: 0, ratedCount: 0, satisfaction: null });
     },
 
     // helpers

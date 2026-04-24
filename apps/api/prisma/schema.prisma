@@ -1589,6 +1589,8 @@ model AiUsageLog {
   errorMessage String?
   piiRedacted  Boolean  @default(false)
   metadata     String?  // JSON: { files: [], requestId: ... }
+  rating       Int?     // 1 = إيجابي، -1 = سلبي، null = لم يُقيَّم
+  ratingNote   String?  // تعليق اختياري
   createdAt    DateTime @default(now())
 
   @@index([createdAt])

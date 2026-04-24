@@ -318,6 +318,7 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
     provider:    result.provider || settings.defaultProvider,
     model:       result.model    || settings.defaultModel,
     routingTier: result.routingTier,
+    logId:       result.lastLogId || null,
     context: {
       gaps:    ctx.gaps.counts,
       summary: ctx.summary,
