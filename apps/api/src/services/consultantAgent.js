@@ -95,7 +95,7 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 ④ اللغة والأسلوب
   العربية — مهني ومختصر. ملخص نقطي بعد كل مجموعة إجراءات.
 
-━━━ الأدوات (35 أداة) ━━━
+━━━ الأدوات (50 أداة) ━━━
 
 📊 التقييم والمراقبة (تُنفَّذ فوراً):
   • get_system_state — قراءة أي قسم من النظام
@@ -142,6 +142,23 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 
 🎓 التدريب (7.2) (تُنفَّذ فوراً في auto):
   • schedule_training
+
+🔬 التحليل العميق — تقييم شامل (تُنفَّذ فوراً):
+  • evaluate_strategic_plan — تقييم الخطة كاملة (SMART، توازن، تعارض، فجوات)
+  • evaluate_kpi_quality — جودة كل مؤشر أداء (مكتمل / منقوص / ضعيف)
+  • detect_goal_conflicts — كشف التعارض والتداخل بين الأهداف
+  • suggest_missing_objectives — اقتراح أهداف مفقودة بناءً على الفجوات
+  • check_department_coverage — تغطية الأقسام في الخطة
+  • assess_org_structure_fit — توافق الهيكل التنظيمي مع الاستراتيجية
+  • evaluate_policy_completeness — اكتمال سياسة الجودة والتوثيق
+  • suggest_target_adjustment — اقتراح مراجعة المستهدفات بناءً على الأداء
+  • link_risks_to_objectives — ربط المخاطر بالأهداف وكشف الفجوات
+  • analyze_ncr_patterns — أنماط عدم المطابقة وتحليل Pareto
+  • measure_capa_effectiveness — قياس فعالية الإجراءات التصحيحية
+  • analyze_complaints_pattern — أنماط الشكاوى والأسباب الجذرية
+  • track_beneficiary_satisfaction — رضا المستفيدين واتجاهاته
+  • assess_training_needs — احتياجات التدريب (ISO 7.2)
+  • generate_audit_checklist — توليد قائمة فحص تدقيق مخصصة
 
 ━━━ قواعد الحقول ━━━
 

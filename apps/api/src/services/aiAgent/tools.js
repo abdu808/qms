@@ -61,6 +61,22 @@ export const READ_ONLY_TOOLS = new Set([
   'detect_distressed_departments',
   'list_investigation_flags',
   'read_progress_report',
+  // ── أدوات التحليل العميق (v3) ──────────────────────────────────────────
+  'evaluate_strategic_plan',
+  'analyze_complaints_pattern',
+  'evaluate_kpi_quality',
+  'detect_goal_conflicts',
+  'suggest_missing_objectives',
+  'generate_audit_checklist',
+  'assess_training_needs',
+  'check_department_coverage',
+  'evaluate_policy_completeness',
+  'suggest_target_adjustment',
+  'link_risks_to_objectives',
+  'analyze_ncr_patterns',
+  'measure_capa_effectiveness',
+  'assess_org_structure_fit',
+  'track_beneficiary_satisfaction',
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -838,6 +854,171 @@ status: PLANNED | IN_PROGRESS | COMPLETED`,
         dueDate:          { type: 'string', description: 'YYYY-MM-DD' },
       },
       required: ['complaintCode', 'source', 'channel', 'subject', 'description', 'severity'],
+    },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // أدوات التحليل العميق (v3) — جميعها قراءة فقط
+  // ══════════════════════════════════════════════════════════════════════════
+
+  {
+    name: 'evaluate_strategic_plan',
+    description: `تقييم شامل للخطة الاستراتيجية والتشغيلية.
+يفحص: هل الأهداف SMART؟ هل المحاور متوازنة؟ هل يوجد تعارض بين الأهداف؟
+هل الخطة التشغيلية تُترجم الأهداف الاستراتيجية؟ هل كل هدف له KPI وأنشطة؟
+يُنتج: درجة شاملة + قائمة فجوات مُرتَّبة بالأولوية + توصيات قابلة للتنفيذ.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'analyze_complaints_pattern',
+    description: `تحليل الشكاوى لاكتشاف الأنماط والأسباب الجذرية المتكررة.
+يكشف: أي مصادر الشكاوى الأعلى؟ أي الأقسام الأكثر ارتباطاً؟
+هل الشكاوى في تزايد أم تناقص؟ ما متوسط وقت الحل؟ من هي الشكاوى القديمة بدون حل؟`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        months: { type: 'number', description: 'عدد الأشهر للتحليل (افتراضي: 6)' },
+      },
+      required: [],
+    },
+  },
+
+  {
+    name: 'evaluate_kpi_quality',
+    description: `تقييم جودة مؤشرات الأداء لكل الأهداف التشغيلية.
+يفحص لكل هدف: هل له مستهدف رقمي؟ هل له وحدة قياس؟ هل له قيمة أساسية؟
+هل له مالك محدد؟ هل تم تحديث القيمة الفعلية مؤخراً؟
+يُصنِّف كل هدف: COMPLETE / PARTIAL / INCOMPLETE ويقترح الإصلاح.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'detect_goal_conflicts',
+    description: `كشف التعارض والتداخل بين الأهداف الاستراتيجية والتشغيلية.
+يبحث عن: أهداف تتنافس على نفس موارد قسم واحد، أهداف متشابهة المضمون يمكن دمجها،
+أهداف مُصنَّفة في محور خاطئ (BSC)، أهداف بدون إضافة قيمة واضحة.
+يقترح: دمج أو فصل أو نقل كل هدف.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'suggest_missing_objectives',
+    description: `اقتراح أهداف تشغيلية ومؤشرات مفقودة بناءً على تحليل الفجوات.
+يفحص: أي أهداف استراتيجية ليس لها أهداف تشغيلية مقابلة؟
+أي بنود ISO 9001 ليس لها هدف يغطيها؟ أي أقسام بدون أهداف؟
+يقترح: أهدافاً محددة لسد كل فجوة مكتشفة.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'generate_audit_checklist',
+    description: `توليد قائمة فحص تدقيق داخلي مخصصة.
+بناءً على: نتائج compute_iso_maturity (البنود ذات الدرجات المنخفضة تحظى بأولوية)
+والـ NCRs السابقة المرتبطة بنفس النطاق.
+يُنتج: قائمة أسئلة مُصنَّفة بالأولوية + الأدلة المطلوبة لكل سؤال.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        scope:     { type: 'string', description: 'نطاق التدقيق (مثال: إدارة الشكاوى، المشتريات)' },
+        isoClause: { type: 'string', description: 'بند ISO محدد (مثال: 8.4، 9.1.2) — اختياري' },
+        focusArea: { type: 'string', description: 'تركيز إضافي (مثال: قسم الخدمات)' },
+      },
+      required: [],
+    },
+  },
+
+  {
+    name: 'assess_training_needs',
+    description: `تحليل احتياجات التدريب بناءً على متطلبات ISO 7.2 وبيانات النظام.
+يفحص: أي الأقسام لم تتلقَّ تدريباً خلال 12 شهراً؟ أي NCRs مرتبطة بضعف كفاءة؟
+هل غطَّت برامج التدريب الكفاءات المطلوبة في الخطة؟
+يُنتج: مصفوفة احتياجات بالقسم والأولوية + توصيات برامج.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'check_department_coverage',
+    description: `فحص تغطية الأقسام في الخطة الاستراتيجية والتشغيلية.
+يجيب على: هل كل قسم له أهداف تشغيلية؟ هل كل قسم له أنشطة؟
+هل كل قسم له مدير/مسؤول محدد في النظام؟ هل كل قسم له تقارير شهرية؟
+يُصنِّف كل قسم: مغطَّى / منقوص / غائب.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'evaluate_policy_completeness',
+    description: `تقييم اكتمال سياسة الجودة والوثائق المطلوبة وفق ISO 9001.
+يفحص سياسة الجودة (ISO 5.2): هل تتضمن الالتزام بالتحسين المستمر؟ هل مُعتمَدة؟
+يفحص الوثائق المطلوبة: هل تغطي جميع العمليات الحرجة؟ هل محدَّثة؟
+يُنتج: درجة اكتمال + قائمة بنود مفقودة أو منتهية الصلاحية.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'suggest_target_adjustment',
+    description: `اقتراح مراجعة المستهدفات بناءً على الأداء الفعلي والاتجاه.
+يحلل كل هدف: ما نسبة التحقق الحالية؟ ما الاتجاه (تحسُّن/تراجع/ثبات)?
+هل المستهدف واقعي بناءً على القيمة الأساسية والأداء الراهن؟
+يقترح: رفع أو خفض المستهدف مع تبرير مبني على البيانات.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'link_risks_to_objectives',
+    description: `تحليل الربط بين المخاطر والأهداف الاستراتيجية/التشغيلية.
+يكشف: أي مخاطر عالية/حرجة ليست مربوطة بهدف؟
+أي أهداف ليس لها مخاطر مقيَّمة (تجاهل الخطر)؟
+يقترح: ربط كل مخاطرة بالهدف الأكثر تأثراً بها.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'analyze_ncr_patterns',
+    description: `تحليل عدم المطابقة (NCRs) لاكتشاف الأنماط والأسباب الجذرية المتكررة.
+يكشف: أي الأقسام الأعلى في NCRs؟ أي أنواع المشاكل تتكرر؟
+ما متوسط وقت الإغلاق؟ كم NCR بدون CAPA مرتبطة؟
+يُنتج: تصنيف pareto للمشاكل + توصيات وقائية.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        months: { type: 'number', description: 'عدد الأشهر للتحليل (افتراضي: 12)' },
+      },
+      required: [],
+    },
+  },
+
+  {
+    name: 'measure_capa_effectiveness',
+    description: `قياس فعالية الإجراءات التصحيحية والوقائية (CAPA).
+يحسب: نسبة CAPAs المغلقة بفعالية مؤكَّدة، نسبة التكرار (نفس المشكلة بعد CAPA)،
+CAPAs منتهية الأجل بدون إغلاق، CAPAs بدون تحقق من الفعالية.
+يُحذِّر من: مشاكل منهجية لم تُحسم رغم الإجراءات.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'assess_org_structure_fit',
+    description: `تقييم توافق الهيكل التنظيمي مع الخطة الاستراتيجية.
+يفحص: هل كل محور استراتيجي له قسم/وحدة مسؤولة؟
+هل توزيع الأهداف على الأقسام منطقي أم مُركَّز في قسم واحد؟
+هل يوجد أهداف "يتيمة" لا ينتمي لأي قسم؟
+يُنتج: مصفوفة توافق الأهداف مع الأقسام + فجوات الهيكل.`,
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+
+  {
+    name: 'track_beneficiary_satisfaction',
+    description: `تتبع ومراجعة رضا المستفيدين من خلال بيانات الشكاوى والتقييمات.
+يحلل: متوسط تقييم الرضا من الشكاوى المحلولة، اتجاه الرضا خلال الأشهر الماضية،
+شكاوى المستفيدين غير المحلولة، مقارنة الرضا بين الأقسام.
+مرتبط بـ ISO 9001 بند 9.1.2 (رضا العملاء).`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        months: { type: 'number', description: 'عدد الأشهر (افتراضي: 6)' },
+      },
+      required: [],
     },
   },
 ];
@@ -1881,6 +2062,674 @@ export async function executeTool(name, input, actingUserId) {
         summary: created.length === 0
           ? `✅ لا تناقضات بين الأقسام هذا الشهر`
           : `🚩 ${created.length} تناقض مكتشَف — تمّ توثيقه في علامات التحقيق`,
+      };
+    }
+
+    // ══ أدوات التحليل العميق (v3) ═════════════════════════════════════════════
+
+    case 'evaluate_strategic_plan': {
+      const now = new Date();
+      const [goals, objectives, activities, risks] = await Promise.all([
+        prisma.strategicGoal.findMany({
+          where: { deletedAt: null },
+          include: { activities: { where: { deletedAt: null } } },
+          orderBy: { code: 'asc' },
+        }),
+        prisma.objective.findMany({
+          where: { deletedAt: null },
+          include: { owner: { select: { id: true, name: true } }, kpiEntries: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        }),
+        prisma.operationalActivity.findMany({ where: { deletedAt: null } }),
+        prisma.risk.findMany({ where: { status: { not: 'CLOSED' } }, select: { level: true, status: true } }),
+      ]);
+
+      const issues = [];
+      const strengths = [];
+
+      // ── تحليل الأهداف الاستراتيجية ────────────────────────────────────
+      const axisMap = {};
+      for (const g of goals) {
+        const axis = g.perspective || 'غير محدد';
+        axisMap[axis] = (axisMap[axis] || 0) + 1;
+
+        if (!g.activities || g.activities.length === 0)
+          issues.push({ priority: 'HIGH', area: 'خطة تشغيلية', item: g.code, msg: `${g.code} "${g.title}" — لا يوجد أنشطة تشغيلية مرتبطة` });
+        if (!g.responsible && !g.responsibleId)
+          issues.push({ priority: 'MEDIUM', area: 'مسؤولية', item: g.code, msg: `${g.code} — لا يوجد مسؤول محدد` });
+        if (!g.kpi)
+          issues.push({ priority: 'MEDIUM', area: 'KPI', item: g.code, msg: `${g.code} — لا يوجد مؤشر أداء` });
+        if (g.status === 'ACTIVE' && g.endYear && g.endYear < now.getFullYear())
+          issues.push({ priority: 'HIGH', area: 'توقيت', item: g.code, msg: `${g.code} — انتهت سنته (${g.endYear}) ولا يزال نشطاً` });
+      }
+
+      // ── توازن المحاور (BSC) ────────────────────────────────────────────
+      const bscAxes = ['المستفيد', 'المالي', 'العمليات الداخلية', 'التعلم والنمو'];
+      for (const ax of bscAxes) {
+        const count = Object.entries(axisMap).find(([k]) => k.includes(ax.split(' ')[0]))?.[1] || 0;
+        if (count === 0)
+          issues.push({ priority: 'HIGH', area: 'توازن BSC', item: ax, msg: `محور "${ax}" لا يحتوي على أهداف استراتيجية` });
+        else if (count === 1)
+          issues.push({ priority: 'LOW', area: 'توازن BSC', item: ax, msg: `محور "${ax}" يحتوي على هدف واحد فقط — ضعيف التغطية` });
+      }
+      if (goals.length > 0 && Object.keys(axisMap).length >= 3)
+        strengths.push(`الخطة تغطي ${Object.keys(axisMap).length} محاور استراتيجية`);
+
+      // ── تحليل الأهداف التشغيلية (SMART) ──────────────────────────────
+      let smartComplete = 0, smartPartial = 0, smartIncomplete = 0;
+      for (const o of objectives) {
+        const hasTarget   = o.target != null && o.target > 0;
+        const hasUnit     = !!o.unit;
+        const hasBaseline = o.baseline != null;
+        const hasDueDate  = !!o.dueDate;
+        const hasOwner    = !!o.ownerId;
+        const hasRecent   = o.kpiEntries?.length > 0;
+        const score = [hasTarget, hasUnit, hasBaseline, hasDueDate, hasOwner].filter(Boolean).length;
+
+        if (score === 5) smartComplete++;
+        else if (score >= 3) {
+          smartPartial++;
+          const missing = [];
+          if (!hasTarget)   missing.push('مستهدف');
+          if (!hasUnit)     missing.push('وحدة قياس');
+          if (!hasBaseline) missing.push('قيمة أساسية');
+          if (!hasDueDate)  missing.push('تاريخ انتهاء');
+          if (!hasOwner)    missing.push('مالك');
+          issues.push({ priority: 'MEDIUM', area: 'SMART', item: o.code, msg: `${o.code} "${o.title}" — ناقص: ${missing.join('، ')}` });
+        } else {
+          smartIncomplete++;
+          issues.push({ priority: 'HIGH', area: 'SMART', item: o.code, msg: `${o.code} "${o.title}" — غير مكتمل (${score}/5 معايير SMART)` });
+        }
+        if (!hasRecent && o.status !== 'ACHIEVED' && o.status !== 'CANCELLED')
+          issues.push({ priority: 'LOW', area: 'KPI', item: o.code, msg: `${o.code} — لا توجد قيمة KPI مسجَّلة` });
+      }
+
+      // ── حساب الدرجة الكلية ────────────────────────────────────────────
+      let score = 100;
+      const criticalIssues = issues.filter(i => i.priority === 'HIGH').length;
+      const mediumIssues   = issues.filter(i => i.priority === 'MEDIUM').length;
+      score -= Math.min(criticalIssues * 8, 40);
+      score -= Math.min(mediumIssues   * 4, 20);
+      score -= Math.min(issues.filter(i => i.priority === 'LOW').length * 2, 10);
+      score = Math.max(0, score);
+
+      issues.sort((a, b) => ({ HIGH: 0, MEDIUM: 1, LOW: 2 }[a.priority] - { HIGH: 0, MEDIUM: 1, LOW: 2 }[b.priority]));
+
+      return {
+        ok: true,
+        data: {
+          score,
+          label: score >= 80 ? '🟢 جيد' : score >= 60 ? '🟡 مقبول' : score >= 40 ? '🟠 ضعيف' : '🔴 حرج',
+          goals: { total: goals.length, byAxis: axisMap },
+          objectives: { total: objectives.length, smartComplete, smartPartial, smartIncomplete },
+          activities: activities.length,
+          issues: issues.slice(0, 30),
+          strengths,
+        },
+        summary: `📋 تقييم الخطة: ${score}/100 — ${criticalIssues} مشكلة حرجة، ${mediumIssues} متوسطة — ${objectives.length} هدف تشغيلي (${smartComplete} مكتمل SMART)`,
+      };
+    }
+
+    case 'analyze_complaints_pattern': {
+      const months = input.months || 6;
+      const since  = new Date(Date.now() - months * 30 * 86400000);
+      const complaints = await prisma.complaint.findMany({
+        where: { createdAt: { gte: since } },
+        select: { source: true, severity: true, status: true, createdAt: true, updatedAt: true, satisfactionRating: true, relatedNcrId: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const total = complaints.length;
+      const bySource   = {}, bySeverity = {}, byStatus = {};
+      let totalRating = 0, ratingCount = 0, unresolvedOld = 0;
+      const weekAgo = new Date(Date.now() - 7 * 86400000);
+
+      for (const c of complaints) {
+        bySource[c.source]     = (bySource[c.source]     || 0) + 1;
+        bySeverity[c.severity] = (bySeverity[c.severity] || 0) + 1;
+        byStatus[c.status]     = (byStatus[c.status]     || 0) + 1;
+        if (c.satisfactionRating) { totalRating += c.satisfactionRating; ratingCount++; }
+        if (!['CLOSED','RESOLVED','REJECTED'].includes(c.status) && c.updatedAt < weekAgo) unresolvedOld++;
+      }
+
+      const avgRating  = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : null;
+      const topSource  = Object.entries(bySource).sort((a, b) => b[1] - a[1])[0];
+      const highSeverity = bySeverity['مرتفعة'] || 0;
+      const noNcr      = complaints.filter(c => c.severity === 'مرتفعة' && !c.relatedNcrId).length;
+
+      const patterns = [];
+      if (topSource)       patterns.push(`المصدر الأعلى: ${topSource[0]} (${topSource[1]} شكوى)`);
+      if (highSeverity > 0) patterns.push(`${highSeverity} شكوى مرتفعة الخطورة في الفترة`);
+      if (noNcr > 0)       patterns.push(`${noNcr} شكوى مرتفعة بدون NCR مرتبط`);
+      if (unresolvedOld > 0) patterns.push(`${unresolvedOld} شكوى مفتوحة بدون تحديث > 7 أيام`);
+      if (avgRating && avgRating < 3) patterns.push(`متوسط رضا المشتكين المنخفض: ${avgRating}/5`);
+
+      return {
+        ok: true,
+        data: { total, months, bySource, bySeverity, byStatus, avgSatisfaction: avgRating, unresolvedOld, noNcr, patterns },
+        summary: `📊 ${total} شكوى في ${months} أشهر — ${highSeverity} مرتفعة — ${unresolvedOld} قديمة بدون متابعة — رضا: ${avgRating || 'لا بيانات'}/5`,
+      };
+    }
+
+    case 'evaluate_kpi_quality': {
+      const objectives = await prisma.objective.findMany({
+        where: { deletedAt: null, status: { notIn: ['CANCELLED'] } },
+        include: {
+          owner: { select: { name: true } },
+          kpiEntries: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+        orderBy: { code: 'asc' },
+      });
+
+      const monthAgo = new Date(Date.now() - 30 * 86400000);
+      const results  = [];
+      let complete = 0, partial = 0, incomplete = 0;
+
+      for (const o of objectives) {
+        const checks = {
+          hasTarget:   o.target != null && o.target > 0,
+          hasUnit:     !!o.unit?.trim(),
+          hasBaseline: o.baseline != null,
+          hasDueDate:  !!o.dueDate,
+          hasOwner:    !!o.ownerId,
+          hasRecentKpi: o.kpiEntries?.[0]?.createdAt > monthAgo,
+        };
+        const passCount = Object.values(checks).filter(Boolean).length;
+        const pct = Math.round(passCount / 6 * 100);
+        const status = pct === 100 ? 'COMPLETE' : pct >= 67 ? 'PARTIAL' : 'INCOMPLETE';
+
+        if (status === 'COMPLETE') complete++;
+        else if (status === 'PARTIAL') partial++;
+        else incomplete++;
+
+        const missing = Object.entries(checks).filter(([, v]) => !v).map(([k]) => ({
+          hasTarget: 'مستهدف رقمي', hasUnit: 'وحدة قياس', hasBaseline: 'قيمة أساسية',
+          hasDueDate: 'تاريخ انتهاء', hasOwner: 'مالك', hasRecentKpi: 'KPI محدَّث (30 يوم)',
+        }[k]));
+
+        results.push({ code: o.code, title: o.title, status, score: pct, missing, owner: o.owner?.name });
+      }
+
+      results.sort((a, b) => a.score - b.score);
+      return {
+        ok: true,
+        data: { total: objectives.length, complete, partial, incomplete, objectives: results },
+        summary: `📈 جودة KPI: ${complete} مكتمل ✅ / ${partial} منقوص ⚠️ / ${incomplete} ضعيف ❌ من ${objectives.length} هدف`,
+      };
+    }
+
+    case 'detect_goal_conflicts': {
+      const goals = await prisma.strategicGoal.findMany({
+        where: { deletedAt: null },
+        include: { activities: { where: { deletedAt: null }, select: { department: true, budget: true } } },
+      });
+      const objectives = await prisma.objective.findMany({
+        where: { deletedAt: null },
+        include: { department: { select: { name: true } } },
+      });
+
+      const conflicts = [];
+
+      // كشف تمركز الأنشطة في قسم واحد عبر أهداف متعددة
+      const deptGoalMap = {};
+      for (const g of goals) {
+        for (const a of g.activities) {
+          if (!a.department) continue;
+          if (!deptGoalMap[a.department]) deptGoalMap[a.department] = new Set();
+          deptGoalMap[a.department].add(g.code);
+        }
+      }
+      for (const [dept, goalSet] of Object.entries(deptGoalMap)) {
+        if (goalSet.size >= 3)
+          conflicts.push({ type: 'RESOURCE_OVERLOAD', priority: 'HIGH', dept, goalCodes: [...goalSet], msg: `قسم "${dept}" مُحمَّل بـ ${goalSet.size} أهداف استراتيجية — خطر تشتت الموارد` });
+      }
+
+      // أهداف تشغيلية مكررة المحتوى (عنوان متشابه جداً)
+      for (let i = 0; i < objectives.length; i++) {
+        for (let j = i + 1; j < objectives.length; j++) {
+          const w1 = new Set(objectives[i].title.split(/\s+/).filter(w => w.length > 3));
+          const w2 = new Set(objectives[j].title.split(/\s+/).filter(w => w.length > 3));
+          const common = [...w1].filter(w => w2.has(w)).length;
+          const similarity = common / Math.max(w1.size, w2.size, 1);
+          if (similarity > 0.6)
+            conflicts.push({ type: 'DUPLICATE', priority: 'MEDIUM', items: [objectives[i].code, objectives[j].code], msg: `${objectives[i].code} و${objectives[j].code} متشابهان جداً — راجع إمكانية الدمج` });
+        }
+      }
+
+      // أهداف في نفس القسم ونفس KPI
+      const kpiDeptMap = {};
+      for (const o of objectives) {
+        if (!o.kpi || !o.departmentId) continue;
+        const key = `${o.kpi}|${o.departmentId}`;
+        if (kpiDeptMap[key]) conflicts.push({ type: 'DUPLICATE_KPI', priority: 'MEDIUM', items: [kpiDeptMap[key], o.code], msg: `${kpiDeptMap[key]} و${o.code} لهما نفس مؤشر KPI في نفس القسم` });
+        else kpiDeptMap[key] = o.code;
+      }
+
+      conflicts.sort((a, b) => ({ HIGH: 0, MEDIUM: 1, LOW: 2 }[a.priority] - { HIGH: 0, MEDIUM: 1, LOW: 2 }[b.priority]));
+      return {
+        ok: true,
+        data: { total: conflicts.length, conflicts },
+        summary: conflicts.length === 0
+          ? '✅ لا تعارض مكتشَف بين الأهداف'
+          : `⚠️ ${conflicts.length} تعارض/تداخل — ${conflicts.filter(c=>c.priority==='HIGH').length} حرج`,
+      };
+    }
+
+    case 'suggest_missing_objectives': {
+      const [goals, objectives, departments] = await Promise.all([
+        prisma.strategicGoal.findMany({ where: { deletedAt: null }, include: { activities: { where: { deletedAt: null } } } }),
+        prisma.objective.findMany({ where: { deletedAt: null }, select: { strategicGoalId: true, departmentId: true } }),
+        prisma.department.findMany({ select: { id: true, name: true } }),
+      ]);
+
+      const suggestions = [];
+      const objByGoal = {};
+      const objByDept = new Set();
+      for (const o of objectives) {
+        if (o.strategicGoalId) objByGoal[o.strategicGoalId] = (objByGoal[o.strategicGoalId] || 0) + 1;
+        if (o.departmentId) objByDept.add(o.departmentId);
+      }
+
+      // أهداف استراتيجية بدون أهداف تشغيلية
+      for (const g of goals) {
+        if (!objByGoal[g.id] || objByGoal[g.id] === 0)
+          suggestions.push({ priority: 'HIGH', area: 'ترجمة الاستراتيجية', goal: g.code, msg: `${g.code} "${g.title}" — لا يوجد هدف تشغيلي يترجمه. اقتراح: أنشئ هدفاً تشغيلياً بمؤشر قابل للقياس.` });
+        else if (objByGoal[g.id] === 1)
+          suggestions.push({ priority: 'LOW', area: 'عمق الترجمة', goal: g.code, msg: `${g.code} — هدف تشغيلي واحد فقط قد لا يكفي لتحقيق الهدف الاستراتيجي.` });
+      }
+
+      // أقسام بدون أهداف تشغيلية
+      for (const d of departments) {
+        if (!objByDept.has(d.id))
+          suggestions.push({ priority: 'MEDIUM', area: 'تغطية الأقسام', dept: d.name, msg: `قسم "${d.name}" — لا يوجد هدف تشغيلي. اقتراح: حدد مؤشراً رئيسياً للقسم.` });
+      }
+
+      // ISO 9001 بنود جوهرية بدون تغطية
+      const isoGaps = [
+        { clause: '6.1', topic: 'المخاطر والفرص', check: () => prisma.risk.count({ where: { status: { not: 'CLOSED' } } }) },
+        { clause: '9.1.2', topic: 'رضا المستفيدين', check: () => prisma.complaint.count() },
+        { clause: '9.2', topic: 'التدقيق الداخلي', check: () => prisma.audit.count({ where: { type: 'INTERNAL' } }) },
+      ];
+      for (const iso of isoGaps) {
+        const count = await iso.check();
+        if (count === 0)
+          suggestions.push({ priority: 'HIGH', area: `ISO ${iso.clause}`, msg: `لا يوجد أي بيانات لـ "${iso.topic}" (ISO ${iso.clause}) — اقتراح: أنشئ هدفاً يغطي هذا البند.` });
+      }
+
+      suggestions.sort((a, b) => ({ HIGH: 0, MEDIUM: 1, LOW: 2 }[a.priority] - { HIGH: 0, MEDIUM: 1, LOW: 2 }[b.priority]));
+      return {
+        ok: true,
+        data: { total: suggestions.length, suggestions },
+        summary: `💡 ${suggestions.length} فجوة مقترحة — ${suggestions.filter(s=>s.priority==='HIGH').length} عالية الأولوية`,
+      };
+    }
+
+    case 'generate_audit_checklist': {
+      const { scope = 'عام', isoClause, focusArea } = input;
+
+      // اجلب NCRs الحديثة للتركيز على نقاط الضعف المعروفة
+      const recentNcrs = await prisma.nCR.findMany({
+        where: { status: { not: 'CLOSED' } },
+        select: { title: true, description: true, rootCause: true, severity: true },
+        orderBy: { dueDate: 'asc' }, take: 10,
+      });
+
+      // مكتبة أسئلة التدقيق حسب البند
+      const checklistLibrary = {
+        '4.1': ['هل تم تحديد القضايا الداخلية والخارجية المؤثرة على المنظمة؟', 'هل يتم مراجعة هذه القضايا دورياً؟'],
+        '5.2': ['هل سياسة الجودة مُعتمَدة من الإدارة العليا؟', 'هل السياسة مُبلَّغة لجميع الموظفين؟', 'هل تتضمن الالتزام بالتحسين المستمر؟'],
+        '6.1': ['هل تم تحديد وتقييم المخاطر والفرص؟', 'هل تم تنفيذ إجراءات معالجة المخاطر؟', 'هل يتم مراجعة فعالية إجراءات المعالجة؟'],
+        '6.2': ['هل الأهداف قابلة للقياس؟', 'هل تم تحديد من سيحقق الأهداف وبأي موارد؟', 'هل يتم متابعة تقدم الأهداف؟'],
+        '7.2': ['هل تم تحديد الكفاءات المطلوبة لكل دور؟', 'هل تم تنفيذ برامج التدريب المخططة؟', 'هل تم قياس فعالية التدريب؟'],
+        '8.4': ['هل تم تقييم الموردين الخارجيين؟', 'هل يتم مراقبة أداء الموردين؟'],
+        '9.1.2': ['هل يتم قياس رضا المستفيدين؟', 'هل يتم تحليل نتائج رضا المستفيدين؟', 'هل تم اتخاذ إجراءات بناءً على التغذية الراجعة؟'],
+        '9.2': ['هل يتم تنفيذ برنامج التدقيق الداخلي؟', 'هل يتم اتخاذ إجراءات تصحيحية لنتائج التدقيق؟'],
+        '10.2': ['هل يتم توثيق عدم المطابقة؟', 'هل يتم تحليل الأسباب الجذرية؟', 'هل يتم التحقق من فعالية الإجراءات التصحيحية؟'],
+        'عام': [
+          'هل السجلات والوثائق محفوظة وسهلة الاسترجاع؟',
+          'هل يتم الإبلاغ عن عدم المطابقة في الوقت المناسب؟',
+          'هل الموظفون على دراية بمتطلبات الجودة ذات الصلة بعملهم؟',
+          'هل تم تحقيق الأهداف المخططة للفترة الماضية؟',
+          'هل الموارد كافية لتنفيذ متطلبات الجودة؟',
+        ],
+      };
+
+      const targetClauses = isoClause ? [isoClause] : Object.keys(checklistLibrary);
+      const checklist = [];
+      for (const clause of targetClauses) {
+        const questions = checklistLibrary[clause] || [];
+        for (const q of questions)
+          checklist.push({ clause, question: q, evidence: `سجلات ووثائق مرتبطة بـ ${clause}`, status: 'PENDING' });
+      }
+
+      // أضف أسئلة مبنية على NCRs الحديثة
+      for (const ncr of recentNcrs.slice(0, 5))
+        checklist.push({ clause: 'NCR-متابعة', question: `هل تم معالجة "${ncr.title}"؟ (NCR مفتوح)`, evidence: 'سجل CAPA المرتبط', status: 'PENDING', priority: 'HIGH' });
+
+      return {
+        ok: true,
+        data: { scope, focusArea, totalQuestions: checklist.length, checklist, basedOnNcrs: recentNcrs.length },
+        summary: `📋 قائمة فحص تدقيق "${scope}": ${checklist.length} سؤال — ${recentNcrs.length} سؤال إضافي من NCRs المفتوحة`,
+      };
+    }
+
+    case 'assess_training_needs': {
+      const yearAgo = new Date(Date.now() - 365 * 86400000);
+      const [departments, trainings, ncrs] = await Promise.all([
+        prisma.department.findMany({ select: { id: true, name: true } }),
+        prisma.training.findMany({ where: { date: { gte: yearAgo } }, select: { category: true, description: true, date: true } }),
+        prisma.nCR.findMany({
+          where: { rootCause: { contains: 'كفاءة' } },
+          select: { title: true, rootCause: true, departmentId: true },
+          take: 20,
+        }),
+      ]);
+
+      const needs = [];
+      const coveredCategories = new Set(trainings.map(t => t.category).filter(Boolean));
+      const isoCategories = ['جودة', 'سلامة', 'خدمة', 'قيادية', 'تقنية'];
+
+      for (const cat of isoCategories) {
+        if (!coveredCategories.has(cat))
+          needs.push({ priority: 'HIGH', area: cat, msg: `لا يوجد تدريب في "${cat}" خلال آخر 12 شهراً` });
+      }
+
+      if (trainings.length === 0)
+        needs.push({ priority: 'CRITICAL', area: 'عام', msg: 'لم يُنفَّذ أي تدريب خلال العام الماضي — مخالفة ISO 7.2' });
+      else if (trainings.length < 3)
+        needs.push({ priority: 'HIGH', area: 'عام', msg: `${trainings.length} تدريب فقط في العام — غير كافٍ لمنظمة متعددة الأقسام` });
+
+      for (const ncr of ncrs)
+        needs.push({ priority: 'HIGH', area: 'جودة', msg: `NCR "${ncr.title}" — سبب جذري: ضعف كفاءة. يُوصى بتدريب مستهدف` });
+
+      return {
+        ok: true,
+        data: { trainingsLastYear: trainings.length, coveredCategories: [...coveredCategories], needs, departments: departments.length },
+        summary: `🎓 ${trainings.length} تدريب في آخر 12 شهراً — ${needs.filter(n=>['HIGH','CRITICAL'].includes(n.priority)).length} احتياج عاجل`,
+      };
+    }
+
+    case 'check_department_coverage': {
+      const [departments, objectives, activities] = await Promise.all([
+        prisma.department.findMany({ select: { id: true, name: true, code: true } }),
+        prisma.objective.findMany({ where: { deletedAt: null }, select: { departmentId: true } }),
+        prisma.operationalActivity.findMany({ where: { deletedAt: null }, select: { department: true } }),
+      ]);
+
+      const deptHasObj  = new Set(objectives.map(o => o.departmentId).filter(Boolean));
+      const deptHasAct  = new Set(activities.map(a => a.department).filter(Boolean));
+
+      const coverage = departments.map(d => {
+        const hasObjectives  = deptHasObj.has(d.id);
+        const hasActivities  = deptHasAct.has(d.name);
+        const status = (hasObjectives && hasActivities) ? 'COVERED' : hasObjectives || hasActivities ? 'PARTIAL' : 'MISSING';
+        return { id: d.id, name: d.name, code: d.code, hasObjectives, hasActivities, status };
+      });
+
+      const missing  = coverage.filter(d => d.status === 'MISSING');
+      const partial  = coverage.filter(d => d.status === 'PARTIAL');
+      const covered  = coverage.filter(d => d.status === 'COVERED');
+
+      return {
+        ok: true,
+        data: { total: departments.length, covered: covered.length, partial: partial.length, missing: missing.length, coverage },
+        summary: `🏢 تغطية الأقسام: ${covered.length} مغطى ✅ / ${partial.length} منقوص ⚠️ / ${missing.length} غائب ❌ من ${departments.length} قسم`,
+      };
+    }
+
+    case 'evaluate_policy_completeness': {
+      const [policies, documents] = await Promise.all([
+        prisma.qualityPolicy.findMany({ orderBy: { createdAt: 'desc' }, take: 5 }),
+        prisma.document.findMany({ select: { title: true, status: true, category: true, updatedAt: true } }),
+      ]);
+
+      const activePolicy = policies.find(p => p.status === 'ACTIVE') || policies[0];
+      const issues = [];
+      const checks = [];
+
+      if (!activePolicy) {
+        issues.push({ priority: 'CRITICAL', msg: 'لا توجد سياسة جودة مُعتمَدة في النظام — مخالفة ISO 5.2' });
+      } else {
+        const text = (activePolicy.content || '') + (activePolicy.objectives || '');
+        const requiredKeywords = [
+          { keyword: 'تحسين', label: 'الالتزام بالتحسين المستمر (ISO 5.2.1)' },
+          { keyword: 'متطلبات', label: 'الالتزام بالمتطلبات' },
+          { keyword: 'هدف', label: 'إطار لأهداف الجودة' },
+        ];
+        for (const { keyword, label } of requiredKeywords) {
+          const found = text.includes(keyword);
+          checks.push({ element: label, found });
+          if (!found) issues.push({ priority: 'HIGH', msg: `السياسة لا تتضمن صراحةً: ${label}` });
+        }
+        if (!activePolicy.approvedAt && !activePolicy.approvedById)
+          issues.push({ priority: 'HIGH', msg: 'السياسة غير مُعتمَدة رسمياً (لا يوجد توقيع/اعتماد)' });
+      }
+
+      // فحص الوثائق
+      const staleDoc = documents.filter(d => d.status === 'ACTIVE' && d.updatedAt < new Date(Date.now() - 365 * 86400000));
+      if (staleDoc.length > 0)
+        issues.push({ priority: 'MEDIUM', msg: `${staleDoc.length} وثيقة نشطة لم تُحدَّث منذ أكثر من سنة` });
+
+      const score = Math.max(0, 100 - issues.reduce((s, i) => s + ({ CRITICAL: 40, HIGH: 15, MEDIUM: 8 }[i.priority] || 5), 0));
+
+      return {
+        ok: true,
+        data: { hasActivePolicy: !!activePolicy, policyChecks: checks, documents: documents.length, staleDocuments: staleDoc.length, issues, score },
+        summary: `📄 اكتمال السياسة: ${score}/100 — ${!!activePolicy ? 'سياسة موجودة' : '❌ لا سياسة'} — ${staleDoc.length} وثيقة منتهية`,
+      };
+    }
+
+    case 'suggest_target_adjustment': {
+      const objectives = await prisma.objective.findMany({
+        where: { deletedAt: null, status: { notIn: ['ACHIEVED', 'CANCELLED'] }, target: { gt: 0 } },
+        include: { kpiEntries: { orderBy: { year: 'asc', month: 'asc' } } },
+      });
+
+      const suggestions = [];
+      for (const o of objectives) {
+        if (!o.kpiEntries?.length) continue;
+        const current = o.currentValue || 0;
+        const target  = o.target;
+        const pct     = Math.round(current / target * 100);
+        const entries = o.kpiEntries;
+
+        // حساب الاتجاه من آخر 3 قيم
+        let trend = 'STABLE';
+        if (entries.length >= 2) {
+          const last = entries[entries.length - 1]?.value || 0;
+          const prev = entries[entries.length - 2]?.value || 0;
+          trend = last > prev ? 'IMPROVING' : last < prev ? 'DECLINING' : 'STABLE';
+        }
+
+        const dueDate = o.dueDate ? new Date(o.dueDate) : null;
+        const monthsLeft = dueDate ? Math.max(0, Math.floor((dueDate - new Date()) / (30 * 86400000))) : null;
+
+        if (pct < 30 && trend === 'DECLINING' && monthsLeft !== null && monthsLeft < 3)
+          suggestions.push({ priority: 'HIGH', code: o.code, title: o.title, current, target, pct, trend, monthsLeft, suggestion: `النسبة ${pct}% متراجعة ومتبقي ${monthsLeft} أشهر — اقتراح: مراجعة المستهدف أو تسريع الجهود` });
+        else if (pct >= 110)
+          suggestions.push({ priority: 'LOW', code: o.code, title: o.title, current, target, pct, trend, suggestion: `تجاوز المستهدف بـ${pct - 100}% — اقتراح: رفع المستهدف للسنة القادمة` });
+        else if (pct < 50 && trend === 'DECLINING')
+          suggestions.push({ priority: 'MEDIUM', code: o.code, title: o.title, current, target, pct, trend, suggestion: `أداء ضعيف ومتراجع — اقتراح: مراجعة الأسباب وتعديل الخطة` });
+      }
+
+      suggestions.sort((a, b) => ({ HIGH: 0, MEDIUM: 1, LOW: 2 }[a.priority] - { HIGH: 0, MEDIUM: 1, LOW: 2 }[b.priority]));
+      return {
+        ok: true,
+        data: { total: suggestions.length, suggestions },
+        summary: suggestions.length === 0
+          ? '✅ المستهدفات الحالية تبدو واقعية'
+          : `📊 ${suggestions.length} مستهدف يحتاج مراجعة — ${suggestions.filter(s=>s.priority==='HIGH').length} عاجل`,
+      };
+    }
+
+    case 'link_risks_to_objectives': {
+      const [risks, objectives] = await Promise.all([
+        prisma.risk.findMany({
+          where: { status: { not: 'CLOSED' } },
+          select: { id: true, code: true, title: true, level: true, strategicGoalId: true },
+        }),
+        prisma.objective.findMany({
+          where: { deletedAt: null },
+          select: { id: true, code: true, title: true, strategicGoalId: true },
+        }),
+      ]);
+
+      const unlinkedRisks    = risks.filter(r => !r.strategicGoalId);
+      const highUnlinked     = unlinkedRisks.filter(r => ['مرتفع', 'حرج'].includes(r.level));
+      const objWithNoRisk    = [];
+
+      // أهداف بدون مخاطر مرتبطة
+      for (const o of objectives) {
+        const linkedRisk = risks.find(r => r.strategicGoalId === o.strategicGoalId);
+        if (!linkedRisk && o.strategicGoalId)
+          objWithNoRisk.push({ code: o.code, title: o.title });
+      }
+
+      return {
+        ok: true,
+        data: {
+          totalRisks: risks.length, unlinkedRisks: unlinkedRisks.length,
+          highUnlinked: highUnlinked.length, highUnlinkedItems: highUnlinked,
+          objectivesWithNoRisk: objWithNoRisk.length, objWithNoRisk: objWithNoRisk.slice(0, 10),
+        },
+        summary: `🔗 ${highUnlinked.length} مخاطرة عالية/حرجة غير مربوطة بهدف — ${objWithNoRisk.length} هدف بدون مخاطر مقيَّمة`,
+      };
+    }
+
+    case 'analyze_ncr_patterns': {
+      const months  = input.months || 12;
+      const since   = new Date(Date.now() - months * 30 * 86400000);
+      const ncrs    = await prisma.nCR.findMany({
+        where: { createdAt: { gte: since } },
+        select: { code: true, severity: true, status: true, department: true, departmentId: true, rootCause: true, createdAt: true, updatedAt: true, capas: { select: { id: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const total = ncrs.length;
+      const byDept = {}, bySeverity = {}, byStatus = {};
+      let totalDays = 0, closedCount = 0, noCapaCount = 0;
+
+      for (const n of ncrs) {
+        const dept = n.department?.name || n.departmentId || 'غير محدد';
+        byDept[dept]         = (byDept[dept]         || 0) + 1;
+        bySeverity[n.severity] = (bySeverity[n.severity] || 0) + 1;
+        byStatus[n.status]   = (byStatus[n.status]   || 0) + 1;
+        if (n.status === 'CLOSED') { closedCount++; totalDays += (n.updatedAt - n.createdAt) / 86400000; }
+        if (!n.capas?.length) noCapaCount++;
+      }
+
+      const avgDays    = closedCount > 0 ? Math.round(totalDays / closedCount) : null;
+      const topDept    = Object.entries(byDept).sort((a, b) => b[1] - a[1])[0];
+      const pareto     = Object.entries(byDept).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+      return {
+        ok: true,
+        data: { total, months, byDept, bySeverity, byStatus, avgClosureDays: avgDays, noCapaCount, paretoTop5: pareto, topDept },
+        summary: `🔍 ${total} NCR في ${months} شهراً — متوسط الإغلاق: ${avgDays || '—'} يوم — ${noCapaCount} بدون CAPA — الأعلى: ${topDept?.[0] || '—'}`,
+      };
+    }
+
+    case 'measure_capa_effectiveness': {
+      const capas = await prisma.capa.findMany({
+        select: {
+          id: true, code: true, status: true, isEffective: true, dueDate: true,
+          closedAt: true, verificationNote: true, createdAt: true,
+          ncr: { select: { status: true } },
+        },
+      });
+
+      const total     = capas.length;
+      const closed    = capas.filter(c => c.status === 'CLOSED');
+      const effective = closed.filter(c => c.isEffective === true);
+      const overdue   = capas.filter(c => c.status !== 'CLOSED' && c.status !== 'CANCELLED' && c.dueDate && new Date(c.dueDate) < new Date());
+      const noVerify  = closed.filter(c => !c.verificationNote);
+      const ncrRecurred = capas.filter(c => c.ncr && c.ncr.status !== 'CLOSED' && c.status === 'CLOSED');
+
+      const effectivenessRate = closed.length > 0 ? Math.round(effective.length / closed.length * 100) : null;
+
+      return {
+        ok: true,
+        data: {
+          total, closed: closed.length, effective: effective.length, effectivenessRate,
+          overdue: overdue.length, overdueItems: overdue.map(c => c.code),
+          noVerification: noVerify.length, ncrRecurred: ncrRecurred.length,
+        },
+        summary: `✅ فعالية CAPA: ${effectivenessRate ?? '—'}% — ${overdue.length} متأخر — ${noVerify.length} بدون تحقق — ${ncrRecurred.length} NCR مصدره لا يزال مفتوحاً`,
+      };
+    }
+
+    case 'assess_org_structure_fit': {
+      const [goals, departments, objectives, activities] = await Promise.all([
+        prisma.strategicGoal.findMany({ where: { deletedAt: null }, select: { id: true, code: true, title: true, perspective: true } }),
+        prisma.department.findMany({ select: { id: true, name: true } }),
+        prisma.objective.findMany({ where: { deletedAt: null }, select: { departmentId: true, strategicGoalId: true, title: true } }),
+        prisma.operationalActivity.findMany({ where: { deletedAt: null }, select: { department: true, strategicGoalId: true } }),
+      ]);
+
+      const deptGoalCoverage = {};
+      for (const d of departments) deptGoalCoverage[d.id] = { name: d.name, goals: new Set(), objectiveCount: 0, activityCount: 0 };
+
+      for (const o of objectives) {
+        if (o.departmentId && deptGoalCoverage[o.departmentId]) {
+          deptGoalCoverage[o.departmentId].objectiveCount++;
+          if (o.strategicGoalId) deptGoalCoverage[o.departmentId].goals.add(o.strategicGoalId);
+        }
+      }
+      for (const a of activities) {
+        const dept = departments.find(d => d.name === a.department);
+        if (dept && deptGoalCoverage[dept.id]) {
+          deptGoalCoverage[dept.id].activityCount++;
+          if (a.strategicGoalId) deptGoalCoverage[dept.id].goals.add(a.strategicGoalId);
+        }
+      }
+
+      const matrix = Object.entries(deptGoalCoverage).map(([id, d]) => ({
+        deptId: id, name: d.name,
+        goalsCount: d.goals.size, objectives: d.objectiveCount, activities: d.activityCount,
+        status: d.goals.size === 0 ? 'UNALIGNED' : d.goals.size >= 2 ? 'ALIGNED' : 'PARTIAL',
+      }));
+
+      const unaligned   = matrix.filter(d => d.status === 'UNALIGNED');
+      const overloaded  = matrix.filter(d => d.goalsCount >= 3);
+      const goalsNoDept = goals.filter(g => !objectives.some(o => o.strategicGoalId === g.id && o.departmentId));
+
+      return {
+        ok: true,
+        data: { departments: matrix.length, unaligned: unaligned.length, overloaded: overloaded.length, goalsNoDept: goalsNoDept.length, matrix, goalsWithoutDept: goalsNoDept },
+        summary: `🏗️ توافق الهيكل: ${matrix.length - unaligned.length}/${matrix.length} أقسام مرتبطة — ${overloaded.length} مُثقَّل — ${goalsNoDept.length} هدف بدون قسم مسؤول`,
+      };
+    }
+
+    case 'track_beneficiary_satisfaction': {
+      const months = input.months || 6;
+      const since  = new Date(Date.now() - months * 30 * 86400000);
+
+      const complaints = await prisma.complaint.findMany({
+        where: { source: 'BENEFICIARY', createdAt: { gte: since } },
+        select: { status: true, satisfactionRating: true, createdAt: true, updatedAt: true, severity: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const total   = complaints.length;
+      const ratings = complaints.filter(c => c.satisfactionRating != null).map(c => c.satisfactionRating);
+      const avg     = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
+
+      // اتجاه الرضا شهرياً
+      const monthlyRating = {};
+      for (const c of complaints) {
+        if (!c.satisfactionRating) continue;
+        const key = `${c.createdAt.getFullYear()}-${String(c.createdAt.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyRating[key]) monthlyRating[key] = [];
+        monthlyRating[key].push(c.satisfactionRating);
+      }
+      const trend = Object.entries(monthlyRating).map(([month, vals]) => ({ month, avg: (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) }));
+
+      const unresolved = complaints.filter(c => !['RESOLVED', 'CLOSED', 'REJECTED'].includes(c.status)).length;
+      const highSeverity = complaints.filter(c => c.severity === 'مرتفعة').length;
+
+      return {
+        ok: true,
+        data: { total, months, avgSatisfaction: avg, ratingsCount: ratings.length, unresolved, highSeverity, trend },
+        summary: `😊 رضا المستفيدين: متوسط ${avg ?? '—'}/5 من ${ratings.length} تقييم — ${unresolved} شكوى غير محلولة — ${highSeverity} مرتفعة الخطورة`,
       };
     }
 
