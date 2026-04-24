@@ -31,7 +31,7 @@
         SIMPLE: 'google/gemini-2.5-flash',
         TOOLS:  'anthropic/claude-haiku-4-5',
         DEEP:   'anthropic/claude-sonnet-4-5',
-        FILES:  'anthropic/claude-opus-4-7',
+        FILES:  'anthropic/claude-opus-4-5',
       },
 
       // Keys (عرض مُخفَّى فقط)
@@ -99,7 +99,7 @@
           SIMPLE: it.routing?.SIMPLE || 'google/gemini-2.5-flash',
           TOOLS:  it.routing?.TOOLS  || 'anthropic/claude-haiku-4-5',
           DEEP:   it.routing?.DEEP   || 'anthropic/claude-sonnet-4-5',
-          FILES:  it.routing?.FILES  || 'anthropic/claude-opus-4-7',
+          FILES:  it.routing?.FILES  || 'anthropic/claude-opus-4-5',
         };
         c.keys             = it.keys || { anthropic: '', openai: '', google: '' };
         c.hasKeys          = it.hasKeys || { anthropic: false, openai: false, google: false };

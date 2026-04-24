@@ -142,11 +142,14 @@ router.post('/test', authorize(...ADMIN_ROLES), asyncHandler(async (req, res) =>
   }
 
   try {
-    const result = await aiTestConnection({
-      provider,
-      model: model || DEFAULT_MODELS[provider],
-      apiKey,
-    });
+    // حد زمني 20 ثانية — يمنع Cloudflare من إرجاع 504 على اختبار الاتصال
+    const timeout = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('انتهت مهلة الاختبار (20s) — تحقق من المفتاح والشبكة')), 20_000)
+    );
+    const result = await Promise.race([
+      aiTestConnection({ provider, model: model || DEFAULT_MODELS[provider], apiKey }),
+      timeout,
+    ]);
     res.json({ ok: true, message: 'الاتصال ناجح ✓', ...result });
   } catch (e) {
     res.json({ ok: false, message: `فشل الاتصال: ${e.message}` });
@@ -251,14 +254,21 @@ router.post('/complete', authorize(...USER_ROLES), asyncHandler(async (req, res)
   if (prompt.length > 10000) throw BadRequest('prompt طويل جداً (الحد 10000 حرف)');
 
   try {
-    const result = await aiComplete({
-      system: system || 'أنت مساعد خبير بنظام إدارة الجودة. أجب بالعربية بوضوح وإيجاز.',
-      messages: [{ role: 'user', content: prompt }],
-      feature: 'playground',
-      provider, model, piiRedact,
-      userId: req.user?.id,
-      maxTokens: 1500,
-    });
+    // حد زمني 90 ثانية — Cloudflare يقطع عند 100s
+    const timeout = new Promise((_, rej) =>
+      setTimeout(() => rej(Object.assign(new Error('انتهت مهلة الاستدعاء — حاول سؤالاً أقصر'), { status: 504 })), 90_000)
+    );
+    const result = await Promise.race([
+      aiComplete({
+        system: system || 'أنت مساعد خبير بنظام إدارة الجودة. أجب بالعربية بوضوح وإيجاز.',
+        messages: [{ role: 'user', content: prompt }],
+        feature: 'playground',
+        provider, model, piiRedact,
+        userId: req.user?.id,
+        maxTokens: 1500,
+      }),
+      timeout,
+    ]);
     res.json({
       ok: true,
       content: result.content,
