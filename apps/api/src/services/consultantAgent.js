@@ -21,6 +21,7 @@ import { runAgentLoop, applyPendingActions } from './aiAgent/loop.js';
 import { executeTool }  from './aiAgent/tools.js';
 import { getAiSettings } from '../lib/ai/settings.js';
 import { routeRequest } from './aiAgent/router.js';
+import { aiComplete } from '../lib/ai/index.js';
 
 // ── تحميل ملف المعرفة المؤسسية (مرة واحدة عند الإقلاع) ────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -258,6 +259,68 @@ function analyzeGaps({ goals, activities, objectives }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  compressHistory — تلخيص السياق التلقائي عند طول المحادثة
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COMPRESS_THRESHOLD = 16; // يبدأ التلخيص بعد 16 رسالة (user+assistant)
+const COMPRESS_KEEP      = 6;  // يحتفظ بآخر 6 رسائل كما هي
+const COMPRESS_BATCH     = 10; // يلخص أقدم 10 رسائل دفعة واحدة
+
+/**
+ * يضغط السياق تلقائياً عندما تطول المحادثة.
+ * يلخّص الرسائل القديمة بـ Haiku (الأرخص) ويحتفظ بالأحدث كاملةً.
+ * يُرجع: { messages: الرسائل بعد الضغط, compressed: bool, summaryTokens: number }
+ */
+export async function compressHistory(messages) {
+  const dialogue = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+  if (dialogue.length <= COMPRESS_THRESHOLD) {
+    return { messages, compressed: false, summaryTokens: 0 };
+  }
+
+  const toSummarize = dialogue.slice(0, COMPRESS_BATCH);
+  const toKeep      = dialogue.slice(COMPRESS_BATCH);
+
+  const convText = toSummarize.map(m => {
+    const speaker = m.role === 'user' ? 'المستخدم' : 'المستشار';
+    const content = typeof m.content === 'string'
+      ? m.content.slice(0, 600)
+      : '[محتوى معقد]';
+    return `${speaker}: ${content}`;
+  }).join('\n\n');
+
+  try {
+    const r = await aiComplete({
+      system: [
+        'أنت مساعد يلخص محادثات نظام إدارة الجودة.',
+        'لخّص المحادثة التالية في 4-6 جمل عربية موجزة.',
+        'ركّز على: الأسئلة المطروحة، القرارات المتخذة، الإجراءات المنفذة، والنقاط المفتوحة.',
+        'لا تضف تعليقاً، فقط الملخص.',
+      ].join(' '),
+      messages: [{ role: 'user', content: `المحادثة:\n\n${convText}` }],
+      feature:   'context_compression',
+      model:     'claude-haiku-4-5', // الأرخص — التلخيص مهمة بسيطة
+      maxTokens: 400,
+    });
+
+    const summaryMsg = {
+      role:    'user',
+      content: `[📋 ملخص المحادثة السابقة — ${toSummarize.length} رسالة]\n${r.content}\n[نهاية الملخص]`,
+    };
+
+    console.log(`[compressHistory] ضُغط ${toSummarize.length} رسالة → ${r.usage?.outputTokens || 0} توكن ملخص`);
+    return {
+      messages:      [summaryMsg, ...toKeep],
+      compressed:    true,
+      summaryTokens: r.usage?.outputTokens || 0,
+    };
+  } catch (e) {
+    // لا نكسر المحادثة — نعود للرسائل الأحدث فقط إن فشل التلخيص
+    console.warn('[compressHistory] فشل التلخيص — نستخدم الرسائل الأحدث فقط:', e.message);
+    return { messages: toKeep, compressed: false, summaryTokens: 0 };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  chat — نقطة الدخول الرئيسية للمحادثة
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -290,9 +353,13 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
     routed = await routeRequest(messages, false);
   }
 
+  // ضغط السياق تلقائياً إذا طالت المحادثة (يوفر 60-70% من التوكنات)
+  const { messages: compressedMessages, compressed } = await compressHistory(messages);
+  if (compressed) console.log('[chat] تم ضغط السياق — المحادثة الممررة أقصر');
+
   const result = await runAgentLoop({
     systemPrompt: buildSystemPrompt(),
-    messages,
+    messages: compressedMessages,
     actingUserId,
     callerUserId,
     callerRole,   // دور المستخدم الأصلي (لمنطق صلاحيات الحذف)

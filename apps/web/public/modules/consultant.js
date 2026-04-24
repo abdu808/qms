@@ -66,6 +66,11 @@
       lastModel:    '',      // آخر موديل استُخدم (من الـ response)
       lastProvider: '',      // آخر مزود
       modelOptions: [],      // قائمة الموديلات المتاحة
+      // الجلسات
+      sessionId:       null,    // ID الجلسة الحالية في DB (null = غير محفوظة بعد)
+      sessions:        [],      // قائمة الجلسات السابقة [{id, title, messageCount, costUSD, updatedAt}]
+      sessionsOpen:    false,   // هل قائمة الجلسات مفتوحة
+      sessionsLoading: false,   // جارٍ التحميل
       templates: [
         { id: 'analyze',       label: '🔍 تحليل شامل للنظام',          prompt: 'حلِّل حالة نظام الجودة كاملاً: استخدم scan_overdue لمعرفة التأخيرات، ثم اقرأ الأهداف والمخاطر وNCRs وCAPAs. قدِّم تقريراً بالأولويات والإجراءات العاجلة.' },
         { id: 'fill_gaps',     label: '🔧 أصلح فجوات الخطة',           prompt: 'افحص الفجوات الحالية في الخطة الاستراتيجية وأصلح ما تستطيع: اربط الأنشطة، أضف مسؤولين، واملأ الحقول الناقصة.' },
@@ -170,6 +175,8 @@
         this.consult.loading = true;
         // جلب قائمة الموديلات — الحية من API أولاً، والكتالوج احتياط
         if (!this.consult.modelOptions.length) await this.refreshConsultModels();
+        // تحميل قائمة الجلسات
+        this.loadSessions();
         const j = await this.api('GET', '/consultant/context');
         if (!j.ok) throw new Error(j.error?.message || j.error || 'فشل تحميل السياق');
         this.consult.context = { summary: j.context.summary, gaps: j.context.gaps.counts };
@@ -191,6 +198,86 @@
       } catch {
         msg.rating = null; // تراجع عند الفشل
       }
+    },
+
+    /** يجلب قائمة الجلسات من API */
+    async loadSessions() {
+      this.consult.sessionsLoading = true;
+      try {
+        const r = await this.api('GET', '/consult-sessions');
+        if (r.ok) this.consult.sessions = r.items || [];
+      } catch { /* silent */ }
+      finally { this.consult.sessionsLoading = false; }
+    },
+
+    /** يحفظ الجلسة الحالية في DB */
+    async saveSession() {
+      const c = this.consult;
+      if (!c.messages.length) return;
+      const msgs = c.messages.filter(m => m.role === 'user' || m.role === 'assistant');
+      if (!msgs.length) return;
+      try {
+        // احسب إجمالي الاستخدام من رسائل المستشار
+        const usage = c.messages
+          .filter(m => m.role === 'assistant' && m.usage)
+          .reduce((a, m) => ({
+            inputTokens: a.inputTokens + (m.usage.inputTokens || 0),
+            outputTokens: a.outputTokens + (m.usage.outputTokens || 0),
+            costUSD: a.costUSD + (m.usage.costUSD || 0),
+          }), { inputTokens: 0, outputTokens: 0, costUSD: 0 });
+
+        const r = await this.api('POST', '/consult-sessions', {
+          id: c.sessionId || undefined,
+          messages: c.messages,
+          ...usage,
+          lastModel: c.lastModel || '',
+        });
+        if (r.ok && r.item?.id) {
+          c.sessionId = r.item.id;
+        }
+      } catch { /* silent — لا نكسر المحادثة */ }
+    },
+
+    /** يفتح جلسة قديمة */
+    async loadSession(session) {
+      const c = this.consult;
+      try {
+        const r = await this.api('GET', `/consult-sessions/${session.id}`);
+        if (!r.ok) return;
+        c.messages   = r.item.messages || [];
+        c.sessionId  = r.item.id;
+        c.lastModel  = r.item.lastModel || '';
+        c.sessionsOpen = false;
+        c.error = '';
+        // تحديث localStorage
+        this._consultSaveHistory();
+        // scroll للأسفل
+        this.$nextTick && this.$nextTick(() => {
+          const el = document.getElementById('consult-messages');
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      } catch (e) {
+        c.error = 'فشل تحميل الجلسة: ' + e.message;
+      }
+    },
+
+    /** يحذف جلسة */
+    async deleteSession(session, event) {
+      event?.stopPropagation();
+      if (!confirm('حذف هذه الجلسة؟')) return;
+      try {
+        await this.api('DELETE', `/consult-sessions/${session.id}`);
+        this.consult.sessions = this.consult.sessions.filter(s => s.id !== session.id);
+        if (this.consult.sessionId === session.id) {
+          this.consultReset();
+        }
+      } catch { /* silent */ }
+    },
+
+    /** جلسة جديدة (يمسح الحالية ويبدأ من صفر) */
+    consultNewSession() {
+      this.consult.sessionId = null;
+      this.consultReset();
     },
 
     // ─── إرسال رسالة ──────────────────────────────────────────────────────
@@ -296,6 +383,8 @@
         if (j.model) { this.consult.lastModel = j.model; this.consult.lastProvider = j.provider || ''; }
         if (j.context) this.consult.context = j.context;
         this._consultSaveHistory();
+        // حفظ تلقائي في DB
+        await this.saveSession();
 
       } catch (e) {
         this.consult.error = e.message;
@@ -462,6 +551,7 @@
       this.consult.input        = '';
       this.consult.error        = '';
       this.consult.attachments  = [];
+      this.consult.sessionId    = null;
       try { localStorage.removeItem('qms_consult_history'); } catch {}
     },
 

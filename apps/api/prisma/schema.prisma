@@ -77,6 +77,7 @@ model User {
   capaOwned           Capa[]            @relation("CapaOwner")
   capaCreated         Capa[]            @relation("CapaCreator")
   capaVerified        Capa[]            @relation("CapaVerifier")
+  consultSessions     ConsultSession[]
 
   @@index([email])
   @@index([departmentId])
@@ -1556,6 +1557,28 @@ model Capa {
   @@index([sourceType, sourceId])
   @@index([ownerId])
   @@index([dueDate])
+}
+
+// =====================================================
+// CONSULT SESSIONS — جلسات المستشار الذكي
+// =====================================================
+model ConsultSession {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String   @default("جلسة جديدة") // أول سؤال تلقائياً
+  messages     String   // JSON: [{role, content, toolsUsed, ...}]
+  messageCount Int      @default(0)
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUSD      Float    @default(0)
+  lastModel    String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@index([createdAt])
 }
 
 // جدول تتبع الترحيلات اليدوية — يُدار بواسطة scripts/migrate.mjs

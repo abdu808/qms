@@ -591,6 +591,58 @@
                 <span x-show="consult.mode==='auto'"  class="text-xs text-indigo-600 hidden md:block">AI ينفِّذ مباشرةً</span>
                 <span x-show="consult.mode==='review'" class="text-xs text-amber-600 hidden md:block">AI يقترح · أنت توافق</span>
 
+                <!-- زر الجلسات السابقة -->
+                <div class="relative" x-data="{}">
+                  <button @click="consult.sessionsOpen=!consult.sessionsOpen; if(consult.sessionsOpen) loadSessions()"
+                          class="flex items-center gap-1 text-xs px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition text-gray-600"
+                          title="الجلسات السابقة">
+                    <span>🗂️</span>
+                    <span class="hidden sm:inline">الجلسات</span>
+                    <span x-show="consult.sessions.length > 0"
+                          class="bg-violet-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center"
+                          x-text="consult.sessions.length"></span>
+                  </button>
+
+                  <!-- قائمة الجلسات -->
+                  <div x-show="consult.sessionsOpen" @click.away="consult.sessionsOpen=false"
+                       class="absolute left-0 mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden" dir="rtl"
+                       style="max-height: 400px; overflow-y: auto;">
+                    <!-- رأس القائمة -->
+                    <div class="flex items-center justify-between px-3 py-2.5 border-b bg-gray-50">
+                      <span class="text-xs font-semibold text-gray-700">🗂️ الجلسات المحفوظة</span>
+                      <button @click="consultNewSession(); consult.sessionsOpen=false"
+                              class="text-xs px-2 py-1 bg-violet-600 text-white rounded-lg hover:bg-violet-700">
+                        + جديد
+                      </button>
+                    </div>
+
+                    <!-- loading -->
+                    <div x-show="consult.sessionsLoading" class="p-4 text-center text-xs text-gray-400">⏳ جارٍ التحميل…</div>
+
+                    <!-- فارغة -->
+                    <div x-show="!consult.sessionsLoading && !consult.sessions.length"
+                         class="p-4 text-center text-xs text-gray-400">لا توجد جلسات محفوظة بعد</div>
+
+                    <!-- قائمة الجلسات -->
+                    <template x-for="s in consult.sessions" :key="s.id">
+                      <div @click="loadSession(s)"
+                           :class="consult.sessionId === s.id ? 'bg-violet-50 border-r-2 border-violet-500' : 'hover:bg-gray-50'"
+                           class="flex items-start gap-2 px-3 py-2.5 cursor-pointer border-b border-gray-100 transition">
+                        <div class="flex-1 min-w-0">
+                          <div class="text-xs font-medium text-gray-800 truncate" x-text="s.title"></div>
+                          <div class="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400">
+                            <span x-text="s.messageCount + ' رسالة'"></span>
+                            <span x-show="s.costUSD > 0" x-text="'$' + s.costUSD.toFixed(4)"></span>
+                            <span x-text="new Date(s.updatedAt).toLocaleDateString('ar-SA')"></span>
+                          </div>
+                        </div>
+                        <button @click="deleteSession(s, $event)"
+                                class="text-gray-300 hover:text-red-500 text-xs flex-shrink-0 mt-0.5">🗑️</button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
                 <!-- ─── اختيار الموديل ─────────────────────────────── -->
                 <div class="relative" x-data="{ modelOpen: false }">
                   <button @click="modelOpen = !modelOpen"
@@ -7072,7 +7124,7 @@
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
 <script src="/modules/ai-settings.js?v=2026-04-24b"></script>
-<script src="/modules/consultant.js?v=2026-04-24b"></script>
+<script src="/modules/consultant.js?v=2026-04-24c"></script>
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
