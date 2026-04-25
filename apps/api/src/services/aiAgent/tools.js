@@ -1180,41 +1180,44 @@ export async function executeTool(name, input, actingUserId) {
         });
       }
       if (want.has('gaps')) {
-        const goals = result.goals || await prisma.strategicGoal.findMany({
+        // استخرج المصفوفة من نتائج paginated أو من DB مباشرةً
+        const goalsArr = result.goals?.items ?? await prisma.strategicGoal.findMany({
           where:{ deletedAt:null },
           select:{ id:true, code:true, title:true, target:true, responsible:true,
             activities:{ select:{ id:true } } },
         });
-        const acts = result.activities || await prisma.operationalActivity.findMany({
+        const actsArr = result.activities?.items ?? await prisma.operationalActivity.findMany({
+          where:{ deletedAt:null },
           select:{ id:true, code:true, strategicGoalId:true, responsible:true, targetValue:true },
         });
-        const objs = result.objectives || await prisma.objective.findMany({
+        const objsArr = result.objectives?.items ?? await prisma.objective.findMany({
           where:{ deletedAt:null }, select:{ id:true, code:true, ownerId:true, strategicGoalId:true },
         });
         result.gaps = {
-          goalsWithoutTarget:      goals.filter(g=>!g.target?.trim()).map(g=>`${g.code}: ${g.title}`),
-          goalsWithoutResponsible: goals.filter(g=>!g.responsible).map(g=>`${g.code}: ${g.title}`),
-          goalsWithoutActivities:  goals.filter(g=>!g.activities?.length).map(g=>`${g.code}: ${g.title}`),
-          activitiesNotLinked:     acts.filter(a=>!a.strategicGoalId).map(a=>a.code),
-          activitiesWithoutTarget: acts.filter(a=>a.targetValue==null).map(a=>a.code),
-          objectivesWithoutOwner:  objs.filter(o=>!o.ownerId).map(o=>o.code),
-          objectivesNotLinked:     objs.filter(o=>!o.strategicGoalId).map(o=>o.code),
+          goalsWithoutTarget:      goalsArr.filter(g=>!g.target?.trim()).map(g=>`${g.code}: ${g.title}`),
+          goalsWithoutResponsible: goalsArr.filter(g=>!g.responsible).map(g=>`${g.code}: ${g.title}`),
+          goalsWithoutActivities:  goalsArr.filter(g=>!g.activities?.length).map(g=>`${g.code}: ${g.title}`),
+          activitiesNotLinked:     actsArr.filter(a=>!a.strategicGoalId).map(a=>a.code),
+          activitiesWithoutTarget: actsArr.filter(a=>a.targetValue==null).map(a=>a.code),
+          objectivesWithoutOwner:  objsArr.filter(o=>!o.ownerId).map(o=>o.code),
+          objectivesNotLinked:     objsArr.filter(o=>!o.strategicGoalId).map(o=>o.code),
         };
       }
 
       const lines = [];
-      if (result.goals)      lines.push(`${result.goals.length} أهداف استراتيجية`);
-      if (result.activities) lines.push(`${result.activities.length} أنشطة تشغيلية`);
-      if (result.objectives) lines.push(`${result.objectives.length} أهداف تشغيلية`);
-      if (result.risks)      lines.push(`${result.risks.length} مخاطر/فرص`);
-      if (result.ncrs)       lines.push(`${result.ncrs.length} NCR`);
-      if (result.capas)      lines.push(`${result.capas.length} CAPA`);
-      if (result.audits)              lines.push(`${result.audits.length} تدقيق`);
-      if (result.swot)               lines.push(`${result.swot.length} SWOT`);
-      if (result.managementReviews)  lines.push(`${result.managementReviews.length} مراجعة إدارة`);
-      if (result.interestedParties)  lines.push(`${result.interestedParties.length} طرف ذو علاقة`);
-      if (result.suppliers)          lines.push(`${result.suppliers.length} مورد`);
-      if (result.trainings)          lines.push(`${result.trainings.length} تدريب`);
+      // result.goals هو { items:[], total:N, ... } — نستخدم total للملخص
+      if (result.goals)      lines.push(`${result.goals.total ?? result.goals.items?.length ?? 0} أهداف استراتيجية`);
+      if (result.activities) lines.push(`${result.activities.total ?? result.activities.items?.length ?? 0} أنشطة تشغيلية`);
+      if (result.objectives) lines.push(`${result.objectives.total ?? result.objectives.items?.length ?? 0} أهداف تشغيلية`);
+      if (result.risks)      lines.push(`${result.risks.total ?? result.risks.items?.length ?? 0} مخاطر/فرص`);
+      if (result.ncrs)       lines.push(`${result.ncrs.total ?? result.ncrs.items?.length ?? 0} NCR`);
+      if (result.capas)      lines.push(`${result.capas.total ?? result.capas.items?.length ?? 0} CAPA`);
+      if (result.audits)             lines.push(`${result.audits.total ?? result.audits.items?.length ?? 0} تدقيق`);
+      if (result.swot)               lines.push(`${result.swot.total ?? result.swot.items?.length ?? 0} SWOT`);
+      if (result.managementReviews)  lines.push(`${result.managementReviews.total ?? result.managementReviews.items?.length ?? 0} مراجعة إدارة`);
+      if (result.interestedParties)  lines.push(`${result.interestedParties.total ?? result.interestedParties.items?.length ?? 0} طرف ذو علاقة`);
+      if (result.suppliers)          lines.push(`${result.suppliers.total ?? result.suppliers.items?.length ?? 0} مورد`);
+      if (result.trainings)          lines.push(`${result.trainings.total ?? result.trainings.items?.length ?? 0} تدريب`);
       if (result.gaps) {
         const gapCount = Object.values(result.gaps).flat().length;
         lines.push(gapCount === 0 ? '✅ لا فجوات' : `⚠️ ${gapCount} فجوة`);
