@@ -14,7 +14,7 @@
  */
 import { prisma } from '../../db.js';
 import { encrypt, decrypt } from './crypto.js';
-import { DEFAULT_MODELS } from './pricing.js';
+import { DEFAULT_MODELS, PRICING } from './pricing.js';
 
 const KEYS = [
   'ai_enabled',
@@ -90,6 +90,7 @@ export async function getAiSettings() {
     return _cache;
   } catch (e) {
     console.warn('[ai/settings] failed to load settings:', e.message);
+    const fallbackFeatureModels = Object.fromEntries(FEATURE_CATALOG.map(f => [f.id, f.defaultModel]));
     return {
       enabled: false,
       defaultProvider: 'anthropic',
@@ -97,6 +98,7 @@ export async function getAiSettings() {
       monthlyBudgetUsd: 30,
       piiRedaction: 'optional',
       logRequests: true,
+      featureModels: fallbackFeatureModels,
       keys: { anthropic: '', openai: '', google: '' },
       hasKeys: { anthropic: false, openai: false, google: false },
     };
@@ -116,9 +118,16 @@ export async function setSetting(key, value) {
 
 /** يحفظ تعيينات الموديلات للميزات */
 export async function setFeatureModels(assignments) {
+  const KNOWN_MODELS = new Set(Object.keys(PRICING));
   const safe = {};
   for (const f of FEATURE_CATALOG) {
-    if (assignments[f.id]) safe[f.id] = String(assignments[f.id]);
+    const val = assignments[f.id];
+    if (!val) continue;
+    const name = String(val).trim();
+    if (!KNOWN_MODELS.has(name)) {
+      throw new Error(`اسم الموديل غير معروف: "${name}" — تحقق من الكتالوج المدعوم في pricing.js`);
+    }
+    safe[f.id] = name;
   }
   await prisma.setting.upsert({
     where: { key: 'ai_feature_models' },

@@ -319,10 +319,21 @@
         const csrf = this._getCsrfToken?.();
         if (csrf) headers['X-CSRF-Token'] = csrf;
 
-        const response = await fetch((window.QMS_API || '/api') + '/consultant/chat', {
-          method: 'POST', headers, credentials: 'include',
-          body: JSON.stringify(body),
-        });
+        let response;
+        try {
+          response = await fetch((window.QMS_API || '/api') + '/consultant/chat', {
+            method: 'POST', headers, credentials: 'include',
+            body: JSON.stringify(body),
+          });
+        } catch (netErr) {
+          // fetch() نفسه فشل (انقطاع شبكة، DNS، Cloudflare timeout...)
+          const isTimeout = netErr.name === 'AbortError';
+          throw new Error(
+            isTimeout
+              ? 'انتهى وقت الطلب — العملية طالت أكثر من المتوقع. أرسل «أكمل» للمتابعة.'
+              : 'انقطع الاتصال — تحقّق من الشبكة وأعد المحاولة.'
+          );
+        }
 
         if (!response.ok && response.status !== 200) {
           const err = await response.json().catch(() => ({ error: { message: 'خطأ في الخادم' } }));
@@ -334,9 +345,17 @@
         const decoder = new TextDecoder();
         let   buffer  = '';
         let   j       = null;
+        let   lastEventType = '';
 
         while (true) {
-          const { done, value } = await reader.read();
+          let chunk;
+          try {
+            chunk = await reader.read();
+          } catch (readErr) {
+            // انقطع الـ stream في المنتصف (timeout Cloudflare)
+            throw new Error('انقطع الاتصال أثناء الاستجابة — أرسل «أكمل» إن كانت العملية قد بدأت.');
+          }
+          const { done, value } = chunk;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           // معالجة أسطر SSE المكتملة
@@ -344,29 +363,54 @@
           buffer = lines.pop(); // الجزء غير المكتمل
 
           for (const line of lines) {
+            // تتبع نوع الحدث (event: error / event: result)
+            if (line.startsWith('event: ')) {
+              lastEventType = line.slice(7).trim();
+              continue;
+            }
             if (line.startsWith('data: ')) {
               try {
                 const parsed = JSON.parse(line.slice(6));
-                if (!parsed || typeof parsed !== 'object') continue; // تجاهل null / قيم بدائية
-                if (parsed.ok !== undefined) {
-                  j = parsed; // هذه النتيجة النهائية
-                } else if (parsed.error) {
-                  // رسالة خطأ بدون حقل ok (نادرة — من middleware)
+                if (!parsed || typeof parsed !== 'object') { lastEventType = ''; continue; }
+
+                // progress event — خطوات التفكير الحية
+                if (lastEventType === 'progress') {
+                  if (parsed.type === 'tool_start') {
+                    this.consultSteps.push({ label: parsed.label || parsed.tool, status: 'running' });
+                  } else if (parsed.type === 'tool_done') {
+                    const step = [...this.consultSteps].reverse().find(s => s.label === (parsed.label || parsed.tool) && s.status === 'running');
+                    if (step) step.status = parsed.ok ? 'done' : 'error';
+                  }
+                  lastEventType = '';
+                  continue;
+                }
+
+                // الخادم أرسل event: error صريح
+                if (lastEventType === 'error' || parsed.ok === false) {
                   throw new Error(
                     (typeof parsed.error === 'string' ? parsed.error : parsed.error?.message)
                     || 'خطأ من الخادم'
                   );
                 }
+
+                if (parsed.ok !== undefined) {
+                  j = parsed; // النتيجة النهائية
+                }
                 // ping / thinking events تُتجاهَل
-              } catch (parseErr) {
-                if (parseErr.message === 'خطأ من الخادم') throw parseErr;
-                continue; // تجاهل أخطاء JSON وأي أخطاء أخرى غير متوقعة
+              } catch (parseOrSseErr) {
+                if (
+                  parseOrSseErr.message === 'خطأ من الخادم' ||
+                  parseOrSseErr.message.startsWith('خطأ')
+                ) throw parseOrSseErr;
+                continue; // تجاهل أخطاء JSON البسيطة
+              } finally {
+                lastEventType = ''; // reset بعد معالجة كل data:
               }
             }
           }
         }
 
-        if (!j) throw new Error('لم يصل رد من الخادم');
+        if (!j) throw new Error('لم يصل رد من الخادم — قد يكون الطلب استغرق وقتاً طويلاً، أرسل «أكمل».');
         if (!j.ok) throw new Error(j.error?.message || 'خطأ في الاستدعاء');
 
         this.consult.messages.push({
@@ -382,14 +426,13 @@
           mode:              j.mode,
           applied:           false,
           applyResults:      null,
-          logId:             j.logId              || null,  // للتقييم
-          rating:            null,                          // null | 1 | -1
+          logId:             j.logId              || null,
+          rating:            null,
         });
 
         if (j.model) { this.consult.lastModel = j.model; this.consult.lastProvider = j.provider || ''; }
         if (j.context) this.consult.context = j.context;
         this._consultSaveHistory();
-        // حفظ تلقائي في DB
         await this.saveSession();
 
       } catch (e) {
@@ -498,8 +541,10 @@
     async consultUpload() {
       if (!this.consult.attachments.length || this.consult.uploading) return;
 
-      this.consult.uploading = true;
-      this.consult.error     = '';
+        this.consult.loading  = true;
+        this.consult.error    = '';
+        this.consult.steps    = [];  // خطوات التفكير
+        this.consultSteps     = [];
 
       const form = new FormData();
       for (const att of this.consult.attachments) {
@@ -536,6 +581,7 @@
       } catch (e) {
         this.consult.error = e.message;
       } finally {
+        this.consult.loading   = false;
         this.consult.uploading = false;
         this.$nextTick && this.$nextTick(() => {
           const el = document.getElementById('consult-messages');
@@ -566,9 +612,13 @@
       if (!confirm('تأكيد نهائي — اضغط موافق لبدء الحذف.')) return;
 
       try {
+        const resetHeaders = { Authorization: 'Bearer ' + this.token };
+        const csrf = this._getCsrfToken?.();
+        if (csrf) resetHeaders['X-CSRF-Token'] = csrf;
         const r = await fetch('/api/strategic-goals/reset', {
           method:  'DELETE',
-          headers: { Authorization: 'Bearer ' + this.token },
+          headers: resetHeaders,
+          credentials: 'include',
         });
         const j = await r.json();
         if (!r.ok || !j.ok) throw new Error(j.error?.message || j.error || 'فشل الحذف');
