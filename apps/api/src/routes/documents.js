@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
 import { requireAction } from '../lib/permissions.js';
+import { isAllowedFileKind } from '../lib/fileSignatures.js';
 import { createSchema as docCreateSchema, updateSchema as docUpdateSchema } from '../schemas/document.schema.js';
 import {
   approveDocument, obsoleteDocument, acknowledgeDocument, guardDocumentUpdate,
@@ -58,6 +59,7 @@ const upload = multer({
 
 const router = crudRouter({
   model: 'document',
+  resource: 'documents',
   codePrefix: 'DOC',
   searchFields: ['title', 'code'],
   include: {
@@ -140,6 +142,11 @@ router.post('/:id/upload', requireAction('documents', 'update'), upload.single('
   const doc = await prisma.document.findUnique({ where: { id: req.params.id, deletedAt: null } });
   if (!doc) throw NotFound('الوثيقة غير موجودة');
   if (!req.file) throw BadRequest('لم يتم إرفاق ملف');
+  const uploadedBuffer = await fs.promises.readFile(req.file.path);
+  if (!isAllowedFileKind(uploadedBuffer, ['pdf', 'ole-office', 'zip-office', 'jpg', 'png'])) {
+    await fs.promises.unlink(req.file.path).catch(() => {});
+    throw BadRequest('محتوى الملف لا يطابق الأنواع المسموحة');
+  }
 
   const version  = (req.body.version  || doc.currentVersion).trim();
   const changeLog = req.body.changeLog || null;

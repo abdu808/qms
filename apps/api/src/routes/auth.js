@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../db.js';
@@ -98,6 +99,15 @@ export function enforcePasswordPolicy(pw) {
   if (COMMON_PASSWORDS.has(pw)) throw BadRequest('كلمة مرور شائعة جداً — اختر غيرها');
 }
 
+/**
+ * يُشفّر refresh token بـ SHA-256 قبل تخزينه في قاعدة البيانات.
+ * SHA-256 مناسب للـ random tokens (ليست كلمات مرور) لأنها ذات entropy عالية.
+ * يُمكّن من البحث عبر findUnique بدون الحاجة إلى bcrypt البطيء.
+ */
+function hashRefreshToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -125,7 +135,7 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
-      token: refreshToken,
+      token: hashRefreshToken(refreshToken),
       expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
     },
   });
@@ -144,7 +154,6 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
   res.json({
     ok: true,
     token,
-    refreshToken,
     mustChangePassword: user.mustChangePassword || false,
     user: { id: user.id, email: user.email, name: user.name, role: user.role, departmentId: user.departmentId },
   });
@@ -158,8 +167,9 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
   try { payload = jwt.verify(refreshToken, config.jwt.refreshSecret); }
   catch { throw Unauthorized('الجلسة منتهية'); }
 
-  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-  if (!stored || stored.revoked || stored.expiresAt < new Date()) throw Unauthorized('الجلسة منتهية');
+  const tokenHash = hashRefreshToken(refreshToken);
+  const stored = await prisma.refreshToken.findUnique({ where: { token: tokenHash } });
+  if (!stored || stored.expiresAt < new Date()) throw Unauthorized('الجلسة منتهية');
 
   // اكتشاف إعادة استخدام token مُبطَل — مؤشر على سرقة — أبطل الجلسة كلها
   if (stored.revoked) {
@@ -177,11 +187,11 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
     { expiresIn: config.jwt.refreshExpiresIn },
   );
   await prisma.$transaction([
-    prisma.refreshToken.update({ where: { token: refreshToken }, data: { revoked: true } }),
+    prisma.refreshToken.update({ where: { token: tokenHash }, data: { revoked: true } }),
     prisma.refreshToken.create({
       data: {
         userId:    user.id,
-        token:     newRefreshToken,
+        token:     hashRefreshToken(newRefreshToken),
         expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
       },
     }),
@@ -199,13 +209,13 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
     httpOnly: true, secure: config.env === 'production', sameSite: 'lax',
     maxAge: parseDurationMs(config.jwt.refreshExpiresIn), path: '/api/auth',
   });
-  res.json({ ok: true, token, refreshToken: newRefreshToken });
+  res.json({ ok: true, token });
 }));
 
 router.post('/logout', asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refresh || req.body?.refreshToken;
   if (refreshToken) {
-    await prisma.refreshToken.updateMany({ where: { token: refreshToken }, data: { revoked: true } });
+    await prisma.refreshToken.updateMany({ where: { token: hashRefreshToken(refreshToken) }, data: { revoked: true } });
   }
   res.clearCookie('token');
   res.clearCookie('refresh', { path: '/api/auth' });

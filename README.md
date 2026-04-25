@@ -41,7 +41,7 @@ cp .env.example .env
 # عدّل .env بالقيم المناسبة
 
 # 3. تشغيل النظام
-docker compose -f docker-compose.dev.yml up
+docker compose up --build
 
 # 4. فتح المتصفح
 http://localhost:8080

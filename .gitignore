@@ -59,3 +59,7 @@ seed-data.b64
 *.tmp
 *.bak
 *.orig
+
+# ملفات مولّدة / داخلية يجب ألا تُتتبَّع
+benchmark-result*.json
+apps/web/public/user-guide.docx
