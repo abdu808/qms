@@ -146,11 +146,12 @@ offset: للصفحات التالية (0, 50, 100...)`,
   // ══════════════════════════════════════════════════
   {
     name: 'update_strategic_goal',
-    description: 'حدِّث حقول هدف استراتيجي. responsible = نص عربي (ليس user ID).',
+    description: 'حدِّث حقول هدف استراتيجي. id = CUID أو code (STR-2026-XXX). responsible = نص عربي (ليس user ID).',
     input_schema: {
       type: 'object',
       properties: {
-        id:          { type: 'string', description: 'CUID الهدف (من get_system_state)' },
+        id:          { type: 'string', description: 'CUID الهدف أو code مثل STR-2026-0001 (من get_system_state)' },
+        title:       { type: 'string', description: 'عنوان الهدف' },
         target:      { type: 'string' },
         responsible: { type: 'string', description: 'اسم المسؤول نصياً' },
         kpi:         { type: 'string' },
@@ -716,11 +717,12 @@ severity: منخفضة | متوسطة | مرتفعة`,
   {
     name: 'create_swot_item',
     description: `أنشئ عنصر SWOT لتحليل سياق المنظمة (ISO 4.1).
-type: STRENGTH | WEAKNESS | OPPORTUNITY | THREAT`,
+type: STRENGTH | WEAKNESS | OPPORTUNITY | THREAT
+code اختياري — يُولَّد تلقائياً إن لم يُعطَ.`,
     input_schema: {
       type: 'object',
       properties: {
-        code:        { type: 'string', description: 'SWOT-XXX' },
+        code:        { type: 'string', description: 'SWOT-XXX (اختياري — يُولَّد تلقائياً)' },
         type:        { type: 'string', enum: ['STRENGTH','WEAKNESS','OPPORTUNITY','THREAT'] },
         category:    { type: 'string', description: 'داخلي | خارجي | سياسي | اقتصادي | اجتماعي | تقني' },
         description: { type: 'string' },
@@ -728,7 +730,7 @@ type: STRENGTH | WEAKNESS | OPPORTUNITY | THREAT`,
         strategy:    { type: 'string', description: 'استراتيجية التعامل مع هذا العنصر' },
         reviewDate:  { type: 'string', description: 'YYYY-MM-DD' },
       },
-      required: ['code', 'type', 'description'],
+      required: ['type', 'description'],
     },
   },
 
@@ -1226,10 +1228,17 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_strategic_goal': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل: id مفقود' };
-      const data = pickFields(fields, ['target','responsible','kpi','baseline','initiatives','startYear','endYear','progress','status','notes']);
+      const resolvedId = await resolveGoal(id).catch(e => ({ err: e.message }));
+      if (resolvedId?.err) return { ok:false, error:resolvedId.err, summary:'فشل: الهدف غير موجود' };
+      const data = pickFields(fields, ['title','target','responsible','kpi','baseline','initiatives','startYear','endYear','progress','status','notes']);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتحديث', summary:'فشل: لا حقول' };
-      const u = await prisma.strategicGoal.update({ where:{id}, data });
-      return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث الهدف ${u.code}: ${Object.keys(data).join(', ')}` };
+      try {
+        const u = await prisma.strategicGoal.update({ where:{id:resolvedId}, data });
+        return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث الهدف ${u.code}: ${Object.keys(data).join(', ')}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`الهدف ${id} غير موجود`, summary:'فشل: غير موجود' };
+        throw e;
+      }
     }
 
     case 'delete_strategic_goal': {
@@ -1251,12 +1260,20 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_operational_activity': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
-      const data = pickFields(fields, ['department','responsible','targetValue','budget','spent','startDate','endDate','kpiType','progress','status','strategicGoalId','notes']);
+      const resolvedId = await resolveActivity(id).catch(e => ({ err: e.message }));
+      if (resolvedId?.err) return { ok:false, error:resolvedId.err, summary:'فشل: النشاط غير موجود' };
+      const data = pickFields(fields, ['title','department','responsible','targetValue','budget','spent','startDate','endDate','kpiType','progress','status','strategicGoalId','notes']);
       if (data.startDate) data.startDate = new Date(data.startDate);
       if (data.endDate)   data.endDate   = new Date(data.endDate);
+      if (data.strategicGoalId) data.strategicGoalId = await resolveGoal(data.strategicGoalId).catch(() => data.strategicGoalId);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول', summary:'فشل' };
-      const u = await prisma.operationalActivity.update({ where:{id}, data });
-      return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث النشاط ${u.code}` };
+      try {
+        const u = await prisma.operationalActivity.update({ where:{id:resolvedId}, data });
+        return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث النشاط ${u.code}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`النشاط ${id} غير موجود`, summary:'فشل: غير موجود' };
+        throw e;
+      }
     }
 
     case 'delete_operational_activity': {
@@ -1330,13 +1347,21 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_objective': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      const resolvedId = await resolveObjective(id).catch(e => ({ err: e.message }));
+      if (resolvedId?.err) return { ok:false, error:resolvedId.err, summary:'فشل: الهدف التشغيلي غير موجود' };
       const data = pickFields(fields, ['title','kpi','target','unit','baseline','currentValue','ownerId','departmentId','strategicGoalId','progress','status','description']);
       if (data.target!=null)       data.target       = parseFloat(data.target);
       if (data.baseline!=null)     data.baseline     = parseFloat(data.baseline);
       if (data.currentValue!=null) data.currentValue = parseFloat(data.currentValue);
+      if (data.strategicGoalId)    data.strategicGoalId = await resolveGoal(data.strategicGoalId).catch(() => data.strategicGoalId);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول', summary:'فشل' };
-      const u = await prisma.objective.update({ where:{id}, data });
-      return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث الهدف التشغيلي ${u.code}` };
+      try {
+        const u = await prisma.objective.update({ where:{id:resolvedId}, data });
+        return { ok:true, data:{id:u.id, code:u.code}, summary:`✅ حُدِّث الهدف التشغيلي ${u.code}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`الهدف التشغيلي ${id} غير موجود`, summary:'فشل: غير موجود' };
+        throw e;
+      }
     }
 
     case 'delete_objective': {
@@ -1394,42 +1419,59 @@ export async function executeTool(name, input, actingUserId) {
       if (value==null||!year||!month) return { ok:false, error:'value, year, month مطلوبة', summary:'فشل' };
       if (!objectiveId && !activityId) return { ok:false, error:'objectiveId أو activityId مطلوب', summary:'فشل' };
       const yr = parseInt(year); const mo = parseInt(month);
+      // enteredById مطلوب في الـ schema — نستخدم actingUserId أو أي مستخدم نشط كـ fallback
+      let effectiveEnteredById = actingUserId;
+      if (!effectiveEnteredById) {
+        const fallback = await prisma.user.findFirst({ where:{ active:true }, select:{ id:true } });
+        effectiveEnteredById = fallback?.id;
+      }
+      if (!effectiveEnteredById) return { ok:false, error:'لم يُمكن تحديد المستخدم المُسجِّل', summary:'فشل' };
       if (objectiveId) {
-        const obj = await prisma.objective.findUnique({ where:{id:objectiveId}, select:{id:true,code:true,target:true} });
-        if (!obj) return { ok:false, error:`الهدف ${objectiveId} غير موجود`, summary:'فشل' };
-        await prisma.kpiEntry.upsert({
-          where: { objectiveId_year_month: { objectiveId, year:yr, month:mo } },
-          create: { objectiveId, year:yr, month:mo, actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
-          update: { actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
+        // دعم code (OBJ-2026-XXX) أو CUID
+        const obj = await prisma.objective.findFirst({
+          where: { OR:[{id:objectiveId},{code:objectiveId}], deletedAt:null },
+          select:{id:true,code:true,target:true}
         });
-        // استعلم عن آخر قراءة زمنياً بعد الـ upsert (قد تكون الجديدة أو الأحدث)
+        if (!obj) return { ok:false, error:`الهدف "${objectiveId}" غير موجود — تأكد من الكود أو CUID`, summary:'فشل' };
+        const resolvedObjId = obj.id;
+        await prisma.kpiEntry.upsert({
+          where: { objectiveId_year_month: { objectiveId:resolvedObjId, year:yr, month:mo } },
+          create: { objectiveId:resolvedObjId, year:yr, month:mo, actualValue:parseFloat(value), note:note||null, enteredById:effectiveEnteredById },
+          update: { actualValue:parseFloat(value), note:note||null, enteredById:effectiveEnteredById },
+        });
+        // استعلم عن آخر قراءة زمنياً بعد الـ upsert
         const latest = await prisma.kpiEntry.findFirst({
-          where: { objectiveId },
+          where: { objectiveId: resolvedObjId },
           orderBy: [{ year: 'desc' }, { month: 'desc' }],
           select: { actualValue: true },
         });
         const latestVal = latest ? parseFloat(latest.actualValue) : parseFloat(value);
-        await prisma.objective.update({ where:{id:objectiveId}, data:{
+        await prisma.objective.update({ where:{id:resolvedObjId}, data:{
           currentValue: latestVal,
           progress: obj.target ? Math.min(100, Math.round((latestVal/obj.target)*100)) : undefined,
         }});
         return { ok:true, summary:`✅ سُجِّلت قيمة KPI للهدف ${obj.code}: ${value} (${yr}/${mo})` };
       } else {
-        const act = await prisma.operationalActivity.findUnique({ where:{id:activityId}, select:{id:true,code:true,targetValue:true} });
-        if (!act) return { ok:false, error:`النشاط ${activityId} غير موجود`, summary:'فشل' };
+        // دعم code (ACT-2026-XXX) أو CUID
+        const act = await prisma.operationalActivity.findFirst({
+          where: { OR:[{id:activityId},{code:activityId}], deletedAt:null },
+          select:{id:true,code:true,targetValue:true}
+        });
+        if (!act) return { ok:false, error:`النشاط "${activityId}" غير موجود`, summary:'فشل' };
+        const resolvedActId = act.id;
         await prisma.kpiEntry.upsert({
-          where: { activityId_year_month: { activityId, year:yr, month:mo } },
-          create: { activityId, year:yr, month:mo, actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
-          update: { actualValue:parseFloat(value), note:note||null, enteredById:actingUserId },
+          where: { activityId_year_month: { activityId:resolvedActId, year:yr, month:mo } },
+          create: { activityId:resolvedActId, year:yr, month:mo, actualValue:parseFloat(value), note:note||null, enteredById:effectiveEnteredById },
+          update: { actualValue:parseFloat(value), note:note||null, enteredById:effectiveEnteredById },
         });
         if (act.targetValue) {
           const latestAct = await prisma.kpiEntry.findFirst({
-            where: { activityId },
+            where: { activityId: resolvedActId },
             orderBy: [{ year: 'desc' }, { month: 'desc' }],
             select: { actualValue: true },
           });
           const latestValA = latestAct ? parseFloat(latestAct.actualValue) : parseFloat(value);
-          await prisma.operationalActivity.update({ where:{id:activityId}, data:{
+          await prisma.operationalActivity.update({ where:{id:resolvedActId}, data:{
             progress: Math.min(100, Math.round((latestValA/act.targetValue)*100)),
           }});
         }
@@ -1469,6 +1511,8 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_risk': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      const risk = await prisma.risk.findFirst({ where:{ OR:[{id},{code:id}], deletedAt:null }, select:{id:true,code:true} });
+      if (!risk) return { ok:false, error:`الخطر "${id}" غير موجود`, summary:'فشل: غير موجود' };
       const data = pickFields(fields, ['status','probability','impact','treatment','treatmentType','ownerId','reviewDate']);
       if (data.reviewDate) data.reviewDate = new Date(data.reviewDate);
       if (data.probability!=null && data.impact!=null) {
@@ -1476,21 +1520,29 @@ export async function executeTool(name, input, actingUserId) {
         data.level = data.score>=15?'حرج':data.score>=10?'مرتفع':data.score>=5?'متوسط':'منخفض';
       }
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول', summary:'فشل' };
-      const u = await prisma.risk.update({ where:{id}, data });
-      return { ok:true, summary:`✅ حُدِّث الخطر ${u.code}: ${Object.keys(data).join(', ')}` };
+      try {
+        const u = await prisma.risk.update({ where:{id:risk.id}, data });
+        return { ok:true, summary:`✅ حُدِّث الخطر ${u.code}: ${Object.keys(data).join(', ')}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`الخطر ${id} غير موجود`, summary:'فشل' };
+        throw e;
+      }
     }
 
     // ══ عدم المطابقة NCR ═════════════════════════════════════════════════════
 
     case 'create_ncr': {
       const { code, title, description, severity, departmentId, reporterId, assigneeId, rootCause, correction, dueDate } = input;
-      if (!code||!title||!description||!severity||!reporterId) return { ok:false, error:'code, title, description, severity, reporterId مطلوبة', summary:'فشل' };
+      if (!code||!title||!description||!severity) return { ok:false, error:'code, title, description, severity مطلوبة', summary:'فشل' };
+      // reporterId: استخدم المُعطى أو المستخدم الحالي كـ fallback
+      const resolvedReporter = reporterId ? await resolveUser(reporterId).catch(()=>null) : actingUserId;
+      if (!resolvedReporter) return { ok:false, error:'reporterId مطلوب — لم يُمكن تحديد المُبلِّغ تلقائياً', summary:'فشل' };
       const resolvedDept     = departmentId ? await resolveDept(departmentId)  : null;
       const resolvedAssignee = assigneeId   ? await resolveUser(assigneeId)    : null;
       try {
         const c = await prisma.nCR.create({ data:{
           code, title, description, severity,
-          departmentId:resolvedDept, reporterId, assigneeId:resolvedAssignee,
+          departmentId:resolvedDept, reporterId:resolvedReporter, assigneeId:resolvedAssignee,
           rootCause:rootCause||null, correction:correction||null,
           dueDate:dueDate?new Date(dueDate):null,
           status:'OPEN', workflowState:'DRAFT',
@@ -1505,11 +1557,19 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_ncr': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      // دعم البحث بـ code (NCR-2026-XXX) أو CUID
+      const ncr = await prisma.nCR.findFirst({ where:{ OR:[{id},{code:id}], deletedAt:null }, select:{id:true,code:true} });
+      if (!ncr) return { ok:false, error:`NCR "${id}" غير موجود`, summary:'فشل: غير موجود' };
       const data = pickFields(fields, ['status','rootCause','correction','correctiveAction','assigneeId','dueDate','verifiedNote','effective']);
       if (data.dueDate) data.dueDate = new Date(data.dueDate);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول', summary:'فشل' };
-      const u = await prisma.nCR.update({ where:{id}, data });
-      return { ok:true, summary:`✅ حُدِّث NCR ${u.code}: ${Object.keys(data).join(', ')}` };
+      try {
+        const u = await prisma.nCR.update({ where:{id:ncr.id}, data });
+        return { ok:true, summary:`✅ حُدِّث NCR ${u.code}: ${Object.keys(data).join(', ')}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`NCR ${id} غير موجود`, summary:'فشل' };
+        throw e;
+      }
     }
 
     // ══ CAPA ═════════════════════════════════════════════════════════════════
@@ -1536,12 +1596,19 @@ export async function executeTool(name, input, actingUserId) {
     case 'update_capa': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      const capa = await prisma.capa.findFirst({ where:{ OR:[{id},{code:id}], deletedAt:null }, select:{id:true,code:true} });
+      if (!capa) return { ok:false, error:`CAPA "${id}" غير موجود`, summary:'فشل: غير موجود' };
       const data = pickFields(fields, ['status','plannedAction','implementedAction','verificationNote','effective','lessonsLearned','ownerId','dueDate']);
       if (data.dueDate) data.dueDate = new Date(data.dueDate);
       if (data.status==='CLOSED' && !data.closedAt) data.closedAt = new Date();
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول', summary:'فشل' };
-      const u = await prisma.capa.update({ where:{id}, data });
-      return { ok:true, summary:`✅ حُدِّث CAPA ${u.code}: ${Object.keys(data).join(', ')}` };
+      try {
+        const u = await prisma.capa.update({ where:{id:capa.id}, data });
+        return { ok:true, summary:`✅ حُدِّث CAPA ${u.code}: ${Object.keys(data).join(', ')}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`CAPA ${id} غير موجود`, summary:'فشل' };
+        throw e;
+      }
     }
 
     // ══ التدقيق ══════════════════════════════════════════════════════════════
@@ -1782,8 +1849,15 @@ export async function executeTool(name, input, actingUserId) {
     // ══ create_swot_item ════════════════════════════════════════════════════════
 
     case 'create_swot_item': {
-      const { code, type, category, description, impact, strategy, reviewDate } = input;
-      if (!code||!type||!description) return { ok:false, error:'code, type, description مطلوبة', summary:'فشل' };
+      const { type, category, description, impact, strategy, reviewDate } = input;
+      if (!type||!description) return { ok:false, error:'type, description مطلوبان', summary:'فشل' };
+      // توليد code تلقائي إن لم يُعطَ
+      let code = input.code;
+      if (!code) {
+        const count = await prisma.swotItem.count();
+        const prefix = type==='STRENGTH'?'STR':type==='WEAKNESS'?'WKN':type==='OPPORTUNITY'?'OPP':'THR';
+        code = `SWOT-${prefix}-${String(count + 1).padStart(3,'0')}`;
+      }
       try {
         const c = await prisma.swotItem.create({ data:{
           code, type, category:category||null, description, impact:impact||null,
@@ -2077,7 +2151,7 @@ export async function executeTool(name, input, actingUserId) {
         }),
         prisma.objective.findMany({
           where: { deletedAt: null },
-          include: { owner: { select: { id: true, name: true } }, kpiEntries: { orderBy: { createdAt: 'desc' }, take: 1 } },
+          include: { owner: { select: { id: true, name: true } }, kpiEntries: { orderBy: { enteredAt: 'desc' }, take: 1 } },
         }),
         prisma.operationalActivity.findMany({ where: { deletedAt: null } }),
         prisma.risk.findMany({ where: { status: { not: 'CLOSED' } }, select: { level: true, status: true } }),
@@ -2772,4 +2846,20 @@ async function resolveGoal(v) {
   if (g) return g.id;
   const all = await prisma.strategicGoal.findMany({ where:{deletedAt:null}, select:{id:true,code:true} });
   throw new Error(`الهدف "${v}" غير موجود. المتاحة: ${all.map(g=>`${g.code}(${g.id})`).join(', ')}`);
+}
+
+async function resolveActivity(v) {
+  if (!v) return null;
+  const a = await prisma.operationalActivity.findFirst({ where:{deletedAt:null, OR:[{id:v},{code:v}]}, select:{id:true} });
+  if (a) return a.id;
+  const all = await prisma.operationalActivity.findMany({ where:{deletedAt:null}, select:{id:true,code:true} });
+  throw new Error(`النشاط "${v}" غير موجود. المتاحة: ${all.map(a=>`${a.code}(${a.id})`).join(', ')}`);
+}
+
+async function resolveObjective(v) {
+  if (!v) return null;
+  const o = await prisma.objective.findFirst({ where:{deletedAt:null, OR:[{id:v},{code:v}]}, select:{id:true} });
+  if (o) return o.id;
+  const all = await prisma.objective.findMany({ where:{deletedAt:null}, select:{id:true,code:true} });
+  throw new Error(`الهدف التشغيلي "${v}" غير موجود. المتاحة: ${all.map(o=>`${o.code}(${o.id})`).join(', ')}`);
 }
