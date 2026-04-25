@@ -31,8 +31,9 @@ storage/
 backups/
 *.sql
 *.dump
-# استثناء: ملفات الترحيل اليدوية تُحفَظ في المستودع
+# استثناء: ملفات الترحيل تُحفَظ في المستودع
 !apps/api/prisma/migrations-manual/*.sql
+!apps/api/prisma/migrations/**/*.sql
 
 # IDE
 .vscode/
