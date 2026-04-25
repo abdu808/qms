@@ -74,8 +74,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- --timeout=5 http://localhost:3000/api/health 2>/dev/null | grep -q '\"ok\"' || exit 1"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 10s
+      retries: 6
+      start_period: 60s
 
   qms-web:
     build:
@@ -92,6 +92,12 @@ services:
       - "80"
     # لا نستخدم ports: لأن Traefik يوصل الـ traffic عبر Docker network مباشرةً
     # ports: - "8080:80"  ← كان يتعارض مع Coolify/Traefik اللي يحجزان 8080 دائماً
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --timeout=3 http://localhost:80/ 2>/dev/null | grep -q '<html' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - qms-net
 
