@@ -283,8 +283,22 @@
 
     // ─── إرسال رسالة ──────────────────────────────────────────────────────
     async consultSend() {
-      const text = (this.consult.input || '').trim();
-      if (!text || this.consult.thinking) return;
+      const text      = (this.consult.input || '').trim();
+      const hasFiles  = this.consult.attachments.length > 0;
+
+      // لا إرسال أثناء معالجة سابقة أو إذا لا يوجد محتوى
+      if ((!text && !hasFiles) || this.consult.thinking || this.consult.uploading) return;
+
+      // إذا كان هناك ملفات — ارفعها أولاً قبل إرسال الرسالة
+      if (hasFiles) {
+        await this.consultUpload();
+        // إذا فشل الرفع نوقف هنا (الخطأ ظهر مسبقاً)
+        if (this.consult.error) return;
+        // إذا لا يوجد نص للإرسال نكتفي بنتيجة الرفع
+        if (!text) return;
+      }
+
+      if (!text) return;
 
       this.consult.messages.push({ role: 'user', content: text });
       this.consult.input    = '';
@@ -539,12 +553,14 @@
     },
 
     async consultUpload() {
-      if (!this.consult.attachments.length || this.consult.uploading) return;
+      if (!this.consult.attachments.length || this.consult.uploading || this.consult.thinking) return;
 
-        this.consult.loading  = true;
-        this.consult.error    = '';
-        this.consult.steps    = [];  // خطوات التفكير
-        this.consultSteps     = [];
+      // ← الإصلاح: ضبط uploading=true فوراً لمنع الإرسال المكرر
+      this.consult.uploading = true;
+      this.consult.loading   = true;
+      this.consult.error     = '';
+      this.consult.steps     = [];
+      this.consultSteps      = [];
 
       const form = new FormData();
       for (const att of this.consult.attachments) {

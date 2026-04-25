@@ -77,24 +77,49 @@ const buildSystemPrompt = () => {
 
 const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 
-دورك: مدير عمليات افتراضي — تُراقب الخطة، تُقيِّم الأداء، تتابع المؤشرات، تكشف النقائص، وتتخذ الإجراءات اللازمة.
+دورك: مستشار إداري خبير — لا تنتظر أوامر تفصيلية، بل تُبادر وتقترح وتُنفِّذ.
 
-━━━ قواعد العمل ━━━
+━━━ مبادئ العمل الأساسية ━━━
 
-① اقرأ أولاً
-  ابدأ بـ get_system_state لمعرفة الوضع الراهن قبل أي إجراء.
+① اقرأ البيانات أولاً دائماً
+  ابدأ بـ get_system_state قبل أي اقتراح أو تنفيذ.
   يدعم: goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, management_reviews, trainings, gaps
 
-② حلِّل ولا تكتفِ بالوصف
-  لا تقل فقط "يوجد 3 NCRs" — قل "NCR-003 متأخر 45 يوماً بدون إجراء، يجب تصعيده".
+② قدِّم مقترحات جاهزة — لا تسأل أسئلة مفتوحة
+  ❌ خطأ: "ما الأهداف التي تريد إنشاءها؟"
+  ✅ صواب: "بناءً على بيانات الجمعية وفجواتها، اقترح هذه الأهداف الثلاثة..."
+  
+  عندما يطلب المستخدم إنشاء أهداف/أنشطة/objectives:
+  → اقرأ get_system_state أولاً
+  → اقترح مقترحات محددة مبنية على: الفجوات الظاهرة، المؤشرات المنخفضة، ISO 9001 requirements، أفضل الممارسات
+  → اشرح سبب كل اقتراح في جملة واحدة
+  → اسأل فقط: "هل توافق؟ أم تريد تعديل شيء؟"
+
+③ حلِّل ولا تكتفِ بالوصف
+  لا تقل فقط "يوجد 3 NCRs" — قل "NCR-003 متأخر 45 يوماً بدون إجراء، يجب تصعيده"
   كن استباقياً: اذكر المخاطر القادمة والتوصيات.
 
-③ نفِّذ عندما يُطلَب
-  طلب واضح → نفِّذ + أخبر بما فعلت.
-  طلب غامض → سؤال واحد فقط ثم نفِّذ.
+④ طلب واضح → نفِّذ + أخبر بما فعلت
+  طلب فيه غموض واحد → اقترح خياراً افتراضياً وانتظر موافقة، لا تسأل سؤالاً مفتوحاً.
 
-④ اللغة والأسلوب
+⑤ اللغة والأسلوب
   العربية — مهني ومختصر. ملخص نقطي بعد كل مجموعة إجراءات.
+  استخدم أرقاماً وبيانات حقيقية من النظام في كل اقتراح.
+
+━━━ كيف تقترح بشكل صحيح ━━━
+
+عند طلب "أنشئ أهدافاً":
+  1. اقرأ get_system_state (goals + gaps + objectives)
+  2. حدِّد الفجوات: أي مجال ISO لا يوجد له هدف؟ أي مؤشر منخفض؟
+  3. اقترح 3-5 أهداف SMART مع الكود المناسب (SG-0X) والمستهدف الرقمي
+  4. وضِّح ارتباط كل هدف بمتطلب ISO محدد (§ + بند)
+  5. اطلب الموافقة ثم نفِّذ دفعةً واحدة
+
+عند طلب "أنشئ objectives أو أنشطة":
+  1. اقرأ الأهداف الاستراتيجية الحالية
+  2. اقترح أنشطة/objectives تخدم الأهداف ذات الفجوات
+  3. اشمل: الكود، العنوان، المستهدف، الوحدة، التواريخ، القسم المسؤول
+  4. لا تسأل "ما الذي تريد؟" — قل "اقترح هذه الأنشطة بناءً على فجوة (X)"
 
 ━━━ الأدوات (50 أداة) ━━━
 
@@ -146,18 +171,18 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 
 🔬 التحليل العميق — تقييم شامل (تُنفَّذ فوراً):
   • evaluate_strategic_plan — تقييم الخطة كاملة (SMART، توازن، تعارض، فجوات)
-  • evaluate_kpi_quality — جودة كل مؤشر أداء (مكتمل / منقوص / ضعيف)
+  • evaluate_kpi_quality — جودة كل مؤشر أداء
   • detect_goal_conflicts — كشف التعارض والتداخل بين الأهداف
   • suggest_missing_objectives — اقتراح أهداف مفقودة بناءً على الفجوات
   • check_department_coverage — تغطية الأقسام في الخطة
   • assess_org_structure_fit — توافق الهيكل التنظيمي مع الاستراتيجية
-  • evaluate_policy_completeness — اكتمال سياسة الجودة والتوثيق
+  • evaluate_policy_completeness — اكتمال سياسة الجودة
   • suggest_target_adjustment — اقتراح مراجعة المستهدفات بناءً على الأداء
   • link_risks_to_objectives — ربط المخاطر بالأهداف وكشف الفجوات
   • analyze_ncr_patterns — أنماط عدم المطابقة وتحليل Pareto
   • measure_capa_effectiveness — قياس فعالية الإجراءات التصحيحية
   • analyze_complaints_pattern — أنماط الشكاوى والأسباب الجذرية
-  • track_beneficiary_satisfaction — رضا المستفيدين واتجاهاته
+  • track_beneficiary_satisfaction — رضا المستفيدين
   • assess_training_needs — احتياجات التدريب (ISO 7.2)
   • generate_audit_checklist — توليد قائمة فحص تدقيق مخصصة
 
@@ -337,12 +362,73 @@ export async function compressHistory(messages) {
  * @param {string} [params.callerRole]  — دور المستخدم الأصلي
  * @param {string} [params.mode]  — 'auto' | 'review'
  */
-export async function chat({ messages, callerUserId, callerRole, mode = 'auto', modelOverride, providerOverride }) {
+// ─────────────────────────────────────────────────────────────────────────────
+//  كشف الرسائل البسيطة — تحية / سؤال عام لا يحتاج أدوات
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COMPLEX_KEYWORDS = [
+  'افحص', 'أنشئ', 'أضف', 'حلل', 'حدّث', 'حدث', 'تحديث', 'إنشاء', 'انشئ',
+  'اقرأ', 'فحص', 'مسح', 'احسب', 'ولّد', 'اقترح', 'طبّق', 'ربط',
+  'scan', 'create', 'analyze', 'compute', 'generate', 'evaluate', 'update',
+  'KPI', 'NCR', 'CAPA', 'ISO', 'SWOT', 'objective',
+  'هدف', 'خطة', 'مخاطر', 'تقرير', 'تدقيق', 'شكوى', 'وثيقة', 'مؤشر',
+  'استراتيج', 'فجوة', 'تشغيل', 'نشاط', 'إجراء',
+];
+
+/**
+ * هل الرسالة الأخيرة محادثة بسيطة (تحية/سؤال عام) لا تحتاج أدوات؟
+ * الشروط: قصيرة (< 180 حرف) + لا تحتوي كلمات تنفيذية
+ */
+function isSimpleConversation(messages) {
+  const last = messages[messages.length - 1];
+  if (!last?.content || typeof last.content !== 'string') return false;
+  const text = last.content.trim();
+  if (text.length > 180) return false;
+  return !COMPLEX_KEYWORDS.some(k => text.includes(k));
+}
+
+/** System prompt مختصر للمحادثة السريعة */
+const QUICK_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
+رد بشكل ودود ومختصر. إذا احتاج الطلب تحليلاً أو تنفيذاً، أخبر المستخدم أنك ستحتاج لقراءة بيانات النظام وعليه إرسال طلبه بشكل أوضح.`;
+
+export async function chat({ messages, callerUserId, callerRole, mode = 'auto', modelOverride, providerOverride, onProgress }) {
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
 
   // قراءة الإعدادات لمعرفة المزود والموديل الفعليين
   const settings = await getAiSettings();
+
+  // ── مسار سريع للرسائل البسيطة (تحية/سؤال عام) — Haiku بدون agent loop ──
+  if (!modelOverride && isSimpleConversation(messages)) {
+    try {
+      const r = await aiComplete({
+        system:    QUICK_SYSTEM_PROMPT,
+        messages,
+        feature:   'consultant_quick',
+        provider:  'anthropic',
+        model:     'claude-haiku-4-5',
+        maxTokens: 512,
+      });
+      const ctx = await buildContext({ compact: true });
+      return {
+        reply:       r.content,
+        toolsUsed:   [],
+        iterations:  0,
+        hitIterationLimit: false,
+        usage:       r.usage,
+        cacheRead:   0,
+        cacheWrite:  0,
+        provider:    'anthropic',
+        model:       'claude-haiku-4-5',
+        routingTier: 'QUICK',
+        logId:       null,
+        context: { gaps: ctx.gaps.counts, summary: ctx.summary },
+      };
+    } catch (e) {
+      // إذا فشل Haiku، أكمل بالمسار العادي
+      console.warn('[chat] فشل المسار السريع، تراجع للـ agent loop:', e.message);
+    }
+  }
 
   // اختر الموديل المناسب للطلب
   let routed;
@@ -357,18 +443,48 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
   const { messages: compressedMessages, compressed } = await compressHistory(messages);
   if (compressed) console.log('[chat] تم ضغط السياق — المحادثة الممررة أقصر');
 
+  // ── ذاكرة الجلسة: حقن آخر رد للمستشار من الجلسة السابقة ──────────────────
+  let messagesWithMemory = compressedMessages;
+  // فقط إن كانت المحادثة قصيرة (دون سياق سابق طويل) — لا نحقن إذا كان لديهم سياق كافﻲ
+  if (compressedMessages.length <= 3 && callerUserId) {
+    try {
+      const lastSession = await prisma.consultSession.findFirst({
+        where: { userId: callerUserId },
+        orderBy: { updatedAt: 'desc' },
+        select: { messages: true, updatedAt: true, title: true },
+      });
+      if (lastSession?.messages) {
+        const prevMsgs = JSON.parse(lastSession.messages);
+        // آخر رد من المستشار من الجلسة السابقة
+        const lastAIReply = [...prevMsgs].reverse().find(m => m.role === 'assistant');
+        if (lastAIReply?.content) {
+          const dateStr = new Date(lastSession.updatedAt).toLocaleDateString('ar-SA');
+          const memoryBlock = {
+            role: 'user',
+            content: `[ذاكرة الجلسة السابقة • ${dateStr}]
+آخر ما أنجزه المستشار: ${lastAIReply.content.slice(0, 800)}${lastAIReply.content.length > 800 ? '...' : ''}
+[نهاية الذاكرة — المحادثة الجديدة تبدأ الآن]`,
+          };
+          messagesWithMemory = [memoryBlock, ...compressedMessages];
+          console.log(`[chat] حُقنت ذاكرة الجلسة السابقة (${dateStr})`);
+        }
+      }
+    } catch { /* صامت — الذاكرة اختيارية */ }
+  }
+
   const result = await runAgentLoop({
     systemPrompt: buildSystemPrompt(),
-    messages: compressedMessages,
+    messages: messagesWithMemory,
     actingUserId,
     callerUserId,
-    callerRole,   // دور المستخدم الأصلي (لمنطق صلاحيات الحذف)
+    callerRole,
     mode,
     feature:     'consultant',
     maxTokens:   8192,
-    provider:    routed.provider,   // override المزود
-    model:       routed.model,       // override الموديل
-    routingTier: routed.tier,        // للـ logging
+    provider:    routed.provider,
+    model:       routed.model,
+    routingTier: routed.tier,
+    onProgress,  // للـ SSE streaming
   });
 
   // لقطة حالية بعد انتهاء الحلقة (لتحديث الـ UI)
