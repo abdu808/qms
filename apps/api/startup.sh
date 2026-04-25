@@ -29,6 +29,15 @@ if [ "${PRISMA_BASELINE:-false}" = "true" ]; then
   fi
 fi
 
+# إذا وُجدت هجرة فاشلة (P3009) بسبب انقطاع سابق، أعدها إلى rolled-back لإعادة التطبيق
+# هذا آمن فقط عند أول نشر (قاعدة بيانات فارغة جزئياً) — لا تُفعِّله على بيانات إنتاج حقيقية
+if npx prisma migrate status 2>&1 | grep -q "failed"; then
+  echo "[startup] ⚠️  وُجدت هجرة فاشلة — إعادة تعيينها كـ rolled-back وإعادة المحاولة"
+  FAILED_MIGRATION=$(npx prisma migrate status 2>&1 | grep "failed" | grep -oP '\d{14}_\w+' | head -1)
+  if [ -n "$FAILED_MIGRATION" ]; then
+    npx prisma migrate resolve --rolled-back "$FAILED_MIGRATION" || true
+  fi
+fi
 npx prisma migrate deploy
 
 echo "[startup] ── المرحلة 3: تطبيق الترحيلات اليدوية (SQL) ──"
