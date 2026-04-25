@@ -1025,13 +1025,23 @@ CAPAs منتهية الأجل بدون إغلاق، CAPAs بدون تحقق من
   },
 ];
 
-// الوكيل يرى فقط الأدوات التشغيلية/التحليلية (22 أداة بدل 35)
-// الأدوات الهيكلية (create/delete objectives, activities, goals...) تبقى في executeTool
-// لكن لا تُرسَل للنموذج تجنباً للتعقيد وزيادة التوكنات
+// الوكيل يرى فقط الأدوات التشغيلية/التحليلية — الحذف مخفي للأدوار العادية
 export const AGENT_TOOLS = ALL_TOOLS.filter(t => !ADMIN_TOOL_NAMES.has(t.name));
 
-// الأدوات الإدارية — للاستخدام المستقبلي (agent إداري منفصل)
+// أدوات الحذف — متاحة فقط لـ SUPER_ADMIN
 export const ADMIN_TOOLS = ALL_TOOLS.filter(t => ADMIN_TOOL_NAMES.has(t.name));
+
+// جميع الأدوات — للمسؤول الكامل
+export const ALL_AGENT_TOOLS = ALL_TOOLS;
+
+/**
+ * تُعيد مجموعة الأدوات المناسبة لدور المستخدم:
+ *   SUPER_ADMIN  → جميع الأدوات (بما فيها الحذف)
+ *   غيره        → الأدوات التشغيلية فقط (بدون حذف)
+ */
+export function getToolsForRole(role) {
+  return role === 'SUPER_ADMIN' ? ALL_AGENT_TOOLS : AGENT_TOOLS;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  منفِّذ الأدوات

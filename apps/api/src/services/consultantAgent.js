@@ -68,11 +68,12 @@ async function getAiAgentUserId() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ملف المعرفة يُضاف إلى نهاية الـ system prompt عند البناء
-const buildSystemPrompt = () => {
+const buildSystemPrompt = (role = 'QUALITY_MANAGER') => {
   const knowledgeSection = _orgKnowledge
     ? `\n\n━━━ قاعدة المعرفة المؤسسية ━━━\n${_orgKnowledge}`
     : '';
-  return BASE_SYSTEM_PROMPT + knowledgeSection;
+  const roleSection = role === 'SUPER_ADMIN' ? SUPER_ADMIN_PROMPT_SECTION : '';
+  return BASE_SYSTEM_PROMPT + roleSection + knowledgeSection;
 };
 
 const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
@@ -200,6 +201,26 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   ✅ اقتراح (يحتاج موافقة): إنشاء/تعديل الأهداف والأنشطة والـ SWOT
   ❌ محجوز: حذف البنود الهيكلية — لا تقترح ذلك إلا إن طُلب صراحةً
   ❌ إدارة المستخدمين والإعدادات — عبر واجهة النظام فقط`;
+
+/** قسم إضافي يُحقن في system prompt لـ SUPER_ADMIN فقط */
+const SUPER_ADMIN_PROMPT_SECTION = `
+
+━━━ وضع المسؤول الكامل (SUPER_ADMIN) ━━━
+
+أنت تعمل مع المسؤول الكامل للنظام — صلاحياتك موسَّعة:
+
+✅ تنفيذ فوري (بدون انتظار موافقة):
+   • جميع عمليات الإنشاء والتعديل — الأهداف، الأنشطة، الـ SWOT، وغيرها
+   • الحذف الناعم (soft-delete): أهداف استراتيجية، أنشطة تشغيلية، أهداف KPI
+     ← الحذف آمن: البيانات تُحفَظ في DB ويمكن استرداها
+
+قواعد الحذف:
+  ① اقرأ البيانات أولاً — تأكد من الهدف قبل الحذف
+  ② أخبر المسؤول بالكود والعنوان قبل التنفيذ ("سأحذف STR-2026-001 — كيف شروط الإغاثة")
+  ③ نفِّذ فقط عند التأكيد الصريح ("احذفه" أو "نعم" أو ما شابه)
+  ④ بعد الحذف: أخبره بما حُذف وأن البيانات محفوظة ويمكن الاسترداد
+
+❌ لا تزال محجوزة: إدارة المستخدمين والإعدادات — عبر واجهة النظام فقط`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  buildContext — لقطة موجزة لعرضها في /context endpoint
@@ -473,7 +494,7 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
   }
 
   const result = await runAgentLoop({
-    systemPrompt: buildSystemPrompt(),
+    systemPrompt: buildSystemPrompt(callerRole),
     messages: messagesWithMemory,
     actingUserId,
     callerUserId,

@@ -16,7 +16,7 @@
  * ══════════════════════════════════════════════════════
  */
 import { aiComplete } from '../../lib/ai/index.js';
-import { AGENT_TOOLS, READ_ONLY_TOOLS, ALWAYS_REVIEW_TOOLS, executeTool } from './tools.js';
+import { getToolsForRole, READ_ONLY_TOOLS, ALWAYS_REVIEW_TOOLS, executeTool } from './tools.js';
 
 const MAX_ITERATIONS          = 14;  // كافٍ لإتمام خطة كاملة (قراءة + اقتراح + إنشاء + ربط + تقرير)
 const MAX_TOOL_CALLS_PER_ITER = 25;  // AI يحتاج سعة لمعالجة ملفات بها إدارات/مؤشرات متعددة دفعةً واحدة
@@ -65,8 +65,11 @@ export async function runAgentLoop({
   routingTier, // للـ logging
   onProgress,  // callback للـ SSE streaming (اختياري)
 }) {
-  const isReview    = mode === 'review';
+  const isReview     = mode === 'review';
+  const isSuperAdmin = callerRole === 'SUPER_ADMIN';
   const canAutoWrite = WRITE_ROLES.has(callerRole); // هل يستطيع الكتابة المباشرة؟
+  // SUPER_ADMIN يرى جميع الأدوات بما فيها الحذف — غيره يرى الأدوات التشغيلية فقط
+  const toolsForRole = getToolsForRole(callerRole);
   const history  = buildHistory(messages);
 
   let finalReply     = '';
@@ -117,7 +120,7 @@ export async function runAgentLoop({
       result = await aiComplete({
         system:   systemPrompt,
         messages: history,
-        tools:    AGENT_TOOLS,
+        tools:    toolsForRole,   // SUPER_ADMIN يرى أدوات الحذف
         maxTokens,
         feature,
         userId: callerUserId,
@@ -169,13 +172,13 @@ export async function runAgentLoop({
     for (const call of processedCalls) {
       const isReadOnly    = READ_ONLY_TOOLS.has(call.name);
       const isDelete      = DELETE_TOOLS.has(call.name);
-      // أدوات الإنشاء/التعديل الهيكلي: تتطلب موافقة دائماً ما لم يكن SUPER_ADMIN
-      const isAlwaysReview = ALWAYS_REVIEW_TOOLS.has(call.name) && callerRole !== 'SUPER_ADMIN';
+      // أدوات الإنشاء/التعديل الهيكلي: تتطلب موافقة ما لم يكن SUPER_ADMIN
+      const isAlwaysReview = ALWAYS_REVIEW_TOOLS.has(call.name) && !isSuperAdmin;
+      // الحذف: SUPER_ADMIN ينفِّذه فوراً — غيره يحتاج موافقة
+      const isDeletePending = isDelete && !isSuperAdmin;
 
       // ── رفض الكتابة للأدوار غير المخولة (EMPLOYEE وما دون) ─────────────
       if (!isReadOnly && !canAutoWrite && !isReview) {
-        // هذا لا يحدث عملياً لأن consultant.js يُجبر review للأدوار غير المخولة
-        // لكن كطبقة دفاع ثانية
         toolResults.push({
           type: 'tool_result',
           tool_use_id: call.id,
@@ -188,11 +191,11 @@ export async function runAgentLoop({
         continue;
       }
 
-      // ── أدوات الحذف / الهيكلية / وضع المراجعة: اجمع كـ pendingActions ──
-      if (!isReadOnly && (isReview || isDelete || isAlwaysReview)) {
-        const pendingLabel = toolLabel(call.name);
-        const deleteNote      = isDelete      ? ' ⚠️ إجراء حذف — يتطلب موافقة المسؤول' : '';
-        const structuralNote  = isAlwaysReview && !isDelete ? ' 🏗️ تعديل هيكلي — يتطلب مراجعتك' : '';
+      // ── أدوات تحتاج موافقة: وضع المراجعة، أو تعديل هيكلي، أو حذف لغير المسؤول ──
+      if (!isReadOnly && (isReview || isDeletePending || isAlwaysReview)) {
+        const pendingLabel    = toolLabel(call.name);
+        const deleteNote      = isDeletePending  ? ' ⚠️ إجراء حذف — يتطلب موافقة المسؤول' : '';
+        const structuralNote  = isAlwaysReview && !isDeletePending ? ' 🏗️ تعديل هيكلي — يتطلب مراجعتك' : '';
         toolResults.push({
           type: 'tool_result',
           tool_use_id: call.id,
@@ -207,7 +210,7 @@ export async function runAgentLoop({
           tool:          call.name,
           input:         call.input,
           label:         pendingLabel,
-          isDelete,
+          isDelete:      isDeletePending,
           isStructural:  isAlwaysReview,
         });
         continue;
