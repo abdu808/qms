@@ -16,22 +16,10 @@ export const DEEP_MODEL       = 'claude-opus-4-5';
 export const DEFAULT_PROVIDER = 'anthropic';
 
 // ── أنماط DEEP — تحليل معمّق يستحق Opus ────────────────────────────────────
-const DEEP_PATTERNS = /
-  قيِّم الخطة|قيم الخطة|تقييم الخطة|
-  تحليل شامل|تحليل عميق|مراجعة شاملة|
-  مراجعة الإدارة|مراجعة إدارية|
-  فحص التناقض|فحص تناقض|
-  خطة كاملة|خطة استراتيجية كاملة|
-  تقرير سنوي|تقرير نصف سنوي|
-  نضج ISO|iso maturity|
-  evaluate|comprehensive|full review
-/xi;
+const DEEP_PATTERNS = /قيِّم الخطة|قيم الخطة|تقييم الخطة|تحليل شامل|تحليل عميق|مراجعة شاملة|مراجعة الإدارة|مراجعة إدارية|فحص التناقض|فحص تناقض|خطة كاملة|خطة استراتيجية كاملة|تقرير سنوي|تقرير نصف سنوي|نضج ISO|iso maturity|evaluate|comprehensive|full review/i;
 
 // ── أنماط QUICK — قراءة / عرض / سؤال واحد → Haiku ─────────────────────────
-const QUICK_PATTERNS = /
-  ^(كم|ما هو|ما هي|ما عدد|أخبرني|اعرض|اقرأ|أظهر|هل يوجد|هل هناك|
-     show|list|count|how many|what is|tell me|display|is there)
-/xi;
+const QUICK_PATTERNS = /^(كم|ما هو|ما هي|ما عدد|أخبرني|اعرض|اقرأ|أظهر|هل يوجد|هل هناك|show|list|count|how many|what is|tell me|display|is there)/i;
 
 /**
  * يُحدِّد الموديل المناسب بناءً على آخر رسالة للمستخدم
