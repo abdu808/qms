@@ -13,22 +13,40 @@ import { Router }   from 'express';
 import multer       from 'multer';
 import { tmpdir }   from 'os';
 import { extname } from 'path';
-import { unlink }   from 'fs/promises';
+import { readFile, unlink } from 'fs/promises';
 import { asyncHandler }  from '../utils/asyncHandler.js';
 import { authorize }     from '../middleware/auth.js';
 import { BadRequest }    from '../utils/errors.js';
+import { isAllowedFileKind } from '../lib/fileSignatures.js';
 import { buildContext, chat, applyActions, getAiAgentUserIdInternal } from '../services/consultantAgent.js';
 import { applyPendingActions } from '../services/aiAgent/loop.js';
 import { processOperationalPlan } from '../services/aiAgent/fileProcessor.js';
 import { extractText, SUPPORTED_EXTENSIONS } from '../../scripts/ingest/extractors.mjs';
 import { analyzeFile }   from '../../scripts/ingest/analyzer.mjs';
 import { uploadItem, getAdminUserId } from '../../scripts/ingest/uploader.mjs';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
 // DEPT_MANAGER مسموح له بالقراءة والاقتراح فقط (review mode إجباري)
 const ROLES      = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'DEPT_MANAGER'];
 // الأدوار التي تستطيع تنفيذ الكتابة مباشرةً (auto mode)
 const WRITE_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
+
+// ــ Rate limiting على المستخدم (10 طلبات/دقيقة) — يمنع استنزاف الميزانية ─────────────
+const chatRateLimiter = rateLimit({
+  windowMs: 60 * 1000,   // نافذة دقيقة واحدة
+  max: 10,               // 10 طلبات لكل مستخدم في الدقيقة
+  standardHeaders: true,
+  legacyHeaders: false,
+  // المفتاح: userId بدل IP (لأن المستخدمين خلف proxy يتشاركون IP)
+  keyGenerator: (req) => req.user?.sub || req.user?.id || req.ip,
+  handler: (_req, res) => {
+    res.status(429).json({
+      ok: false,
+      error: { code: 'RATE_LIMIT', message: 'تجاوزت الحد المسموح (10 طلبات/دقيقة) — انتظر قليلاً ثم أعد المحاولة.' },
+    });
+  },
+});
 
 // ── multer: حفظ مؤقت في /tmp ──────────────────────────────────────────────────
 const upload = multer({
@@ -47,8 +65,8 @@ router.get('/context', authorize(...ROLES), asyncHandler(async (_req, res) => {
   res.json({ ok: true, context: ctx });
 }));
 
-// ── POST /chat ────────────────────────────────────────────────────────────────
-router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
+// ــ POST /chat ─────────────────────────────────────────────────────────────────────
+router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (req, res) => {
   const { messages, mode: requestedMode = 'auto', model: modelOverride, provider: providerOverride } = req.body || {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -82,12 +100,16 @@ router.post('/chat', authorize(...ROLES), asyncHandler(async (req, res) => {
   };
 
   // نبضات كل 15 ثانية → Cloudflare يرى حركة بيانات ولا يقطع
-  const pingTimer = setInterval(() => sseWrite('ping', { t: Date.now() }), 15_000);
+  const pingTimer = setInterval(() => sseWrite('ping', { t: Date.now() }), 5_000);
   // إرسال "بدأ التفكير" فوراً
   sseWrite('thinking', { status: 'started' });
 
   try {
-    const out = await chat({ messages, callerUserId, callerRole, mode, modelOverride, providerOverride });
+    // onProgress: يُرسل SSE event لكل أداة تُنفَّذ في الوقت الحقيقي
+    const onProgress = (event) => {
+      if (!res.writableEnded) sseWrite('progress', event);
+    };
+    const out = await chat({ messages, callerUserId, callerRole, mode, modelOverride, providerOverride, onProgress });
     clearInterval(pingTimer);
     sseWrite('result', { ok: true, ...out });
   } catch (e) {
@@ -152,6 +174,10 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
 
     try {
       await rename(tmpPath, namedPath);
+      const uploadedBuffer = await readFile(namedPath);
+      if (!isAllowedFileKind(uploadedBuffer, ['pdf', 'ole-office', 'zip-office', 'jpg', 'png'])) {
+        throw BadRequest('محتوى الملف لا يطابق الأنواع المسموحة');
+      }
 
       // 1️⃣ استخراج المحتوى (نص أو buffer للـ vision)
       const extracted = await extractText(namedPath);
