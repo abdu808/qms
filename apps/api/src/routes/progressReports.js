@@ -137,6 +137,46 @@ router.get('/mine', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────
 // GET by id
 // ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────
+// FLAGS
+// ─────────────────────────────────────────────────────────────────────
+router.get('/flags', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
+  const { status = 'OPEN', type, departmentId } = req.query;
+  const where = {};
+  if (status) where.status = status;
+  if (type)   where.type   = type;
+  if (departmentId) where.departmentId = departmentId;
+
+  if (req.user.role === 'DEPT_MANAGER') {
+    const uDept = await resolveUserDept(req);
+    if (!uDept) throw Forbidden('لم يُربط حسابك بقسم');
+    where.departmentId = uDept;
+  }
+
+  const flags = await prisma.investigationFlag.findMany({
+    where, orderBy: { createdAt: 'desc' }, take: 100,
+  });
+
+  res.json({ ok: true, items: flags });
+}));
+
+router.post('/flags/:id/resolve', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
+  const { note } = req.body || {};
+  const flag = await prisma.investigationFlag.findUnique({ where: { id: req.params.id } });
+  if (!flag) throw NotFound();
+
+  const updated = await prisma.investigationFlag.update({
+    where: { id: flag.id },
+    data: {
+      status: 'RESOLVED',
+      resolvedAt: new Date(),
+      resolvedById: req.user.sub || req.user.id,
+      resolutionNote: note || null,
+    },
+  });
+  res.json({ ok: true, flag: updated });
+}));
+
 router.get('/:id', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
   const report = await prisma.progressReport.findUnique({
     where: { id: req.params.id },
@@ -365,46 +405,6 @@ router.post('/dashboard/detect-contradictions', authorize(...QM_ROLES), asyncHan
   }
 
   res.json({ ok: true, found: created.length, flags: created });
-}));
-
-// ─────────────────────────────────────────────────────────────────────
-// FLAGS
-// ─────────────────────────────────────────────────────────────────────
-router.get('/flags', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
-  const { status = 'OPEN', type, departmentId } = req.query;
-  const where = {};
-  if (status) where.status = status;
-  if (type)   where.type   = type;
-  if (departmentId) where.departmentId = departmentId;
-
-  if (req.user.role === 'DEPT_MANAGER') {
-    const uDept = await resolveUserDept(req);
-    if (!uDept) throw Forbidden('لم يُربط حسابك بقسم');
-    where.departmentId = uDept;
-  }
-
-  const flags = await prisma.investigationFlag.findMany({
-    where, orderBy: { createdAt: 'desc' }, take: 100,
-  });
-
-  res.json({ ok: true, items: flags });
-}));
-
-router.post('/flags/:id/resolve', authorize(...DEPT_ROLES), asyncHandler(async (req, res) => {
-  const { note } = req.body || {};
-  const flag = await prisma.investigationFlag.findUnique({ where: { id: req.params.id } });
-  if (!flag) throw NotFound();
-
-  const updated = await prisma.investigationFlag.update({
-    where: { id: flag.id },
-    data: {
-      status: 'RESOLVED',
-      resolvedAt: new Date(),
-      resolvedById: req.user.sub || req.user.id,
-      resolutionNote: note || null,
-    },
-  });
-  res.json({ ok: true, flag: updated });
 }));
 
 // ─────────────────────────────────────────────────────────────────────

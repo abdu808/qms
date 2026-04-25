@@ -1,0 +1,17 @@
+# Project Review Instructions
+
+When reviewing this repository, always:
+- Read the full repository structure before giving conclusions.
+- Do not modify files unless explicitly asked.
+- Prioritize security, authorization, data integrity, and production readiness.
+- Always cite affected files and functions.
+- Separate findings into:
+  1. Security vulnerabilities
+  2. Business logic issues
+  3. Code quality issues
+  4. Database issues
+  5. API issues
+  6. Deployment/configuration issues
+- Use severity levels: Critical, High, Medium, Low.
+- Do not make unsupported assumptions.
+- If evidence is incomplete, mark the item as "needs verification".

@@ -740,7 +740,6 @@ function app() {
         if (r.ok) {
           const data = await r.json();
           this.token = data.token;
-          this.refreshToken = data.refreshToken;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
           if (!this.isReadOnly()) {
@@ -764,7 +763,7 @@ function app() {
       this.loading = true; this.loginError = '';
       try {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
-        this.token = r.token; this.refreshToken = r.refreshToken; this.user = r.user;
+        this.token = r.token; this.user = r.user;
         // Tokens kept in-memory only. Persistence via httpOnly cookies (set by server).
         if (r.mustChangePassword) {
           this.mustChangePw = true;
@@ -1459,7 +1458,6 @@ function app() {
           if (r.ok) {
             const data = await r.json();
             this.token = data.token;
-            if (data.refreshToken) this.refreshToken = data.refreshToken;
             headers.Authorization = `Bearer ${data.token}`;
             const retry = await fetch(API + path, {
               method, headers, credentials: 'include',

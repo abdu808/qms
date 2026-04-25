@@ -30,8 +30,38 @@ function gradeFor(score) {
   return 'ضعيف';
 }
 
-function normalize(data) {
+function isPrivilegedReviewer(user) {
+  return can(user, 'performance-reviews', 'delete');
+}
+
+async function loadReviewForUpdate(req) {
+  const item = await prisma.performanceReview.findFirst({
+    where: { id: req.params.id, deletedAt: null },
+    select: {
+      id: true,
+      employeeId: true,
+      reviewerId: true,
+      status: true,
+      ...Object.fromEntries(DIMENSIONS.map(k => [k, true])),
+    },
+  });
+  if (!item) throw NotFound('Review not found');
+  if (item.status === 'FINALIZED') throw BadRequest('Finalized reviews cannot be edited');
+  if (!isPrivilegedReviewer(req.user) && item.reviewerId !== req.user.sub) {
+    throw Forbidden('Only the reviewer or quality manager can edit this review');
+  }
+  return item;
+}
+
+function assertSeparationOfDuty(employeeId, reviewerId) {
+  if (employeeId && reviewerId && employeeId === reviewerId) {
+    throw BadRequest('Employee cannot review themselves');
+  }
+}
+
+function normalize(data, { partial = false } = {}) {
   for (const k of DIMENSIONS) {
+    if (partial && !(k in data)) continue;
     if (data[k] === '' || data[k] === null || data[k] === undefined) {
       data[k] = null;
     } else {
@@ -40,13 +70,10 @@ function normalize(data) {
       data[k] = n;
     }
   }
-  const auto = computeOverall(data);
+  const auto = partial ? null : computeOverall(data);
   if (auto != null) {
     data.overallRating = auto;
     data.grade = gradeFor(auto);
-  }
-  if (data.employeeId === data.reviewerId) {
-    throw BadRequest('لا يجوز للموظف تقييم نفسه (Separation of Duty — ISO 7.1.2)');
   }
   return data;
 }
@@ -59,11 +86,27 @@ const base = crudRouter({
   allowedSortFields: ['createdAt', 'periodEnd', 'status', 'overallRating'],
   allowedFilters: ['status', 'employeeId', 'reviewerId', 'period'],
   beforeCreate: async (data, req) => {
-    data = normalize(data);
+    if (!isPrivilegedReviewer(req.user)) data.reviewerId = req.user.sub;
     if (!data.reviewerId) data.reviewerId = req.user.sub;
+    assertSeparationOfDuty(data.employeeId, data.reviewerId);
+    data = normalize(data);
     return data;
   },
-  beforeUpdate: async (data) => normalize(data),
+  beforeUpdate: async (data, req) => {
+    const existing = await loadReviewForUpdate(req);
+    if (!isPrivilegedReviewer(req.user) && data.reviewerId && data.reviewerId !== req.user.sub) {
+      throw Forbidden('لا يمكن نقل التقييم إلى مقيم آخر');
+    }
+    assertSeparationOfDuty(data.employeeId ?? existing.employeeId, data.reviewerId ?? existing.reviewerId);
+    data = normalize(data, { partial: true });
+    if (DIMENSIONS.some(k => k in data)) {
+      const merged = { ...existing, ...data };
+      const auto = computeOverall(merged);
+      data.overallRating = auto;
+      data.grade = gradeFor(auto);
+    }
+    return data;
+  },
 });
 
 const router = Router();

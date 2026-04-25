@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import multer     from 'multer';
 import { BadRequest, Forbidden } from '../utils/errors.js';
+import { isExcelFile } from '../lib/fileSignatures.js';
 import { buildTemplate, parseFile } from './import/_helpers.js';
 import { ENTITIES as PEOPLE_ENTITIES,   IMPORTERS as PEOPLE_IMPORTERS }     from './import/importPeople.js';
 import { ENTITIES as OPS_ENTITIES,      IMPORTERS as OPS_IMPORTERS }         from './import/importOperations.js';
@@ -80,6 +81,7 @@ router.get('/template/:entity', requireImportRole, async (req, res, next) => {
 router.post('/preview/:entity', requireImportRole, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) throw BadRequest('يرجى رفع ملف Excel');
+    if (!isExcelFile(req.file.buffer)) throw BadRequest('محتوى الملف ليس Excel صالحاً');
     const entity = req.params.entity;
     if (!ENTITIES[entity]) throw BadRequest(`نوع غير مدعوم: ${entity}`);
 
@@ -103,6 +105,7 @@ router.post('/preview/:entity', requireImportRole, upload.single('file'), async 
 router.post('/confirm/:entity', requireImportRole, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) throw BadRequest('يرجى رفع ملف Excel');
+    if (!isExcelFile(req.file.buffer)) throw BadRequest('محتوى الملف ليس Excel صالحاً');
     const entity = req.params.entity;
     if (!ENTITIES[entity]) throw BadRequest(`نوع غير مدعوم: ${entity}`);
 
@@ -115,7 +118,8 @@ router.post('/confirm/:entity', requireImportRole, upload.single('file'), async 
       throw BadRequest('الملف يحتوي على أخطاء — لم يُستورد شيء');
     }
 
-    const result = await importer(records, req.user.id);
+    const actorId = req.user.sub || req.user.id;
+    const result = await importer(records, actorId);
 
     res.json({
       ok: true,

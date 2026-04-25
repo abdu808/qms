@@ -96,6 +96,9 @@ const ADMIN_TOOL_NAMES = new Set([
  * الاستثناء الوحيد: SUPER_ADMIN يمكنه تجاوز هذا القيد.
  */
 export const ALWAYS_REVIEW_TOOLS = new Set([
+  'create_strategic_plan',
+  'update_strategic_plan',
+  'create_strategic_goal',
   'update_strategic_goal',
   'create_operational_activity',
   'update_operational_activity',
@@ -121,7 +124,7 @@ const ALL_TOOLS = [
 - الفجوات والمشاكل الحالية
 - الرد على "تحقق" / "ماذا في النظام"
 
-الخيارات: goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")
+الخيارات: plans, goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")
 limit: عدد السجلات لكل قسم (افتراضي 50، أقصى 200) — استخدم قيمة أصغر لتسريع الاستجابة
 offset: للصفحات التالية (0, 50, 100...)`,
     input_schema: {
@@ -131,7 +134,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
           type: 'array',
           items: {
             type: 'string',
-            enum: ['goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
+            enum: ['plans','goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
           },
           description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps)',
         },
@@ -161,6 +164,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
         endYear:     { type: 'number' },
         progress:    { type: 'number', minimum: 0, maximum: 100 },
         status:      { type: 'string', enum: ['PLANNED','ACTIVE','COMPLETED','CANCELLED'] },
+        planId:      { type: 'string', description: 'CUID الخطة الاستراتيجية (من get_system_state sections:[plans])' },
         notes:       { type: 'string' },
       },
       required: ['id'],
@@ -175,6 +179,62 @@ offset: للصفحات التالية (0, 50, 100...)`,
       properties: {
         id:     { type: 'string', description: 'CUID الهدف (من get_system_state)' },
         reason: { type: 'string', description: 'سبب الحذف (للسجل)' },
+      },
+      required: ['id'],
+    },
+  },
+
+  {
+    name: 'create_strategic_goal',
+    description: 'أنشئ هدفاً استراتيجياً جديداً. استخدم get_system_state أولاً لتجنب التكرار.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title:       { type: 'string', description: 'عنوان الهدف', },
+        perspective: { type: 'string', description: 'المحور: مالي واستدامي | المستفيدون والمجتمع | العمليات الداخلية | التعلم والنمو | الحوكمة والامتثال' },
+        kpi:         { type: 'string', description: 'مؤشر قياس النجاح' },
+        target:      { type: 'string', description: 'القيمة المستهدفة' },
+        baseline:    { type: 'string', description: 'الوضع الراهن' },
+        responsible: { type: 'string', description: 'اسم الجهة المسؤولة' },
+        initiatives: { type: 'string', description: 'المبادرات الاستراتيجية' },
+        startYear:   { type: 'number' },
+        endYear:     { type: 'number' },
+        planId:      { type: 'string', description: 'CUID الخطة الاستراتيجية لربط الهدف بها (اختياري)' },
+        notes:       { type: 'string' },
+      },
+      required: ['title'],
+    },
+  },
+
+  {
+    name: 'create_strategic_plan',
+    description: 'أنشئ خطة استراتيجية جديدة لتجميع الأهداف تحت فترة زمنية محددة.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title:       { type: 'string', description: 'عنوان الخطة (مثل: الخطة الاستراتيجية 2024-2026)' },
+        description: { type: 'string' },
+        startYear:   { type: 'number', description: 'سنة بداية الخطة' },
+        endYear:     { type: 'number', description: 'سنة نهاية الخطة' },
+        notes:       { type: 'string' },
+      },
+      required: ['title','startYear','endYear'],
+    },
+  },
+
+  {
+    name: 'update_strategic_plan',
+    description: 'حدِّث بيانات خطة استراتيجية (العنوان أو الفترة أو الحالة).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:          { type: 'string', description: 'CUID الخطة أو code (PLAN-XXXX)' },
+        title:       { type: 'string' },
+        description: { type: 'string' },
+        startYear:   { type: 'number' },
+        endYear:     { type: 'number' },
+        status:      { type: 'string', enum: ['DRAFT','ACTIVE','ARCHIVED'] },
+        notes:       { type: 'string' },
       },
       required: ['id'],
     },
@@ -1053,20 +1113,27 @@ export async function executeTool(name, input, actingUserId) {
     // ══ 1. get_system_state ══════════════════════════════════════════════════
     case 'get_system_state': {
       const want = new Set(input.sections || ['goals','activities','objectives','gaps']);
-      if (want.has('all')) ['goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
+      if (want.has('all')) ['plans','goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
 
       // Pagination: حد أقصى 200، افتراضي 50
       const pgLimit  = Math.min(Math.max(Number(input.limit  || 50), 1), 200);
       const pgOffset = Math.max(Number(input.offset || 0), 0);
       const result = {};
 
+      if (want.has('plans')) {
+        const items = await prisma.strategicPlan.findMany({
+          where: { deletedAt: null }, orderBy: { startYear: 'desc' },
+          select: { id:true, code:true, title:true, startYear:true, endYear:true, status:true, description:true },
+        });
+        result.plans = items;
+      }
       if (want.has('goals')) {
         const total = await prisma.strategicGoal.count({ where: { deletedAt: null } });
         const items = await prisma.strategicGoal.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
           take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, target:true, responsible:true, kpi:true,
-            baseline:true, startYear:true, endYear:true, progress:true, status:true,
+            baseline:true, startYear:true, endYear:true, progress:true, status:true, planId:true,
             activities: { select:{ id:true, code:true, title:true } } },
         });
         result.goals = { items, total, limit: pgLimit, offset: pgOffset };
@@ -1215,6 +1282,7 @@ export async function executeTool(name, input, actingUserId) {
       }
 
       const lines = [];
+      if (result.plans)      lines.push(`${result.plans.length} خطة استراتيجية`);
       // result.goals هو { items:[], total:N, ... } — نستخدم total للملخص
       if (result.goals)      lines.push(`${result.goals.total ?? result.goals.items?.length ?? 0} أهداف استراتيجية`);
       if (result.activities) lines.push(`${result.activities.total ?? result.activities.items?.length ?? 0} أنشطة تشغيلية`);
@@ -1243,7 +1311,7 @@ export async function executeTool(name, input, actingUserId) {
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل: id مفقود' };
       const resolvedId = await resolveGoal(id).catch(e => ({ err: e.message }));
       if (resolvedId?.err) return { ok:false, error:resolvedId.err, summary:'فشل: الهدف غير موجود' };
-      const data = pickFields(fields, ['title','target','responsible','kpi','baseline','initiatives','startYear','endYear','progress','status','notes']);
+      const data = pickFields(fields, ['title','target','responsible','kpi','baseline','initiatives','startYear','endYear','progress','status','planId','notes']);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتحديث', summary:'فشل: لا حقول' };
       try {
         const u = await prisma.strategicGoal.update({ where:{id:resolvedId}, data });
@@ -1268,6 +1336,66 @@ export async function executeTool(name, input, actingUserId) {
         prisma.strategicGoal.update({ where:{id}, data:{deletedAt:new Date(), notes: reason ? `محذوف: ${reason}` : undefined} }),
       ]);
       return { ok:true, summary:`🗑 حُذف الهدف ${goal.code}: "${goal.title}"${reason ? ` — ${reason}` : ''}` };
+    }
+
+    case 'create_strategic_goal': {
+      const { title, perspective, kpi, target, baseline, responsible, initiatives, startYear, endYear, planId, notes } = input;
+      if (!title) return { ok:false, error:'title مطلوب', summary:'فشل: title مفقود' };
+      // توليد code تلقائي
+      const lastGoal = await prisma.strategicGoal.findFirst({ orderBy:{ createdAt:'desc' }, select:{ code:true } });
+      const nextNum = lastGoal?.code ? (parseInt(lastGoal.code.split('-').pop(),10)||0)+1 : 1;
+      const year = new Date().getFullYear();
+      const code = `STR-${year}-${String(nextNum).padStart(4,'0')}`;
+      // التحقق من عدم تكرار الـ code
+      const existing = await prisma.strategicGoal.findFirst({ where:{ code } });
+      const finalCode = existing ? `STR-${year}-${String(nextNum+1).padStart(4,'0')}` : code;
+      const g = await prisma.strategicGoal.create({ data:{
+        code: finalCode, title,
+        perspective: perspective||null, kpi: kpi||null, target: target||null,
+        baseline: baseline||null, responsible: responsible||null,
+        initiatives: initiatives||null,
+        startYear: startYear ? Number(startYear) : year,
+        endYear: endYear ? Number(endYear) : year+1,
+        planId: planId||null, notes: notes||null, status:'PLANNED',
+      }});
+      return { ok:true, data:{ id:g.id, code:g.code }, summary:`✅ أُنشئ الهدف ${g.code}: "${g.title}"` };
+    }
+
+    case 'create_strategic_plan': {
+      const { title, description, startYear, endYear, notes } = input;
+      if (!title||!startYear||!endYear) return { ok:false, error:'title, startYear, endYear مطلوبة', summary:'فشل' };
+      if (Number(endYear) < Number(startYear)) return { ok:false, error:'endYear يجب أن يكون ≥ startYear', summary:'فشل' };
+      // توليد code تلقائي: PLAN-2024-2026
+      const baseCode = `PLAN-${startYear}-${endYear}`;
+      const existingCode = await prisma.strategicPlan.findFirst({ where:{ code:baseCode } });
+      const finalCode = existingCode ? `PLAN-${startYear}-${endYear}-${Date.now().toString(36).slice(-4)}` : baseCode;
+      const p = await prisma.strategicPlan.create({ data:{
+        code: finalCode, title, description: description||null,
+        startYear: Number(startYear), endYear: Number(endYear),
+        notes: notes||null, status:'DRAFT',
+      }});
+      return { ok:true, data:{ id:p.id, code:p.code }, summary:`✅ أُنشئت الخطة ${p.code}: "${p.title}" (${startYear}-${endYear}) — حالتها مسودة، يمكن تفعيلها لاحقاً` };
+    }
+
+    case 'update_strategic_plan': {
+      const { id, ...fields } = input;
+      if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      // resolve by code too
+      let planId = id;
+      if (!id.startsWith('c')) {
+        const found = await prisma.strategicPlan.findFirst({ where:{ OR:[{ id },{ code:id }], deletedAt:null }, select:{ id:true } });
+        if (!found) return { ok:false, error:`الخطة "${id}" غير موجودة`, summary:'فشل' };
+        planId = found.id;
+      }
+      const data = pickFields(fields, ['title','description','startYear','endYear','status','notes']);
+      if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتحديث', summary:'فشل' };
+      try {
+        const u = await prisma.strategicPlan.update({ where:{ id:planId }, data });
+        return { ok:true, data:{ id:u.id, code:u.code }, summary:`✅ حُدِّثت الخطة ${u.code}: ${Object.keys(data).join(', ')}` };
+      } catch(e) {
+        if (e.code==='P2025') return { ok:false, error:`الخطة ${id} غير موجودة`, summary:'فشل' };
+        throw e;
+      }
     }
 
     case 'update_operational_activity': {

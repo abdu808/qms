@@ -59,9 +59,15 @@ export const DEFAULT_POLICY = {
 // Resource names = kebab-case segments matching server.js route mounts
 //   (donations, ncr, audits, suppliers, beneficiaries …)
 export const MATRIX = {
+  // Cross-cutting sensitive surfaces
+  dashboard:        { read: MANAGER_UP },
+  reports:          { read: QM_UP },
+  exports:          { read: QM_UP },
+
   // ── People & Org ─────────────────────────────────────────────────
   users:            { read: MANAGER_UP, create: SA,    update: SA,    delete: SA },
   departments:      { read: ANY,        create: QM_UP, update: QM_UP, delete: SA },
+  'strategic-plans':{ read: ANY,        create: QM_UP, update: QM_UP, delete: QM_UP },
   'strategic-goals':{ read: ANY,        create: QM_UP, update: QM_UP, delete: QM_UP },
 
   // ── Planning (ISO clause 6) ──────────────────────────────────────
@@ -109,6 +115,7 @@ export const MATRIX = {
 
   // ── Improvement (ISO 10) ─────────────────────────────────────────
   ncr:              { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP, close: QM_UP },
+  capa:             { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP, close: QM_UP },
 
   // ── Signatures & audit logs ──────────────────────────────────────
   signatures:       { read: ANY, create: EMPLOYEE_UP, update: QM_UP, delete: SA },
@@ -131,7 +138,8 @@ export const MATRIX = {
  */
 export function rolesFor(resource, action) {
   const policy = MATRIX[resource];
-  if (policy && policy[action]) return policy[action];
-  if (DEFAULT_POLICY[action])   return DEFAULT_POLICY[action];
+  if (!policy) return null;
+  if (policy[action]) return policy[action];
+  if (DEFAULT_POLICY[action]) return DEFAULT_POLICY[action];
   return null;
 }

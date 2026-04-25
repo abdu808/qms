@@ -19,9 +19,16 @@ const PREFIX = 'v1:';
 let _masterKey = null;
 function getMasterKey() {
   if (_masterKey) return _masterKey;
-  const raw = process.env.AI_ENCRYPTION_KEY || config.jwt?.secret || process.env.JWT_SECRET;
+  const rawAiKey = process.env.AI_ENCRYPTION_KEY;
+  if (config.env === 'production' && !rawAiKey) {
+    throw new Error('AI_ENCRYPTION_KEY is required in production');
+  }
+  const raw = rawAiKey || config.jwt?.secret || process.env.JWT_SECRET;
   if (!raw) {
     throw new Error('AI_ENCRYPTION_KEY أو JWT_SECRET مطلوب لتشفير مفاتيح AI');
+  }
+  if (config.env === 'production' && String(raw).length < 32) {
+    throw new Error('AI_ENCRYPTION_KEY must be at least 32 characters in production');
   }
   // SHA-256 → 32 bytes ثابتة حتى لو كان المدخل متفاوت الطول
   _masterKey = createHash('sha256').update(String(raw)).digest();
@@ -33,7 +40,7 @@ export function encrypt(plain) {
   if (plain === null || plain === undefined || plain === '') return '';
   const key = getMasterKey();
   const iv = randomBytes(IV_LEN);
-  const cipher = createCipheriv(ALGO, key, iv);
+  const cipher = createCipheriv(ALGO, key, iv, { authTagLength: 16 });
   const ct = Buffer.concat([cipher.update(String(plain), 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return `${PREFIX}${iv.toString('hex')}:${tag.toString('hex')}:${ct.toString('hex')}`;
@@ -47,8 +54,10 @@ export function decrypt(encrypted) {
     const [, ivHex, tagHex, ctHex] = encrypted.split(':');
     if (!ivHex || !tagHex || !ctHex) return '';
     const key = getMasterKey();
-    const decipher = createDecipheriv(ALGO, key, Buffer.from(ivHex, 'hex'));
-    decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+    const tag = Buffer.from(tagHex, 'hex');
+    if (tag.length !== 16) return '';
+    const decipher = createDecipheriv(ALGO, key, Buffer.from(ivHex, 'hex'), { authTagLength: 16 });
+    decipher.setAuthTag(tag);
     const pt = Buffer.concat([decipher.update(Buffer.from(ctHex, 'hex')), decipher.final()]);
     return pt.toString('utf8');
   } catch (e) {

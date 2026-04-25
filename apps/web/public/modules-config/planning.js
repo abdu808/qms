@@ -1,6 +1,36 @@
 // modules-config/planning.js — مجال التخطيط
-// objectives, risks, strategicGoals, operationalActivities
+// strategicPlans, strategicGoals, objectives, risks, operationalActivities
 window.QMS_MODULES_PLANNING = {
+  strategicPlans: {
+    endpoint: 'strategic-plans',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'DRAFT',    l: 'مسودة' },
+      { v: 'ACTIVE',   l: 'نشطة' },
+      { v: 'ARCHIVED', l: 'مؤرشفة' },
+    ],
+    cols: [
+      { key: 'code',      label: 'الرمز' },
+      { key: 'title',     label: 'الخطة الاستراتيجية' },
+      { key: 'startYear', label: 'من سنة' },
+      { key: 'endYear',   label: 'إلى سنة' },
+      { key: 'status',    label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'title',       label: 'عنوان الخطة', required: true },
+      { key: 'description', label: 'الوصف', type: 'textarea' },
+      { key: 'startYear',   label: 'سنة البداية', type: 'number', required: true },
+      { key: 'endYear',     label: 'سنة النهاية', type: 'number', required: true },
+      { key: 'status',      label: 'الحالة', type: 'select', options: [
+        { v: 'DRAFT',    l: 'مسودة' },
+        { v: 'ACTIVE',   l: 'نشطة' },
+        { v: 'ARCHIVED', l: 'مؤرشفة' },
+      ]},
+      { key: 'notes', label: 'ملاحظات', type: 'textarea' },
+    ],
+  },
+
   strategicGoals: {
     endpoint: 'strategic-goals',
     exportable: true,
@@ -42,6 +72,7 @@ window.QMS_MODULES_PLANNING = {
         { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'ACHIEVED', l: 'محقق' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
+      { key: 'planId', label: 'الخطة الاستراتيجية', type: 'relation', relation: 'strategicPlans' },
       { key: 'notes', label: 'ملاحظات', type: 'textarea' },
     ],
   },

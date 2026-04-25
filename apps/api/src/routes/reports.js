@@ -3,11 +3,13 @@
  * ISO 9001:2015 — جمعية البر بصبيا
  */
 import { Router } from 'express';
+import { requireAction } from '../lib/permissions.js';
 import complianceReportsRoutes from './reports/complianceReports.js';
 import operationalReportsRoutes from './reports/operationalReports.js';
 import isoAuditReportRoutes from './reports/isoAuditReport.js';
 
 const router = Router();
+router.use(requireAction('reports', 'read'));
 router.use('/', complianceReportsRoutes);
 router.use('/', operationalReportsRoutes);
 router.use('/', isoAuditReportRoutes);

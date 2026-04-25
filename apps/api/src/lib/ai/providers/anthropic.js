@@ -17,7 +17,7 @@ export async function complete({
   apiKey, model = DEFAULT_MODEL,
   system, messages,
   maxTokens = DEFAULT_MAX_TOKENS,
-  temperature = 0.3,
+  temperature = 0.6,  // مرتفع للمستشار — يمنح تنوعاً في الاقتراحات دون فقدان الدقة
   jsonSchema = null,
   tools = null,
   signal = null,

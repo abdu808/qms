@@ -215,6 +215,25 @@ describe('can() — حالات حدية', () => {
 //  MATRIX integrity — التحقق من سلامة الهيكل
 // ═══════════════════════════════════════════════════════════════
 
+describe('sensitive resource guardrails', () => {
+  it('fails closed for unknown resources', () => {
+    expect(rolesFor('exports-typo', 'read')).toBeNull();
+    expect(can(user('SUPER_ADMIN'), 'exports-typo', 'read')).toBe(false);
+  });
+
+  it('restricts sensitive reports and exports to quality management', () => {
+    expect(can(user('EMPLOYEE'), 'exports', 'read')).toBe(false);
+    expect(can(user('GUEST_AUDITOR'), 'reports', 'read')).toBe(false);
+    expect(can(user('QUALITY_MANAGER'), 'exports', 'read')).toBe(true);
+    expect(can(user('QUALITY_MANAGER'), 'reports', 'read')).toBe(true);
+  });
+
+  it('keeps dashboard away from non-manager roles', () => {
+    expect(can(user('EMPLOYEE'), 'dashboard', 'read')).toBe(false);
+    expect(can(user('DEPT_MANAGER'), 'dashboard', 'read')).toBe(true);
+  });
+});
+
 describe('MATRIX integrity', () => {
   it('كل دور في ROLE_TIERS معرَّف ويُقيَّم بشكل صحيح', () => {
     // نتحقق من أن ROLE_TIERS نفسه سليم

@@ -868,6 +868,25 @@ model AuditLog {
 // STRATEGIC PLAN (الخطة الاستراتيجية)
 // =====================================================
 
+model StrategicPlan {
+  id          String   @id @default(cuid())
+  code        String   @unique  // PLAN-2025, PLAN-2026
+  title       String             // الخطة الاستراتيجية 2025-2027
+  description String?
+  startYear   Int
+  endYear     Int
+  status      String   @default("DRAFT")  // DRAFT | ACTIVE | ARCHIVED
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  goals       StrategicGoal[]
+
+  @@index([status])
+  @@index([deletedAt])
+}
+
 model StrategicGoal {
   id           String   @id @default(cuid())
   code         String   @unique  // STR-2026-001
@@ -887,13 +906,18 @@ model StrategicGoal {
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
 
-  // Linked children (Phase 2 integration)
+  // الخطة الاستراتيجية الأم
+  planId       String?
+  plan         StrategicPlan? @relation(fields: [planId], references: [id])
+
+  // Linked children
   activities   OperationalActivity[]
   objectives   Objective[]
   risks        Risk[]
 
   @@index([status])
   @@index([deletedAt])
+  @@index([planId])
 }
 
 // =====================================================

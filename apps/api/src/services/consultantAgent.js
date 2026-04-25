@@ -141,7 +141,10 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   • investigate_cross_contradictions — فحص التناقضات بين الأقسام
 
 🏗️ التخطيط الاستراتيجي والتشغيلي (⚠️ تتطلب موافقتك قبل التنفيذ):
-  • update_strategic_goal — تعديل هدف استراتيجي
+  • create_strategic_plan — إنشاء خطة استراتيجية جديدة (لتجميع الأهداف تحت فترة زمنية)
+  • update_strategic_plan — تعديل خطة استراتيجية
+  • create_strategic_goal — إنشاء هدف استراتيجي جديد
+  • update_strategic_goal — تعديل هدف استراتيجي (يمكن ربطه بخطة عبر planId)
   • create_operational_activity — إنشاء نشاط تشغيلي جديد
   • update_operational_activity — تعديل نشاط تشغيلي
   • link_activity_to_goal — ربط نشاط بهدف استراتيجي
@@ -210,9 +213,14 @@ const SUPER_ADMIN_PROMPT_SECTION = `
 أنت تعمل مع المسؤول الكامل للنظام — صلاحياتك موسَّعة:
 
 ✅ تنفيذ فوري (بدون انتظار موافقة):
-   • جميع عمليات الإنشاء والتعديل — الأهداف، الأنشطة، الـ SWOT، وغيرها
+   • جميع عمليات الإنشاء والتعديل — الخطط الاستراتيجية، الأهداف، الأنشطة، الـ SWOT، وغيرها
    • الحذف الناعم (soft-delete): أهداف استراتيجية، أنشطة تشغيلية، أهداف KPI
      ← الحذف آمن: البيانات تُحفَظ في DB ويمكن استرداها
+
+الخطط الاستراتيجية (StrategicPlan):
+   • استخدم get_system_state sections:["plans"] لرؤية الخطط الموجودة
+   • يمكن ربط الأهداف بخطة عبر update_strategic_goal(planId: ...)
+   • كل خطة لها: code, title, startYear, endYear, status (DRAFT|ACTIVE|ARCHIVED)
 
 قواعد الحذف:
   ① اقرأ البيانات أولاً — تأكد من الهدف قبل الحذف

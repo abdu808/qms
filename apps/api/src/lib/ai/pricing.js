@@ -45,6 +45,10 @@ export const MODEL_CATALOG = [
   { provider: 'anthropic', model: 'claude-haiku-4-5',  label: 'Claude Haiku 4.5',  tier: 'quick',   good: 'أسئلة سريعة، متابعة يومية — اقتصادي جداً ($1/1M)' },
   { provider: 'anthropic', model: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', tier: 'standard', good: 'الافتراضي — تحليل استراتيجي وتقارير شاملة ($3/1M)' },
   { provider: 'anthropic', model: 'claude-opus-4-5',   label: 'Claude Opus 4.5',   tier: 'premium',  good: 'التقييم الربع سنوي العميق — أعلى جودة ($15/1M)' },
+  { provider: 'openai',    model: 'gpt-4o-mini',       label: 'GPT-4o mini',       tier: 'quick',    good: 'Fast low-cost checks and summaries ($0.15/1M input)' },
+  { provider: 'openai',    model: 'gpt-4o',            label: 'GPT-4o',            tier: 'standard', good: 'General analysis and report drafting ($2.50/1M input)' },
+  { provider: 'google',    model: 'gemini-2.5-flash',  label: 'Gemini 2.5 Flash',  tier: 'quick',    good: 'Fast multilingual review and extraction ($0.30/1M input)' },
+  { provider: 'google',    model: 'gemini-2.5-pro',    label: 'Gemini 2.5 Pro',    tier: 'standard', good: 'Deeper reasoning and long-context review ($1.25/1M input)' },
 ];
 
 /**
