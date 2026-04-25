@@ -16,13 +16,20 @@ done
 
 echo "[startup] ── المرحلة 2: تطبيق ترحيلات Prisma (آمن للإنتاج) ──"
 # prisma migrate deploy: يطبّق الهجرات المُعتمَدة فقط — لا يُغيّر سكيما بلا ترحيل، لا يفقد بيانات.
-# إن لم يوجد مجلد migrations نستخدم db push (بدون --accept-data-loss) كـ bootstrap آمن للتطوير.
-if [ -d "prisma/migrations" ] && [ -n "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-  npx prisma migrate deploy
-else
-  echo "[startup] لا يوجد مجلد migrations — استخدام db push (بدون accept-data-loss)"
-  npx prisma db push
+#
+# عند أول نشر بعد إنشاء baseline migration (20260425033924_init):
+#   - إذا كانت قاعدة البيانات موجودة بالفعل (db push سابق)، نُعلّم الـ migration كـ "مُطبَّق مسبقاً"
+#     عبر: PRISMA_BASELINE=true في متغيرات البيئة
+#   - بعدها يعود PRISMA_BASELINE إلى false ويعمل migrate deploy عادياً
+if [ "${PRISMA_BASELINE:-false}" = "true" ]; then
+  echo "[startup] وضع BASELINE — تعليم migration الأولي كمُطبَّق مسبقاً (لقاعدة بيانات موجودة)"
+  MIGRATION_NAME=$(ls prisma/migrations | grep -v migration_lock.toml | sort | head -1)
+  if [ -n "$MIGRATION_NAME" ]; then
+    npx prisma migrate resolve --applied "$MIGRATION_NAME" || echo "[startup] تخطّي — مُعلَّم مسبقاً"
+  fi
 fi
+
+npx prisma migrate deploy
 
 echo "[startup] ── المرحلة 3: تطبيق الترحيلات اليدوية (SQL) ──"
 node scripts/migrate.mjs
