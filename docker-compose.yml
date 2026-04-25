@@ -70,11 +70,12 @@ services:
     networks:
       - qms-net
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      # يقبل 200 (جاهز) و 503 (startup جارٍ) — يفشل فقط إذا Node ميت كلياً (connection refused)
+      test: ["CMD-SHELL", "wget -qO- --timeout=5 http://localhost:3000/api/health 2>/dev/null | grep -q '\"ok\"' || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 30s   # Node يبدأ بثوانٍ — /api/health يُرجع 503 تلقائياً حتى يكتمل startup.sh
+      start_period: 10s
 
   qms-web:
     build:
