@@ -43,7 +43,7 @@ fi
 # إذا وُجدت هجرة فاشلة (P3009) بسبب انقطاع سابق، أعدها إلى rolled-back
 if npx prisma migrate status 2>&1 | grep -q "failed"; then
   echo "[startup] ⚠️  وُجدت هجرة فاشلة — إعادة تعيينها كـ rolled-back وإعادة المحاولة"
-  FAILED_MIGRATION=$(npx prisma migrate status 2>&1 | grep "failed" | grep -oP '\d{14}_\w+' | head -1)
+  FAILED_MIGRATION=$(npx prisma migrate status 2>&1 | grep "failed" | grep -oE '[0-9]{14}_[a-zA-Z0-9_]+' | head -1)
   if [ -n "$FAILED_MIGRATION" ]; then
     npx prisma migrate resolve --rolled-back "$FAILED_MIGRATION" || true
   fi
