@@ -119,19 +119,24 @@ process.on('SIGINT', () => {
 const app = express();
 
 app.set('trust proxy', 1);
+const isProduction = config.env === 'production';
 // ── Content-Security-Policy ──────────────────────────────────────────────
 // نسمح فقط لنطاق الموقع + CDNs المستخدمة في الواجهة (Tailwind, Alpine, Chart.js, Google Fonts).
 // report-only في التطوير كي لا تكسر التجربة، تنفيذ صارم في الإنتاج.
 const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
-  // 'unsafe-inline' لازمة لـ Tailwind play-CDN/Alpine x-data/x-init + بعض السكربتات الصغيرة
+  // 'unsafe-inline' لازمة دائماً لـ Alpine.js (x-data/x-init) + Tailwind play-CDN.
+  // 'unsafe-eval' أخطر (eval/Function) — نحجبه في production فقط.
   scriptSrc: [
-    "'self'", "'unsafe-inline'", "'unsafe-eval'",
+    "'self'",
+    "'unsafe-inline'",
+    ...(!isProduction ? ["'unsafe-eval'"] : []),
     'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net',
   ],
   styleSrc: [
-    "'self'", "'unsafe-inline'",
+    "'self'",
+    "'unsafe-inline'",
     'https://fonts.googleapis.com',
     'https://cdn.jsdelivr.net',
   ],
@@ -142,7 +147,7 @@ const CSP_DIRECTIVES = {
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],
-  upgradeInsecureRequests: config.env === 'production' ? [] : null,
+  upgradeInsecureRequests: isProduction ? [] : null,
 };
 // helmet يقبل null-removal تلقائياً لو حذفنا المفتاح
 if (!CSP_DIRECTIVES.upgradeInsecureRequests) delete CSP_DIRECTIVES.upgradeInsecureRequests;
@@ -254,8 +259,12 @@ app.get(['/.well-known/security.txt', '/security.txt'], (_req, res) => {
   ].join('\n'));
 });
 
-// Health — shallow liveness (fast, used by Coolify/Cloudflare probes)
+// Health — shallow liveness (fast, used by Coolify/Docker healthcheck probes)
+// يُرجع 503 أثناء startup.sh (قبل اكتمال migrate + seed)، ثم 200 بعدها.
 app.get('/api/health', (req, res) => {
+  if (!existsSync('/tmp/startup-complete')) {
+    return res.status(503).json({ ok: false, status: 'starting' });
+  }
   res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
 });
 

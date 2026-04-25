@@ -73,8 +73,8 @@ services:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 15s
       timeout: 10s
-      retries: 8
-      start_period: 180s  # startup.sh: انتظار DB (حتى 150ث) + migrate + seed — يحتاج وقتاً كافياً
+      retries: 5
+      start_period: 30s   # Node يبدأ بثوانٍ — /api/health يُرجع 503 تلقائياً حتى يكتمل startup.sh
 
   qms-web:
     build:

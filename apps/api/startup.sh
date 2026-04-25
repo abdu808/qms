@@ -64,4 +64,6 @@ if [ "${SEED_FROM_JSON:-off}" = "on" ]; then
 fi
 
 echo "[startup] ── المرحلة 10: تشغيل الخادم ──"
+# علامة اكتمال الـ startup — يقرأها /api/health ليُرجع 200 بدل 503
+touch /tmp/startup-complete
 exec node src/server.js
