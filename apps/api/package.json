@@ -43,8 +43,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "overrides": {
-    "uuid": "14.0.0"
   }
 }
