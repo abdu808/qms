@@ -126,8 +126,11 @@ window.QMS_MODULES_CONTEXT = {
   users: {
     endpoint: 'users',
     cols: [
-      { key: 'name', label: 'الاسم' }, { key: 'email', label: 'البريد' },
-      { key: 'role', label: 'الدور' }, { key: 'active', label: 'نشط', type: 'bool' },
+      { key: 'name', label: 'الاسم' },
+      { key: 'email', label: 'البريد' },
+      { key: 'department.name', label: 'الإدارة' },
+      { key: 'role', label: 'الدور' },
+      { key: 'active', label: 'نشط', type: 'bool' },
     ],
     fields: [
       { key: 'name', label: 'الاسم', required: true },
@@ -141,6 +144,7 @@ window.QMS_MODULES_CONTEXT = {
         { v: 'EMPLOYEE', l: 'موظف' },
         { v: 'GUEST_AUDITOR', l: 'مدقق ضيف' },
       ]},
+      { key: 'departmentId', label: 'الإدارة', type: 'relation', relation: 'departments' },
       { key: 'phone', label: 'الجوال' },
       { key: 'jobTitle', label: 'المسمى الوظيفي' },
     ],

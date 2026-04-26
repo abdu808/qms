@@ -14,15 +14,16 @@ const validateUpdate = runSchema(userUpdateSchema);
 
 const router = Router();
 const pub = { id: true, email: true, name: true, role: true, departmentId: true, jobTitle: true, phone: true, active: true, lastLoginAt: true, createdAt: true };
+const pubWithDept = { ...pub, department: { select: { id: true, name: true, code: true } } };
 
 // القراءة مُقيَّدة لمدير الجودة/المسؤول فقط — PII (email/phone) لا تُعرض لكل موظف
 router.get('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
-  const users = await prisma.user.findMany({ select: pub, orderBy: { createdAt: 'desc' } });
+  const users = await prisma.user.findMany({ select: pubWithDept, orderBy: { createdAt: 'desc' } });
   res.json({ ok: true, items: users, total: users.length });
 }));
 
 router.get('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: pub });
+  const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: pubWithDept });
   if (!user) throw NotFound();
   res.json({ ok: true, item: user });
 }));
@@ -48,7 +49,7 @@ router.post('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async
       phone:        body.phone ?? null,
       active:       body.active ?? true,
     },
-    select: pub,
+    select: pubWithDept,
   });
   res.status(201).json({ ok: true, item: user });
 }));
@@ -72,7 +73,7 @@ router.put('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(asy
     }
     data.passwordHash = await bcrypt.hash(password, config.bcryptRounds);
   }
-  const user = await prisma.user.update({ where: { id: req.params.id }, data, select: pub });
+  const user = await prisma.user.update({ where: { id: req.params.id }, data, select: pubWithDept });
   res.json({ ok: true, item: user });
 }));
 
@@ -98,7 +99,7 @@ router.post('/:id/restore', authorize('SUPER_ADMIN'), asyncHandler(async (req, r
   const restored = await prisma.user.update({
     where: { id: req.params.id },
     data: { active: true },
-    select: pub,
+    select: pubWithDept,
   });
   res.json({ ok: true, item: restored });
 }));
