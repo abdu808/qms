@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>نظام إدارة الجودة - جمعية البر بصبيا</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🕊️%3C/text%3E%3C/svg%3E" />
-<!-- Tailwind play CDN — يعمل كـ JIT داخل المتصفح فلا يمكن ربطه بـ SRI ثابت.
-     للحدّ الأقصى من الأمان استبدله بـ bundle محلي في مرحلة إنتاج ناضجة. -->
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Tailwind CSS — مُولَّد أثناء البناء (build-time purged + minified) بدلاً من CDN -->
+<link rel="stylesheet" href="/tailwind.css">
 <!-- Alpine + Chart.js مثبَّتان على إصدار محدَّد + SRI (integrity) — إن اختُرقت CDN
      سيرفض المتصفح تنفيذ JS معدَّل. crossorigin="anonymous" ضروري لفحص التكامل. -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"
@@ -17,29 +16,6 @@
         integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g"
         crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!--
-  Safelist for Tailwind Play CDN — ensures dynamic group colors are generated
-  hidden: bg-slate-50 bg-sky-50 bg-violet-50 bg-teal-50 bg-emerald-50 bg-amber-50 bg-rose-50 bg-gray-50
-  hidden: text-slate-700 text-sky-700 text-violet-700 text-teal-700 text-emerald-700 text-amber-700 text-rose-700 text-gray-600
-  hidden: border-slate-300 border-sky-300 border-violet-300 border-teal-300 border-emerald-300 border-amber-300 border-rose-300 border-gray-300
-  hidden: border-slate-200 border-sky-200 border-violet-200 border-teal-200 border-emerald-200 border-amber-200 border-rose-200 border-gray-200
-  hidden: bg-slate-400 bg-sky-400 bg-violet-400 bg-teal-400 bg-emerald-400 bg-amber-400 bg-rose-400 bg-gray-400
-  hidden: bg-slate-100 bg-sky-100 bg-violet-100 bg-teal-100 bg-emerald-100 bg-amber-100 bg-rose-100 bg-gray-100
--->
-<div class="hidden bg-slate-50 bg-sky-50 bg-violet-50 bg-teal-50 bg-emerald-50 bg-amber-50 bg-rose-50 bg-gray-50 text-slate-700 text-sky-700 text-violet-700 text-teal-700 text-emerald-700 text-amber-700 text-rose-700 text-gray-600 border-slate-300 border-sky-300 border-violet-300 border-teal-300 border-emerald-300 border-amber-300 border-rose-300 border-gray-300 border-slate-200 border-sky-200 border-violet-200 border-teal-200 border-emerald-200 border-amber-200 border-rose-200 border-gray-200 bg-slate-400 bg-sky-400 bg-violet-400 bg-teal-400 bg-emerald-400 bg-amber-400 bg-rose-400 bg-gray-400 bg-slate-100 bg-sky-100 bg-violet-100 bg-teal-100 bg-emerald-100 bg-amber-100 bg-rose-100 bg-gray-100"></div>
-<link rel="stylesheet" href="/styles.css?v=modal-2026-04-18">
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: { sans: ['Noto Kufi Arabic', 'system-ui', 'sans-serif'] },
-        colors: {
-          brand:   { 50:'#f0f9f4', 100:'#dcf2e3', 500:'#2e8b57', 600:'#206d43', 700:'#1a5a38' },
-        }
-      }
-    }
-  }
-</script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans" x-data="app()" x-init="init()">
 

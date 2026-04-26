@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+
+# مُولَّد أثناء Docker build — لا يُحفظ في git
+public/tailwind.css
