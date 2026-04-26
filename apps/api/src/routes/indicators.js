@@ -11,7 +11,7 @@ const base = crudRouter({
   allowedFilters: ['objectiveId', 'ownerId', 'indicatorType', 'deletedAt'],
   softDelete: true,
   include: {
-    objective: { select: { id: true, name: true } },
+    objective: { select: { id: true, title: true } },
     owner: { select: { id: true, name: true } },
   },
 });

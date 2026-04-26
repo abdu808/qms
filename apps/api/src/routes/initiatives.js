@@ -9,6 +9,6 @@ export default crudRouter({
   include: {
     goal: { select: { id: true, title: true } },
     owner: { select: { id: true, name: true } },
-    department: { select: { id: true, nameAr: true } },
+    department: { select: { id: true, name: true } },
   },
 });
