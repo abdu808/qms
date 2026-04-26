@@ -1,8 +1,9 @@
 /**
  * schemas/kpiEntry.schema.js — تحقق Zod لقراءات KPI الشهرية.
  *
- * @@unique([objectiveId, year, month]) / @@unique([activityId, year, month])
+ * @@unique([objectiveId, year, month]) / @@unique([activityId, year, month]) / @@unique([indicatorId, year, month])
  * تمنع التكرار على مستوى قاعدة البيانات.
+ * يجب تحديد objectiveId أو activityId أو indicatorId — واحد فقط (لا أكثر ولا أقل).
  */
 import { z } from 'zod';
 import { idString, optionalTrimmedString } from './_helpers.js';
@@ -29,10 +30,11 @@ const requiredNumField = (min = 0) => z.preprocess(
   z.number().min(min),
 );
 
-// على الأقل objectiveId أو activityId — واحد منهما.
+// objectiveId أو activityId أو indicatorId — واحد منها (triple-FK).
 const baseShape = {
   objectiveId:  idString.nullable().optional(),
   activityId:   idString.nullable().optional(),
+  indicatorId:  idString.nullable().optional(),
   year:         yearField,
   month:        monthField,
   actualValue:  requiredNumField(0),
@@ -41,11 +43,14 @@ const baseShape = {
   note:         optionalTrimmedString(2000),
 };
 
+const fkCount = (d) =>
+  (d.objectiveId ? 1 : 0) + (d.activityId ? 1 : 0) + (d.indicatorId ? 1 : 0);
+
 export const createSchema = z.object(baseShape)
   .strip()
   .refine(
-    d => !!d.objectiveId || !!d.activityId,
-    { message: 'يجب تحديد objectiveId أو activityId', path: ['objectiveId'] },
+    d => fkCount(d) === 1,
+    { message: 'يجب تحديد objectiveId أو activityId أو indicatorId (واحد فقط)', path: ['objectiveId'] },
   );
 
 export const updateSchema = z.object({
@@ -58,6 +63,7 @@ export const updateSchema = z.object({
 export const querySchema = z.object({
   objectiveId: idString.optional(),
   activityId:  idString.optional(),
+  indicatorId: idString.optional(),
   year:        yearField.optional(),
   month:       monthField.optional(),
 }).strip();

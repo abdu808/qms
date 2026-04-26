@@ -139,12 +139,67 @@ export async function recomputeStrategicGoal(strategicGoalId, tx = globalPrisma)
 }
 
 /**
- * Entry-point — تُستدعى بعد upsert/delete لـ KpiEntry.
- * تُعيد حساب الأب (Objective أو Activity) ثم الجذر الاستراتيجي.
+ * يُعيد حساب progress للمؤشر الاستراتيجي Indicator من مستهدفاته السنوية وقراءاته.
+ * إذا كان indicator.objectiveId محدداً → يُشغّل recomputeObjective ليسري التأثير لأعلى.
  * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
-export async function recomputeAfterEntry({ objectiveId, activityId, year } = {}, tx = globalPrisma) {
+export async function recomputeIndicator(indicatorId, { year } = {}, tx = globalPrisma) {
+  if (!indicatorId) return null;
+
+  const ind = await tx.indicator.findUnique({
+    where: { id: indicatorId },
+    select: {
+      id: true,
+      kpiType: true,
+      seasonality: true,
+      direction: true,
+      objectiveId: true,
+      annualTargets: {
+        where: { year: year || new Date().getFullYear() },
+        select: { targetValue: true },
+        take: 1,
+      },
+    },
+  });
+  if (!ind) return null;
+
+  const y = year || new Date().getFullYear();
+  const annualTarget = ind.annualTargets[0];
+  // لا مستهدف لهذه السنة → لا نحسب
+  if (!annualTarget) return { indicatorId: ind.id, progress: null, reason: 'no_annual_target' };
+
+  const entries = await tx.kpiEntry.findMany({
+    where: { indicatorId, year: y },
+    orderBy: { month: 'asc' },
+    select: { month: true, actualValue: true, spent: true },
+  });
+
+  const { actual, progress } = computeProgressFromEntries(
+    {
+      kpiType:     ind.kpiType     || 'SNAPSHOT',
+      seasonality: ind.seasonality || 'UNIFORM',
+      direction:   ind.direction   || 'HIGHER_BETTER',
+      target:      annualTarget.targetValue,
+    },
+    entries,
+  );
+
+  // الـ Indicator model لا يحتوي currentValue بعد — نُحدّث الـ Objective إذا وُجد FK
+  if (ind.objectiveId) {
+    await recomputeObjective(ind.objectiveId, { year: y }, tx);
+  }
+
+  return { indicatorId: ind.id, currentValue: actual, progress, objectiveId: ind.objectiveId };
+}
+
+/**
+ * Entry-point — تُستدعى بعد upsert/delete لـ KpiEntry.
+ * تُعيد حساب الأب (Objective أو Activity أو Indicator) ثم الجذر الاستراتيجي.
+ * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
+ */
+export async function recomputeAfterEntry({ objectiveId, activityId, indicatorId, year } = {}, tx = globalPrisma) {
+  if (indicatorId) return await recomputeIndicator(indicatorId, { year }, tx);
   if (objectiveId) return await recomputeObjective(objectiveId, { year }, tx);
-  if (activityId)  return await recomputeActivity(activityId,  { year }, tx);
+  if (activityId)  return await recomputeActivity(activityId,   { year }, tx);
   return null;
 }

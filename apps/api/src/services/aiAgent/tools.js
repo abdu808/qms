@@ -109,6 +109,9 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
   'assign_owner',
   'create_swot_item',
   'update_swot_item',
+  'create_indicator',
+  'update_indicator',
+  'create_initiative',
 ]);
 
 const ALL_TOOLS = [
@@ -134,9 +137,9 @@ offset: للصفحات التالية (0, 50, 100...)`,
           type: 'array',
           items: {
             type: 'string',
-            enum: ['plans','goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
+            enum: ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
           },
-          description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps)',
+          description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps) — أضف "axes" للمحاور، "indicators" للمؤشرات',
         },
         limit:  { type: 'number', description: 'حد السجلات لكل قسم (افتراضي 50، أقصى 200)' },
         offset: { type: 'number', description: 'تخطي N سجل للصفحة التالية (افتراضي 0)' },
@@ -1083,6 +1086,84 @@ CAPAs منتهية الأجل بدون إغلاق، CAPAs بدون تحقق من
       required: [],
     },
   },
+
+  // ══════════════════════════════════════════════════
+  // Strategic Planning v2 — Indicators & Initiatives
+  // ══════════════════════════════════════════════════
+  {
+    name: 'create_indicator',
+    description: `أنشئ مؤشر أداء استراتيجي جديد (Indicator).
+يُفضَّل ربطه بهدف تشغيلي (objectiveId) لتفعيل التراكم التلقائي.
+استخدم get_system_state أولاً للحصول على objectiveId الصحيح.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        nameAr:          { type: 'string', description: 'اسم المؤشر بالعربية' },
+        nameEn:          { type: 'string', description: 'اسم المؤشر بالإنجليزية' },
+        code:            { type: 'string', description: 'رمز المؤشر (مثل IND-2026-001) — إذا لم يُحدَّد يُولَّد تلقائياً' },
+        unit:            { type: 'string', description: 'وحدة القياس: %, عدد, ريال, يوم, ...' },
+        direction:       { type: 'string', enum: ['HIGHER_BETTER','LOWER_BETTER'], description: 'اتجاه الأداء' },
+        frequency:       { type: 'string', enum: ['MONTHLY','QUARTERLY','ANNUALLY'], description: 'دورية القياس' },
+        kpiType:         { type: 'string', enum: ['CUMULATIVE','PERIODIC','SNAPSHOT','BINARY'] },
+        indicatorType:   { type: 'string', enum: ['LEADING','LAGGING'] },
+        weight:          { type: 'number', description: 'وزن المؤشر % في الخطة (0-100)' },
+        greenThreshold:  { type: 'number', description: 'عتبة الأداء الجيد (افتراضي 95)' },
+        yellowThreshold: { type: 'number', description: 'عتبة التحذير (افتراضي 75)' },
+        baseline:        { type: 'number', description: 'القيمة الأساسية' },
+        objectiveId:     { type: 'string', description: 'CUID الهدف التشغيلي الأب (اختياري)' },
+        ownerId:         { type: 'string', description: 'CUID مالك المؤشر (user ID)' },
+        isoClause:       { type: 'string', description: 'بند ISO المرتبط مثل 9.1.1' },
+        nationalStandard:{ type: 'string', description: 'المعيار الوطني المقابل' },
+        notes:           { type: 'string' },
+      },
+      required: ['nameAr'],
+    },
+  },
+
+  {
+    name: 'update_indicator',
+    description: 'حدِّث مؤشر أداء موجود. استخدم get_system_state أولاً للحصول على id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:              { type: 'string', description: 'CUID المؤشر (من get_system_state sections:[indicators])' },
+        nameAr:          { type: 'string' },
+        nameEn:          { type: 'string' },
+        weight:          { type: 'number' },
+        greenThreshold:  { type: 'number' },
+        yellowThreshold: { type: 'number' },
+        direction:       { type: 'string', enum: ['HIGHER_BETTER','LOWER_BETTER'] },
+        frequency:       { type: 'string', enum: ['MONTHLY','QUARTERLY','ANNUALLY'] },
+        kpiType:         { type: 'string', enum: ['CUMULATIVE','PERIODIC','SNAPSHOT','BINARY'] },
+        objectiveId:     { type: 'string' },
+        ownerId:         { type: 'string' },
+        notes:           { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
+
+  {
+    name: 'create_initiative',
+    description: `أنشئ مبادرة استراتيجية جديدة مرتبطة بهدف استراتيجي.
+استخدم get_system_state أولاً للحصول على goalId الصحيح.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        name:         { type: 'string', description: 'اسم المبادرة' },
+        goalId:       { type: 'string', description: 'CUID الهدف الاستراتيجي (من get_system_state sections:[goals])' },
+        description:  { type: 'string' },
+        ownerId:      { type: 'string', description: 'CUID المالك (user ID)' },
+        departmentId: { type: 'string', description: 'CUID القسم المسؤول' },
+        startDate:    { type: 'string', description: 'ISO date مثل 2026-01-01' },
+        endDate:      { type: 'string', description: 'ISO date مثل 2026-12-31' },
+        budget:       { type: 'number', description: 'الميزانية المخصصة' },
+        status:       { type: 'string', enum: ['NOT_STARTED','IN_PROGRESS','COMPLETED','ON_HOLD','CANCELLED'] },
+        notes:        { type: 'string' },
+      },
+      required: ['name', 'goalId'],
+    },
+  },
 ];
 
 // الوكيل يرى فقط الأدوات التشغيلية/التحليلية — الحذف مخفي للأدوار العادية
@@ -1113,7 +1194,7 @@ export async function executeTool(name, input, actingUserId) {
     // ══ 1. get_system_state ══════════════════════════════════════════════════
     case 'get_system_state': {
       const want = new Set(input.sections || ['goals','activities','objectives','gaps']);
-      if (want.has('all')) ['plans','goals','activities','objectives','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
+      if (want.has('all')) ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
 
       // Pagination: حد أقصى 200، افتراضي 50
       const pgLimit  = Math.min(Math.max(Number(input.limit  || 50), 1), 200);
@@ -1161,6 +1242,30 @@ export async function executeTool(name, input, actingUserId) {
             strategicGoal:{ select:{ id:true, code:true } } },
         });
         result.objectives = { items, total, limit: pgLimit, offset: pgOffset };
+      }
+      if (want.has('axes')) {
+        result.axes = await prisma.axis.findMany({
+          where: { deletedAt: null },
+          orderBy: { order: 'asc' },
+          select: { id:true, code:true, nameAr:true, nameEn:true, color:true, weight:true, order:true },
+        });
+      }
+      if (want.has('indicators')) {
+        const total = await prisma.indicator.count({ where: { deletedAt: null } });
+        const items = await prisma.indicator.findMany({
+          where: { deletedAt: null }, orderBy: { code: 'asc' },
+          take: pgLimit, skip: pgOffset,
+          select: {
+            id:true, code:true, nameAr:true, nameEn:true, unit:true,
+            direction:true, frequency:true, kpiType:true, indicatorType:true,
+            weight:true, greenThreshold:true, yellowThreshold:true,
+            baseline:true, objectiveId:true, ownerId:true,
+            owner: { select: { id:true, name:true } },
+            annualTargets: { orderBy: { year: 'desc' }, take: 3,
+              select: { year:true, targetValue:true } },
+          },
+        });
+        result.indicators = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('users')) {
         result.users = await prisma.user.findMany({
@@ -2946,6 +3051,90 @@ export async function executeTool(name, input, actingUserId) {
         data: { total, months, avgSatisfaction: avg, ratingsCount: ratings.length, unresolved, highSeverity, trend },
         summary: `😊 رضا المستفيدين: متوسط ${avg ?? '—'}/5 من ${ratings.length} تقييم — ${unresolved} شكوى غير محلولة — ${highSeverity} مرتفعة الخطورة`,
       };
+    }
+
+    // ══ create_indicator ══════════════════════════════════════════════════
+    case 'create_indicator': {
+      const { nameAr, nameEn, code, unit, direction, frequency, kpiType, indicatorType,
+              weight, greenThreshold, yellowThreshold, baseline, objectiveId, ownerId,
+              isoClause, nationalStandard, notes } = input;
+      if (!nameAr) return { ok:false, error:'nameAr مطلوب', summary:'فشل' };
+      const resolvedOwner = ownerId ? await resolveUser(ownerId) : null;
+      const resolvedObjective = objectiveId ? await resolveObjective(objectiveId) : null;
+      try {
+        const { nextCode } = await import('../utils/codeGen.js');
+        const finalCode = code || await nextCode('indicator', 'IND');
+        const ind = await prisma.indicator.create({
+          data: {
+            code: finalCode,
+            nameAr, nameEn: nameEn || null, unit: unit || null,
+            direction: direction || 'HIGHER_BETTER',
+            frequency: frequency || 'MONTHLY',
+            kpiType: kpiType || 'SNAPSHOT',
+            indicatorType: indicatorType || 'LAGGING',
+            weight: weight ?? 0,
+            greenThreshold: greenThreshold ?? 95,
+            yellowThreshold: yellowThreshold ?? 75,
+            baseline: baseline ?? null,
+            objectiveId: resolvedObjective,
+            ownerId: resolvedOwner,
+            isoClause: isoClause || null,
+            nationalStandard: nationalStandard || null,
+            notes: notes || null,
+          },
+        });
+        return { ok:true, data:{ id:ind.id, code:ind.code }, summary:`✅ أُنشئ مؤشر ${ind.code}: "${ind.nameAr}"` };
+      } catch(e) {
+        if (e.code==='P2002') return { ok:false, error:`الكود ${input.code} مكرر`, summary:'فشل: كود مكرر' };
+        throw e;
+      }
+    }
+
+    // ══ update_indicator ══════════════════════════════════════════════════
+    case 'update_indicator': {
+      const { id, ...fields } = input;
+      if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      const ind = await prisma.indicator.findUnique({ where:{ id }, select:{ id:true, code:true } });
+      if (!ind) return { ok:false, error:`المؤشر ${id} غير موجود`, summary:'فشل' };
+      const data = pickFields(fields, [
+        'nameAr','nameEn','unit','direction','frequency','kpiType','indicatorType',
+        'weight','greenThreshold','yellowThreshold','baseline','objectiveId','ownerId',
+        'isoClause','nationalStandard','notes','definition','formula',
+      ]);
+      if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتعديل', summary:'فشل' };
+      const updated = await prisma.indicator.update({ where:{ id }, data });
+      return { ok:true, summary:`✅ حُدِّث مؤشر ${ind.code}: ${Object.keys(data).join(', ')}` };
+    }
+
+    // ══ create_initiative ═════════════════════════════════════════════════
+    case 'create_initiative': {
+      const { name, goalId, description, ownerId, departmentId, startDate, endDate, budget, status, notes } = input;
+      if (!name||!goalId) return { ok:false, error:'name و goalId مطلوبان', summary:'فشل' };
+      const resolvedGoal = await resolveGoal(goalId);
+      const resolvedOwner = ownerId ? await resolveUser(ownerId) : null;
+      const resolvedDept  = departmentId ? await resolveDept(departmentId) : null;
+      try {
+        const { nextCode } = await import('../utils/codeGen.js');
+        const code = await nextCode('initiative', 'INI');
+        const ini = await prisma.initiative.create({
+          data: {
+            code, name,
+            goalId: resolvedGoal,
+            description: description || null,
+            ownerId: resolvedOwner,
+            departmentId: resolvedDept,
+            startDate: startDate ? new Date(startDate) : null,
+            endDate: endDate ? new Date(endDate) : null,
+            budget: budget ?? null,
+            status: status || 'NOT_STARTED',
+            notes: notes || null,
+          },
+        });
+        return { ok:true, data:{ id:ini.id, code:ini.code }, summary:`✅ أُنشئت مبادرة ${ini.code}: "${ini.name}"` };
+      } catch(e) {
+        if (e.code==='P2002') return { ok:false, error:'الكود مكرر', summary:'فشل: كود مكرر' };
+        throw e;
+      }
     }
 
     default:

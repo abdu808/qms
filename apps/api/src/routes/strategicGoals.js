@@ -11,7 +11,7 @@ const base = crudRouter({
   resource: 'strategic-goals',
   model: 'strategicGoal',
   codePrefix: 'STR',
-  searchFields: ['title', 'perspective', 'kpi', 'initiatives', 'responsible'],
+  searchFields: ['title', 'perspective', 'kpi', 'legacyInitiatives', 'responsible'],
   allowedSortFields: ['createdAt', 'status', 'progress', 'startYear', 'endYear'],
 });
 

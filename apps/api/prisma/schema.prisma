@@ -79,6 +79,15 @@ model User {
   capaVerified        Capa[]            @relation("CapaVerifier")
   consultSessions     ConsultSession[]
 
+  // ── Strategic Planning (new models) ──────────────
+  ownedGoals           StrategicGoal[]       @relation("GoalOwner")
+  ownedIndicators      Indicator[]           @relation("IndicatorOwner")
+  indicatorDataEntries Indicator[]           @relation("IndicatorDataEntry")
+  indicatorApprovals   Indicator[]           @relation("IndicatorApprover")
+  annualTargetsCreated AnnualTarget[]        @relation("AnnualTargetCreator")
+  ownedInitiatives     Initiative[]          @relation("InitiativeOwner")
+  planVersionsCreated  StrategicPlanVersion[] @relation("PlanVersionCreator")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -119,6 +128,7 @@ model Department {
   risks       Risk[]
   ncrs        NCR[]
   documents   Document[]
+  initiatives Initiative[]
 }
 
 // =====================================================
@@ -160,6 +170,7 @@ model Objective {
   seasonality     String  @default("UNIFORM")    // UNIFORM | SCHOOL_START | EID_SEASONAL | RAMADAN_RELIEF | QUARTERLY | MONTHLY_EVEN
   direction       String  @default("HIGHER_BETTER") // HIGHER_BETTER | LOWER_BETTER
   kpiEntries      KpiEntry[]
+  indicators      Indicator[]  // مؤشرات KPI المرتبطة بهذا الهدف التشغيلي
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
@@ -204,6 +215,7 @@ model Risk {
   level          String              // منخفض / متوسط / مرتفع / حرج
   treatment      String?             // خطة المعالجة
   treatmentType  String?             // تجنب/تخفيف/نقل/قبول
+  earlyWarning   String?             // مؤشر الإنذار المبكر (نص وصفي)
   ownerId        String?
   owner          User?     @relation("RiskOwner", fields: [ownerId], references: [id])
   status         RiskStatus @default(IDENTIFIED)
@@ -881,7 +893,9 @@ model StrategicPlan {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
-  goals       StrategicGoal[]
+  goals        StrategicGoal[]
+  fundingPlans FundingPlan[]
+  versions     StrategicPlanVersion[]
 
   @@index([status])
   @@index([deletedAt])
@@ -891,12 +905,12 @@ model StrategicGoal {
   id           String   @id @default(cuid())
   code         String   @unique  // STR-2026-001
   title        String
-  perspective  String?  // المحور: مالي / مستفيدون / داخلي / تعلم ونمو
-  kpi          String?  // مؤشر قياس النجاح
-  baseline     String?  // الوضع الراهن
-  target       String?  // المستهدف
-  initiatives  String?  // المبادرات الاستراتيجية
-  responsible  String?  // الجهة المسؤولة
+  perspective       String?  // المحور (نص قديم — يُستبدل بـ axisId)
+  kpi               String?  // مؤشر قياس النجاح (نص قديم — يُستبدل بـ Indicator)
+  baseline          String?  // الوضع الراهن
+  target            String?  // المستهدف
+  legacyInitiatives String?  // المبادرات (نص حر — موروث، يُستبدل بـ Initiative[])
+  responsible       String?  // الجهة المسؤولة (نص حر — موروث)
   startYear    Int?
   endYear      Int?
   progress     Int      @default(0)  // 0-100 (can be auto-calculated)
@@ -910,14 +924,25 @@ model StrategicGoal {
   planId       String?
   plan         StrategicPlan? @relation(fields: [planId], references: [id])
 
+  // المحور الاستراتيجي (BSC)
+  axisId       String?
+  axis         Axis?    @relation(fields: [axisId], references: [id])
+
+  // المالك الرسمي (User FK)
+  ownerUserId  String?
+  ownerUser    User?    @relation("GoalOwner", fields: [ownerUserId], references: [id])
+
   // Linked children
-  activities   OperationalActivity[]
-  objectives   Objective[]
-  risks        Risk[]
+  activities          OperationalActivity[]
+  objectives          Objective[]
+  risks               Risk[]
+  initiatives         Initiative[]
+  improvementProjects ImprovementProject[]
 
   @@index([status])
   @@index([deletedAt])
   @@index([planId])
+  @@index([axisId])
 }
 
 // =====================================================
@@ -968,6 +993,8 @@ model KpiEntry {
   objective    Objective? @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
   activityId   String?
   activity     OperationalActivity? @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  indicatorId  String?
+  indicator    Indicator? @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
   year         Int
   month        Int       // 1-12
   actualValue  Float     // القيمة الفعلية
@@ -981,9 +1008,11 @@ model KpiEntry {
 
   @@unique([objectiveId, year, month])
   @@unique([activityId, year, month])
+  @@unique([indicatorId, year, month])
   @@index([year, month])
   @@index([objectiveId])
   @@index([activityId])
+  @@index([indicatorId])
 }
 
 // =====================================================
@@ -1225,6 +1254,12 @@ model ImprovementProject {
   ownerId        String?  // مالك المشروع
   departmentId   String?
 
+  // ── ربط بالهدف الاستراتيجي ──────────────────
+  strategicGoalId String?
+  strategicGoal   StrategicGoal? @relation(fields: [strategicGoalId], references: [id])
+  budget          Float?          // الميزانية المخصصة
+  spent           Float?          // المنصرف الفعلي
+
   // ── ربط بمصادر أخرى ────────────────────────
   sourceType     String?  // NCR / COMPLAINT / AUDIT / REVIEW / EMPLOYEE / OTHER
   sourceRef      String?  // code المرجع (مثل NCR-2026-045)
@@ -1250,6 +1285,7 @@ model ImprovementProject {
   @@index([status])
   @@index([phase])
   @@index([ownerId])
+  @@index([strategicGoalId])
   @@index([deletedAt])
 }
 
@@ -1612,6 +1648,172 @@ model MigrationLog {
   appliedAt DateTime @default(now()) @db.Timestamptz(6)
 
   @@map("_MigrationLog")
+}
+
+// =====================================================
+// STRATEGIC PLANNING V2 — محاور / مؤشرات / مستهدفات / مبادرات / تمويل / إصدارات
+// =====================================================
+
+// أبعاد بطاقة الأداء المتوازن (BSC Axes) — قابلة للإضافة/الحذف من الواجهة
+model Axis {
+  id        String   @id @default(cuid())
+  code      String   @unique   // BSC1 / BSC2 ...
+  nameAr    String
+  nameEn    String?
+  color     String?            // لون hex لعرض في الداشبورد #3B82F6
+  weight    Float    @default(0)  // وزن المحور %
+  order     Int      @default(0)  // ترتيب العرض
+  goals     StrategicGoal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([deletedAt])
+}
+
+// مؤشر KPI مستقل — منفصل عن Objective
+model Indicator {
+  id               String    @id @default(cuid())
+  code             String    @unique   // IND-2026-001
+  nameAr           String
+  nameEn           String?
+  definition       String?   @db.Text
+  formula          String?   @db.Text
+  unit             String?             // % / عدد / ريال / يوم / ساعة
+  direction        String    @default("HIGHER_BETTER")  // HIGHER_BETTER | LOWER_BETTER
+  frequency        String    @default("MONTHLY")        // MONTHLY | QUARTERLY | ANNUALLY
+  kpiType          String    @default("SNAPSHOT")       // CUMULATIVE | PERIODIC | SNAPSHOT | BINARY
+  seasonality      String    @default("UNIFORM")        // UNIFORM | SCHOOL_START | QUARTERLY | ...
+  indicatorType    String    @default("LAGGING")        // LEADING | LAGGING
+  dataSource       String?                              // SYSTEM | EXCEL | MANUAL
+  baseline         Float?
+  weight           Float     @default(0)    // وزن المؤشر % داخل الخطة
+  greenThreshold   Float     @default(95)   // عتبة الأخضر (قابلة للتخصيص)
+  yellowThreshold  Float     @default(75)   // عتبة الأصفر
+  isoClause        String?                  // مثل "8.2.3" أو "9.1.1" — ربط ISO 9001
+  nationalStandard String?                  // معيار المركز الوطني المقابل
+  notes            String?
+
+  // ربط بالهدف التشغيلي (Objective)
+  objectiveId      String?
+  objective        Objective?  @relation(fields: [objectiveId], references: [id])
+
+  // المالكون
+  ownerId          String?
+  owner            User?       @relation("IndicatorOwner",    fields: [ownerId],          references: [id])
+  dataEntryUserId  String?
+  dataEntryUser    User?       @relation("IndicatorDataEntry", fields: [dataEntryUserId],  references: [id])
+  approverUserId   String?
+  approver         User?       @relation("IndicatorApprover", fields: [approverUserId],    references: [id])
+
+  annualTargets    AnnualTarget[]
+  kpiEntries       KpiEntry[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  @@index([objectiveId])
+  @@index([ownerId])
+  @@index([deletedAt])
+}
+
+// مستهدف سنوي لكل مؤشر (5+ سنوات مع ربعيات اختيارية)
+model AnnualTarget {
+  id                 String    @id @default(cuid())
+  indicatorId        String
+  indicator          Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  year               Int
+  targetValue        Float
+  q1Target           Float?
+  q2Target           Float?
+  q3Target           Float?
+  q4Target           Float?
+  modificationReason String?   // مطلوب عند تعديل targetValue (يُسجَّل في AuditLog)
+  createdById        String
+  createdBy          User      @relation("AnnualTargetCreator", fields: [createdById], references: [id])
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([indicatorId, year])
+  @@index([indicatorId])
+}
+
+// مبادرة استراتيجية — نموذج مستقل مرتبط بالهدف الاستراتيجي
+model Initiative {
+  id           String    @id @default(cuid())
+  code         String    @unique   // INI-2026-001
+  name         String
+  description  String?
+  goalId       String
+  goal         StrategicGoal @relation(fields: [goalId], references: [id])
+  ownerId      String?
+  owner        User?     @relation("InitiativeOwner", fields: [ownerId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  startDate    DateTime?
+  endDate      DateTime?
+  budget       Float?    // الميزانية المخصصة
+  spent        Float?    // المنصرف الفعلي
+  progress     Int       @default(0)  // 0-100
+  status       String    @default("NOT_STARTED")  // NOT_STARTED | IN_PROGRESS | COMPLETED | ON_HOLD | CANCELLED
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  @@index([goalId])
+  @@index([ownerId])
+  @@index([deletedAt])
+}
+
+// جدول مرجعي لمصادر التمويل
+model FundingSource {
+  id           String    @id @default(cuid())
+  code         String    @unique   // FSRC-001
+  name         String
+  type         String    // DONATION | ZAKAT | CSR | GOVT | INVESTMENT | INTERNAL
+  description  String?
+  fundingPlans FundingPlan[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// خطة تمويل سنوية لكل مصدر داخل خطة استراتيجية
+model FundingPlan {
+  id                 String        @id @default(cuid())
+  planId             String
+  strategicPlan      StrategicPlan @relation(fields: [planId], references: [id])
+  sourceId           String
+  source             FundingSource @relation(fields: [sourceId], references: [id])
+  year               Int
+  expectedAmount     Float
+  actualAmount       Float         @default(0)
+  concentrationLimit Float         @default(35)  // تنبيه إذا تجاوز هذا المصدر X% من الإجمالي
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([planId, sourceId, year])
+  @@index([planId])
+  @@index([sourceId])
+}
+
+// إصدارات الخطة الاستراتيجية — snapshot عند التفعيل أو يدوياً أو كل ربع
+model StrategicPlanVersion {
+  id          String        @id @default(cuid())
+  planId      String
+  plan        StrategicPlan @relation(fields: [planId], references: [id])
+  version     Int
+  snapshot    Json          // plan + goals + indicators metadata (بدون KpiEntries)
+  reason      String?
+  trigger     String        @default("MANUAL")  // MANUAL | QUARTERLY | ACTIVATION
+  createdById String
+  createdBy   User          @relation("PlanVersionCreator", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@unique([planId, version])
+  @@index([planId])
 }
 
 // =====================================================

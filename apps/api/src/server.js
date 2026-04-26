@@ -79,6 +79,13 @@ import consultantRoutes from './routes/consultant.js';
 import consultSessionsRouter from './routes/consultSessions.js';
 import automationRoutes from './routes/automation.js';
 import progressReportsRoutes from './routes/progressReports.js';
+import axesRoutes          from './routes/axes.js';
+import indicatorsRoutes    from './routes/indicators.js';
+import annualTargetsRoutes from './routes/annual-targets.js';
+import initiativesRoutes   from './routes/initiatives.js';
+import fundingSourcesRoutes from './routes/funding-sources.js';
+import fundingPlansRoutes  from './routes/funding-plans.js';
+import planVersionsRoutes  from './routes/plan-versions.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
@@ -399,6 +406,15 @@ app.use('/api/eval-tokens',             evalTokensRoutes);
 app.use('/api/reports',                 reportsRoutes);
 app.use('/api/operational-reports',     operationalReportsRoutes);
 app.use('/api/kpi',                     kpiRoutes);
+
+// ── Strategic Planning v2 ─────────────────────────────────────────────
+app.use('/api/axes',            axesRoutes);
+app.use('/api/indicators',      indicatorsRoutes);
+app.use('/api/annual-targets',  annualTargetsRoutes);
+app.use('/api/initiatives',     initiativesRoutes);
+app.use('/api/funding-sources', fundingSourcesRoutes);
+app.use('/api/funding-plans',   fundingPlansRoutes);
+app.use('/api/plan-versions',   planVersionsRoutes);
 
 // ── فحص تفعيل البوابة العامة (cached 60s لتخفيف ضغط DB) ───────────────────
 let _portalEnabledCache = null;

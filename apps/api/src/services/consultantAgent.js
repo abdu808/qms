@@ -84,7 +84,7 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 
 ① اقرأ البيانات أولاً دائماً
   ابدأ بـ get_system_state قبل أي اقتراح أو تنفيذ.
-  يدعم: goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, management_reviews, trainings, gaps
+  يدعم: plans, goals, activities, objectives, axes, indicators, users, departments, risks, ncrs, capas, audits, complaints, management_reviews, trainings, gaps
 
 ② قدِّم مقترحات جاهزة — لا تسأل أسئلة مفتوحة
   ❌ خطأ: "ما الأهداف التي تريد إنشاءها؟"
@@ -125,7 +125,7 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 ━━━ الأدوات (50 أداة) ━━━
 
 📊 التقييم والمراقبة (تُنفَّذ فوراً):
-  • get_system_state — قراءة أي قسم من النظام
+  • get_system_state — قراءة أي قسم من النظام (أضف "axes" للمحاور، "indicators" للمؤشرات)
   • scan_overdue — جميع البنود المتأخرة
   • compute_iso_maturity — درجة نضج ISO 9001 لكل بند
   • generate_management_report — تقرير مراجعة الإدارة (9.3)
@@ -152,6 +152,9 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   • update_objective — تعديل هدف تشغيلي
   • assign_responsible — تعيين مسؤول نصي
   • assign_owner — تعيين مالك (CUID مستخدم)
+  • create_indicator — إنشاء مؤشر أداء استراتيجي مستقل (Indicator) مع عتبات RAG مخصصة
+  • update_indicator — تعديل مؤشر موجود (الأوزان، العتبات، الاتجاه)
+  • create_initiative — إنشاء مبادرة استراتيجية مرتبطة بهدف مع ميزانية ومالك
 
 🔍 تحليل SWOT (⚠️ تتطلب موافقتك قبل التنفيذ):
   • create_swot_item — إضافة نقطة SWOT

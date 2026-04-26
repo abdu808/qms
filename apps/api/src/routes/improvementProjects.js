@@ -19,7 +19,10 @@ const base = crudRouter({
   codePrefix: 'IMP',
   searchFields: ['title', 'description', 'lessonsLearned'],
   allowedSortFields: ['createdAt', 'phase', 'status'],
-  allowedFilters: ['status', 'phase', 'ownerId', 'departmentId', 'sourceType'],
+  allowedFilters: ['status', 'phase', 'ownerId', 'departmentId', 'sourceType', 'strategicGoalId'],
+  include: {
+    strategicGoal: { select: { id: true, code: true, title: true } },
+  },
   beforeCreate: async (data, req) => ({ ...data, proposedById: req.user.sub }),
 });
 

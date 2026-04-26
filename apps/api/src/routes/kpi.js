@@ -7,6 +7,7 @@
  *   GET    /dashboard?year         — لوحة تنفيذية (بطاقات + ملخص)
  *   GET    /objective/:id?year     — تفاصيل مؤشر استراتيجي
  *   GET    /activity/:id?year      — تفاصيل نشاط تشغيلي
+ *   GET    /indicator/:id?year     — تفاصيل مؤشر أداء
  *   GET    /alerts?year&month      — التنبيهات النشطة
  */
 import express from 'express';
@@ -18,7 +19,7 @@ import { evaluateKpi, expectedByMonth, actualByMonth, ragStatus, achievementRati
 import { createSchema as kpiCreateSchema } from '../schemas/kpiEntry.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
 import { upsertKpiEntry, isPeriodLocked } from '../services/kpi.js';
-import { recomputeAfterEntry } from '../services/rollup.js';
+import { recomputeAfterEntry, recomputeIndicator } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
 
 const validateKpiEntry = runSchema(kpiCreateSchema);
@@ -36,6 +37,8 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
     const parsed = validateKpiEntry(req.body);
     if (parsed.objectiveId && parsed.activityId)
       throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
+    if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
+      throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
 
     const result = await prisma.$transaction(async (tx) => {
       return upsertKpiEntry({
@@ -50,9 +53,9 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
 });
 
 // ─── إدخال مُجمَّع (Bulk) — لصق CSV أو JSON بدلاً من صف-بصف ──
-// يقبل: { rows: [{ objectiveId|activityId, year, month, actualValue, spent? }, ...] }
+// يقبل: { rows: [{ objectiveId|activityId|indicatorId, year, month, actualValue, spent? }, ...] }
 // يُنفَّذ upsert لكل صف بشكل متسلسل (لنفس سجل الأب يتم rollup مرة واحدة في الآخر).
-// يُرجع { ok, inserted, failed:[{row, error}], rollup:{objectiveIds, activityIds} }.
+// يُرجع { ok, inserted, failed:[{row, error}], rollup:{objectiveIds, activityIds, indicatorIds} }.
 router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, next) => {
   try {
     const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
@@ -64,6 +67,7 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
     // نؤجّل rollup إلى النهاية لتفادي إعادة حسابات متكرّرة لنفس الأب
     const touchedObj = new Set();
     const touchedAct = new Set();
+    const touchedInd = new Set();
     const touchedYears = new Set();
 
     for (let i = 0; i < rows.length; i++) {
@@ -72,6 +76,8 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
         const parsed = validateKpiEntry(row);
         if (parsed.objectiveId && parsed.activityId)
           throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
+        if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
+          throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
         // استخدم upsertKpiEntry بـ skipRollup=true (سنعمل rollup دفعة واحدة)
         const result = await upsertKpiEntry({
           ...parsed,
@@ -82,6 +88,7 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
         inserted.push({ row: i, entryId: result.entry?.id });
         if (parsed.objectiveId) touchedObj.add(parsed.objectiveId);
         if (parsed.activityId)  touchedAct.add(parsed.activityId);
+        if (parsed.indicatorId) touchedInd.add(parsed.indicatorId);
         touchedYears.add(parsed.year);
       } catch (e) {
         failed.push({ row: i, error: e.message || String(e) });
@@ -109,6 +116,15 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
         }
       }
     }
+    for (const indicatorId of touchedInd) {
+      for (const y of touchedYears) {
+        try { await recomputeIndicator(indicatorId, { year: y }); } catch (err) {
+          const msg = err?.message || String(err);
+          console.error('[bulk rollup indicator]', msg);
+          rollupErrors.push({ kind: 'indicator', id: indicatorId, year: y, error: msg });
+        }
+      }
+    }
 
     res.json({
       ok: true,
@@ -119,6 +135,7 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
       rollup: {
         objectiveIds: [...touchedObj],
         activityIds:  [...touchedAct],
+        indicatorIds: [...touchedInd],
         years: [...touchedYears],
       },
     });
@@ -133,17 +150,46 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
     const parsed = validateKpiEntry(req.body);
     if (parsed.objectiveId && parsed.activityId)
       throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
-    const { objectiveId, activityId, year, month, actualValue, spent } = parsed;
+    if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
+      throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
+    const { objectiveId, activityId, indicatorId, year, month, actualValue, spent } = parsed;
 
     // السجل الأب (للحصول على kpiType/target/seasonality/direction)
-    const kpiRec = objectiveId
-      ? await prisma.objective.findUnique({ where: { id: objectiveId } })
-      : await prisma.operationalActivity.findUnique({ where: { id: activityId } });
-    if (!kpiRec) throw NotFound('المؤشر/النشاط غير موجود');
+    let kpiRec;
+    let targetValue;
+    if (objectiveId) {
+      kpiRec = await prisma.objective.findUnique({ where: { id: objectiveId } });
+      if (!kpiRec) throw NotFound('المؤشر/النشاط غير موجود');
+      targetValue = kpiRec.target;
+    } else if (activityId) {
+      kpiRec = await prisma.operationalActivity.findUnique({ where: { id: activityId } });
+      if (!kpiRec) throw NotFound('المؤشر/النشاط غير موجود');
+      targetValue = kpiRec.targetValue;
+    } else if (indicatorId) {
+      const indicator = await prisma.indicator.findUnique({
+        where: { id: indicatorId },
+        include: {
+          annualTargets: { where: { year }, take: 1 },
+        },
+      });
+      if (!indicator) throw NotFound('المؤشر غير موجود');
+      if (!indicator.annualTargets?.[0]) {
+        console.warn(`[preview] No AnnualTarget for indicator ${indicatorId} year ${year} — using 0`);
+      }
+      targetValue = indicator?.annualTargets?.[0]?.targetValue ?? 0;
+      kpiRec = indicator;
+    } else {
+      throw BadRequest('يجب تحديد objectiveId أو activityId أو indicatorId');
+    }
 
     // إدخالات السنة الحالية — مع تجاوز الشهر المعاين
+    const whereEntries = objectiveId
+      ? { objectiveId, year }
+      : activityId
+        ? { activityId, year }
+        : { indicatorId, year };
     const existing = await prisma.kpiEntry.findMany({
-      where:   objectiveId ? { objectiveId, year } : { activityId, year },
+      where:   whereEntries,
       orderBy: [{ month: 'asc' }],
     });
     const overlay = existing.filter(e => e.month !== month);
@@ -152,8 +198,8 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
 
     const kpi = {
       kpiType: kpiRec.kpiType, seasonality: kpiRec.seasonality, direction: kpiRec.direction,
-      targetValue: objectiveId ? kpiRec.target : kpiRec.targetValue,
-      unit:        objectiveId ? kpiRec.unit   : kpiRec.targetUnit,
+      targetValue,
+      unit: objectiveId ? kpiRec.unit : activityId ? kpiRec.targetUnit : kpiRec.unit,
     };
     const ev = evaluateKpi(kpi, overlay, year, month);
     const lock = await isPeriodLocked(year, month);
@@ -195,7 +241,7 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
     const userId   = req.user.sub;
     const userName = req.user.name || '';
 
-    const [objectives, activities, lock, user] = await Promise.all([
+    const [objectives, activities, indicators, lock, user] = await Promise.all([
       prisma.objective.findMany({
         where: { deletedAt: null, ownerId: userId, status: { not: 'CANCELLED' } },
         include: { strategicGoal: { select: { title: true, perspective: true } }, kpiEntries: { where: { year } } },
@@ -215,17 +261,48 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         },
         include: { strategicGoal: { select: { title: true } }, kpiEntries: { where: { year } } },
       }),
+      prisma.indicator.findMany({
+        where: {
+          deletedAt: null,
+          ownerId: userId,
+        },
+        include: {
+          annualTargets: { where: { year }, take: 1 },
+          kpiEntries: { where: { year, month } },
+        },
+      }),
       isPeriodLocked(year, month),
       prisma.user.findUnique({ where: { id: userId }, select: { role: true, name: true } }),
     ]);
 
     const buildItem = (rec, kind) => {
+      let kpiTargetValue;
+      let kpiUnit;
+      if (kind === 'objective') {
+        kpiTargetValue = rec.target;
+        kpiUnit = rec.unit;
+      } else if (kind === 'activity') {
+        kpiTargetValue = rec.targetValue;
+        kpiUnit = rec.targetUnit;
+      } else {
+        // indicator — targetValue from AnnualTarget
+        if (!rec.annualTargets?.[0]) {
+          console.warn(`[my-due] No AnnualTarget for indicator ${rec.id} year ${year} — using 0`);
+        }
+        kpiTargetValue = rec.annualTargets?.[0]?.targetValue ?? 0;
+        kpiUnit = rec.unit;
+      }
       const kpi = {
         kpiType: rec.kpiType, seasonality: rec.seasonality, direction: rec.direction,
-        targetValue: kind === 'objective' ? rec.target : rec.targetValue,
-        unit: kind === 'objective' ? rec.unit : rec.targetUnit,
+        targetValue: kpiTargetValue,
+        unit: kpiUnit,
       };
-      const thisMonthEntry = rec.kpiEntries.find(e => e.month === month);
+      const allEntries = kind === 'indicator'
+        ? rec.kpiEntries  // already filtered to year+month for indicators
+        : rec.kpiEntries;
+      const thisMonthEntry = kind === 'indicator'
+        ? rec.kpiEntries.find(e => e.month === month)
+        : rec.kpiEntries.find(e => e.month === month);
       const ev = evaluateKpi(kpi, rec.kpiEntries, year, month);
       return {
         kind, id: rec.id, code: rec.code, title: rec.title,
@@ -243,7 +320,8 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
 
     const objItems = objectives.map(o => buildItem(o, 'objective'));
     const actItems = activities.map(a => buildItem(a, 'activity'));
-    const all = [...objItems, ...actItems];
+    const indItems = indicators.map(i => buildItem(i, 'indicator'));
+    const all = [...objItems, ...actItems, ...indItems];
 
     const pending = all.filter(x => !x.entered);
     const entered = all.filter(x => x.entered);
@@ -272,7 +350,7 @@ router.delete('/entries/:id', requireAction('kpi', 'update'), async (req, res, n
     await prisma.$transaction(async (tx) => {
       const entry = await tx.kpiEntry.findUnique({
         where: { id: req.params.id },
-        select: { objectiveId: true, activityId: true, year: true },
+        select: { objectiveId: true, activityId: true, indicatorId: true, year: true },
       });
       await tx.kpiEntry.delete({ where: { id: req.params.id } });
       if (entry) {
@@ -289,11 +367,15 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
     const year = Number(req.query.year) || currentYear();
     const month = req.query.month ? Number(req.query.month) : undefined;
     const where = { year, ...(month ? { month } : {}) };
+    if (req.query.objectiveId) where.objectiveId = req.query.objectiveId;
+    if (req.query.activityId)  where.activityId  = req.query.activityId;
+    if (req.query.indicatorId) where.indicatorId = req.query.indicatorId;
     const entries = await prisma.kpiEntry.findMany({
       where,
       include: {
         objective: { select: { id: true, title: true } },
         activity:  { select: { id: true, code: true, title: true } },
+        indicator: { select: { id: true, title: true } },
         enteredBy: { select: { name: true } },
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
@@ -342,6 +424,30 @@ async function getActivitiesWithEntries(year) {
     entries: a.kpiEntries,
   }));
 }
+async function getIndicatorsWithEntries(year) {
+  const indicators = await prisma.indicator.findMany({
+    where: { deletedAt: null },
+    include: {
+      annualTargets: { where: { year }, take: 1 },
+      kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
+    },
+  });
+  return indicators.map(ind => {
+    const annualTarget = ind.annualTargets?.[0];
+    if (!annualTarget) {
+      console.warn(`[getIndicatorsWithEntries] No AnnualTarget for indicator ${ind.id} year ${year} — using 0`);
+    }
+    return {
+      id: ind.id, code: ind.code, title: ind.title,
+      perspective: ind.perspective || '—',
+      kpiType: ind.kpiType, seasonality: ind.seasonality, direction: ind.direction,
+      targetValue: annualTarget?.targetValue ?? 0, unit: ind.unit,
+      ownerId: ind.ownerId, departmentId: ind.departmentId,
+      greenThreshold: ind.greenThreshold, yellowThreshold: ind.yellowThreshold,
+      entries: ind.kpiEntries,
+    };
+  });
+}
 
 // ── Smart filter chips للمؤشرات (quick=mine,red,behind...) ────────
 // كل مرشّح predicate على كائن مُقيَّم (kpi مُرفَق مع evaluation).
@@ -349,12 +455,12 @@ async function getActivitiesWithEntries(year) {
 export const KPI_SMART_FILTERS = {
   // الملكية
   mine: (k, req) => {
-    if (k.kind === 'objective') return k.ownerId === req.user.sub;
+    if (k.kind === 'objective' || k.kind === 'indicator') return k.ownerId === req.user.sub;
     const name = (req.user.name || '').trim();
     return name && typeof k.responsible === 'string' && k.responsible.includes(name);
   },
   myDept: (k, req) =>
-    k.kind === 'objective' && req.user.departmentId
+    (k.kind === 'objective' || k.kind === 'indicator') && req.user.departmentId
       ? k.departmentId === req.user.departmentId
       : false,
 
@@ -411,8 +517,8 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
   try {
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
-    const [objectives, activities] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year),
+    const [objectives, activities, indicators] = await Promise.all([
+      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
     const build = (list, kind) => list.map(k => {
       const ev = evaluateKpi(k, k.entries, year, month);
@@ -430,13 +536,15 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
         targetValue: k.targetValue, unit: k.unit,
         ownerId: k.ownerId, departmentId: k.departmentId,
         responsible: k.responsible,
+        greenThreshold: k.greenThreshold, yellowThreshold: k.yellowThreshold,
         entries: k.entries,
         ...ev, months: monthCells,
       };
     });
-    const allObjectives = build(objectives, 'objective');
-    const allActivities = build(activities, 'activity');
-    const all = [...allObjectives, ...allActivities];
+    const allObjectives  = build(objectives,  'objective');
+    const allActivities  = build(activities,  'activity');
+    const allIndicators  = build(indicators,  'indicator');
+    const all = [...allObjectives, ...allActivities, ...allIndicators];
 
     // counts قبل التمرير — يستخدمها الـ UI لعرض chips حتى لو المرشّح مُفعَّل
     const counts = {
@@ -449,11 +557,13 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
 
     const filteredObj = applyKpiQuick(allObjectives, req, month);
     const filteredAct = applyKpiQuick(allActivities, req, month);
+    const filteredInd = applyKpiQuick(allIndicators, req, month);
 
     res.json({
       year, month,
       objectives: filteredObj,
       activities: filteredAct,
+      indicators: filteredInd,
       counts,
       perspectives,
       activeQuick: String(req.query.quick || '').split(',').filter(Boolean),
@@ -467,11 +577,14 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
   try {
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
-    const [objectives, activities] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year),
+    const [objectives, activities, indicators] = await Promise.all([
+      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
-    const all = [...objectives.map(o=>({...o,kind:'objective'})), ...activities.map(a=>({...a,kind:'activity'}))]
-      .map(k => ({ ...k, evaluation: evaluateKpi(k, k.entries, year, month) }));
+    const all = [
+      ...objectives.map(o=>({...o,kind:'objective'})),
+      ...activities.map(a=>({...a,kind:'activity'})),
+      ...indicators.map(i=>({...i,kind:'indicator'})),
+    ].map(k => ({ ...k, evaluation: evaluateKpi(k, k.entries, year, month) }));
 
     // تجميع حسب المحور
     const byPerspective = {};
@@ -517,6 +630,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
       summary: {
         totalObjectives: objectives.length,
         totalActivities: activities.length,
+        totalIndicators: indicators.length,
         green: all.filter(k=>k.evaluation.rag==='GREEN').length,
         yellow: all.filter(k=>k.evaluation.rag==='YELLOW').length,
         red: all.filter(k=>k.evaluation.rag==='RED').length,
@@ -537,12 +651,13 @@ router.get('/alerts', requireAction('kpi', 'read'), async (req, res, next) => {
   try {
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
-    const [objectives, activities] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year),
+    const [objectives, activities, indicators] = await Promise.all([
+      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
     const all = [
       ...objectives.map(o=>({...o,kind:'objective'})),
       ...activities.map(a=>({...a,kind:'activity'})),
+      ...indicators.map(i=>({...i,kind:'indicator'})),
     ];
     const alerts = [];
     for (const k of all) {
@@ -558,35 +673,64 @@ router.get('/alerts', requireAction('kpi', 'read'), async (req, res, next) => {
 });
 
 // ─── تفاصيل مؤشر أو نشاط ───────────────────────────────────
-router.get('/:kind(objective|activity)/:id', requireAction('kpi', 'read'), async (req, res, next) => {
+router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'read'), async (req, res, next) => {
   try {
     const { kind, id } = req.params;
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
 
-    let rec, entries;
+    let rec, entries, kpi;
     if (kind === 'objective') {
       rec = await prisma.objective.findUnique({
         where: { id }, include: { strategicGoal: { select: { title: true, perspective: true } } },
       });
       if (!rec) throw NotFound('مؤشر غير موجود');
       entries = await prisma.kpiEntry.findMany({ where: { objectiveId: id, year }, orderBy: [{ month: 'asc' }] });
-    } else {
+      kpi = {
+        kpiType: rec.kpiType,
+        targetValue: rec.target,
+        unit: rec.unit,
+        seasonality: rec.seasonality,
+        direction: rec.direction,
+        budget: rec.budget,
+      };
+    } else if (kind === 'activity') {
       rec = await prisma.operationalActivity.findUnique({
         where: { id }, include: { strategicGoal: { select: { title: true } } },
       });
       if (!rec) throw NotFound('نشاط غير موجود');
       entries = await prisma.kpiEntry.findMany({ where: { activityId: id, year }, orderBy: [{ month: 'asc' }] });
+      kpi = {
+        kpiType: rec.kpiType,
+        targetValue: rec.targetValue,
+        unit: rec.targetUnit,
+        seasonality: rec.seasonality,
+        direction: rec.direction,
+        budget: rec.budget,
+      };
+    } else {
+      // kind === 'indicator'
+      rec = await prisma.indicator.findUnique({
+        where: { id },
+        include: { annualTargets: { where: { year }, take: 1 } },
+      });
+      if (!rec) throw NotFound('المؤشر غير موجود');
+      if (!rec.annualTargets?.[0]) {
+        console.warn(`[GET /indicator/${id}] No AnnualTarget for year ${year} — using 0`);
+      }
+      entries = await prisma.kpiEntry.findMany({ where: { indicatorId: id, year }, orderBy: [{ month: 'asc' }] });
+      kpi = {
+        kpiType: rec.kpiType,
+        targetValue: rec.annualTargets?.[0]?.targetValue ?? 0,
+        unit: rec.unit,
+        seasonality: rec.seasonality,
+        direction: rec.direction,
+        budget: rec.budget,
+        greenThreshold: rec.greenThreshold,
+        yellowThreshold: rec.yellowThreshold,
+      };
     }
 
-    const kpi = {
-      kpiType: rec.kpiType,
-      targetValue: kind === 'objective' ? rec.target : rec.targetValue,
-      unit: kind === 'objective' ? rec.unit : rec.targetUnit,
-      seasonality: rec.seasonality,
-      direction: rec.direction,
-      budget: rec.budget,
-    };
     const evaluation = evaluateKpi(kpi, entries, year, month);
 
     // سلسلة زمنية: متوقع/فعلي شهرياً

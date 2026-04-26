@@ -130,6 +130,15 @@ export const MATRIX = {
   // ── Proactive alerts (live health signals) ───────────────────────
   // للقراءة فقط لإدارة الجودة والمسؤولين؛ لا عمليات كتابة (detectors محسوبة).
   alerts:           { read: MANAGER_UP },
+
+  // ── Strategic Planning v2 (BSC / Indicator model) ────────────────
+  'axes':            { read: ANY,        create: QM_UP,       update: QM_UP,      delete: QM_UP },
+  'indicators':      { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
+  'annual-targets':  { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
+  'initiatives':     { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
+  'funding-sources': { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
+  'funding-plans':   { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
+  'plan-versions':   { read: ANY,        create: QM_UP,       update: SA,         delete: SA    },
 };
 
 /**
