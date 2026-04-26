@@ -25,4 +25,6 @@ if [ "${SEED_FROM_JSON:-off}" = "on" ]; then
 fi
 
 echo "[deploy] ✅ All migrations done — starting server"
+# يُعلم health endpoint بأن الـ startup اكتمل (يُرجع 200 بدل 503)
+touch /tmp/startup-complete
 exec node src/server.js
