@@ -134,13 +134,15 @@ const isProduction = config.env === 'production';
 const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   // 'unsafe-inline' لازمة دائماً لـ Alpine.js (x-data/x-init) + Tailwind play-CDN.
-  // 'unsafe-eval' أخطر (eval/Function) — نحجبه في production فقط.
+  // 'unsafe-eval' لازمة أيضاً — Alpine.js v3 يستخدم new AsyncFunction() داخلياً لتقييم
+  // x-data/:class/@click وغيرها. حجبها في production يكسر الواجهة كلياً.
   scriptSrc: [
     "'self'",
     "'unsafe-inline'",
-    ...(!isProduction ? ["'unsafe-eval'"] : []),
+    "'unsafe-eval'",  // Alpine.js v3 requires AsyncFunction — cannot be removed
     'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net',
+    'https://static.cloudflareinsights.com',  // Cloudflare Web Analytics (injected by proxy)
   ],
   styleSrc: [
     "'self'",
