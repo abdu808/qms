@@ -139,6 +139,9 @@ export const MATRIX = {
   'funding-sources': { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
   'funding-plans':   { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
   'plan-versions':   { read: ANY,        create: QM_UP,       update: SA,         delete: SA    },
+
+  // ── Phase 9: تقارير HTML قابلة للطباعة ─────────────────────────────────────
+  'reports':         { read: ANY,        create: SA,          update: SA,         delete: SA    },
 };
 
 /**
