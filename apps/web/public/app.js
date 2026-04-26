@@ -303,6 +303,10 @@ function app() {
     // Relation dropdowns cache (loaded on demand when opening form)
     relationOptions: {
       strategicGoals: [],
+      strategicPlans: [],
+      objectives: [],
+      indicators: [],
+      fundingSources: [],
     },
 
     // ISO readiness report
@@ -326,8 +330,15 @@ function app() {
       { id: 'ackDocuments',           label: 'السياسات والمواثيق (الإقرارات)', icon: '📋' },
       { id: 'myAcknowledgments',      label: 'إقراراتي',              icon: '✅' },
       { id: 'acknowledgmentsMatrix',  label: 'مصفوفة الإقرارات الشاملة', icon: '🗂️' },
-      { id: 'strategicGoals',         label: 'الخطة الاستراتيجية',  icon: '🏆' },
-      { id: 'operationalActivities',  label: 'الخطة التشغيلية',     icon: '📅' },
+      { id: 'strategicPlans',         label: 'الخطط الاستراتيجية',   icon: '📋' },
+      { id: 'axes',                   label: 'محاور BSC',             icon: '🧭' },
+      { id: 'indicators',             label: 'المؤشرات المستقلة',     icon: '📐' },
+      { id: 'annualTargets',          label: 'المستهدفات السنوية',    icon: '🎯' },
+      { id: 'initiatives',            label: 'المبادرات الاستراتيجية', icon: '🚀' },
+      { id: 'fundingSources',         label: 'مصادر التمويل',         icon: '💰' },
+      { id: 'fundingPlans',           label: 'خطط التمويل',           icon: '📊' },
+      { id: 'strategicGoals',         label: 'الأهداف الاستراتيجية',  icon: '🏆' },
+      { id: 'operationalActivities',  label: 'الخطة التشغيلية',       icon: '📅' },
       { id: 'kpiTracking',            label: 'متابعة الأداء',        icon: '📈' },
       { id: 'myKpi',                  label: 'قراءات KPI المطلوبة مني', icon: '🎯' },
       { id: 'myWork',                 label: 'مهامي اليوم',          icon: '✅' },
@@ -371,7 +382,7 @@ function app() {
       { id: 'home',        title: 'الرئيسية',          icon: '🏠', iso: '',          color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
       { id: 'context',     title: 'السياق والقيادة',   icon: '🧭', iso: 'ISO 4-5',   color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
       { id: 'acks',        title: 'الإقرارات والتعهدات', icon: '📋', iso: 'حوكمة',     color: 'teal',    items: ['myAcknowledgments','acknowledgmentsMatrix'] },
-      { id: 'planning',    title: 'التخطيط',            icon: '🎯', iso: 'ISO 6',     color: 'violet',  items: ['strategicGoals','operationalActivities','objectives','kpiTracking','myKpi','risks'] },
+      { id: 'planning',    title: 'التخطيط',            icon: '🎯', iso: 'ISO 6',     color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks'] },
       { id: 'support',     title: 'الدعم',              icon: '🧑\u200d🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports'] },
@@ -1029,7 +1040,11 @@ function app() {
         if (f.type === 'relation' && f.relation) needed.add(f.relation);
       }
       const endpoints = {
-        strategicGoals: '/strategic-goals?limit=200',
+        strategicGoals:  '/strategic-goals?limit=200',
+        strategicPlans:  '/strategic-plans?limit=100',
+        objectives:      '/objectives?limit=200',
+        indicators:      '/indicators?limit=200',
+        fundingSources:  '/funding-sources?limit=100',
       };
       for (const rel of needed) {
         try {
@@ -1349,7 +1364,10 @@ function app() {
 
     // ------ rendering helpers ------
     renderCell(item, col) {
-      let v = item[col.key];
+      // support dot-notation keys like "indicator.nameAr"
+      let v = col.key.includes('.')
+        ? col.key.split('.').reduce((o, k) => (o != null ? o[k] : undefined), item)
+        : item[col.key];
       if (v === null || v === undefined || v === '') return '<span class="text-gray-300">—</span>';
       if (col.type === 'date')   v = this.fmtDate(v);
       if (col.type === 'bool')   return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
