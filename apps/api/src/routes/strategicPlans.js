@@ -5,6 +5,7 @@ import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { activeWhere } from '../lib/dataHelpers.js';
 import { NotFound } from '../utils/errors.js';
+import { createSchema, updateSchema } from '../schemas/strategicPlan.schema.js';
 
 const base = crudRouter({
   resource: 'strategic-plans',
@@ -12,6 +13,7 @@ const base = crudRouter({
   codePrefix: 'PLAN',
   searchFields: ['title', 'description'],
   allowedSortFields: ['createdAt', 'status', 'startYear', 'endYear', 'code'],
+  schemas: { create: createSchema, update: updateSchema },
 });
 
 const router = Router();

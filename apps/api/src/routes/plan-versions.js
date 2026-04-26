@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { BadRequest, NotFound } from '../utils/errors.js';
+import { createSchema, updateSchema } from '../schemas/planVersion.schema.js';
 
 // Read-only CRUD router — create/update/delete are intentionally omitted from the
 // standard routes; writes only happen via the POST /snapshot endpoint below.
@@ -12,6 +13,7 @@ const base = crudRouter({
   model: 'strategicPlanVersion',
   allowedFilters: ['planId'],
   softDelete: false,
+  schemas: { create: createSchema, update: updateSchema },
   include: {
     createdBy: { select: { id: true, name: true } },
   },

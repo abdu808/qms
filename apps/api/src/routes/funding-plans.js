@@ -4,12 +4,14 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { BadRequest } from '../utils/errors.js';
+import { createSchema, updateSchema } from '../schemas/fundingPlan.schema.js';
 
 const base = crudRouter({
   resource: 'funding-plans',
   model: 'fundingPlan',
   allowedFilters: ['planId', 'year', 'sourceId'],
   softDelete: false,
+  schemas: { create: createSchema, update: updateSchema },
   include: {
     source: { select: { id: true, code: true, name: true, type: true } },
   },

@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
+import { createSchema, updateSchema } from '../schemas/indicator.schema.js';
 
 const base = crudRouter({
   resource: 'indicators',
@@ -10,6 +11,7 @@ const base = crudRouter({
   codePrefix: 'IND',
   allowedFilters: ['objectiveId', 'ownerId', 'indicatorType', 'deletedAt'],
   softDelete: true,
+  schemas: { create: createSchema, update: updateSchema },
   include: {
     objective: { select: { id: true, title: true } },
     owner: { select: { id: true, name: true } },
