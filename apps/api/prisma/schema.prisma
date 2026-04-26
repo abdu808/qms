@@ -79,6 +79,8 @@ model User {
   capaVerified        Capa[]            @relation("CapaVerifier")
   consultSessions     ConsultSession[]
 
+  ownedActivities      OperationalActivity[]  @relation("ActivityOwner")
+
   // ── Strategic Planning (new models) ──────────────
   ownedGoals           StrategicGoal[]       @relation("GoalOwner")
   ownedIndicators      Indicator[]           @relation("IndicatorOwner")
@@ -123,12 +125,13 @@ model Department {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       User[]
-  objectives  Objective[]
-  risks       Risk[]
-  ncrs        NCR[]
-  documents   Document[]
-  initiatives Initiative[]
+  users                User[]
+  objectives           Objective[]
+  risks                Risk[]
+  ncrs                 NCR[]
+  documents            Document[]
+  initiatives          Initiative[]
+  operationalActivities OperationalActivity[] @relation("ActivityDept")
 }
 
 // =====================================================
@@ -973,6 +976,11 @@ model OperationalActivity {
   targetUnit      String?                           // عدد | % | ريال | ...
   seasonality     String    @default("UNIFORM")
   direction       String    @default("HIGHER_BETTER")
+  // ── Owner & Department FK (linked, not free text) ────
+  ownerId          String?
+  owner            User?          @relation("ActivityOwner", fields: [ownerId], references: [id])
+  deptId           String?
+  dept             Department?    @relation("ActivityDept", fields: [deptId], references: [id])
   kpiEntries      KpiEntry[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -981,6 +989,8 @@ model OperationalActivity {
   @@index([status])
   @@index([year])
   @@index([strategicGoalId])
+  @@index([ownerId])
+  @@index([deptId])
   @@index([deletedAt])
 }
 
