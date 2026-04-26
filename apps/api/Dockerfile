@@ -14,7 +14,8 @@ RUN tailwindcss \
       --config tailwind.config.js \
       --input input.css \
       --output public/tailwind.css \
-      --minify
+      --minify \
+    && echo "[css-build] done — $(wc -c < public/tailwind.css) bytes, $(grep -c 'hover' public/tailwind.css || true) hover lines"
 
 # ── Stage 2: تثبيت Node.js dependencies ─────────────────────────────────────
 FROM node:20-alpine AS builder
