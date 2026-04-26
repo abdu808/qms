@@ -1,10 +1,12 @@
-# ── Stage 1: بناء Tailwind CSS ─────────────────────────────────────────────
+# ── Stage 1: بناء Tailwind CSS (standalone binary — بدون npm install) ────────
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# تثبيت tailwindcss CLI فقط
-RUN npm install -g tailwindcss@3
+# تنزيل Tailwind CLI standalone (أسرع بكثير من npm install -g)
+RUN wget -qO /usr/local/bin/tailwindcss \
+      https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 && \
+    chmod +x /usr/local/bin/tailwindcss
 
 # ملفات البناء
 COPY tailwind.config.js ./
@@ -12,7 +14,7 @@ COPY input.css ./
 COPY public/ ./public/
 
 # توليد CSS منقّح (purged + minified)
-RUN npx tailwindcss \
+RUN tailwindcss \
       --config tailwind.config.js \
       --input input.css \
       --output public/tailwind.css \
