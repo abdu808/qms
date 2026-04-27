@@ -268,6 +268,29 @@ router.get('/', asyncHandler(async (req, res) => {
     };
   } catch { atRisk = { objectives: [], activities: [], total: 0 }; }
 
+  // ═══ 7a) ملخص جودة (QUALITY_MANAGER + COMMITTEE_MEMBER) ═══
+  let qualityBlock = null;
+  if (viewMode === 'QUALITY') {
+    try {
+      const nowQ = new Date();
+      const [ncrOpen, ncrOverdue, compOpen, afOpen, afCritical, futPending, futOverdue] = await Promise.all([
+        prisma.nCR.count({ where: activeWhere({ status: { in: NCR_OPEN } }) }),
+        prisma.nCR.count({ where: activeWhere({ status: { in: NCR_OPEN }, dueDate: { lt: nowQ } }) }),
+        prisma.complaint.count({ where: activeWhere({ status: { in: COMPL_OPEN } }) }),
+        prisma.auditFinding.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_REVIEW'] } } }).catch(() => 0),
+        prisma.auditFinding.count({ where: { deletedAt: null, type: 'MAJOR_NC', status: { not: 'CLOSED' } } }).catch(() => 0),
+        prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] } } }).catch(() => 0),
+        prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] }, dueDate: { lt: nowQ } } }).catch(() => 0),
+      ]);
+      qualityBlock = {
+        ncr:          { open: ncrOpen, overdue: ncrOverdue, pendingReview: ncrPendingReview.length, pendingApproval: ncrPendingApproval.length },
+        complaints:   { open: compOpen, breached: compBreached.length },
+        auditFindings:{ open: afOpen,  critical: afCritical },
+        followUpTasks:{ pending: futPending, overdue: futOverdue },
+      };
+    } catch { /* non-fatal */ }
+  }
+
   // ═══ 7) ملخص تنفيذي (SUPER_ADMIN فقط) ═══
   let execBlock = null;
   if (viewMode === 'EXEC') {
@@ -491,6 +514,7 @@ router.get('/', asyncHandler(async (req, res) => {
     myDrafts,
     atRisk,
     dept: deptBlock,
+    quality: qualityBlock,
     exec: execBlock,
     dataHealth,
     alerts,
