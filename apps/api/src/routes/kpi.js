@@ -305,7 +305,8 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         : rec.kpiEntries.find(e => e.month === month);
       const ev = evaluateKpi(kpi, rec.kpiEntries, year, month);
       return {
-        kind, id: rec.id, code: rec.code, title: rec.title,
+        // Indicator يستخدم nameAr، Objective و Activity يستخدمان title
+        kind, id: rec.id, code: rec.code, title: rec.title || rec.nameAr,
         perspective: rec.strategicGoal?.perspective || rec.perspective || '—',
         goalTitle: rec.strategicGoal?.title,
         kpiType: rec.kpiType, targetValue: kpi.targetValue, unit: kpi.unit,

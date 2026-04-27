@@ -46,8 +46,9 @@
         note: f.note || null,
         evidenceUrl: f.evidenceUrl || null,
       };
-      if (f.item.kind === 'objective') payload.objectiveId = f.item.id;
-      else payload.activityId = f.item.id;
+      if (f.item.kind === 'objective')      payload.objectiveId = f.item.id;
+      else if (f.item.kind === 'indicator') payload.indicatorId = f.item.id;
+      else                                   payload.activityId  = f.item.id;
       return payload;
     },
 
