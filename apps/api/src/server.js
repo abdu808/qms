@@ -89,6 +89,7 @@ import fundingPlansRoutes  from './routes/funding-plans.js';
 import planVersionsRoutes  from './routes/plan-versions.js';
 import changeRequestsRoutes from './routes/change-requests.js';
 import followUpTasksRoutes  from './routes/follow-up-tasks.js';
+import auditFindingsRoutes  from './routes/audit-findings.js';
 import { startScheduler } from './lib/scheduler.js';
 
 // ── مُعالجات عالمية للأخطاء والإشارات ────────────────────────────────────
@@ -423,6 +424,7 @@ app.use('/api/funding-plans',   fundingPlansRoutes);
 app.use('/api/plan-versions',   planVersionsRoutes);
 app.use('/api/change-requests', changeRequestsRoutes);
 app.use('/api/follow-up-tasks', followUpTasksRoutes);
+app.use('/api/audit-findings',  auditFindingsRoutes);
 
 // ── فحص تفعيل البوابة العامة (cached 60s لتخفيف ضغط DB) ───────────────────
 let _portalEnabledCache = null;
