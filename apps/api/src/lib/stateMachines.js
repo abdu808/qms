@@ -71,6 +71,21 @@ export const MGMT_REVIEW_STATUS = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+//  AuditFinding — ISO 9.2 (Audit task 9, architectural)
+//  OPEN → IN_REVIEW → RESOLVED → CLOSED
+//       → ESCALATED (ترقية إلى NCR رسمي) → CLOSED
+//  ▸ RESOLVED يمكن إعادته لـ OPEN إذا ثبت أن التصحيح غير فعال.
+//  ▸ ESCALATED: terminal من ناحية المسار اليدوي (يُدار من الـ NCR).
+// ═══════════════════════════════════════════════════════════════
+export const AUDIT_FINDING_STATUS = {
+  OPEN:       ['IN_REVIEW', 'ESCALATED', 'CLOSED'],
+  IN_REVIEW:  ['RESOLVED',  'ESCALATED', 'OPEN'],
+  RESOLVED:   ['CLOSED',    'OPEN'],
+  ESCALATED:  ['CLOSED'],
+  CLOSED:     [],
+};
+
+// ═══════════════════════════════════════════════════════════════
 //  Document — ISO 7.5.3
 //  DRAFT → UNDER_REVIEW → APPROVED → PUBLISHED → OBSOLETE
 //  ▸ الرجوع من UNDER_REVIEW/APPROVED إلى DRAFT مسموح (مراجعة ذاتية).

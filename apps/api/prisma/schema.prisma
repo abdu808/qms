@@ -110,6 +110,10 @@ model User {
   followUpTasksOwned           FollowUpTask[]          @relation("FollowUpTaskOwner")
   followUpTasksCreated         FollowUpTask[]          @relation("FollowUpTaskCreator")
 
+  // ── Audit task 9 (architectural): AuditFinding ──
+  findingsOwned                AuditFinding[]          @relation("FindingOwner")
+  findingsCreated              AuditFinding[]          @relation("FindingCreator")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -161,6 +165,7 @@ model Department {
   programs                   Program[]               @relation("ProgramDept")
   competenceRequirements     CompetenceRequirement[] @relation("CompDept")
   audits                     Audit[]                 @relation("AuditDept")
+  auditFindings              AuditFinding[]
 }
 
 // =====================================================
@@ -388,6 +393,7 @@ model NCR {
   complaints      Complaint[] @relation("ComplaintToNcr")
   capas           Capa[]      @relation("CAPAToNCR")
   auditFindings   AuditNCR[]
+  promotedFindings AuditFinding[]    // ملاحظات التدقيق المُصعَّدة لهذا الـ NCR
   // Maker / Checker / Approver workflow (ISO 7.1.2)
   workflowState   WorkflowState @default(DRAFT)
   submittedById   String?
@@ -456,6 +462,7 @@ model Audit {
   processId           String?
   process             Process?        @relation("AuditProcess", fields: [processId], references: [id], onDelete: SetNull)
   auditNcrs           AuditNCR[]
+  auditFindings       AuditFinding[]
 
   @@index([status])
   @@index([type])
@@ -1211,6 +1218,7 @@ model Process {
   processRisks        ProcessRisk[]
   processIndicators   ProcessIndicator[]
   audits              Audit[]         @relation("AuditProcess")
+  auditFindings       AuditFinding[]
 
   @@index([type])
   @@index([deletedAt])
@@ -2296,5 +2304,67 @@ model FollowUpTask {
   @@index([ownerId, status])
   @@index([source, sourceId])
   @@index([status, dueDate])
+  @@index([deletedAt])
+}
+
+// =====================================================
+// Audit task 9 (architectural) — AuditFinding
+// ملاحظة التدقيق: مستوى بين Audit والـ NCR/CAPA
+// ISO 9001:2015 §9.2 — Internal Audit output
+// يُسجَّل كلُّ نتيجة تدقيق هنا (بدلاً من JSON field).
+// يمكن تصعيد MINOR_NC/MAJOR_NC إلى NCR رسمي عبر /escalate.
+// =====================================================
+model AuditFinding {
+  id           String   @id @default(cuid())
+  code         String   @unique        // AF-2026-001
+
+  // ── Audit context ────────────────────────────────
+  auditId      String
+  audit        Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  // ── Classification ───────────────────────────────
+  // OBSERVATION | MINOR_NC | MAJOR_NC | POSITIVE_FINDING
+  type         String   @default("OBSERVATION")
+  clauseRef    String?  // بند ISO المرتبط، مثال "8.4.1" أو "9.2.2"
+
+  // ── Scope ────────────────────────────────────────
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  processId    String?
+  process      Process?    @relation(fields: [processId], references: [id])
+
+  // ── Content ──────────────────────────────────────
+  title        String
+  description  String   @db.Text
+  evidence     String?  @db.Text    // الدليل الموضوعي
+
+  // ── Ownership & deadline ─────────────────────────
+  ownerId      String?
+  owner        User?    @relation("FindingOwner", fields: [ownerId], references: [id])
+  dueDate      DateTime?
+
+  // ── Status & resolution ──────────────────────────
+  // OPEN | IN_REVIEW | RESOLVED | CLOSED | ESCALATED
+  status       String   @default("OPEN")
+  response     String?  @db.Text    // رد المدقَّق عليه / خطة التصحيح
+  closureNote  String?  @db.Text    // ملاحظة الإغلاق (بعد التحقق)
+  closedAt     DateTime?
+
+  // ── Escalation to NCR ────────────────────────────
+  // يُعبَّأ تلقائياً عند /escalate → ينشئ NCR ويربطه هنا
+  ncrId        String?
+  ncr          NCR?     @relation(fields: [ncrId], references: [id])
+
+  // ── Audit trail ──────────────────────────────────
+  createdById  String
+  createdBy    User     @relation("FindingCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([auditId])
+  @@index([status])
+  @@index([type])
+  @@index([ownerId])
   @@index([deletedAt])
 }

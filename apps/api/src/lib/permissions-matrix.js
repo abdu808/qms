@@ -159,6 +159,12 @@ export const MATRIX = {
   // وتحديث الحالة لمدير القسم وما فوق. الحذف لـ QM فقط.
   'follow-up-tasks':  { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
 
+  // ── Audit task 9 (architectural): ملاحظات التدقيق (ISO §9.2) ─────────────
+  // المدقق (QUALITY_MANAGER) ينشئ الملاحظات خلال التدقيق.
+  // أي موظف يمكنه قراءة الملاحظات المرتبطة بقسمه.
+  // تصعيد MINOR_NC/MAJOR_NC → NCR: يشترط QUALITY_MANAGER فأعلى.
+  'audit-findings':   { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
+
   // ── Phase 9: تقارير HTML قابلة للطباعة ─────────────────────────────────────
   // Read restricted to managers+ — printable reports may aggregate sensitive cross-dept data.
   'reports':         { read: MANAGER_UP, create: SA,          update: SA,         delete: SA    },
