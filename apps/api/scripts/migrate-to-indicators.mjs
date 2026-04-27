@@ -65,8 +65,9 @@ if (DRY_RUN) console.log('🔍 DRY RUN — لا تغييرات ستُحفظ\n');
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   // جلب Objectives المرشحة للترحيل
+  // kpi هو String غير nullable على Objective — نتجاهل القيم الفارغة فقط
   const where = {
-    kpi: { not: null },
+    kpi: { not: '' },
     ...(TARGET_OBJ ? { id: TARGET_OBJ } : {}),
   };
 
@@ -83,7 +84,7 @@ async function main() {
   console.log(`📦 وُجد ${objectives.length} Objective بـ kpi محدد`);
   if (!objectives.length) { console.log('لا شيء للترحيل.'); return; }
 
-  let created = 0, skipped = 0, errors = 0;
+  let created = 0, skipped = 0, errors = 0, totalAnnualTargets = 0, totalKpiEntries = 0;
 
   for (const obj of objectives) {
     // idempotency — هل يوجد Indicator لهذا objective بالفعل؟
@@ -104,18 +105,29 @@ async function main() {
       distinct: ['year'],
       orderBy: { year: 'asc' },
     });
-    const years = kpiYears.map(r => r.year);
+    const kpiEntryYears = kpiYears.map(r => r.year);
+
+    // سنوات AnnualTarget: دائماً السنة الحالية + أي سنوات لها KpiEntries (مجموعة بلا تكرار)
+    const CURRENT_YEAR = new Date().getFullYear();
+    const targetYears = [...new Set([CURRENT_YEAR, ...kpiEntryYears])].sort();
 
     const code = await nextIndicatorCode();
 
     console.log(`\n🔄 ${obj.code} → Indicator ${code}`);
     console.log(`   kpi: "${obj.kpi}"`);
     console.log(`   target: ${obj.target}, baseline: ${obj.baseline}, unit: ${obj.unit}`);
-    console.log(`   kpiEntries years: [${years.join(', ')}]`);
+    console.log(`   kpiEntries years: [${kpiEntryYears.join(', ') || '—'}]`);
+    console.log(`   annualTargets years: [${targetYears.join(', ')}]`);
 
     if (DRY_RUN) {
-      console.log(`   [DRY-RUN] سيُنشئ Indicator + ${years.length} AnnualTarget + يُحدّث KpiEntries`);
+      // جمع عدد KpiEntries المرتبطة (للإحصاء فقط)
+      const kpiCount = await prisma.kpiEntry.count({
+        where: { objectiveId: obj.id, indicatorId: null },
+      });
+      console.log(`   [DRY-RUN] سيُنشئ Indicator + ${targetYears.length} AnnualTarget + يُحدّث ${kpiCount} KpiEntries`);
       created++;
+      totalAnnualTargets += targetYears.length;
+      totalKpiEntries    += kpiCount;
       continue;
     }
 
@@ -144,27 +156,26 @@ async function main() {
 
         console.log(`   ✅ Indicator إنشاء: ${indicator.id}`);
 
-        // 2. AnnualTargets لكل سنة (إذا وُجد target على objective)
-        if (obj.target && years.length) {
-          for (const year of years) {
-            // استخدم obj.target كمستهدف سنوي (يمكن مراجعته لاحقاً)
+        // 2. AnnualTargets — دائماً للسنة الحالية + أي سنة لها KpiEntries
+        if (obj.target != null) {
+          const systemUserId = await getSystemUserId(tx);
+          for (const year of targetYears) {
             await tx.annualTarget.upsert({
               where: { indicatorId_year: { indicatorId: indicator.id, year } },
               create: {
                 id: cuid(),
-                indicatorId:  indicator.id,
+                indicatorId: indicator.id,
                 year,
-                targetValue:  Number(obj.target),
-                // createdById يتطلب مستخدماً — نستخدم أول QUALITY_MANAGER
-                createdById: await getSystemUserId(tx),
+                targetValue: Number(obj.target),
+                createdById: systemUserId,
               },
-              update: {},  // لا تعديل عند التكرار
+              update: {},  // لا تعديل عند التكرار (idempotent)
             });
           }
-          console.log(`   ✅ AnnualTargets: ${years.length} سنة`);
+          console.log(`   ✅ AnnualTargets: ${targetYears.length} سنة (${targetYears.join(', ')})`);
         }
 
-        // 3. تحديث KpiEntry.indicatorId
+        // 3. تحديث KpiEntry.indicatorId للقراءات الموجودة
         const updated = await tx.kpiEntry.updateMany({
           where: { objectiveId: obj.id, indicatorId: null },
           data: { indicatorId: indicator.id },
@@ -180,9 +191,11 @@ async function main() {
   }
 
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`✅ مُنشأ:   ${created}`);
-  console.log(`⏭️  متخطى:  ${skipped}`);
-  if (errors) console.log(`❌ أخطاء:  ${errors}`);
+  console.log(`✅ Indicators مُنشأة:    ${created}`);
+  console.log(`📅 AnnualTargets:        ${DRY_RUN ? totalAnnualTargets : '(راجع السجل أعلاه)'}`);
+  console.log(`🔗 KpiEntries مُرتبطة:   ${DRY_RUN ? totalKpiEntries   : '(راجع السجل أعلاه)'}`);
+  console.log(`⏭️  متخطى (موجود):       ${skipped}`);
+  if (errors) console.log(`❌ أخطاء:               ${errors}`);
   if (DRY_RUN) console.log('\n🔍 DRY RUN — لم يُحفظ أي شيء. أزل --dry-run للتطبيق الفعلي.');
 
   if (!DRY_RUN && created > 0) {
