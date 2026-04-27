@@ -56,10 +56,27 @@ export async function computeKpiFeedback({ objectiveId, activityId, year, month 
       unit:        objectiveId ? kpiRec.unit   : kpiRec.targetUnit,
     };
     const ev = evaluateKpi(kpi, allEntries, year, month);
+    // Audit task 6: تنبيه عند تكرار الانخفاض شهرين متتاليين (lowStreak)
+    // — نقترح فقط (CAPA / Change Request)، لا إنشاء تلقائي.
+    let consecutiveLowMonths = 0;
+    if (ev?.ratio != null && ev.ratio < 0.80) {
+      const prevMonth = month === 1 ? null : { y: year, m: month - 1 };
+      if (prevMonth) {
+        const prevKpi = { ...kpi };
+        const prevEv = evaluateKpi(prevKpi, allEntries, prevMonth.y, prevMonth.m);
+        if (prevEv?.ratio != null && prevEv.ratio < 0.80) {
+          consecutiveLowMonths = 2;
+        }
+      }
+    }
     return {
       expected: ev.expected, actual: ev.actual, ratio: ev.ratio, rag: ev.rag,
       forecast: ev.forecast, alerts: ev.alerts,
       message:  RAG_MESSAGES[ev.rag] || '⚪ بيانات غير كافية',
+      consecutiveLowMonths,
+      lowStreakSuggestion: consecutiveLowMonths >= 2
+        ? '⚠️ انخفض هذا المؤشر شهرين متتاليين — اقتراح: افتح CAPA أو طلب تعديل (Change Request).'
+        : null,
     };
   } catch {
     return null;
@@ -89,6 +106,48 @@ export async function upsertKpiEntry({
     throw BadRequest(
       `هذا الشهر مُغلَق باعتماد المراجعة الإدارية ${lock.reviewCode} (${dateAr}). لا يمكن التعديل عليه.`,
     );
+  }
+
+  // ── Audit task 6: KPI deviation reason ───────────────────────────────
+  // إذا كانت نسبة التحقق < 80% → اطلب سبب الانحراف (يُخزَّن في "note").
+  // إذا < 60% → اطلب وصف الإجراء التصحيحي (note بطول ≥ 30 حرفاً).
+  // ملاحظة: نستخدم حقل note الموجود لتجنّب migration. حقول deviationReason/
+  // actionNote منفصلة تتطلب schema جديد — مؤجَّلة لقرار إداري.
+  if (objectiveId || activityId) {
+    const parent = objectiveId
+      ? await tx.objective.findUnique({ where: { id: objectiveId } })
+      : await tx.operationalActivity.findUnique({ where: { id: activityId } });
+    if (parent) {
+      const existing = await tx.kpiEntry.findMany({
+        where: objectiveId ? { objectiveId, year } : { activityId, year },
+        orderBy: [{ month: 'asc' }],
+      });
+      const overlay = existing.filter(e => e.month !== month);
+      overlay.push({ month, actualValue: Number(actualValue), spent: spent != null ? Number(spent) : null });
+      overlay.sort((a, b) => a.month - b.month);
+      const kpi = {
+        kpiType:     parent.kpiType,
+        seasonality: parent.seasonality,
+        direction:   parent.direction,
+        targetValue: objectiveId ? parent.target : parent.targetValue,
+        unit:        objectiveId ? parent.unit   : parent.targetUnit,
+      };
+      const ev = evaluateKpi(kpi, overlay, year, month);
+      const ratio = ev?.ratio;
+      if (ratio != null && ratio < 0.80) {
+        const noteStr = (note ?? '').toString().trim();
+        if (!noteStr) {
+          throw BadRequest(
+            `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 80% — سبب الانحراف إلزامي (املأ حقل "ملاحظة")`,
+          );
+        }
+        if (ratio < 0.60 && noteStr.length < 30) {
+          throw BadRequest(
+            `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 60% — مطلوب وصف مفصَّل للإجراء التصحيحي (الحد الأدنى 30 حرفاً، الحالي ${noteStr.length})`,
+          );
+        }
+      }
+    }
   }
 
   const where = objectiveId

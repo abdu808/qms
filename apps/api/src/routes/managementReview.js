@@ -22,7 +22,8 @@ const base = crudRouter({
   beforeUpdate: async (data, req) => {
     if (data.status) {
       const current = await prisma.managementReview.findUnique({
-        where: { id: req.params.id, deletedAt: null }, select: { status: true },
+        where: { id: req.params.id, deletedAt: null },
+        select: { status: true, decisions: true, improvementActions: true },
       });
       if (!current) throw NotFound('المراجعة غير موجودة');
       assertTransition(MGMT_REVIEW_STATUS, current.status, data.status, {
@@ -33,6 +34,31 @@ const base = crudRouter({
       if (data.status === 'COMPLETED') {
         if (data.topManagementPresent !== true && data.topManagementPresent !== 'true') {
           throw BadRequest('لا يمكن إكمال المراجعة الإدارية دون تأكيد حضور الإدارة العليا (ISO 9.3.1)');
+        }
+        // Audit task 8: قرارات المراجعة بدون مالك أو تاريخ استحقاق ترفض الاعتماد.
+        // اتفاقية البيانات: decisions و improvementActions يمكن أن تكون JSON يحوي
+        // [{ title, ownerId, dueDate, ... }] أو نصاً حراً (للتوافق العكسي).
+        // إن كانت JSON نتحقق من كل عنصر؛ النص الحر يمر بدون فحص (بيانات تاريخية).
+        const fields = {
+          decisions:          data.decisions          ?? current.decisions,
+          improvementActions: data.improvementActions ?? current.improvementActions,
+        };
+        for (const [key, raw] of Object.entries(fields)) {
+          if (!raw) continue;
+          let items;
+          try { items = JSON.parse(raw); } catch { continue; /* نص حر */ }
+          if (!Array.isArray(items)) continue;
+          items.forEach((it, idx) => {
+            if (!it || typeof it !== 'object') return;
+            const missing = [];
+            if (!it.ownerId) missing.push('المالك (ownerId)');
+            if (!it.dueDate) missing.push('تاريخ الاستحقاق (dueDate)');
+            if (missing.length) {
+              throw BadRequest(
+                `لا يمكن اعتماد مراجعة إدارية بقرار/إجراء (${key} #${idx + 1}) ناقص: ${missing.join('، ')}`,
+              );
+            }
+          });
         }
         // ISO 9.3.3: مخرجات المراجعة يجب توثيقها — توقيع رقمي من مدير الجودة
         await requireSignatureFor(req, {
