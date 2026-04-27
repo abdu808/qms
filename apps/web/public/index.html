@@ -2946,9 +2946,9 @@
                         <div class="text-2xl font-bold text-sky-700" x-text="myWork.exec.auditFindings?.open || 0"></div>
                         <div class="text-xs text-gray-600">ملاحظات تدقيق مفتوحة</div>
                       </div>
-                      <div class="bg-pink-50 rounded p-3 text-center">
+                      <div class="bg-pink-50 rounded p-3 text-center" title="MAJOR_NC غير مغلقة — عدم مطابقات رئيسية تحتاج معالجة">
                         <div class="text-2xl font-bold text-pink-700" x-text="myWork.exec.auditFindings?.critical || 0"></div>
-                        <div class="text-xs text-gray-600">عدم مطابقات رئيسية</div>
+                        <div class="text-xs text-gray-600">MAJOR_NC مفتوحة</div>
                       </div>
                     </div>
                     <template x-if="myWork.exec.mgmtReview">
