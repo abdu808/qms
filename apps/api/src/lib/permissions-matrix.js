@@ -110,7 +110,9 @@ export const MATRIX = {
   complaints:       { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP, close: QM_UP },
   surveys:          { read: ANY, create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
   audits:           { read: ANY, create: QM_UP,       update: QM_UP,      delete: QM_UP },
-  'management-review': { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
+  // SECURITY: management review minutes + cross-system snapshot expose
+  // organization-wide aggregates (financials, complaints, PII, risks).
+  'management-review': { read: MANAGER_UP, create: QM_UP, update: QM_UP, delete: QM_UP },
   // تقارير التقدّم الشهرية (المحقق الشهري) — DEPT_MANAGER يملأ قسمه، QM يُعتمد
   'progress-reports': { read: MANAGER_UP, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP, approve: QM_UP },
 

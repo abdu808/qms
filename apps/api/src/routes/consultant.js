@@ -60,8 +60,9 @@ const upload = multer({
 });
 
 // ── GET /context ──────────────────────────────────────────────────────────────
-router.get('/context', authorize(...ROLES), asyncHandler(async (_req, res) => {
-  const ctx = await buildContext({ compact: false });
+router.get('/context', authorize(...ROLES), asyncHandler(async (req, res) => {
+  // SECURITY: نمرّر دور المتصل ليُحجَب عنه users/departments إن لم يكن QM+/MANAGER+
+  const ctx = await buildContext({ compact: false, callerRole: req.user?.role });
   res.json({ ok: true, context: ctx });
 }));
 
@@ -109,7 +110,11 @@ router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (r
     const onProgress = (event) => {
       if (!res.writableEnded) sseWrite('progress', event);
     };
-    const out = await chat({ messages, callerUserId, callerRole, mode, modelOverride, providerOverride, onProgress });
+    const out = await chat({
+      messages, callerUserId, callerRole,
+      callerUser: req.user, // ⚠️ مصدر الحقيقة لفحص الصلاحيات في AI tools
+      mode, modelOverride, providerOverride, onProgress,
+    });
     clearInterval(pingTimer);
     sseWrite('result', { ok: true, ...out });
   } catch (e) {
@@ -139,11 +144,13 @@ router.post('/apply-pending', authorize(...ROLES), asyncHandler(async (req, res)
     if (!a.input || typeof a.input !== 'object') throw BadRequest('كل إجراء يحتاج input (object)');
   }
 
-  const callerUserId = req.user?.sub || req.user?.id;
+  // SECURITY (audit fix v2): callerUser من req.user هو مصدر الحقيقة لفحص
+  // الصلاحيات. AI_AGENT_USER_ID يُستخدم في acting (audit) فقط — لا يمنح صلاحيات.
+  const callerUser   = req.user;
   const agentUserId  = await getAiAgentUserIdInternal().catch(() => null);
-  const actingUserId = agentUserId || callerUserId;
+  const actingUserId = agentUserId || callerUser?.sub || callerUser?.id || null;
 
-  const results = await applyPendingActions(pendingActions, actingUserId);
+  const results = await applyPendingActions(pendingActions, callerUser, actingUserId);
   const ok      = results.filter(r => r.ok).length;
   const failed  = results.length - ok;
 

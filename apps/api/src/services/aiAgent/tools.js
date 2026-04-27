@@ -49,6 +49,133 @@ import {
   detectTrends as svcDetectTrends,
   detectCrossContradictions as svcDetectCross,
 } from '../progressReportService.js';
+import { can } from '../../lib/permissions.js';
+
+// ═════════════════════════════════════════════════════════════════════
+//  TOOL PERMISSIONS — كل أداة تُحوَّل إلى (resource, action) من المصفوفة
+// ═════════════════════════════════════════════════════════════════════
+// هذا هو الجسر بين أدوات الـ AI ومصفوفة RBAC. عند تنفيذ أداة، نتحقق أن
+// المستخدم الحقيقي (callerUser) يمتلك الصلاحية المقابلة. AI_AGENT_USER_ID
+// يستخدم في audit فقط (تتبع من نفّذ نيابة عن من)، وليس لتجاوز الصلاحيات.
+//
+// أدوات غير مُدرَجة هنا تُرفض افتراضياً (deny by default). هذا مقصود —
+// إضافة أداة جديدة تتطلب إضافة سطر هنا، لا يفلت شيء بالخطأ.
+//
+// 'public' كاسم مورد = متاح لأي دور مصادَق عليه (مفيد لأدوات التحليل
+// الخالصة التي لا تكشف بيانات خام، فقط حسابات/إحصاءات).
+export const TOOL_PERMISSIONS = {
+  // ── قراءة عامة (آمنة) ───────────────────────────────────
+  get_system_state:           { resource: 'dashboard', action: 'read' }, // gated further by role
+  scan_overdue:               { resource: 'dashboard', action: 'read' },
+  compute_iso_maturity:       { resource: 'iso-readiness', action: 'read' },
+  generate_management_report: { resource: 'reports', action: 'read' },
+  compare_departments:        { resource: 'dashboard', action: 'read' },
+  detect_department_trends:   { resource: 'dashboard', action: 'read' },
+  detect_distressed_departments: { resource: 'dashboard', action: 'read' },
+  list_investigation_flags:   { resource: 'dashboard', action: 'read' },
+  read_progress_report:       { resource: 'progress-reports', action: 'read' },
+  generate_progress_report:   { resource: 'progress-reports', action: 'create' },
+  investigate_cross_contradictions: { resource: 'dashboard', action: 'read' },
+
+  // ── أدوات تحليل عميق (read-only) ────────────────────────
+  evaluate_strategic_plan:    { resource: 'strategic-plans', action: 'read' },
+  analyze_complaints_pattern: { resource: 'complaints', action: 'read' },
+  evaluate_kpi_quality:       { resource: 'kpi', action: 'read' },
+  detect_goal_conflicts:      { resource: 'objectives', action: 'read' },
+  suggest_missing_objectives: { resource: 'objectives', action: 'read' },
+  generate_audit_checklist:   { resource: 'audit-checklists', action: 'read' },
+  assess_training_needs:      { resource: 'training', action: 'read' },
+  check_department_coverage:  { resource: 'departments', action: 'read' },
+  evaluate_policy_completeness: { resource: 'quality-policy', action: 'read' },
+  suggest_target_adjustment:  { resource: 'objectives', action: 'read' },
+  link_risks_to_objectives:   { resource: 'risks', action: 'read' },
+  analyze_ncr_patterns:       { resource: 'ncr', action: 'read' },
+  measure_capa_effectiveness: { resource: 'capa', action: 'read' },
+  assess_org_structure_fit:   { resource: 'departments', action: 'read' },
+  track_beneficiary_satisfaction: { resource: 'surveys', action: 'read' },
+
+  // ── الخطة الاستراتيجية (write) ──────────────────────────
+  create_strategic_plan:      { resource: 'strategic-plans', action: 'create' },
+  update_strategic_plan:      { resource: 'strategic-plans', action: 'update' },
+  create_strategic_goal:      { resource: 'strategic-goals', action: 'create' },
+  update_strategic_goal:      { resource: 'strategic-goals', action: 'update' },
+  delete_strategic_goal:      { resource: 'strategic-goals', action: 'delete' },
+
+  // ── الأنشطة التشغيلية ──────────────────────────────────
+  create_operational_activity: { resource: 'operational-activities', action: 'create' },
+  update_operational_activity: { resource: 'operational-activities', action: 'update' },
+  delete_operational_activity: { resource: 'operational-activities', action: 'delete' },
+  link_activity_to_goal:       { resource: 'operational-activities', action: 'update' },
+
+  // ── الأهداف ─────────────────────────────────────────────
+  create_objective:           { resource: 'objectives', action: 'create' },
+  update_objective:           { resource: 'objectives', action: 'update' },
+  delete_objective:           { resource: 'objectives', action: 'delete' },
+  assign_responsible:         { resource: 'objectives', action: 'update' },
+  assign_owner:               { resource: 'objectives', action: 'update' },
+
+  // ── KPI ─────────────────────────────────────────────────
+  log_kpi_entry:              { resource: 'kpi', action: 'update' },
+
+  // ── المخاطر ─────────────────────────────────────────────
+  create_risk:                { resource: 'risks', action: 'create' },
+  update_risk:                { resource: 'risks', action: 'update' },
+
+  // ── NCR / CAPA ──────────────────────────────────────────
+  create_ncr:                 { resource: 'ncr', action: 'create' },
+  update_ncr:                 { resource: 'ncr', action: 'update' },
+  create_capa:                { resource: 'capa', action: 'create' },
+  update_capa:                { resource: 'capa', action: 'update' },
+
+  // ── التدقيق ────────────────────────────────────────────
+  plan_audit:                 { resource: 'audits', action: 'create' },
+
+  // ── شكاوى / SWOT / مراجعة الإدارة ──────────────────────
+  create_complaint:           { resource: 'complaints', action: 'create' },
+  update_complaint:           { resource: 'complaints', action: 'update' },
+  orchestrate_complaint:      { resource: 'complaints', action: 'update' },
+  create_swot_item:           { resource: 'swot', action: 'create' },
+  update_swot_item:           { resource: 'swot', action: 'update' },
+  create_management_review:   { resource: 'management-review', action: 'create' },
+  update_management_review:   { resource: 'management-review', action: 'update' },
+
+  // ── المؤشرات + المبادرات (الخطة الاستراتيجية v2) ────────
+  create_indicator:           { resource: 'indicators', action: 'create' },
+  update_indicator:           { resource: 'indicators', action: 'update' },
+  create_initiative:          { resource: 'initiatives', action: 'create' },
+
+  // ── التدريب ─────────────────────────────────────────────
+  schedule_training:          { resource: 'training', action: 'create' },
+};
+
+/**
+ * تحقُّق صلاحية المستخدم الحقيقي قبل تنفيذ أداة AI.
+ * يرفع خطأ permission-denied إذا لم تُسجَّل الأداة، أو لم يحز المستخدم الصلاحية.
+ * @param {{role?: string, sub?: string, departmentId?: string}|null} callerUser
+ * @param {string} toolName
+ */
+export function gateToolForCaller(callerUser, toolName) {
+  if (!callerUser?.role) {
+    const err = new Error(`AI tool "${toolName}" يتطلب مستخدماً مصادَقاً عليه`);
+    err.code = 'AI_TOOL_NO_CALLER';
+    throw err;
+  }
+  const policy = TOOL_PERMISSIONS[toolName];
+  if (!policy) {
+    const err = new Error(`الأداة "${toolName}" غير مُسجَّلة في خريطة الصلاحيات (deny-by-default)`);
+    err.code = 'AI_TOOL_UNREGISTERED';
+    throw err;
+  }
+  if (!can(callerUser, policy.resource, policy.action)) {
+    const err = new Error(
+      `صلاحية مرفوضة: المستخدم بدور "${callerUser.role}" لا يستطيع تنفيذ الأداة "${toolName}" `
+      + `(تتطلب ${policy.action} على ${policy.resource})`
+    );
+    err.code = 'AI_TOOL_FORBIDDEN';
+    err.statusCode = 403;
+    throw err;
+  }
+}
 
 /** الأدوات التي تقرأ فقط (تُنفَّذ دائماً حتى في وضع المراجعة) */
 export const READ_ONLY_TOOLS = new Set([
@@ -1188,13 +1315,49 @@ export function getToolsForRole(role) {
 //  منفِّذ الأدوات
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function executeTool(name, input, actingUserId) {
+/**
+ * تنفيذ أداة AI نيابة عن المستخدم الحقيقي.
+ *
+ * تغيُّر التوقيع (V2): يقبل ctx بدلاً من actingUserId مفرداً.
+ *   ctx = { callerUser, actingUserId }
+ * للحفاظ على التوافق العكسي، إذا مُرِّر string في الموضع الثالث يُعامَل كـ
+ * actingUserId مع callerUser=null (سيُرفض كل tool نتيجة gateToolForCaller).
+ *
+ * @param {string} name — اسم الأداة
+ * @param {object} input — مدخلات الأداة
+ * @param {{callerUser?:object, actingUserId?:string}|string} ctx
+ */
+export async function executeTool(name, input, ctx) {
+  // Backward compat: ctx may be a plain string (old actingUserId) — treat as no caller
+  const callerUser  = (ctx && typeof ctx === 'object') ? ctx.callerUser  : null;
+  const actingUserId = (ctx && typeof ctx === 'object') ? ctx.actingUserId : ctx;
+
+  // SECURITY: gate every tool against the REAL caller's permissions.
+  // AI_AGENT_USER_ID is for audit trail only — it is NOT a permission grant.
+  gateToolForCaller(callerUser, name);
+
   switch (name) {
 
     // ══ 1. get_system_state ══════════════════════════════════════════════════
     case 'get_system_state': {
-      const want = new Set(input.sections || ['goals','activities','objectives','gaps']);
-      if (want.has('all')) ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','gaps'].forEach(s => want.add(s));
+      // SECURITY: gate sensitive sections by caller role, not by AI agent identity.
+      const role = callerUser?.role;
+      const isQmUp = role === 'QUALITY_MANAGER' || role === 'SUPER_ADMIN';
+      const isManagerUp = isQmUp || role === 'DEPT_MANAGER' || role === 'COMMITTEE_MEMBER';
+
+      let want = new Set(input.sections || ['goals','activities','objectives','gaps']);
+      if (want.has('all')) {
+        // 'all' is for QM+ only. Lower roles get a curated safe expansion (no users/departments).
+        const expansionForQmUp     = ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','gaps'];
+        const expansionForManagers = ['plans','goals','activities','objectives','axes','indicators','risks','ncrs','capas','audits','complaints','gaps'];
+        const expansion = isQmUp ? expansionForQmUp : expansionForManagers;
+        want.delete('all');
+        expansion.forEach(s => want.add(s));
+      }
+      // Hard gate: 'users' section only for QM+.
+      if (want.has('users') && !isQmUp) want.delete('users');
+      // Department list contains every dept in org — only managers and above.
+      if (want.has('departments') && !isManagerUp) want.delete('departments');
 
       // Pagination: حد أقصى 200، افتراضي 50
       const pgLimit  = Math.min(Math.max(Number(input.limit  || 50), 1), 200);

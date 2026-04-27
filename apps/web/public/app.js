@@ -41,7 +41,7 @@ const PERMISSIONS = {
   complaints:       { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP, close:_QM_UP },
   surveys:          { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
   audits:           { read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
-  'management-review': { read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
+  'management-review': { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
   ncr:              { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP, close:_QM_UP },
   signatures:       { read:_ANY, create:_EMPLOYEE_UP, update:_QM_UP, delete:_SA },
   'audit-log':      { read:_QM_UP, create:_SA, update:_SA, delete:_SA },
