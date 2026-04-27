@@ -96,6 +96,16 @@ model User {
   plansFrozen             StrategicPlan[] @relation("PlanFreezer")
   kpiEntriesApproved      KpiEntry[]      @relation("KpiEntryApprover")
 
+  // ── Integration Layer back-relations ─────────────
+  swotOwned                    SwotItem[]              @relation("SwotOwner")
+  partyResponsible             InterestedParty[]       @relation("PartyResp")
+  processesOwned               Process[]               @relation("ProcessOwner")
+  beneficiariesManaged         Beneficiary[]           @relation("BenCaseManager")
+  programsManaged              Program[]               @relation("ProgramManager")
+  performanceReviewsAsEmployee PerformanceReview[]     @relation("PerfEmployee")
+  performanceReviewsAsReviewer PerformanceReview[]     @relation("PerfReviewer")
+  communicationsResponsible    CommunicationPlan[]     @relation("CommUser")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -138,6 +148,15 @@ model Department {
   documents            Document[]
   initiatives          Initiative[]
   operationalActivities OperationalActivity[] @relation("ActivityDept")
+
+  // ── Integration Layer back-relations ─────────────
+  swotItems                  SwotItem[]              @relation("SwotDept")
+  interestedParties          InterestedParty[]       @relation("PartyDept")
+  processes                  Process[]               @relation("ProcessDept")
+  beneficiariesInDept        Beneficiary[]           @relation("BenDept")
+  programs                   Program[]               @relation("ProgramDept")
+  competenceRequirements     CompetenceRequirement[] @relation("CompDept")
+  audits                     Audit[]                 @relation("AuditDept")
 }
 
 // =====================================================
@@ -180,6 +199,7 @@ model Objective {
   direction       String  @default("HIGHER_BETTER") // HIGHER_BETTER | LOWER_BETTER
   kpiEntries      KpiEntry[]
   indicators      Indicator[]  // مؤشرات KPI المرتبطة بهذا الهدف التشغيلي
+  processObjectives ProcessObjective[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
@@ -234,6 +254,10 @@ model Risk {
   strategicGoalId String?
   strategicGoal   StrategicGoal? @relation(fields: [strategicGoalId], references: [id])
   capas           Capa[]         @relation("CAPAToRisk")
+  // Integration Layer back-relations
+  swotItems       SwotItem[]              @relation("SwotRisk")
+  parties         InterestedParty[]       @relation("PartyRisk")
+  processRisks    ProcessRisk[]
   // Maker / Checker / Approver workflow (ISO 7.1.2)
   workflowState   WorkflowState @default(DRAFT)
   submittedById   String?
@@ -359,6 +383,7 @@ model NCR {
   // الشكاوى المحوَّلة إلى هذا الـ NCR (P-11 §3.4)
   complaints      Complaint[] @relation("ComplaintToNcr")
   capas           Capa[]      @relation("CAPAToNCR")
+  auditFindings   AuditNCR[]
   // Maker / Checker / Approver workflow (ISO 7.1.2)
   workflowState   WorkflowState @default(DRAFT)
   submittedById   String?
@@ -420,6 +445,13 @@ model Audit {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
+
+  // Integration Layer
+  departmentId        String?
+  auditDepartment     Department?     @relation("AuditDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  processId           String?
+  process             Process?        @relation("AuditProcess", fields: [processId], references: [id], onDelete: SetNull)
+  auditNcrs           AuditNCR[]
 
   @@index([status])
   @@index([type])
@@ -570,6 +602,11 @@ model Donation {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
+  // Integration Layer
+  recipientId         String?
+  recipient           Beneficiary?    @relation("DonationRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  allocations         ProgramDonation[]
+
   @@index([status])
   @@index([type])
   @@index([deletedAt])
@@ -646,6 +683,14 @@ model Beneficiary {
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
 
+  // Integration Layer
+  caseManagerId       String?
+  caseManager         User?           @relation("BenCaseManager", fields: [caseManagerId], references: [id], onDelete: SetNull)
+  departmentId        String?
+  benDepartment       Department?     @relation("BenDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  programs            BeneficiaryProgram[]
+  donationsReceived   Donation[]      @relation("DonationRecipient")
+
   @@index([status])
   @@index([category])
   @@index([deletedAt])
@@ -672,6 +717,14 @@ model Program {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
+
+  // Integration Layer
+  departmentId        String?
+  programDepartment   Department?     @relation("ProgramDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  managerId           String?
+  manager             User?           @relation("ProgramManager", fields: [managerId], references: [id], onDelete: SetNull)
+  beneficiaries       BeneficiaryProgram[]
+  donations           ProgramDonation[]
 
   @@index([deletedAt])
 }
@@ -844,6 +897,7 @@ model Training {
   deletedAt         DateTime?
 
   records     TrainingRecord[]
+  competenceRequirements TrainingCompetence[]
 
   @@index([deletedAt])
 }
@@ -905,6 +959,7 @@ model StrategicPlan {
   goals        StrategicGoal[]
   fundingPlans FundingPlan[]
   versions     StrategicPlanVersion[]
+  managementReviews ManagementReview[]      @relation("ReviewPlan")
 
   // Plan Freeze
   frozenAt        DateTime?
@@ -953,6 +1008,7 @@ model StrategicGoal {
   risks               Risk[]
   initiatives         Initiative[]
   improvementProjects ImprovementProject[]
+  swotItems           SwotItem[]              @relation("SwotGoal")
 
   @@index([status])
   @@index([deletedAt])
@@ -1063,9 +1119,23 @@ model SwotItem {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
+  // Integration Layer
+  relatedRiskId       String?
+  relatedRisk         Risk?           @relation("SwotRisk", fields: [relatedRiskId], references: [id], onDelete: SetNull)
+  relatedGoalId       String?
+  relatedGoal         StrategicGoal?  @relation("SwotGoal", fields: [relatedGoalId], references: [id], onDelete: SetNull)
+  ownerUserId         String?
+  ownerUser           User?           @relation("SwotOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  departmentId        String?
+  swotDepartment      Department?     @relation("SwotDept", fields: [departmentId], references: [id], onDelete: SetNull)
+
   @@index([type])
   @@index([status])
   @@index([deletedAt])
+  @@index([relatedRiskId])
+  @@index([relatedGoalId])
+  @@index([ownerUserId])
+  @@index([departmentId])
 }
 
 // =====================================================
@@ -1087,9 +1157,21 @@ model InterestedParty {
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
 
+  // Integration Layer
+  responsibleUserId   String?
+  responsibleUser     User?           @relation("PartyResp", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  relatedRiskId       String?
+  relatedRisk         Risk?           @relation("PartyRisk", fields: [relatedRiskId], references: [id], onDelete: SetNull)
+  departmentId        String?
+  partyDepartment     Department?     @relation("PartyDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  communicationPlans  CommunicationPlanParty[]
+
   @@index([type])
   @@index([status])
   @@index([deletedAt])
+  @@index([responsibleUserId])
+  @@index([relatedRiskId])
+  @@index([departmentId])
 }
 
 // =====================================================
@@ -1113,6 +1195,16 @@ model Process {
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
 
+  // Integration Layer
+  ownerUserId         String?
+  ownerUser           User?           @relation("ProcessOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  departmentId        String?
+  processDepartment   Department?     @relation("ProcessDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  processObjectives   ProcessObjective[]
+  processRisks        ProcessRisk[]
+  processIndicators   ProcessIndicator[]
+  audits              Audit[]         @relation("AuditProcess")
+
   @@index([type])
   @@index([deletedAt])
 }
@@ -1135,6 +1227,10 @@ model QualityPolicy {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   deletedAt     DateTime?
+
+  // Integration Layer
+  ackDocumentId String?
+  ackDocument   AckDocument?    @relation("PolicyAck", fields: [ackDocumentId], references: [id], onDelete: SetNull)
 
   @@index([active])
   @@index([deletedAt])
@@ -1178,6 +1274,11 @@ model ManagementReview {
   updatedAt          DateTime @updatedAt
   deletedAt          DateTime?
 
+  // Integration Layer
+  planId             String?
+  plan               StrategicPlan?  @relation("ReviewPlan", fields: [planId], references: [id], onDelete: SetNull)
+  year               Int?
+
   @@index([status])
   @@index([deletedAt])
 }
@@ -1202,6 +1303,11 @@ model CompetenceRequirement {
   updatedAt        DateTime @updatedAt
   deletedAt        DateTime?
 
+  // Integration Layer
+  departmentId        String?
+  compDepartment      Department?     @relation("CompDept", fields: [departmentId], references: [id], onDelete: SetNull)
+  trainingLinks       TrainingCompetence[]
+
   @@index([status])
   @@index([deletedAt])
 }
@@ -1224,6 +1330,11 @@ model CommunicationPlan {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   deletedAt    DateTime?
+
+  // Integration Layer
+  responsibleUserId   String?
+  responsibleUser     User?           @relation("CommUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  parties             CommunicationPlanParty[]
 
   @@index([status])
   @@index([deletedAt])
@@ -1356,7 +1467,9 @@ model PerformanceReview {
   id             String   @id @default(cuid())
   code           String   @unique  // PRV-2026-001
   employeeId     String   // الموظف المُقيَّم
+  employee       User     @relation("PerfEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   reviewerId     String   // المُقيِّم (غالباً مدير القسم)
+  reviewer       User     @relation("PerfReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
   period         String   // "2026" أو "Q1-2026"
   periodStart    DateTime
   periodEnd      DateTime
@@ -1494,6 +1607,7 @@ model AckDocument {
 
   acknowledgments Acknowledgment[]
   tokens          AckToken[]
+  qualityPolicies QualityPolicy[]         @relation("PolicyAck")
 
   @@index([active, category])
   @@index([deletedAt])
@@ -1743,6 +1857,7 @@ model Indicator {
 
   annualTargets    AnnualTarget[]
   kpiEntries       KpiEntry[]
+  processIndicators ProcessIndicator[]
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -2024,4 +2139,121 @@ model ChangeRequest {
   @@index([status])
   @@index([resource, resourceId])
   @@index([requestedById])
+}
+
+// =====================================================
+// INTEGRATION LAYER — Junction Tables (M-M)
+// =====================================================
+
+model BeneficiaryProgram {
+  id              String   @id @default(cuid())
+  beneficiaryId   String
+  beneficiary     Beneficiary @relation(fields: [beneficiaryId], references: [id], onDelete: Cascade)
+  programId       String
+  program         Program     @relation(fields: [programId], references: [id], onDelete: Cascade)
+  enrolledAt      DateTime @default(now())
+  exitedAt        DateTime?
+  status          String   @default("ACTIVE")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([beneficiaryId, programId])
+  @@index([beneficiaryId])
+  @@index([programId])
+}
+
+model ProgramDonation {
+  id              String   @id @default(cuid())
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  donationId      String
+  donation        Donation @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  amount          Float
+  allocatedAt     DateTime @default(now())
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([programId, donationId])
+  @@index([programId])
+  @@index([donationId])
+}
+
+model ProcessObjective {
+  id              String   @id @default(cuid())
+  processId       String
+  process         Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  objectiveId     String
+  objective       Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([processId, objectiveId])
+  @@index([processId])
+  @@index([objectiveId])
+}
+
+model ProcessRisk {
+  id              String   @id @default(cuid())
+  processId       String
+  process         Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  riskId          String
+  risk            Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([processId, riskId])
+  @@index([processId])
+  @@index([riskId])
+}
+
+model ProcessIndicator {
+  id              String   @id @default(cuid())
+  processId       String
+  process         Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  indicatorId     String
+  indicator       Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([processId, indicatorId])
+  @@index([processId])
+  @@index([indicatorId])
+}
+
+model CommunicationPlanParty {
+  id              String   @id @default(cuid())
+  planId          String
+  plan            CommunicationPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  partyId         String
+  party           InterestedParty   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([planId, partyId])
+  @@index([planId])
+  @@index([partyId])
+}
+
+model AuditNCR {
+  id              String   @id @default(cuid())
+  auditId         String
+  audit           Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  ncrId           String
+  ncr             NCR      @relation(fields: [ncrId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([auditId, ncrId])
+  @@index([auditId])
+  @@index([ncrId])
+}
+
+model TrainingCompetence {
+  id                       String   @id @default(cuid())
+  trainingId               String
+  training                 Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  competenceRequirementId  String
+  competenceRequirement    CompetenceRequirement @relation(fields: [competenceRequirementId], references: [id], onDelete: Cascade)
+  createdAt                DateTime @default(now())
+
+  @@unique([trainingId, competenceRequirementId])
+  @@index([trainingId])
+  @@index([competenceRequirementId])
 }
