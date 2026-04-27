@@ -19,6 +19,7 @@ const PERMISSIONS_DEFAULT = {
 const PERMISSIONS = {
   users:            { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
   departments:      { read:_ANY, create:_QM_UP, update:_QM_UP, delete:_SA },
+  'strategic-plans':{ read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
   'strategic-goals':{ read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
   objectives:       { read:_ANY, create:_QM_UP, update:_MANAGER_UP, delete:_QM_UP },
   risks:            { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP },
@@ -67,6 +68,28 @@ function _resourceKey(resource) {
   if (!resource) return null;
   return PERMISSIONS[resource] ? resource : resource;
 }
+
+// ───────── Field-Level Security mirror (sync with crudFactory lockedFieldsForRole) ─────────
+// الحقول المقفولة لكل دور في كل مورد — تظهر مُعطَّلة في نموذج التعديل
+// مع بانر يوضّح للمستخدم أن تعديلها يحتاج "طلب تعديل" عبر مدير الجودة
+const LOCKED_FIELDS_FOR_ROLE = {
+  objectives: {
+    DEPT_MANAGER: ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
+    EMPLOYEE:     ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
+  },
+  'operational-activities': {
+    DEPT_MANAGER: ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction'],
+    EMPLOYEE:     ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction','ownerId','deptId'],
+  },
+  initiatives: {
+    DEPT_MANAGER: ['name','description','goalId','startDate','endDate','budget'],
+    EMPLOYEE:     ['name','description','goalId','startDate','endDate','budget','ownerId','departmentId'],
+  },
+  risks: {
+    EMPLOYEE:     ['title','description','type','source','probability','impact','strategicGoalId'],
+    DEPT_MANAGER: ['strategicGoalId'],
+  },
+};
 
 // MODULES مُجمَّع من ملفات modules-config/ (يُحمَّل قبل app.js في index.html)
 const MODULES = Object.assign({},
@@ -129,6 +152,27 @@ function app() {
     canCreate(r)  { return this.can(r, 'create'); },
     canEdit(r)    { return this.can(r, 'update'); },
     canDelete(r)  { return this.can(r, 'delete'); },
+
+    // ─── Field-Level Security helpers ───────────────────────────────
+    // هل هذا الحقل مقفول للدور الحالي؟
+    isFieldLocked(resource, fieldKey) {
+      const role = this.user?.role;
+      if (!role) return false;
+      const perResource = LOCKED_FIELDS_FOR_ROLE[resource];
+      if (!perResource) return false;
+      const lockedFields = perResource[role];
+      if (!Array.isArray(lockedFields)) return false;
+      return lockedFields.includes(fieldKey);
+    },
+    // هل المورد لديه حقول مقفولة للدور الحالي؟ (لإظهار البانر)
+    hasLockedFields(resource) {
+      const role = this.user?.role;
+      if (!role) return false;
+      const perResource = LOCKED_FIELDS_FOR_ROLE[resource];
+      if (!perResource) return false;
+      const lockedFields = perResource[role];
+      return Array.isArray(lockedFields) && lockedFields.length > 0;
+    },
     canApprove(r) { return this.can(r, 'approve'); },
     canClose(r)   { return this.can(r, 'close'); },
     // Current page's resource — derived from the active module endpoint

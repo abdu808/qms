@@ -5306,6 +5306,18 @@
 
             <!-- ── Form body ────────────────────────────────────── -->
             <form @submit.prevent="save()" novalidate class="overflow-y-auto flex-1 px-6 py-5">
+              <!-- ─── Field-Level Security Banner (إذا الدور له حقول مقفولة) ─── -->
+              <template x-if="modal.mode==='edit' && hasLockedFields(currentResource)">
+                <div class="mb-4 bg-amber-50 border-2 border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                  <span class="flex-shrink-0 text-amber-600 text-lg">🔒</span>
+                  <div class="flex-1 text-xs text-amber-800 leading-relaxed">
+                    <strong>بعض الحقول مقفولة لدورك</strong> — هذه حقول حاكمة معتمَدة من الإدارة العليا.
+                    لتعديلها استخدم <strong>📝 طلبات التعديل</strong> لرفع طلب رسمي لمدير الجودة.
+                    الحقول المقفولة معلَّمة بـ 🔒 وتظهر معطّلة. أنت تستطيع تعديل باقي الحقول (التقدّم، الحالة، الملاحظات...).
+                  </div>
+                </div>
+              </template>
+
               <div class="grid grid-cols-2 gap-x-4 gap-y-4">
 
                 <template x-for="f in currentFields" :key="f.key">
@@ -5315,6 +5327,8 @@
                     <label class="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                       <span x-text="f.label"></span>
                       <span x-show="f.required" class="text-red-400 text-sm leading-none">*</span>
+                      <span x-show="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
+                            class="text-amber-600 text-xs" title="حقل مقفول — يحتاج طلب تعديل">🔒</span>
                     </label>
 
                     <!-- TEXTAREA ───────────────────── -->
@@ -5323,14 +5337,20 @@
                         :placeholder="f.placeholder || ('أدخل ' + f.label)"
                         :maxlength="f.maxlength || 10000"
                         :required="f.required"
-                        class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 focus:ring-0 outline-none transition-colors resize-y bg-gray-50/80 focus:bg-white placeholder-gray-300"></textarea>
+                        :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
+                        :class="modal.mode==='edit' && isFieldLocked(currentResource, f.key)
+                          ? 'w-full border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed resize-y'
+                          : 'w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 focus:ring-0 outline-none transition-colors resize-y bg-gray-50/80 focus:bg-white placeholder-gray-300'"></textarea>
                     </template>
 
                     <!-- SELECT ────────────────────── -->
                     <template x-if="f.type==='select'">
                       <div class="relative">
                         <select x-model="modal.data[f.key]"
-                          class="w-full appearance-none border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white cursor-pointer">
+                          :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
+                          :class="modal.mode==='edit' && isFieldLocked(currentResource, f.key)
+                            ? 'w-full appearance-none border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed'
+                            : 'w-full appearance-none border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white cursor-pointer'">
                           <option value="">— اختر —</option>
                           <template x-for="o in statusOptionsFor(f)" :key="o.v">
                             <option :value="o.v" x-text="o.l"></option>
@@ -5344,7 +5364,10 @@
                     <template x-if="f.type==='relation'">
                       <div class="relative">
                         <select x-model="modal.data[f.key]"
-                          class="w-full appearance-none border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white cursor-pointer">
+                          :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
+                          :class="modal.mode==='edit' && isFieldLocked(currentResource, f.key)
+                            ? 'w-full appearance-none border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed'
+                            : 'w-full appearance-none border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white cursor-pointer'">
                           <option value="">— لا شيء —</option>
                           <template x-for="o in (relationOptions[f.relation]||[])" :key="o.id">
                             <option :value="o.id" x-text="(o.code ? o.code + ' — ' : '') + (o.title||o.nameAr||o.name||'')"></option>
@@ -5357,9 +5380,11 @@
                     <!-- BOOL TOGGLE ─────────────────── -->
                     <template x-if="f.type==='bool'">
                       <div class="flex items-center gap-3 h-11 px-4 border-2 border-gray-200 rounded-xl bg-gray-50/80">
-                        <button type="button" @click="modal.data[f.key] = !modal.data[f.key]"
+                        <button type="button"
+                          @click="(modal.mode==='edit' && isFieldLocked(currentResource, f.key)) ? null : (modal.data[f.key] = !modal.data[f.key])"
+                          :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
                           :class="modal.data[f.key] ? 'bg-brand-500' : 'bg-gray-300'"
-                          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0">
+                          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
                           <span :class="modal.data[f.key] ? '-translate-x-5' : '-translate-x-1'"
                             class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"></span>
                         </button>
@@ -5394,7 +5419,10 @@
                         :min="f.min" :max="f.maxToday ? new Date().toISOString().slice(0,10) : f.max" :step="f.step"
                         :maxlength="f.maxlength"
                         :required="f.required"
-                        class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white placeholder-gray-300" />
+                        :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
+                        :class="modal.mode==='edit' && isFieldLocked(currentResource, f.key)
+                          ? 'w-full border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed'
+                          : 'w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white placeholder-gray-300'" />
                     </template>
 
                     <!-- ISO HINT ──────────────────────── -->
@@ -7072,10 +7100,10 @@
 
 </div><!-- end userGuide -->
 
-<script src="/modules/kpi-common.js?v=2026-04-27e"></script>
+<script src="/modules/kpi-common.js?v=2026-04-27f"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
-<script src="/modules/kpi-quickentry.js?v=2026-04-27e"></script>
+<script src="/modules/kpi-quickentry.js?v=2026-04-27f"></script>
 <script src="/modules/kpi-bulk.js?v=2026-04-19g"></script>
 <script src="/modules/data-import.js?v=2026-04-21a"></script>
 <script src="/modules/portal-admin.js?v=2026-04-21a"></script>
@@ -7095,7 +7123,7 @@
 <script src="/modules/notifications.js?v=2026-04-21c"></script>
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
-<script src="/modules/my-kpi.js?v=2026-04-27e"></script>
+<script src="/modules/my-kpi.js?v=2026-04-27f"></script>
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
@@ -7104,11 +7132,11 @@
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
-<script src="/modules-config/context.js?v=2026-04-27e"></script>
-<script src="/modules-config/planning.js?v=2026-04-27e"></script>
-<script src="/modules-config/support.js?v=2026-04-27e"></script>
-<script src="/modules-config/operation.js?v=2026-04-27e"></script>
-<script src="/modules-config/evaluation.js?v=2026-04-27e"></script>
-<script src="/app.js?v=modules-2026-04-27e"></script>
+<script src="/modules-config/context.js?v=2026-04-27f"></script>
+<script src="/modules-config/planning.js?v=2026-04-27f"></script>
+<script src="/modules-config/support.js?v=2026-04-27f"></script>
+<script src="/modules-config/operation.js?v=2026-04-27f"></script>
+<script src="/modules-config/evaluation.js?v=2026-04-27f"></script>
+<script src="/app.js?v=modules-2026-04-27f"></script>
 </body>
 </html>
