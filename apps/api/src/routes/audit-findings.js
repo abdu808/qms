@@ -35,6 +35,39 @@ const smartFilters = {
   critical: (_req, where) => ({ ...where, type: 'MAJOR_NC' }),
 };
 
+/**
+ * scopeFilter — يُضيَّق نطاق القراءة حسب الدور (ISO §5.3 الفصل بين المهام).
+ *
+ * | الدور             | ما يراه                                                  |
+ * |-------------------|----------------------------------------------------------|
+ * | SUPER_ADMIN       | الكل                                                     |
+ * | QUALITY_MANAGER   | الكل                                                     |
+ * | COMMITTEE_MEMBER  | الكل (مراجعة شاملة عبر الأقسام — ISO §5.1.2 / §9.3)     |
+ * | DEPT_MANAGER      | قسمه + ما يملكه أو أنشأه                                |
+ * | EMPLOYEE          | ما يملكه أو أنشأه فقط                                    |
+ * | GUEST_AUDITOR     | ما يملكه أو أنشأه فقط (قراءة فقط كما في permissions)     |
+ */
+const scopeFilter = (req) => {
+  const { role, departmentId, sub } = req.user || {};
+  if (!role) return { id: '__deny__' }; // لا ينبغي أن يصل هنا بدون دور
+
+  // QM وما فوق + COMMITTEE_MEMBER: وصول كامل
+  if (['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER'].includes(role)) return {};
+
+  // DEPT_MANAGER: قسمه + ما يملكه أو أنشأه
+  if (role === 'DEPT_MANAGER') {
+    const conditions = [
+      { ownerId:      sub },
+      { createdById:  sub },
+    ];
+    if (departmentId) conditions.push({ departmentId });
+    return { OR: conditions };
+  }
+
+  // EMPLOYEE و GUEST_AUDITOR: ما يملكه أو أنشأه فقط
+  return { OR: [{ ownerId: sub }, { createdById: sub }] };
+};
+
 const base = crudRouter({
   resource:         'audit-findings',
   model:            'auditFinding',
@@ -52,6 +85,7 @@ const base = crudRouter({
   },
   schemas: { create: createSchema, update: updateSchema },
   smartFilters,
+  scopeFilter,
 
   beforeCreate: async (data, req) => {
     // التأكد من وجود الـ Audit
@@ -146,13 +180,12 @@ router.post(
         },
       });
 
-      // ربط الـ NCR بالـ Audit أيضاً عبر AuditNCR junction
-      await tx.auditNCR.create({
-        data: {
-          auditId: finding.auditId,
-          ncrId:   ncr.id,
-        },
-      }).catch(() => {}); // تجاهل في حالة وجود unique constraint (نادر)
+      // ربط الـ NCR بالـ Audit أيضاً عبر AuditNCR junction — upsert يتجنب P2002
+      await tx.auditNCR.upsert({
+        where:  { auditId_ncrId: { auditId: finding.auditId, ncrId: ncr.id } },
+        create: { auditId: finding.auditId, ncrId: ncr.id },
+        update: {},  // لا شيء يُحدَّث عند التكرار (no-op)
+      });
 
       // تحديث الملاحظة
       const updated = await tx.auditFinding.update({
