@@ -1072,6 +1072,12 @@ function app() {
       this.filterStatus = '';
       this.currentPage = 1;
       this.totalItems = 0;
+      // Audit improvement #2 (decision 2): EMPLOYEE يرى دائماً
+      // قراءاته/شكاواه/NCRs المسندة إليه — لا قائمة كاملة.
+      const role = this.user?.role;
+      this.quickFilter = (role === 'EMPLOYEE' && (id === 'complaints' || id === 'ncr'))
+        ? 'mine'
+        : '';
       if (id === 'dashboard') await this.loadDashboard();
       else if (id === 'audit-log') await this.loadAuditLog();
       else if (id === 'reportBuilder') await this.rbLoadCatalog();
