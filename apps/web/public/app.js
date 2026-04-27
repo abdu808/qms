@@ -143,6 +143,8 @@ function app() {
     ...(window.QmsConsultant         || {}),
     ...(window.QmsProgressReports    || {}),
     ...(window.QmsExecDashboard      || {}),
+    ...(window.QmsDeptDashboard      || {}),
+    ...(window.QmsQualityDashboard   || {}),
     ...(window.QmsCapa               || {}),
 
     user: null,

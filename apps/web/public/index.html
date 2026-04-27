@@ -2960,6 +2960,57 @@
                   </div>
                 </template>
 
+                <!-- QUALITY block (quality manager + committee member) -->
+                <template x-if="myWork.viewMode==='QUALITY' && myWork.quality">
+                  <div class="bg-white border rounded-xl p-4 mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="font-bold text-rose-800 text-sm">🛡️ لوحة الجودة الشاملة</div>
+                      <button @click="openQualityDashboard()"
+                        class="text-xs bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        📊 <span>التحليلات</span>
+                      </button>
+                    </div>
+                    <!-- Row 1: NCR metrics -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                      <div class="bg-orange-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-orange-700" x-text="myWork.quality.ncr?.open || 0"></div>
+                        <div class="text-xs text-gray-600">NCR مفتوحة</div>
+                      </div>
+                      <div class="bg-red-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-red-700" x-text="myWork.quality.ncr?.overdue || 0"></div>
+                        <div class="text-xs text-gray-600">NCR متأخرة</div>
+                      </div>
+                      <div class="bg-amber-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-amber-700" x-text="myWork.quality.ncr?.pendingReview || 0"></div>
+                        <div class="text-xs text-gray-600">بانتظار المراجعة</div>
+                      </div>
+                      <div class="bg-violet-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-violet-700" x-text="myWork.quality.ncr?.pendingApproval || 0"></div>
+                        <div class="text-xs text-gray-600">بانتظار الاعتماد</div>
+                      </div>
+                    </div>
+                    <!-- Row 2: Complaints + Audit Findings + Follow-up Tasks -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div class="bg-rose-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-rose-700" x-text="myWork.quality.complaints?.breached || 0"></div>
+                        <div class="text-xs text-gray-600">شكاوى متجاوزة SLA</div>
+                      </div>
+                      <div class="bg-sky-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-sky-700" x-text="myWork.quality.auditFindings?.open || 0"></div>
+                        <div class="text-xs text-gray-600">ملاحظات تدقيق مفتوحة</div>
+                      </div>
+                      <div class="bg-pink-50 rounded p-3 text-center" title="MAJOR_NC غير مغلقة">
+                        <div class="text-2xl font-bold text-pink-700" x-text="myWork.quality.auditFindings?.critical || 0"></div>
+                        <div class="text-xs text-gray-600">MAJOR_NC مفتوحة</div>
+                      </div>
+                      <div class="bg-yellow-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-yellow-700" x-text="myWork.quality.followUpTasks?.overdue || 0"></div>
+                        <div class="text-xs text-gray-600">مهام متابعة متأخرة</div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
                 <!-- DEPT block (department manager only) -->
                 <template x-if="myWork.viewMode==='DEPT' && myWork.dept">
                   <div class="bg-white border rounded-xl p-4 mb-4">
@@ -2968,6 +3019,10 @@
                         <div class="font-bold text-teal-800 text-sm">👥 قسم: <span x-text="myWork.dept.department?.name || '—'"></span></div>
                         <div class="text-xs text-gray-500">عدد أعضاء الفريق: <b x-text="myWork.dept.teamSize"></b></div>
                       </div>
+                      <button @click="openDeptDashboard()"
+                        class="text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg flex items-center gap-1">
+                        📊 <span>لوحة القسم</span>
+                      </button>
                     </div>
                     <div class="grid grid-cols-3 gap-3 text-center">
                       <div class="bg-orange-50 rounded p-3">
@@ -6168,6 +6223,113 @@
     </div>
   </div>
 
+  <!-- ═══ لوحة مدير القسم — Dept Dashboard Modal ══════════════════════════ -->
+  <div x-show="deptDash.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 md:p-6"
+       @keydown.escape.window="closeDeptDashboard()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-6 py-4 border-b bg-teal-50 rounded-t-2xl">
+        <h2 class="text-lg font-bold text-teal-800">👥 لوحة القسم — <span x-text="myWork?.dept?.department?.name || ''"></span></h2>
+        <button @click="closeDeptDashboard()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-6 space-y-6">
+        <!-- ملخص سريع -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="bg-orange-50 rounded-xl p-3">
+            <div class="text-2xl font-bold text-orange-700" x-text="myWork?.dept?.ncrAssigned?.length || 0"></div>
+            <div class="text-xs text-gray-600">NCR في فريقي</div>
+          </div>
+          <div class="bg-rose-50 rounded-xl p-3">
+            <div class="text-2xl font-bold text-rose-700" x-text="myWork?.dept?.complaintsAssigned?.length || 0"></div>
+            <div class="text-xs text-gray-600">شكاوى الفريق</div>
+          </div>
+          <div class="bg-violet-50 rounded-xl p-3">
+            <div class="text-2xl font-bold text-violet-700" x-text="myWork?.dept?.kpiPendingCount || 0"></div>
+            <div class="text-xs text-gray-600">قراءات KPI ناقصة</div>
+          </div>
+        </div>
+        <!-- المخططات -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-gray-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">🔍 NCR الفريق حسب الخطورة</h3>
+            <template x-if="!(myWork?.dept?.ncrAssigned?.length)">
+              <div class="h-40 flex items-center justify-center text-gray-400 text-sm">لا توجد NCR مفتوحة للفريق ✅</div>
+            </template>
+            <template x-if="myWork?.dept?.ncrAssigned?.length">
+              <div class="h-40"><canvas id="chartDeptNcrSeverity"></canvas></div>
+            </template>
+          </div>
+          <div class="bg-gray-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">📣 شكاوى الفريق حسب SLA</h3>
+            <template x-if="!(myWork?.dept?.complaintsAssigned?.length)">
+              <div class="h-40 flex items-center justify-center text-gray-400 text-sm">لا توجد شكاوى مفتوحة ✅</div>
+            </template>
+            <template x-if="myWork?.dept?.complaintsAssigned?.length">
+              <div class="h-40"><canvas id="chartDeptComplaintsSla"></canvas></div>
+            </template>
+          </div>
+        </div>
+        <!-- قائمة KPI الناقصة -->
+        <template x-if="myWork?.dept?.kpiPending?.length">
+          <div class="bg-amber-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-amber-800 mb-3">⚠️ أهداف تحتاج إدخال قراءة KPI هذا الشهر</h3>
+            <ul class="divide-y divide-amber-200 text-sm">
+              <template x-for="obj in myWork.dept.kpiPending.slice(0,8)" :key="obj.id">
+                <li class="py-1.5 flex items-center justify-between gap-2">
+                  <span class="font-mono text-xs text-amber-600" x-text="obj.code"></span>
+                  <span class="flex-1 truncate text-amber-900" x-text="obj.title"></span>
+                  <button @click="goToResource('objectives'); closeDeptDashboard()" class="text-xs text-blue-600 hover:underline">فتح ←</button>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ لوحة مدير الجودة — Quality Dashboard Modal ═══════════════════════ -->
+  <div x-show="qualityDash.open" x-cloak
+       class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 md:p-6"
+       @keydown.escape.window="closeQualityDashboard()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-6 py-4 border-b bg-rose-50 rounded-t-2xl">
+        <h2 class="text-lg font-bold text-rose-800">🛡️ لوحة الجودة الشاملة</h2>
+        <button @click="closeQualityDashboard()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <div class="p-6">
+        <div x-show="qualityDash.loading" class="text-center py-16 text-gray-500">
+          <div class="text-4xl mb-3 animate-spin inline-block">⏳</div>
+          <div>جارٍ تحميل البيانات…</div>
+        </div>
+        <div x-show="qualityDash.error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm" x-text="qualityDash.error"></div>
+        <div x-show="!qualityDash.loading && !qualityDash.error" class="space-y-6">
+          <!-- KPI Trend -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">📊 اتجاه مؤشرات الأداء — آخر 6 أشهر</h3>
+            <div class="h-56"><canvas id="chartQualityKpiTrend"></canvas></div>
+          </div>
+          <!-- Row: NCR + Complaints -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">🔍 عدم المطابقة حسب الحالة</h3>
+              <div class="h-48"><canvas id="chartQualityNcrStatus"></canvas></div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <h3 class="text-sm font-bold text-gray-700 mb-3">📣 الشكاوى حسب الحالة</h3>
+              <div class="h-48"><canvas id="chartQualityComplaintsStatus"></canvas></div>
+            </div>
+          </div>
+          <!-- Risk Distribution -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">⚠️ توزيع المخاطر النشطة</h3>
+            <div class="h-48"><canvas id="chartQualityRiskDist"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ Webhook Settings Modal (n8n) ════════════════════════════════════ -->
   <div x-show="webhookCfg.open" x-cloak
        class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -7426,6 +7588,8 @@
 <script src="/modules/consultant.js?v=2026-04-25a"></script>
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
+<script src="/modules/dept-dashboard.js?v=2026-04-28a"></script>
+<script src="/modules/quality-dashboard.js?v=2026-04-28a"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
 <script src="/modules-config/context.js?v=2026-04-28a"></script>
 <script src="/modules-config/planning.js?v=2026-04-28a"></script>
