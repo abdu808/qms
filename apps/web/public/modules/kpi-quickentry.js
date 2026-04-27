@@ -58,8 +58,9 @@
       try {
         const prevProgress = await this._peekParentProgress(item);
         const body = { year: this.myDue.year, month: this.myDue.month, actualValue: val };
-        if (item.kind === 'objective') body.objectiveId = item.id;
-        else                            body.activityId  = item.id;
+        if (item.kind === 'objective')      body.objectiveId = item.id;
+        else if (item.kind === 'indicator') body.indicatorId = item.id;
+        else                                 body.activityId  = item.id;
         if (draft.spent != null && draft.spent !== '') body.spent = Number(draft.spent);
 
         const res = await this.api('POST', '/kpi/entries', body);
@@ -90,6 +91,8 @@
 
     async _peekParentProgress(item) {
       try {
+        // Indicators لا تحمل progress — تخطّي الـ undo preview
+        if (item.kind === 'indicator') return null;
         const path = item.kind === 'objective'
           ? `/objectives/${item.id}`
           : `/operational-activities/${item.id}`;
