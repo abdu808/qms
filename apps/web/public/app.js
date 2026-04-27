@@ -396,19 +396,87 @@ function app() {
     // ─── دور المراقب الخارجي ──────────────────────────────────────────
     isReadOnly() { return this.user?.role === 'GUEST_AUDITOR'; },
 
+    // ─── مصفوفة الصلاحيات للقائمة حسب الدور ───────────────────────────
+    // SUPER_ADMIN و QUALITY_MANAGER: الكل
+    // COMMITTEE_MEMBER: مراجعة + قراءة شاملة (بدون إعدادات النظام)
+    // DEPT_MANAGER: إدارته فقط + لا إعدادات النظام
+    // EMPLOYEE: عمله الشخصي فقط
+    // GUEST_AUDITOR: قائمة مدقق خاصة (محصورة)
+    _menuItemsForRole(role) {
+      const ALL = 'ALL_ITEMS';
+      const matrix = {
+        SUPER_ADMIN:      ALL,
+        QUALITY_MANAGER:  ALL,
+        COMMITTEE_MEMBER: [
+          'myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder',
+          'swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'myAcknowledgments','acknowledgmentsMatrix',
+          'strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives',
+          'fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks',
+          'documents','training','competence','performanceReviews','communication',
+          'beneficiaries','donations','programs','suppliers',
+          'managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports',
+          'ncr','capa','improvementProjects',
+          'consultant',  // عضو اللجنة يستطيع استخدام المستشار للمراجعة
+          'userGuide',
+        ],
+        DEPT_MANAGER: [
+          'myWork','dashboard','iso-readiness','dataHealth','operationalReports',
+          'swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'myAcknowledgments','acknowledgmentsMatrix',
+          'strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives',
+          'operationalActivities','objectives','kpiTracking','myKpi','risks',
+          'fundingSources','fundingPlans',
+          'documents','training','competence','performanceReviews','communication',
+          'beneficiaries','donations','programs','suppliers',
+          'audits','auditChecklists','surveys','complaints','slaBoard','progressReports',
+          'ncr','capa','improvementProjects',
+          'userGuide',
+        ],
+        EMPLOYEE: [
+          'myWork','dashboard',
+          'myKpi','myAcknowledgments',
+          'qualityPolicy','ackDocuments',
+          'documents','training','competence',
+          'complaints',
+          'userGuide',
+        ],
+        GUEST_AUDITOR: [
+          'auditorDashboard','iso-readiness',
+          'strategicGoals','operationalActivities','objectives','kpiTracking','risks',
+          'qualityPolicy','documents',
+          'managementReview','audits','auditChecklists','surveys','complaints','ncr',
+        ],
+      };
+      return matrix[role] || matrix.EMPLOYEE;
+    },
+
     // قائمة التنقل المُصفَّاة حسب الدور
     menuGroupsForRole() {
-      if (!this.isReadOnly()) return this.menuGroups;
-      return [
-        { id: 'auditor-home', title: 'لوحة المراقب', icon: '🔍', iso: '', color: 'slate',
-          items: ['auditorDashboard', 'iso-readiness'] },
-        { id: 'auditor-plan', title: 'التخطيط والأداء', icon: '🎯', iso: 'ISO 6',   color: 'violet',
-          items: ['strategicGoals','operationalActivities','objectives','kpiTracking','risks'] },
-        { id: 'auditor-doc',  title: 'الوثائق والسياسات', icon: '📄', iso: 'ISO 7', color: 'teal',
-          items: ['qualityPolicy','documents'] },
-        { id: 'auditor-eval', title: 'التقييم والمتابعة',  icon: '📊', iso: 'ISO 9', color: 'amber',
-          items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr'] },
-      ];
+      // GUEST_AUDITOR: قائمة خاصة مبسّطة
+      if (this.isReadOnly()) {
+        return [
+          { id: 'auditor-home', title: 'لوحة المراقب', icon: '🔍', iso: '', color: 'slate',
+            items: ['auditorDashboard', 'iso-readiness'] },
+          { id: 'auditor-plan', title: 'التخطيط والأداء', icon: '🎯', iso: 'ISO 6',   color: 'violet',
+            items: ['strategicGoals','operationalActivities','objectives','kpiTracking','risks'] },
+          { id: 'auditor-doc',  title: 'الوثائق والسياسات', icon: '📄', iso: 'ISO 7', color: 'teal',
+            items: ['qualityPolicy','documents'] },
+          { id: 'auditor-eval', title: 'التقييم والمتابعة',  icon: '📊', iso: 'ISO 9', color: 'amber',
+            items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr'] },
+        ];
+      }
+
+      // باقي الأدوار: تصفية حسب مصفوفة الصلاحيات
+      const role = this.user?.role || 'EMPLOYEE';
+      const allowed = this._menuItemsForRole(role);
+      if (allowed === 'ALL_ITEMS') return this.menuGroups;
+
+      // فلترة كل مجموعة لتُظهر فقط ما هو مسموح
+      const allowedSet = new Set(allowed);
+      return this.menuGroups
+        .map(g => ({ ...g, items: g.items.filter(it => allowedSet.has(it)) }))
+        .filter(g => g.items.length > 0);
     },
 
     // الصفحة الرئيسية بعد الدخول
