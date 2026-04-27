@@ -1344,6 +1344,18 @@ export async function executeTool(name, input, ctx) {
       const role = callerUser?.role;
       const isQmUp = role === 'QUALITY_MANAGER' || role === 'SUPER_ADMIN';
       const isManagerUp = isQmUp || role === 'DEPT_MANAGER' || role === 'COMMITTEE_MEMBER';
+      // Department-level scope: DEPT_MANAGER يرى قسمه فقط في الـ queries القابلة
+      // للتقييد (objectives/risks/ncrs/capas/complaints/activities). للأدوار
+      // الأعلى (QM/SA) لا تقييد. للأدوار الأدنى لا وصول للأداة أصلاً (TOOL_PERMISSIONS).
+      const deptScopeId = (role === 'DEPT_MANAGER') ? (callerUser?.departmentId || null) : null;
+      const scopeWhere = (path) => {
+        if (!deptScopeId) return {};
+        // path = 'direct' (نموذج له departmentId مباشرةً) | 'objective' | 'goal'
+        if (path === 'direct')    return { departmentId: deptScopeId };
+        if (path === 'objective') return { objective: { departmentId: deptScopeId } };
+        if (path === 'activity_dept') return { deptId: deptScopeId };
+        return {};
+      };
 
       let want = new Set(input.sections || ['goals','activities','objectives','gaps']);
       if (want.has('all')) {
@@ -1383,8 +1395,10 @@ export async function executeTool(name, input, ctx) {
         result.goals = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('activities')) {
-        const total = await prisma.operationalActivity.count();
+        const w = { ...scopeWhere('activity_dept') };
+        const total = await prisma.operationalActivity.count({ where: w });
         const items = await prisma.operationalActivity.findMany({
+          where: w,
           orderBy: { code: 'asc' }, take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, strategicGoalId:true, department:true,
             responsible:true, targetValue:true, kpiType:true, progress:true, status:true,
@@ -1393,9 +1407,10 @@ export async function executeTool(name, input, ctx) {
         result.activities = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('objectives')) {
-        const total = await prisma.objective.count({ where: { deletedAt: null } });
+        const w = { deletedAt: null, ...scopeWhere('direct') };
+        const total = await prisma.objective.count({ where: w });
         const items = await prisma.objective.findMany({
-          where: { deletedAt: null }, orderBy: { code: 'asc' },
+          where: w, orderBy: { code: 'asc' },
           take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, kpi:true, target:true, unit:true,
             baseline:true, currentValue:true, progress:true, status:true,
@@ -1442,9 +1457,10 @@ export async function executeTool(name, input, ctx) {
         });
       }
       if (want.has('risks')) {
-        const total = await prisma.risk.count({ where: { deletedAt: null } });
+        const w = { deletedAt: null, ...scopeWhere('direct') };
+        const total = await prisma.risk.count({ where: w });
         const items = await prisma.risk.findMany({
-          where: { deletedAt: null }, orderBy: { code: 'asc' },
+          where: w, orderBy: { code: 'asc' },
           take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, type:true, title:true, probability:true, impact:true,
             score:true, level:true, status:true, treatment:true, ownerId:true,
@@ -1453,9 +1469,10 @@ export async function executeTool(name, input, ctx) {
         result.risks = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('ncrs')) {
-        const total = await prisma.nCR.count({ where: { deletedAt: null } });
+        const w = { deletedAt: null, ...scopeWhere('direct') };
+        const total = await prisma.nCR.count({ where: w });
         const items = await prisma.nCR.findMany({
-          where: { deletedAt: null }, orderBy: { code: 'asc' },
+          where: w, orderBy: { code: 'asc' },
           take: pgLimit, skip: pgOffset,
           select: { id:true, code:true, title:true, severity:true, status:true,
             rootCause:true, dueDate:true,
@@ -1463,7 +1480,10 @@ export async function executeTool(name, input, ctx) {
         });
         result.ncrs = { items, total, limit: pgLimit, offset: pgOffset };
       }
-      if (want.has('capas')) {
+      // Capa and Complaint don't carry departmentId — DEPT_MANAGER must NOT see
+      // organization-wide lists through this AI tool. Hide them entirely; for
+      // ad-hoc inspection the manager uses the regular routes (with their own scopes).
+      if (want.has('capas') && !deptScopeId) {
         const total = await prisma.capa.count({ where: { deletedAt: null } });
         const items = await prisma.capa.findMany({
           where: { deletedAt: null }, orderBy: { code: 'asc' },
@@ -1474,16 +1494,20 @@ export async function executeTool(name, input, ctx) {
         result.capas = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('audits')) {
-        const total = await prisma.audit.count({ where: { deletedAt: null } });
-        const items = await prisma.audit.findMany({
-          where: { deletedAt: null }, orderBy: { plannedDate: 'desc' },
-          take: pgLimit, skip: pgOffset,
-          select: { id:true, code:true, title:true, type:true, status:true, plannedDate:true,
-            leadAuditor:{ select:{ id:true, name:true } } },
-        });
-        result.audits = { items, total, limit: pgLimit, offset: pgOffset };
+        // Audits aren't bounded to one dept; only QM+ should see the org-wide list
+        // through AI. DEPT_MANAGER → omit (silently — reduces snapshot to relevant data).
+        if (!deptScopeId) {
+          const total = await prisma.audit.count({ where: { deletedAt: null } });
+          const items = await prisma.audit.findMany({
+            where: { deletedAt: null }, orderBy: { plannedDate: 'desc' },
+            take: pgLimit, skip: pgOffset,
+            select: { id:true, code:true, title:true, type:true, status:true, plannedDate:true,
+              leadAuditor:{ select:{ id:true, name:true } } },
+          });
+          result.audits = { items, total, limit: pgLimit, offset: pgOffset };
+        }
       }
-      if (want.has('complaints')) {
+      if (want.has('complaints') && !deptScopeId) {
         const total = await prisma.complaint.count({ where: { deletedAt: null } });
         const items = await prisma.complaint.findMany({
           where: { deletedAt: null }, orderBy: { receivedAt: 'desc' },
