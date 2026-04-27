@@ -107,16 +107,38 @@ router.post('/:id/advance', requireAction('capa', 'update'), asyncHandler(async 
 
   const update = { status: next };
   if (next === 'VERIFICATION') {
+    // الانتقال إلى التحقق يتطلب دليل تنفيذ
+    const implAction = req.body.implementedAction || item.implementedAction;
+    if (!implAction || String(implAction).trim() === '') {
+      throw BadRequest('لا يمكن الانتقال إلى التحقق بدون تسجيل الإجراء المُنفَّذ (implementedAction)');
+    }
     if (req.body.implementedAction) update.implementedAction = req.body.implementedAction;
     update.implementedAt = new Date();
   }
   if (next === 'CLOSED') {
+    // ISO 10.2 — لا إغلاق بدون تحقق فعالية كامل
+    const effective = req.body.effective !== undefined ? req.body.effective : item.effective;
+    const verificationNote = req.body.verificationNote ?? item.verificationNote;
+    const verifiedById = req.user?.sub || item.verifiedById;
+    const implAction   = req.body.implementedAction || item.implementedAction;
+    const missing = [];
+    if (!implAction || String(implAction).trim() === '') missing.push('الإجراء المُنفَّذ');
+    if (!verificationNote || String(verificationNote).trim() === '') missing.push('ملاحظة التحقق');
+    if (!verifiedById) missing.push('المُتحقِّق (verifiedBy)');
+    if (effective === undefined || effective === null) missing.push('نتيجة الفعالية');
+    if (missing.length) {
+      throw BadRequest(`لا يمكن إغلاق CAPA — الحقول الناقصة: ${missing.join('، ')}`);
+    }
+    if (effective === false || effective === 'false') {
+      // CAPA غير فعالة — تُعاد إلى ACTION_PLANNED بدلاً من إغلاقها
+      throw BadRequest('CAPA غير فعالة (effective=false) — لا تُغلق. أعد فتحها للتخطيط من جديد أو ابقها في VERIFICATION.');
+    }
     if (req.body.verificationNote) update.verificationNote = req.body.verificationNote;
     if (req.body.effective !== undefined) update.effective = req.body.effective;
     if (req.body.lessonsLearned) update.lessonsLearned = req.body.lessonsLearned;
     update.closedAt    = new Date();
-    update.verifiedAt  = new Date();
-    update.verifiedById = req.user.sub;
+    update.verifiedAt  = item.verifiedAt || new Date();
+    update.verifiedById = verifiedById;
   }
 
   const updated = await prisma.capa.update({ where: { id: item.id }, data: update, include: INCLUDE });

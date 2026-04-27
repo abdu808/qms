@@ -44,9 +44,10 @@ describe('guardClosure', () => {
       .toThrow(/تاريخ التحقق/);
   });
 
-  it('passes CLOSED with effective=true + verifiedAt', () => {
+  it('passes CLOSED with effective=true + verifiedAt + verifiedNote', () => {
+    // Audit task 4: تشديد — verifiedNote إلزامي عند CLOSE.
     expect(() => guardClosure({
-      status: 'CLOSED', effective: true, verifiedAt: new Date(),
+      status: 'CLOSED', effective: true, verifiedAt: new Date(), verifiedNote: 'تم التحقق',
     })).not.toThrow();
   });
 

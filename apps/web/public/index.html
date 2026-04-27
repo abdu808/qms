@@ -551,21 +551,23 @@
                           :class="consult.mode==='auto'
                             ? 'bg-indigo-600 text-white'
                             : 'bg-white text-gray-600 hover:bg-gray-50'"
-                          class="px-3 py-2 transition-colors">
-                    ⚡ تلقائي
+                          class="px-3 py-2 transition-colors"
+                          title="تنفيذ مباشر للعمليات المسموحة بصلاحيتك">
+                    ⚡ تنفيذ مباشر
                   </button>
                   <button @click="consult.mode='review'"
                           :class="consult.mode==='review'
                             ? 'bg-amber-500 text-white'
                             : 'bg-white text-gray-600 hover:bg-gray-50'"
-                          class="px-3 py-2 transition-colors border-r border-gray-300">
+                          class="px-3 py-2 transition-colors border-r border-gray-300"
+                          title="المستشار يقترح، وأنت تعتمد قبل التنفيذ">
                     🔍 مراجعة
                   </button>
                 </div>
 
-                <!-- وصف الوضع الحالي -->
-                <span x-show="consult.mode==='auto'"  class="text-xs text-indigo-600 hidden md:block">AI ينفِّذ مباشرةً</span>
-                <span x-show="consult.mode==='review'" class="text-xs text-amber-600 hidden md:block">AI يقترح · أنت توافق</span>
+                <!-- Audit improvement #3: نصوص لا توحي أن AI يتجاوز المستخدم -->
+                <span x-show="consult.mode==='auto'"  class="text-xs text-indigo-600 hidden md:block">ينفِّذ ضمن صلاحياتك وبعد التأكيد</span>
+                <span x-show="consult.mode==='review'" class="text-xs text-amber-600 hidden md:block">يقترح · أنت تعتمد</span>
 
                 <!-- زر الجلسات السابقة -->
                 <div class="relative" x-data="{}">
@@ -727,14 +729,14 @@
                 <span>عرض نشاط الأدوات</span>
               </label>
               <span class="text-gray-300">|</span>
-              <span class="text-gray-400">المستشار ينفِّذ التغييرات تلقائياً أثناء المحادثة</span>
+              <span class="text-gray-400">المستشار يساعدك في التحليل والاقتراح، ولا ينفّذ إلا ضمن صلاحياتك وبعد التأكيد</span>
             </div>
 
             <!-- المحادثة -->
             <div id="consult-messages" class="bg-white border border-gray-200 rounded-lg p-4 space-y-4 overflow-y-auto" style="min-height: 300px; max-height: 560px;">
               <div x-show="consult.messages.length === 0" class="text-center text-gray-400 py-12">
                 <div class="text-4xl mb-2">🎓</div>
-                <div class="text-sm">ابدأ محادثة — المستشار يقرأ قاعدة البيانات ويُعدِّل مباشرةً</div>
+                <div class="text-sm">ابدأ محادثة — المستشار يساعدك في التحليل والاقتراح، ولا ينفّذ إلا ضمن صلاحياتك وبعد التأكيد</div>
                 <div class="text-xs mt-1 text-gray-300">اختر قالباً من الأسفل أو اكتب سؤالك</div>
               </div>
 
@@ -7327,10 +7329,10 @@
   </div>
 </div>
 
-<script src="/modules/kpi-common.js?v=2026-04-27m"></script>
+<script src="/modules/kpi-common.js?v=2026-04-27n"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
-<script src="/modules/kpi-quickentry.js?v=2026-04-27m"></script>
+<script src="/modules/kpi-quickentry.js?v=2026-04-27n"></script>
 <script src="/modules/kpi-bulk.js?v=2026-04-19g"></script>
 <script src="/modules/data-import.js?v=2026-04-21a"></script>
 <script src="/modules/portal-admin.js?v=2026-04-21a"></script>
@@ -7350,7 +7352,7 @@
 <script src="/modules/notifications.js?v=2026-04-21c"></script>
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
-<script src="/modules/my-kpi.js?v=2026-04-27m"></script>
+<script src="/modules/my-kpi.js?v=2026-04-27n"></script>
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
@@ -7359,11 +7361,11 @@
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
-<script src="/modules-config/context.js?v=2026-04-27m"></script>
-<script src="/modules-config/planning.js?v=2026-04-27m"></script>
-<script src="/modules-config/support.js?v=2026-04-27m"></script>
-<script src="/modules-config/operation.js?v=2026-04-27m"></script>
-<script src="/modules-config/evaluation.js?v=2026-04-27m"></script>
-<script src="/app.js?v=modules-2026-04-27m"></script>
+<script src="/modules-config/context.js?v=2026-04-27n"></script>
+<script src="/modules-config/planning.js?v=2026-04-27n"></script>
+<script src="/modules-config/support.js?v=2026-04-27n"></script>
+<script src="/modules-config/operation.js?v=2026-04-27n"></script>
+<script src="/modules-config/evaluation.js?v=2026-04-27n"></script>
+<script src="/app.js?v=modules-2026-04-27n"></script>
 </body>
 </html>
