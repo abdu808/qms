@@ -523,12 +523,16 @@ function app() {
           'ncr','capa','improvementProjects',
           'userGuide',
         ],
+        // Audit improvement #2: EMPLOYEE — قائمة مبسطة جداً.
+        // محذوف صراحةً: dashboard المزدحمة، managementReview، التقارير الشاملة،
+        //              إدارة المستخدمين، إعدادات AI، إعدادات النظام، إدارة البوابة.
+        // مُضاف: ncr (مع smart filter assignedToMe في الواجهة) لرؤية ما أُسند له.
         EMPLOYEE: [
-          'myWork','dashboard',
+          'myWork',
           'myKpi','myAcknowledgments',
           'qualityPolicy','ackDocuments',
           'documents','training','competence',
-          'complaints',
+          'complaints', 'ncr',
           'userGuide',
         ],
         GUEST_AUDITOR: [
@@ -569,15 +573,34 @@ function app() {
         .filter(g => g.items.length > 0);
     },
 
-    // الصفحة الرئيسية بعد الدخول
+    // الصفحة الرئيسية بعد الدخول — حسب الدور (Audit improvement #1)
+    // كل دور يدخل على شاشة مرتبطة بمهامه، لا على لوحة مزدحمة عامة.
     homePageForRole() {
-      return this.user?.role === 'GUEST_AUDITOR' ? 'auditorDashboard' : 'myWork';
+      const role = this.user?.role;
+      switch (role) {
+        case 'GUEST_AUDITOR':    return 'auditorDashboard'; // لوحة قراءة محدودة
+        case 'EMPLOYEE':         return 'myWork';           // مهامي اليوم
+        case 'DEPT_MANAGER':     return 'dashboard';        // لوحة القسم (تعرض scope إدارته)
+        case 'QUALITY_MANAGER':  return 'dashboard';        // لوحة مراقب الجودة
+        case 'COMMITTEE_MEMBER': return 'managementReview'; // لوحة المراجعة
+        case 'SUPER_ADMIN':      return 'dashboard';        // لوحة النظام
+        default:                 return 'myWork';
+      }
     },
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
     isGuided()   { return this.uiMode === 'guided'; },
     isAdvanced() { return this.uiMode !== 'guided'; },
+    // Audit improvement #2: EMPLOYEE لا يحصل على الوضع المتقدم — يبقى في الموجَّه دائماً.
+    canUseAdvancedMode() {
+      const role = this.user?.role;
+      return role && role !== 'EMPLOYEE' && role !== 'GUEST_AUDITOR';
+    },
     toggleUiMode() {
+      if (!this.canUseAdvancedMode()) {
+        this.toast?.('الوضع المتقدم غير متاح لدورك', 'info');
+        return;
+      }
       this.uiMode = this.isGuided() ? 'advanced' : 'guided';
       try { localStorage.setItem('qms_ui_mode', this.uiMode); } catch {}
       // في الوضع الموجَّه نعيد المستخدم إلى "مهامي" دائماً
@@ -921,7 +944,8 @@ function app() {
             this.startAlertsPolling();
             this.loadStateMachines();
           }
-          this.goto(this.isReadOnly() ? 'auditorDashboard' : 'dashboard');
+          // Audit improvement #1: استخدم homePageForRole بدلاً من dashboard ثابت
+          this.goto(this.homePageForRole());
           if (!this.isReadOnly() && !localStorage.getItem('qms_wizard_done')) {
             setTimeout(() => this.showWizard(), 800);
           }
@@ -1048,6 +1072,12 @@ function app() {
       this.filterStatus = '';
       this.currentPage = 1;
       this.totalItems = 0;
+      // Audit improvement #2 (decision 2): EMPLOYEE يرى دائماً
+      // قراءاته/شكاواه/NCRs المسندة إليه — لا قائمة كاملة.
+      const role = this.user?.role;
+      this.quickFilter = (role === 'EMPLOYEE' && (id === 'complaints' || id === 'ncr'))
+        ? 'mine'
+        : '';
       if (id === 'dashboard') await this.loadDashboard();
       else if (id === 'audit-log') await this.loadAuditLog();
       else if (id === 'reportBuilder') await this.rbLoadCatalog();

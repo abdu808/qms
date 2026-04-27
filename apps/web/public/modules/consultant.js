@@ -59,7 +59,8 @@
       context:     null,
       messages:    [],
       input:       '',
-      mode:        'auto',     // 'auto' | 'review'
+      // Audit improvement #3: الافتراضي مراجعة، لا تنفيذ مباشر — أمان first.
+      mode:        'review',   // 'auto' (تنفيذ مباشر) | 'review' (يقترح ثم تعتمد)
       showTools:   true,
       attachments: [],         // [{ name, size, _file }] — قائمة الملفات المُختارة
       modelLock:    null,    // null=تلقائي, string=موديل محدد يُرسَل للـ API
