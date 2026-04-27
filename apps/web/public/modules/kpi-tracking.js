@@ -22,6 +22,42 @@
       // Smart filter chips للمصفوفة
       quick: [],           // مثل ['mine', 'red']
       perspective: '',     // محور BSC فعّال
+      // ─── السنوات المتاحة (تُحسب من الخطة الفعّالة) ───
+      // كانت مهارد-كود [2025,2026,2027] — الآن تُحسب ديناميكياً من active plan
+      availableYears: [],
+    },
+
+    // يُحسب نطاق السنوات من الخطة الاستراتيجية الفعّالة
+    async kpiLoadAvailableYears() {
+      try {
+        const r = await this.api('GET', '/strategic-plans?limit=10');
+        const plans = (r?.items || []).filter(p => p.status === 'ACTIVE' || p.status === 'DRAFT');
+        if (!plans.length) {
+          // fallback: السنة الحالية ± 1
+          const cy = new Date().getFullYear();
+          this.kpi.availableYears = [cy - 1, cy, cy + 1];
+          return;
+        }
+        // اجمع كل السنوات من كل الخطط الفعّالة
+        const yearSet = new Set();
+        for (const p of plans) {
+          const s = Number(p.startYear) || 0;
+          const e = Number(p.endYear)   || 0;
+          if (s && e && s <= e) {
+            for (let y = s; y <= e; y++) yearSet.add(y);
+          }
+        }
+        const years = [...yearSet].sort();
+        this.kpi.availableYears = years;
+        // اضبط السنة الافتراضية لو خارج النطاق
+        if (years.length && !years.includes(this.kpi.year)) {
+          const cy = new Date().getFullYear();
+          this.kpi.year = years.includes(cy) ? cy : years[0];
+        }
+      } catch (e) {
+        const cy = new Date().getFullYear();
+        this.kpi.availableYears = [cy - 1, cy, cy + 1];
+      }
     },
 
     // ─── Methods ───────────────────────────────────────────────
@@ -184,6 +220,8 @@
       return !!cell && cell.actualValue == null;
     },
     async kpiInit() {
+      // أولاً: احسب السنوات المتاحة من الخطة الاستراتيجية
+      await this.kpiLoadAvailableYears();
       await Promise.all([this.kpiLoadDashboard(), this.kpiLoadEntryOptions()]);
     },
   };
