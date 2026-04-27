@@ -375,7 +375,7 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
       include: {
         objective: { select: { id: true, title: true } },
         activity:  { select: { id: true, code: true, title: true } },
-        indicator: { select: { id: true, title: true } },
+        indicator: { select: { id: true, code: true, nameAr: true } },
         enteredBy: { select: { name: true } },
       },
       orderBy: [{ year: 'asc' }, { month: 'asc' }],
