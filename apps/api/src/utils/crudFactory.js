@@ -33,6 +33,9 @@ export function crudRouter(opts) {
     // Smart filter chips — map of { key: (req, where) => where-patch | null }
     // Exposed via ?quick=<key>. Each function may return a partial where or mutate.
     smartFilters,
+    // Role-based scope: (req) => Prisma where patch — always applied on LIST and READ.
+    // مثال: DEPT_MANAGER يرى فقط بيانات قسمه، EMPLOYEE يرى بياناته فقط.
+    scopeFilter,
     // Zod schemas موحّدة (المرحلة 2 — طبقة تحقق رسمية).
     // { create?, update? } — يُنفَّذ قبل beforeCreate/beforeUpdate.
     schemas,
@@ -106,6 +109,11 @@ export function crudRouter(opts) {
       }
     }
     where = applyDeleteFilter(where, req);
+    // Role-based scope (DEPT_MANAGER / EMPLOYEE)
+    if (scopeFilter) {
+      const patch = scopeFilter(req);
+      if (patch && Object.keys(patch).length) Object.assign(where, patch);
+    }
 
     const [total, items] = await Promise.all([
       prisma[model].count({ where }),
@@ -121,8 +129,14 @@ export function crudRouter(opts) {
 
   // ── READ ─────────────────────────────────────────────────────────
   router.get('/:id', asyncHandler(async (req, res) => {
-    const item = await prisma[model].findUnique({
-      where: { id: req.params.id }, include,
+    let scopeWhere = {};
+    if (scopeFilter) {
+      const patch = scopeFilter(req);
+      if (patch && Object.keys(patch).length) scopeWhere = patch;
+    }
+    // Use findFirst so scopeFilter can be merged into the where clause
+    const item = await prisma[model].findFirst({
+      where: { id: req.params.id, ...scopeWhere }, include,
     });
     if (!item) throw NotFound();
     // Hide soft-deleted unless privileged caller explicitly asks

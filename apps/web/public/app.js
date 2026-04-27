@@ -307,6 +307,8 @@ function app() {
       objectives: [],
       indicators: [],
       fundingSources: [],
+      departments: [],
+      users: [],
     },
 
     // ISO readiness report
@@ -1045,6 +1047,8 @@ function app() {
         objectives:      '/objectives?limit=200',
         indicators:      '/indicators?limit=200',
         fundingSources:  '/funding-sources?limit=100',
+        departments:     '/departments?limit=100',
+        users:           '/users?limit=100',
       };
       for (const rel of needed) {
         try {

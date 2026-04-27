@@ -11,6 +11,13 @@ export default crudRouter({
   allowedSortFields: ['createdAt', 'dueDate', 'status', 'progress'],
   allowedFilters: ['status', 'departmentId', 'ownerId'],
   schemas: { create: objCreateSchema, update: objUpdateSchema },
+  // RBAC: مسؤول القسم → قسمه فقط | الموظف → ما كُلِّف به فقط
+  scopeFilter: (req) => {
+    const { role, departmentId, sub } = req.user || {};
+    if (role === 'DEPT_MANAGER' && departmentId) return { departmentId };
+    if (role === 'EMPLOYEE')  return { OR: [{ ownerId: sub }, { departmentId }] };
+    return {};
+  },
   smartFilters: {
     mine:       (req) => ({ ownerId: req.user.sub }),
     myDept:     (req) => req.user.departmentId ? { departmentId: req.user.departmentId } : {},
