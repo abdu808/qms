@@ -85,3 +85,55 @@ describe('Risk — guardHighCritical (ISO 6.1.1)', () => {
     ).not.toThrow();
   });
 });
+
+// ── سيناريو التحديث (effectiveLevelGuard) ─────────────────────────────────
+describe('Risk — effectiveLevelGuard (سيناريو update على سجل موجود)', () => {
+  // السجل الحالي في DB: HIGH مكتمل بجميع الحقول
+  const existingHighComplete = {
+    level:        'مرتفع',
+    ownerId:      'user-1',
+    departmentId: 'dept-1',
+    treatment:    'تخفيف: تدريب دوري + مراجعة إجراءات',
+    reviewDate:   new Date('2026-06-30'),
+  };
+
+  it('update يُفرِّغ treatment على HIGH موجود → يُرفض', async () => {
+    const { effectiveLevelGuard } = await import('../src/routes/risks.js');
+    // المستخدم يُرسل { treatment: '' } فقط — بدون level
+    // effectiveLevelGuard يستخدم existing.level = 'مرتفع'
+    expect(() =>
+      effectiveLevelGuard({ treatment: '' }, existingHighComplete),
+    ).toThrow(/treatment/);
+  });
+
+  it('update يُفرِّغ ownerId على HIGH موجود → يُرفض', async () => {
+    const { effectiveLevelGuard } = await import('../src/routes/risks.js');
+    expect(() =>
+      effectiveLevelGuard({ ownerId: null }, existingHighComplete),
+    ).toThrow(/ownerId/);
+  });
+
+  it('update يُفرِّغ reviewDate على HIGH موجود → يُرفض', async () => {
+    const { effectiveLevelGuard } = await import('../src/routes/risks.js');
+    expect(() =>
+      effectiveLevelGuard({ reviewDate: null }, existingHighComplete),
+    ).toThrow(/reviewDate/);
+  });
+
+  it('update حقل آخر (status) على HIGH مكتمل → يقبل', async () => {
+    const { effectiveLevelGuard } = await import('../src/routes/risks.js');
+    // تغيير status فقط — الحقول الأربعة تبقى من existing
+    expect(() =>
+      effectiveLevelGuard({ status: 'UNDER_TREATMENT' }, existingHighComplete),
+    ).not.toThrow();
+  });
+
+  it('update يرفع MEDIUM إلى HIGH بدون treatment → يُرفض', async () => {
+    const { effectiveLevelGuard } = await import('../src/routes/risks.js');
+    const existingMedium = { level: 'متوسط', ownerId: 'u1', departmentId: 'd1', treatment: null, reviewDate: null };
+    // تغيير level مباشرة إلى HIGH (مثل: probability/impact رُفِعا وحُسب level جديد)
+    expect(() =>
+      effectiveLevelGuard({ level: 'مرتفع' }, existingMedium),
+    ).toThrow(/treatment|reviewDate/);
+  });
+});

@@ -32,6 +32,29 @@ export function guardHighCritical({ level, ownerId, departmentId, treatment, rev
   }
 }
 
+/**
+ * effectiveLevelGuard — يدمج بيانات الـ update مع السجل الحالي ثم يستدعي guardHighCritical.
+ * Pure function مُصدَّرة لتسهيل الاختبار.
+ *
+ * يحل مشكلة: update لا يحمل `level` لكن السجل الحالي هو HIGH/CRITICAL.
+ * القيمة المُرسَلة في `data` لها الأسبقية على `existing` لكل حقل.
+ *
+ * @param {object} data     — جسم طلب الـ update (الحقول المُرسَلة فقط)
+ * @param {object} existing — السجل الحالي من DB
+ */
+export function effectiveLevelGuard(data, existing) {
+  // الـ level الفعلي: إما محسوب/مُرسَل في الـ update، أو من السجل الحالي
+  const finalLevel = data.level ?? existing?.level;
+  if (!finalLevel || !HIGH_LEVELS.includes(finalLevel)) return;
+  guardHighCritical({
+    level:        finalLevel,
+    ownerId:      data.ownerId      !== undefined ? data.ownerId      : existing?.ownerId,
+    departmentId: data.departmentId !== undefined ? data.departmentId : existing?.departmentId,
+    treatment:    data.treatment    !== undefined ? data.treatment    : existing?.treatment,
+    reviewDate:   data.reviewDate   !== undefined ? data.reviewDate   : existing?.reviewDate,
+  });
+}
+
 const crud = crudRouter({
   resource: 'risks',
   model: 'risk',
@@ -66,30 +89,15 @@ const crud = crudRouter({
       data.level       = computeLevel(data.score);
     }
 
-    // الـ level بعد هذا التحديث — إما محسوب حديثاً أو مُرسَل صراحةً
-    const finalLevel = data.level;
-
-    // نجلب السجل الحالي مرة واحدة لكل الحراسات التي تحتاجه
-    const needsFetch = (finalLevel && HIGH_LEVELS.includes(finalLevel)) || data.status === 'CLOSED';
-    let existing = null;
-    if (needsFetch) {
-      existing = await prisma.risk.findUnique({
-        where: { id: req.params.id, deletedAt: null },
-        select: { ownerId: true, departmentId: true, treatment: true, reviewDate: true, treatmentType: true },
-      });
-    }
+    // نجلب السجل الحالي دائماً — نحتاجه لمعرفة الـ level الموجود حتى لو لم يُرسَل في الـ update
+    const existing = await prisma.risk.findUnique({
+      where: { id: req.params.id, deletedAt: null },
+      select: { level: true, ownerId: true, departmentId: true, treatment: true, reviewDate: true, treatmentType: true },
+    });
 
     // ISO 6.1.1: المخاطرة العالية/الحرجة تتطلب بيانات الحوكمة كاملة
-    if (finalLevel && HIGH_LEVELS.includes(finalLevel)) {
-      // ندمج قيم الـ update مع الموجودة — القيمة المُرسَلة لها الأسبقية
-      guardHighCritical({
-        level:        finalLevel,
-        ownerId:      data.ownerId      !== undefined ? data.ownerId      : existing?.ownerId,
-        departmentId: data.departmentId !== undefined ? data.departmentId : existing?.departmentId,
-        treatment:    data.treatment    !== undefined ? data.treatment    : existing?.treatment,
-        reviewDate:   data.reviewDate   !== undefined ? data.reviewDate   : existing?.reviewDate,
-      });
-    }
+    // effectiveLevelGuard يدمج data مع existing ويتحقق من الحقول الأربعة
+    effectiveLevelGuard(data, existing);
 
     // ISO 6.1: لا إغلاق المخاطرة دون توثيق خطة المعالجة
     if (data.status === 'CLOSED') {
