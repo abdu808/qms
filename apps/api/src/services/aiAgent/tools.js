@@ -1515,8 +1515,13 @@ export async function executeTool(name, input, ctx) {
         result.indicators = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('annualTargets')) {
-        const total = await prisma.annualTarget.count();
+        // DEPT_MANAGER: يرى فقط المستهدفات المرتبطة بمؤشرات objective قسمه
+        const atWhere = deptScopeId
+          ? { indicator: { objective: { departmentId: deptScopeId } } }
+          : {};
+        const total = await prisma.annualTarget.count({ where: atWhere });
         const items = await prisma.annualTarget.findMany({
+          where: atWhere,
           orderBy: [{ year: 'desc' }, { indicator: { code: 'asc' } }],
           take: pgLimit, skip: pgOffset,
           select: {
@@ -1529,9 +1534,11 @@ export async function executeTool(name, input, ctx) {
         result.annualTargets = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('initiatives')) {
-        const total = await prisma.initiative.count({ where: { deletedAt: null } });
+        // DEPT_MANAGER: يرى فقط مبادرات قسمه
+        const iniWhere = { deletedAt: null, ...(deptScopeId ? { departmentId: deptScopeId } : {}) };
+        const total = await prisma.initiative.count({ where: iniWhere });
         const items = await prisma.initiative.findMany({
-          where: { deletedAt: null },
+          where: iniWhere,
           orderBy: { code: 'asc' }, take: pgLimit, skip: pgOffset,
           select: {
             id: true, code: true, name: true, status: true, progress: true,
@@ -3429,15 +3436,21 @@ export async function executeTool(name, input, ctx) {
     case 'update_initiative': {
       const { id, ...fields } = input;
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
-      const ini = await prisma.initiative.findUnique({ where:{ id }, select:{ id:true, code:true, name:true } });
+      const ini = await prisma.initiative.findUnique({
+        where:{ id },
+        select:{ id:true, code:true, name:true, goal:{ select:{ planId:true } } },
+      });
       if (!ini) return { ok:false, error:`المبادرة ${id} غير موجودة`, summary:'فشل' };
-      const data = pickFields(fields, [
+      // تحقق Plan Freeze — transactionFields: progress, spent, status, notes
+      const INIT_TX_FIELDS = ['progress','spent','status','notes'];
+      let data = pickFields(fields, [
         'name','description','ownerId','departmentId','startDate','endDate',
         'budget','spent','progress','status','notes',
       ]);
+      data = await assertPlanNotFrozen(ini.goal?.planId, callerUser, INIT_TX_FIELDS, data);
       if (data.startDate) data.startDate = new Date(data.startDate);
       if (data.endDate)   data.endDate   = new Date(data.endDate);
-      if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتعديل', summary:'فشل' };
+      if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتعديل (أو الخطة مُجمَّدة وجميع الحقول محجوبة)', summary:'فشل' };
       await prisma.initiative.update({ where:{ id }, data });
       return { ok:true, summary:`✅ حُدِّثت مبادرة ${ini.code}: ${Object.keys(data).join(', ')}` };
     }
@@ -3447,8 +3460,13 @@ export async function executeTool(name, input, ctx) {
       const { indicatorId, year, targetValue, q1Target, q2Target, q3Target, q4Target, modificationReason } = input;
       if (!indicatorId || !year || targetValue == null)
         return { ok:false, error:'indicatorId, year, targetValue مطلوبة', summary:'فشل' };
-      const ind = await prisma.indicator.findUnique({ where:{ id:indicatorId }, select:{ id:true, code:true } });
+      const ind = await prisma.indicator.findUnique({
+        where:{ id:indicatorId },
+        select:{ id:true, code:true, objective:{ select:{ goal:{ select:{ planId:true } } } } },
+      });
       if (!ind) return { ok:false, error:`المؤشر ${indicatorId} غير موجود`, summary:'فشل' };
+      // تحقق Plan Freeze — إنشاء مستهدف بيانات حاكمة → مرفوض إذا مُجمَّدة
+      await assertPlanNotFrozen(ind.objective?.goal?.planId ?? null, callerUser);
       try {
         const at = await prisma.annualTarget.upsert({
           where:  { indicatorId_year: { indicatorId, year: Number(year) } },
@@ -3477,13 +3495,24 @@ export async function executeTool(name, input, ctx) {
       if (!modificationReason?.trim()) return { ok:false, error:'modificationReason مطلوب', summary:'فشل' };
       const at = await prisma.annualTarget.findUnique({
         where:{ id }, select:{ id:true, indicatorId:true, year:true, targetValue:true,
-          indicator: { select:{ code:true } } },
+          indicator: {
+            select:{
+              code:true,
+              objective: { select:{ goal: { select:{ planId:true } } } },
+            },
+          },
+        },
       });
       if (!at) return { ok:false, error:`المستهدف ${id} غير موجود`, summary:'فشل' };
-      const data = pickFields(fields, ['targetValue','q1Target','q2Target','q3Target','q4Target']);
+      // تحقق Plan Freeze — targetValue محجوب عند التجميد (بيانات حاكمة)
+      // transactionFields: الربعيات + modificationReason فقط
+      const AT_TX_FIELDS = ['q1Target','q2Target','q3Target','q4Target','modificationReason'];
+      const planId = at.indicator?.objective?.goal?.planId ?? null;
+      let data = pickFields(fields, ['targetValue','q1Target','q2Target','q3Target','q4Target']);
       data.modificationReason = modificationReason;
+      data = await assertPlanNotFrozen(planId, callerUser, AT_TX_FIELDS, data);
       if (!Object.keys(data).filter(k => k !== 'modificationReason').length)
-        return { ok:false, error:'لا حقول للتعديل غير modificationReason', summary:'فشل' };
+        return { ok:false, error:'لا حقول للتعديل غير modificationReason (أو الخطة مُجمَّدة والحقول الحاكمة محجوبة)', summary:'فشل' };
       await prisma.annualTarget.update({ where:{ id }, data });
       return { ok:true, summary:`✅ حُدِّث مستهدف ${at.indicator.code}/${at.year}: ${JSON.stringify(pickFields(fields,['targetValue','q1Target','q2Target','q3Target','q4Target']))}` };
     }
@@ -3498,6 +3527,41 @@ function safeParseTool(s) { if (!s) return null; try { return JSON.parse(s); } c
 // ─────────────────────────────────────────────────────────────────────────────
 //  دوال مساعدة
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * يرفع خطأً إذا كانت الخطة مُجمَّدة.
+ * SUPER_ADMIN مُعفى — يطابق سلوك crudFactory.enforceFreezeIfNeeded.
+ * transactionFields: الحقول المسموحة حتى عند التجميد (قابلة للتعديل التشغيلي).
+ * @param {string|null} planId
+ * @param {object|null} callerUser
+ * @param {string[]|null} [transactionFields] — إذا أُعطيت، سنُصفِّي data وليس نرفضها
+ * @param {object} [data] — البيانات المُراد تصفيتها عند التجميد
+ * @returns {object|undefined} data مُصفَّاة (أو undefined إذا لم تُمرَّر)
+ */
+export async function assertPlanNotFrozen(planId, callerUser, transactionFields = null, data = null) {
+  if (!planId) return data;
+  if (callerUser?.role === 'SUPER_ADMIN') return data;
+  const plan = await prisma.strategicPlan.findUnique({
+    where: { id: planId },
+    select: { frozenAt: true, code: true },
+  });
+  if (!plan?.frozenAt) return data;
+
+  if (transactionFields && data) {
+    // صفِّ الحقول: احتفظ فقط بـ transactionFields
+    const allowed = new Set(transactionFields);
+    const filtered = {};
+    for (const k of Object.keys(data)) {
+      if (allowed.has(k)) filtered[k] = data[k];
+    }
+    return filtered; // قد يكون فارغاً — المُستدعي يتحقق
+  }
+  // لا transactionFields → ارفض التعديل كلياً
+  const err = new Error(`الخطة ${plan.code} مُجمَّدة — استخدم طلب تعديل لتعديل البيانات الحاكمة`);
+  err.code = 'PLAN_FROZEN';
+  err.statusCode = 403;
+  throw err;
+}
 
 function pickFields(obj, keys) {
   const r = {};
