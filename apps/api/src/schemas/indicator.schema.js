@@ -36,6 +36,7 @@ export const createSchema = z.object({
   nationalStandard: optionalTrimmedString(200),
   notes:            optionalTrimmedString(2000),
   objectiveId:      idString.nullable().optional(),
+  axisId:           idString.nullable().optional(),
   ownerId:          idString.nullable().optional(),
   dataEntryUserId:  idString.nullable().optional(),
   approverUserId:   idString.nullable().optional(),
