@@ -17,7 +17,7 @@ const PERMISSIONS_DEFAULT = {
 };
 
 const PERMISSIONS = {
-  users:            { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
+  users:            { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, delete:_SA },
   departments:      { read:_ANY, create:_QM_UP, update:_QM_UP, delete:_SA },
   'strategic-plans':{ read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
   'strategic-goals':{ read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
@@ -45,7 +45,7 @@ const PERMISSIONS = {
   ncr:              { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP, close:_QM_UP },
   signatures:       { read:_ANY, create:_EMPLOYEE_UP, update:_QM_UP, delete:_SA },
   'audit-log':      { read:_QM_UP, create:_SA, update:_SA, delete:_SA },
-  'report-builder': { read:_QM_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
+  'report-builder': { read:_COMMITTEE_UP, create:_QM_UP, update:_QM_UP, delete:_SA, approve:_QM_UP },
   'eval-tokens':    { read:_MANAGER_UP, create:_MANAGER_UP, update:_QM_UP, delete:_QM_UP },
   'performance-reviews': { read:_MANAGER_UP, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
   'improvement-projects': { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP },
@@ -67,7 +67,7 @@ const PERMISSIONS = {
   dashboard:        { read:_MANAGER_UP },
   exports:          { read:_QM_UP },
   kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
-  reports:          { read:_ANY, create:_SA, update:_SA, delete:_SA },
+  reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
 };
 
 // Module endpoint → resource key resolver (handles cases where endpoint ≠ resource string)

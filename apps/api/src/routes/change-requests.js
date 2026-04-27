@@ -25,6 +25,44 @@ const RESOURCE_TO_MODEL = {
   'strategic-goals':        'strategicGoal',
 };
 
+// SECURITY: per-resource allowlist of fields that may be changed via a Change Request.
+// Anything NOT listed here is rejected at creation time (and again at approval time).
+// This prevents a privileged-but-not-SA reviewer from approving a request that touches
+// sensitive fields like id/role/createdById/passwordHash through a malicious payload.
+const CHANGE_REQUEST_ALLOWED_FIELDS = {
+  objectives:               ['title', 'kpi', 'target', 'baseline', 'unit', 'startDate', 'dueDate'],
+  indicators:               ['nameAr', 'nameEn', 'weight', 'baseline', 'unit', 'direction', 'ownerId',
+                             'greenThreshold', 'yellowThreshold', 'definition', 'formula', 'frequency'],
+  'annual-targets':         ['targetValue', 'year', 'q1Target', 'q2Target', 'q3Target', 'q4Target'],
+  initiatives:              ['name', 'description', 'budget', 'startDate', 'endDate', 'progress', 'status'],
+  risks:                    ['title', 'description', 'type', 'source', 'likelihood', 'impact', 'probability'],
+  'operational-activities': ['title', 'description', 'budget', 'startDate', 'endDate', 'targetValue', 'targetUnit'],
+  'strategic-goals':        ['title', 'perspective', 'kpi', 'target', 'baseline', 'startYear', 'endYear', 'responsible'],
+};
+
+// Always-forbidden — never editable through change-requests no matter the resource.
+const CHANGE_REQUEST_FORBIDDEN_FIELDS = new Set([
+  'id', 'createdAt', 'updatedAt', 'deletedAt', 'createdById', 'updatedById',
+  'role', 'passwordHash', 'email', 'planId', 'goalId', 'objectiveId', 'indicatorId',
+  'code',
+]);
+
+function assertChangeRequestFieldAllowed(resource, fieldName) {
+  if (!fieldName || typeof fieldName !== 'string') {
+    throw BadRequest('fieldName غير صالح');
+  }
+  if (CHANGE_REQUEST_FORBIDDEN_FIELDS.has(fieldName)) {
+    throw BadRequest(`الحقل "${fieldName}" غير قابل للتعديل عبر طلبات التعديل`);
+  }
+  const allow = CHANGE_REQUEST_ALLOWED_FIELDS[resource];
+  if (!allow) {
+    throw BadRequest(`المورد "${resource}" لا يدعم طلبات التعديل`);
+  }
+  if (!allow.includes(fieldName)) {
+    throw BadRequest(`الحقل "${fieldName}" غير مسموح به ضمن طلبات التعديل لهذا المورد`);
+  }
+}
+
 // ─── LIST ────────────────────────────────────────────────────
 router.get('/', requireAction('change-requests', 'read'), asyncHandler(async (req, res) => {
   const role = req.user?.role;
@@ -66,6 +104,8 @@ router.post('/', requireAction('change-requests', 'create'), asyncHandler(async 
   if (!resource || !resourceId || !fieldName || newValue === undefined || newValue === null || !reason?.trim()) {
     throw BadRequest('resource, resourceId, fieldName, newValue, reason كلها مطلوبة');
   }
+  // SECURITY: validate against per-resource field allowlist
+  assertChangeRequestFieldAllowed(resource, fieldName);
 
   // محاولة التقاط عنوان المورد لعرضه في قائمة الطلبات (best-effort)
   let resourceTitle = null;
@@ -101,6 +141,9 @@ router.post('/:id/approve', requireAction('change-requests', 'approve'), asyncHa
 
   const modelName = RESOURCE_TO_MODEL[cr.resource];
   if (!modelName || !prisma[modelName]) throw BadRequest(`المورد ${cr.resource} غير مدعوم`);
+  // SECURITY: re-validate field allowlist at approval time — defense in depth in case
+  // the allowlist changed since the request was created, or the request bypassed creation checks.
+  assertChangeRequestFieldAllowed(cr.resource, cr.fieldName);
 
   // تحويل بسيط للأرقام — السلاسل تبقى كما هي. للحقول الأخرى (تواريخ/booleans)
   // يمكن لاحقاً إضافة معالجة نوعية خاصة بكل field.

@@ -4,10 +4,29 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { authorize } from '../middleware/auth.js';
-import { NotFound, Conflict, BadRequest } from '../utils/errors.js';
+import { requireAction } from '../lib/permissions.js';
+import { NotFound, Conflict, BadRequest, Forbidden } from '../utils/errors.js';
 import { normalizeEmail, stripUndefined } from '../lib/dataHelpers.js';
 import { createSchema as userCreateSchema, updateSchema as userUpdateSchema } from '../schemas/user.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
+
+// QM cannot create, promote-to, or edit/delete SUPER_ADMIN accounts.
+// Only SUPER_ADMIN can manage SUPER_ADMIN. This is enforced explicitly here
+// regardless of what the permissions-matrix says, because the matrix is
+// resource-level granular but cannot express "QM can write users EXCEPT SA".
+function assertCanTouchTargetUser(actor, targetUser) {
+  if (actor.role === 'SUPER_ADMIN') return;
+  if (targetUser?.role === 'SUPER_ADMIN') {
+    throw Forbidden('فقط المسؤول العام يستطيع تعديل مستخدمي SUPER_ADMIN');
+  }
+}
+function assertCanAssignRole(actor, requestedRole) {
+  if (!requestedRole) return;
+  if (actor.role === 'SUPER_ADMIN') return;
+  if (requestedRole === 'SUPER_ADMIN') {
+    throw Forbidden('فقط المسؤول العام يستطيع منح/تعيين دور SUPER_ADMIN');
+  }
+}
 
 const validateCreate = runSchema(userCreateSchema);
 const validateUpdate = runSchema(userUpdateSchema);
@@ -16,22 +35,27 @@ const router = Router();
 const pub = { id: true, email: true, name: true, role: true, departmentId: true, jobTitle: true, phone: true, active: true, lastLoginAt: true, createdAt: true };
 const pubWithDept = { ...pub, department: { select: { id: true, name: true, code: true } } };
 
-// القراءة مُقيَّدة لمدير الجودة/المسؤول فقط — PII (email/phone) لا تُعرض لكل موظف
-router.get('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
+// Permissions sourced from MATRIX['users']:
+//   read   → MANAGER_UP, create/update → QM_UP, delete → SA.
+// Plus explicit SUPER_ADMIN protection: QM may not create/promote/edit SA.
+
+router.get('/', requireAction('users', 'read'), asyncHandler(async (req, res) => {
   const users = await prisma.user.findMany({ select: pubWithDept, orderBy: { createdAt: 'desc' } });
   res.json({ ok: true, items: users, total: users.length });
 }));
 
-router.get('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
+router.get('/:id', requireAction('users', 'read'), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: pubWithDept });
   if (!user) throw NotFound();
   res.json({ ok: true, item: user });
 }));
 
-router.post('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
+router.post('/', requireAction('users', 'create'), asyncHandler(async (req, res) => {
   // Zod: password إلزامي عند إنشاء مستخدم جديد (لا نصنع مستخدم بلا كلمة سر)
   const body = validateCreate({ ...req.body, password: req.body?.password });
   if (!body.password) throw Conflict('كلمة المرور إلزامية عند إنشاء مستخدم جديد');
+  // QM cannot create a SUPER_ADMIN
+  assertCanAssignRole(req.user, body.role);
 
   const normalizedEmail = normalizeEmail(body.email);
   const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
@@ -54,10 +78,16 @@ router.post('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async
   res.status(201).json({ ok: true, item: user });
 }));
 
-router.put('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (req, res) => {
+router.put('/:id', requireAction('users', 'update'), asyncHandler(async (req, res) => {
   const body = validateUpdate(req.body);
   // كلمة المرور لا تمر عبر schema العام — تبقى منفصلة حتى لا تُسرَّب عبر عمليات تعديل عامة
   const password = req.body?.password;
+
+  // SUPER_ADMIN protection: QM cannot edit a SA, and cannot promote anyone TO SA
+  const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, role: true } });
+  if (!target) throw NotFound();
+  assertCanTouchTargetUser(req.user, target);
+  assertCanAssignRole(req.user, body.role);
 
   const data = stripUndefined({
     name:         body.name,
@@ -77,7 +107,7 @@ router.put('/:id', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(asy
   res.json({ ok: true, item: user });
 }));
 
-router.delete('/:id', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) => {
+router.delete('/:id', requireAction('users', 'delete'), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw NotFound();
   // لا يمكن تعطيل المسؤول الوحيد النشط في النظام
@@ -91,7 +121,7 @@ router.delete('/:id', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) =>
   res.json({ ok: true });
 }));
 
-// POST /:id/restore — إعادة تفعيل مستخدم مُعطَّل (SUPER_ADMIN فقط)
+// POST /:id/restore — إعادة تفعيل مستخدم مُعطَّل (SUPER_ADMIN فقط — تماثل DELETE)
 router.post('/:id/restore', authorize('SUPER_ADMIN'), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw NotFound();

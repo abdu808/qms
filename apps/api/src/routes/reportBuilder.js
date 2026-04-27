@@ -10,25 +10,27 @@
  */
 import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { authorize } from '../middleware/auth.js';
+import { requireAction } from '../lib/permissions.js';
 import { listDatasets, runReport, toCsv } from '../lib/reportBuilder.js';
 
 const router = Router();
 
-const ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER'];
+// Permissions are sourced from MATRIX['report-builder']:
+//   read   → COMMITTEE_UP (COMMITTEE_MEMBER + QM + SA)
+//   create → QM_UP        (running/exporting reports is a "create" action)
+//   delete → SA           (delete templates if/when added)
+// This mirrors the frontend PERMISSIONS table — single source of truth.
 
-router.use(authorize(...ROLES));
-
-router.get('/datasets', asyncHandler(async (_req, res) => {
+router.get('/datasets', requireAction('report-builder', 'read'), asyncHandler(async (_req, res) => {
   res.json({ ok: true, datasets: listDatasets() });
 }));
 
-router.post('/run', asyncHandler(async (req, res) => {
+router.post('/run', requireAction('report-builder', 'create'), asyncHandler(async (req, res) => {
   const result = await runReport(req.body || {});
   res.json({ ok: true, ...result });
 }));
 
-router.post('/export', asyncHandler(async (req, res) => {
+router.post('/export', requireAction('report-builder', 'create'), asyncHandler(async (req, res) => {
   const result = await runReport(req.body || {});
   const csv = toCsv(result);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');

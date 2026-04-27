@@ -13,6 +13,15 @@ const base = crudRouter({
   codePrefix: 'STR',
   searchFields: ['title', 'perspective', 'kpi', 'legacyInitiatives', 'responsible'],
   allowedSortFields: ['createdAt', 'status', 'progress', 'startYear', 'endYear'],
+  // Plan Freeze: once the parent strategic plan is frozen, master fields on the goal
+  // are locked. transactionFields below remain editable (operational follow-up).
+  enforceFreezeFor: async (id, prisma) => {
+    const g = await prisma.strategicGoal.findUnique({
+      where: { id }, select: { planId: true },
+    });
+    return g?.planId || null;
+  },
+  transactionFields: ['progress', 'status', 'responsible'],
 });
 
 const router = Router();
