@@ -186,16 +186,23 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
     config.jwt.refreshSecret,
     { expiresIn: config.jwt.refreshExpiresIn },
   );
-  await prisma.$transaction([
-    prisma.refreshToken.update({ where: { token: tokenHash }, data: { revoked: true } }),
-    prisma.refreshToken.create({
-      data: {
-        userId:    user.id,
-        token:     hashRefreshToken(newRefreshToken),
-        expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
-      },
-    }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.refreshToken.update({ where: { token: tokenHash }, data: { revoked: true } }),
+      prisma.refreshToken.create({
+        data: {
+          userId:    user.id,
+          token:     hashRefreshToken(newRefreshToken),
+          expiresAt: new Date(Date.now() + parseDurationMs(config.jwt.refreshExpiresIn)),
+        },
+      }),
+    ]);
+  } catch (txErr) {
+    // Token rotation failed (race condition / P2025 / DB error) → force re-login
+    // Log as warn (not error) — common on concurrent refresh from multiple tabs
+    console.warn('[auth] refresh token rotation failed:', txErr.code || txErr.message);
+    throw Unauthorized('الجلسة منتهية، يرجى تسجيل الدخول مجدداً');
+  }
 
   const token = jwt.sign(
     { sub: user.id, email: user.email, role: user.role, name: user.name, departmentId: user.departmentId || null },

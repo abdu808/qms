@@ -1257,7 +1257,9 @@
                   <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs">④</span>
                   هل هناك شيء تريد لفت نظر إدارة الجودة إليه؟
                 </h3>
-                <textarea x-model="prog.currentReport?.deptFilled?.freeText" @blur="progAutoSave()"
+                <textarea :value="prog.currentReport?.deptFilled?.freeText ?? ''"
+                          @input="if(prog.currentReport?.deptFilled) prog.currentReport.deptFilled.freeText=$event.target.value"
+                          @blur="progAutoSave()"
                           :disabled="!['DRAFT','RETURNED'].includes(prog.currentReport?.status)"
                           placeholder="معوقات، احتياجات، تغييرات مرتقبة، إنجازات خارج المؤشرات..."
                           class="w-full border rounded p-2 text-sm min-h-[80px]"></textarea>
@@ -1855,6 +1857,12 @@
                 <select x-show="currentModule?.statusOptions" x-model="filterStatus" @change="loadList(1)" class="border rounded-lg px-3 py-2 text-sm bg-white">
                   <template x-for="o in (currentModule?.statusOptions||[])" :key="o.v">
                     <option :value="o.v" x-text="o.l"></option>
+                  </template>
+                </select>
+                <select x-show="currentModule?.yearFilter" x-model="filterYear" @change="loadList(1)" class="border rounded-lg px-3 py-2 text-sm bg-white">
+                  <option value="">كل السنوات</option>
+                  <template x-for="y in [new Date().getFullYear()+1,new Date().getFullYear(),new Date().getFullYear()-1,new Date().getFullYear()-2,new Date().getFullYear()-3]" :key="y">
+                    <option :value="y" x-text="y"></option>
                   </template>
                 </select>
                 <button x-show="currentModule && canCreate(currentResource) && !showDeleted" @click="openCreate()" title="اختصار: Ctrl+N" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm">➕ إضافة</button>

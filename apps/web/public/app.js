@@ -233,6 +233,7 @@ function app() {
 
     // Filter
     filterStatus: '',
+    filterYear: '',
     quickFilter: '',
 
     // ── Live health alerts — moved to modules/live-alerts.js (window.QmsLiveAlerts)
@@ -471,16 +472,16 @@ function app() {
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
     menuGroups: [
-      { id: 'home',        title: 'الرئيسية',          icon: '🏠', iso: '',          color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
-      { id: 'context',     title: 'السياق والقيادة',   icon: '🧭', iso: 'ISO 4-5',   color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
-      { id: 'acks',        title: 'الإقرارات والتعهدات', icon: '📋', iso: 'حوكمة',     color: 'teal',    items: ['myAcknowledgments','acknowledgmentsMatrix'] },
-      { id: 'planning',    title: 'التخطيط',            icon: '🎯', iso: 'ISO 6',     color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks','changeRequests'] },
-      { id: 'support',     title: 'الدعم',              icon: '🧑\u200d🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
-      { id: 'operation',   title: 'التشغيل',            icon: '⚙️', iso: 'ISO 8',     color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
-      { id: 'evaluation',  title: 'التقييم',            icon: '📊', iso: 'ISO 9',     color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports'] },
-      { id: 'improvement', title: 'التحسين',            icon: '🔧', iso: 'ISO 10',    color: 'rose',    items: ['ncr','capa','improvementProjects','slaBoard'] },
-      { id: 'settings',    title: 'الإعدادات',          icon: '⚙️', iso: '',          color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin','aiSettings','consultant'] },
-      { id: 'help',        title: 'المساعدة',           icon: '📖', iso: '',          color: 'indigo',  items: ['userGuide'] },
+      { id: 'home',      title: 'الرئيسية',            icon: '🏠', iso: '',         color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
+      { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks','changeRequests'] },
+      { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
+      { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix'] },
+      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
+      { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
+      { id: 'operation', title: 'التشغيل',             icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
+      { id: 'ai',        title: 'الذكاء الاصطناعي',    icon: '🧠', iso: '',         color: 'indigo',  items: ['consultant','aiSettings'] },
+      { id: 'settings',  title: 'الإعدادات',           icon: '⚙️', iso: '',         color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
+      { id: 'help',      title: 'المساعدة',            icon: '📖', iso: '',         color: 'indigo',  items: ['userGuide'] },
     ],
 
     // ─── دور المراقب الخارجي ──────────────────────────────────────────
@@ -1072,6 +1073,7 @@ function app() {
       this.page = id;
       this.search = '';
       this.filterStatus = '';
+      this.filterYear = '';
       this.currentPage = 1;
       this.totalItems = 0;
       // Audit improvement #2 (decision 2): EMPLOYEE يرى دائماً
@@ -1265,6 +1267,7 @@ function app() {
       params.set('limit', this.perPage);
       if (this.search)       params.set('q', this.search);
       if (this.filterStatus) params.set('filter[status]', this.filterStatus);
+      if (this.filterYear)   params.set('filter[year]', this.filterYear);
       if (this.quickFilter)  params.set('quick', this.quickFilter);
       if (this.showDeleted && this.canViewDeleted) params.set('onlyDeleted', '1');
       const r = await this.api('GET', `/${this.currentModule.endpoint}?${params}`);
@@ -1577,6 +1580,7 @@ function app() {
       if (col.type === 'bool')   return v ? '<span class="text-green-600">✓</span>' : '<span class="text-gray-400">✗</span>';
       if (col.type === 'status') return `<span class="px-2 py-0.5 rounded text-xs ${this.statusColor(v)}">${this.escape(this.statusLabel(v))}</span>`;
       if (col.type === 'level')  return `<span class="px-2 py-0.5 rounded text-xs ${this.levelColor(v)}">${this.escape(String(v))}</span>`;
+      if (col.map && col.map[v] !== undefined) return this.escape(col.map[v]);
       return this.escape(String(v));
     },
     escape(s) { return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); },

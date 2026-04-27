@@ -18,6 +18,7 @@
       entryForm: { kind: 'objective', id: '', actualValue: '', spent: '', note: '', evidenceUrl: '', deviationReason: '', actionNote: '' },
       objectivesList: [],
       activitiesList: [],
+      indicatorsList: [],
       loading: false,
       // Smart filter chips للمصفوفة
       quick: [],           // مثل ['mine', 'red']
@@ -127,23 +128,29 @@
 
     async kpiLoadEntryOptions() {
       try {
-        const [objs, acts] = await Promise.all([
+        const [objs, acts, inds] = await Promise.all([
           this.api('GET', '/objectives?limit=500'),
           this.api('GET', '/operational-activities?limit=500'),
+          this.api('GET', '/indicators?limit=500'),
         ]);
         this.kpi.objectivesList = (objs.items || [])
           .map(o => ({ id: o.id, title: o.title, kpiType: o.kpiType, targetValue: o.target, unit: o.unit }));
         this.kpi.activitiesList = (acts.items || [])
           .filter(a => !a.year || a.year === this.kpi.year)
           .map(a => ({ id: a.id, code: a.code, title: a.title, kpiType: a.kpiType, targetValue: a.targetValue, unit: a.targetUnit }));
+        this.kpi.indicatorsList = (inds.items || [])
+          .map(i => ({ id: i.id, code: i.code, nameAr: i.nameAr, unit: i.unit, kpiType: i.kpiType }));
       } catch (e) { console.error('kpiLoadEntryOptions error:', e); }
     },
 
     async kpiSaveEntry() {
       const f = this.kpi.entryForm;
       if (!f.id || f.actualValue === '') { this.toast('اختر المؤشر وأدخل القيمة', 'error'); return; }
+      const fkField = f.kind === 'objective' ? 'objectiveId'
+                    : f.kind === 'indicator' ? 'indicatorId'
+                    : 'activityId';
       const body = {
-        [f.kind === 'objective' ? 'objectiveId' : 'activityId']: f.id,
+        [fkField]: f.id,
         year: this.kpi.year, month: this.kpi.month,
         actualValue: Number(f.actualValue),
         spent: f.spent !== '' ? Number(f.spent) : null,

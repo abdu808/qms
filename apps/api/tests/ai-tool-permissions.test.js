@@ -134,6 +134,8 @@ vi.mock('../src/db.js', () => {
       capa:                 buildModel('capa'),
       audit:                buildModel('audit'),
       complaint:            buildModel('complaint'),
+      annualTarget:         { findMany: async () => [], count: async () => 0 },
+      initiative:           { findMany: async () => [], count: async () => 0 },
       swotItem:             { findMany: async () => [] },
       managementReview:     { findMany: async () => [] },
       interestedParty:      { findMany: async () => [] },

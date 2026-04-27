@@ -15,10 +15,15 @@
       const endpointMap = {
         complaint: 'complaints', ncr: 'ncr', objective: 'objectives',
         document: 'documents', risk: 'risks', supplier: 'suppliers',
+        // v2 strategic planning entities
+        indicator: 'indicators', initiative: 'initiatives',
+        capa: 'capa', 'follow-up-task': 'follow-up-tasks',
+        'audit-finding': 'audit-findings',
       };
       const auditEntityMap = {
         complaint: 'Complaint', ncr: 'NCR', objective: 'Objective',
         document: 'Document', risk: 'Risk', supplier: 'Supplier',
+        indicator: 'Indicator', initiative: 'Initiative', capa: 'Capa',
       };
       const endpoint = endpointMap[entityType];
       if (!endpoint) return;
@@ -80,6 +85,7 @@
       const pageMap = {
         complaint: 'complaints', ncr: 'ncr', objective: 'objectives',
         document: 'documents', risk: 'risks', supplier: 'suppliers',
+        indicator: 'indicators', initiative: 'initiatives', capa: 'capa',
       };
       const targetPage = pageMap[d.entityType];
       const item = d.item;
