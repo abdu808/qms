@@ -428,8 +428,10 @@ async function getIndicatorsWithEntries(year) {
   const indicators = await prisma.indicator.findMany({
     where: { deletedAt: null },
     include: {
+      axis:          { select: { id: true, nameAr: true, code: true, weight: true } },
+      objective:     { select: { id: true, departmentId: true } },
       annualTargets: { where: { year }, take: 1 },
-      kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
+      kpiEntries:    { where: { year }, orderBy: [{ month: 'asc' }] },
     },
   });
   return indicators.map(ind => {
@@ -438,12 +440,23 @@ async function getIndicatorsWithEntries(year) {
       console.warn(`[getIndicatorsWithEntries] No AnnualTarget for indicator ${ind.id} year ${year} — using 0`);
     }
     return {
-      id: ind.id, code: ind.code, title: ind.title,
-      perspective: ind.perspective || '—',
-      kpiType: ind.kpiType, seasonality: ind.seasonality, direction: ind.direction,
-      targetValue: annualTarget?.targetValue ?? 0, unit: ind.unit,
-      ownerId: ind.ownerId, departmentId: ind.departmentId,
-      greenThreshold: ind.greenThreshold, yellowThreshold: ind.yellowThreshold,
+      // Indicator schema يستخدم nameAr، لا title
+      id: ind.id, code: ind.code, title: ind.nameAr,
+      // المحور (perspective) يأتي من axis.nameAr وليس حقل perspective (غير موجود في Indicator)
+      perspective: ind.axis?.nameAr || '—',
+      axisId:      ind.axisId,
+      axisWeight:  ind.axis?.weight,
+      weight:      ind.weight,
+      kpiType:     ind.kpiType,
+      seasonality: ind.seasonality,
+      direction:   ind.direction,
+      targetValue: annualTarget?.targetValue ?? 0,
+      unit:        ind.unit,
+      ownerId:     ind.ownerId,
+      // Indicator لا يحمل departmentId مباشرة — نأخذه من الهدف المرتبط
+      departmentId: ind.objective?.departmentId ?? null,
+      greenThreshold:  ind.greenThreshold,
+      yellowThreshold: ind.yellowThreshold,
       entries: ind.kpiEntries,
     };
   });
@@ -620,9 +633,17 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
       ...a, kind: k.kind, id: k.id, code: k.code, title: k.title,
     })));
 
-    // إجمالي الميزانية والصرف (نشاطات فقط)
-    const totalBudget = activities.reduce((s,a)=>s+Number(a.budget||0), 0);
-    const totalSpent  = activities.reduce((s,a)=>s+a.entries.reduce((ss,e)=>ss+Number(e.spent||0), 0), 0);
+    // إجمالي الميزانية والصرف (نشاطات + مبادرات)
+    const initiatives = await prisma.initiative.findMany({
+      where: { deletedAt: null },
+      select: { budget: true, spent: true },
+    });
+    const activitiesBudget = activities.reduce((s,a)=>s+Number(a.budget||0), 0);
+    const activitiesSpent  = activities.reduce((s,a)=>s+a.entries.reduce((ss,e)=>ss+Number(e.spent||0), 0), 0);
+    const initiativesBudget = initiatives.reduce((s,i)=>s+Number(i.budget||0), 0);
+    const initiativesSpent  = initiatives.reduce((s,i)=>s+Number(i.spent ||0), 0);
+    const totalBudget = activitiesBudget + initiativesBudget;
+    const totalSpent  = activitiesSpent  + initiativesSpent;
 
     res.json({
       year, month,
