@@ -2446,6 +2446,27 @@
                       🔒 <span x-text="myKpiForm.preview.lockReason"></span>
                     </div>
                   </template>
+                  <!-- حقول الانحراف: تظهر عند ratio < 80% (الخادم يشترطها) -->
+                  <template x-if="myKpiForm.preview && myKpiForm.preview.evaluation && myKpiForm.preview.evaluation.ratio != null && myKpiForm.preview.evaluation.ratio < 0.80">
+                    <div class="border-t pt-3 space-y-2">
+                      <div class="text-sm font-bold text-amber-700">⚠️ النسبة أقل من 80% — سبب الانحراف مطلوب</div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">سبب الانحراف <span class="text-red-500">*</span></label>
+                        <textarea x-model="myKpiForm.deviationReason" rows="2"
+                          class="w-full border-2 border-amber-200 rounded-lg px-3 py-2 text-sm focus:border-amber-400 outline-none"
+                          placeholder="وصف سبب عدم تحقيق المستهدف…"></textarea>
+                      </div>
+                      <template x-if="myKpiForm.preview.evaluation.ratio < 0.60">
+                        <div>
+                          <div class="text-sm font-bold text-red-700 mb-1">🚨 النسبة أقل من 60% — الإجراء التصحيحي مطلوب أيضاً</div>
+                          <label class="block text-xs font-medium text-gray-700 mb-1">الإجراء التصحيحي <span class="text-red-500">*</span></label>
+                          <textarea x-model="myKpiForm.actionNote" rows="2"
+                            class="w-full border-2 border-red-200 rounded-lg px-3 py-2 text-sm focus:border-red-400 outline-none"
+                            placeholder="خطة العمل التصحيحية المقترحة…"></textarea>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- STEP 3: نتيجة الحفظ -->
@@ -2843,6 +2864,15 @@
                                 <span x-show="_draftFor(k).busy">⏳ جارٍ…</span>
                               </button>
                             </div>
+                          </div>
+                          <!-- حقول الانحراف: مطلوبة من الخادم عند النسبة < 80% -->
+                          <div class="mt-1 grid grid-cols-2 gap-1">
+                            <input type="text" x-model="_draftFor(k).deviationReason"
+                                   placeholder="سبب الانحراف (إذا < 80%)"
+                                   class="px-2 py-0.5 text-[10px] border border-amber-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-300">
+                            <input type="text" x-model="_draftFor(k).actionNote"
+                                   placeholder="إجراء تصحيحي (إذا < 60%)"
+                                   class="px-2 py-0.5 text-[10px] border border-red-200 rounded text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-red-300">
                           </div>
                           <!-- Impact feedback: بعد الحفظ، أظهر التغيّر في progress + Undo خلال 10 ثوانٍ -->
                           <template x-if="_draftFor(k).lastImpact">
@@ -4188,6 +4218,20 @@
                 <div>
                   <label class="block text-sm font-medium mb-1">رابط الدليل/المستند</label>
                   <input type="url" x-model="kpi.entryForm.evidenceUrl" class="w-full border rounded-lg px-3 py-2" placeholder="https://..." />
+                </div>
+                <!-- حقول الانحراف: إلزامية من الخادم عند النسبة < 80% -->
+                <div class="border rounded-lg p-3 bg-amber-50 space-y-2">
+                  <div class="text-xs text-amber-700 font-medium">📌 يشترط الخادم هذه الحقول إذا كانت النسبة أقل من 80%</div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">سبب الانحراف</label>
+                    <textarea x-model="kpi.entryForm.deviationReason" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"
+                      placeholder="وصف سبب عدم تحقيق المستهدف (مطلوب إذا < 80%)…"></textarea>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">الإجراء التصحيحي</label>
+                    <textarea x-model="kpi.entryForm.actionNote" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"
+                      placeholder="خطة العمل التصحيحية (مطلوب إذا < 60%)…"></textarea>
+                  </div>
                 </div>
                 <div class="flex gap-2 pt-3 border-t">
                   <button @click="kpiSaveEntry()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium">💾 حفظ</button>
@@ -7329,10 +7373,10 @@
   </div>
 </div>
 
-<script src="/modules/kpi-common.js?v=2026-04-27n"></script>
+<script src="/modules/kpi-common.js?v=2026-04-28a"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
-<script src="/modules/kpi-quickentry.js?v=2026-04-27n"></script>
+<script src="/modules/kpi-quickentry.js?v=2026-04-28a"></script>
 <script src="/modules/kpi-bulk.js?v=2026-04-19g"></script>
 <script src="/modules/data-import.js?v=2026-04-21a"></script>
 <script src="/modules/portal-admin.js?v=2026-04-21a"></script>
@@ -7352,7 +7396,7 @@
 <script src="/modules/notifications.js?v=2026-04-21c"></script>
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
-<script src="/modules/my-kpi.js?v=2026-04-27n"></script>
+<script src="/modules/my-kpi.js?v=2026-04-28a"></script>
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
@@ -7361,11 +7405,11 @@
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
-<script src="/modules-config/context.js?v=2026-04-27n"></script>
-<script src="/modules-config/planning.js?v=2026-04-27n"></script>
-<script src="/modules-config/support.js?v=2026-04-27n"></script>
-<script src="/modules-config/operation.js?v=2026-04-27n"></script>
-<script src="/modules-config/evaluation.js?v=2026-04-27n"></script>
-<script src="/app.js?v=modules-2026-04-27n"></script>
+<script src="/modules-config/context.js?v=2026-04-28a"></script>
+<script src="/modules-config/planning.js?v=2026-04-28a"></script>
+<script src="/modules-config/support.js?v=2026-04-28a"></script>
+<script src="/modules-config/operation.js?v=2026-04-28a"></script>
+<script src="/modules-config/evaluation.js?v=2026-04-28a"></script>
+<script src="/app.js?v=modules-2026-04-28a"></script>
 </body>
 </html>

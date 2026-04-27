@@ -106,6 +106,10 @@ model User {
   performanceReviewsAsReviewer PerformanceReview[]     @relation("PerfReviewer")
   communicationsResponsible    CommunicationPlan[]     @relation("CommUser")
 
+  // ── Audit task 8 (architectural): FollowUp tasks ─
+  followUpTasksOwned           FollowUpTask[]          @relation("FollowUpTaskOwner")
+  followUpTasksCreated         FollowUpTask[]          @relation("FollowUpTaskCreator")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -1079,6 +1083,9 @@ model KpiEntry {
   spent        Float?    // المصروف الفعلي (للنشاطات)
   evidenceUrl  String?   // رابط الدليل
   note         String?
+  // Audit task 6 (architectural): سبب الانحراف عند ratio < 80% + الإجراء التصحيحي عند < 60%
+  deviationReason String? @db.Text  // إلزامي عند ratio < 80%
+  actionNote      String? @db.Text  // إلزامي عند ratio < 60% (الإجراء التصحيحي/الخطة)
   enteredById  String
   enteredBy    User      @relation("KpiEnteredBy", fields: [enteredById], references: [id])
   enteredAt    DateTime  @default(now())
@@ -2256,4 +2263,38 @@ model TrainingCompetence {
   @@unique([trainingId, competenceRequirementId])
   @@index([trainingId])
   @@index([competenceRequirementId])
+}
+
+// =====================================================
+// Audit task 8 (architectural) — FollowUpTask
+// مهام متابعة تنشأ تلقائياً من قرارات/إجراءات Management Review
+// (و قابلة للتوسيع لمصادر أخرى لاحقاً: NCR/CAPA/AUDIT).
+// =====================================================
+model FollowUpTask {
+  id           String   @id @default(cuid())
+  code         String   @unique  // FUT-2026-0001
+  title        String
+  description  String?  @db.Text
+  // المالك (إلزامي — قرارات بدون مالك مرفوضة في route)
+  ownerId      String
+  owner        User     @relation("FollowUpTaskOwner", fields: [ownerId], references: [id])
+  dueDate      DateTime
+  // المصدر — يربط المهمة بسجلها الأم (للتتبع)
+  source       String   // MANAGEMENT_REVIEW | AUDIT | NCR | CAPA | MANUAL
+  sourceId     String   // id of the source record
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  priority     String?  // LOW | MEDIUM | HIGH
+  notes        String?  @db.Text
+  completedAt  DateTime?
+  // من أنشأ المهمة (المراجعة الإدارية المعتمِدة → AI_AGENT_USER_ID أو المستخدم)
+  createdById  String
+  createdBy    User     @relation("FollowUpTaskCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  @@index([ownerId, status])
+  @@index([source, sourceId])
+  @@index([status, dueDate])
+  @@index([deletedAt])
 }

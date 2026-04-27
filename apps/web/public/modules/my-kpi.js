@@ -25,10 +25,12 @@
       this.myKpiForm = {
         item,
         step: 1,                       // 1=إدخال, 2=مراجعة, 3=تم الحفظ
-        actualValue: item.thisMonth?.actualValue ?? '',
-        spent:       item.thisMonth?.spent ?? '',
-        note:        item.thisMonth?.note ?? '',
-        evidenceUrl: item.thisMonth?.evidenceUrl ?? '',
+        actualValue:     item.thisMonth?.actualValue ?? '',
+        spent:           item.thisMonth?.spent ?? '',
+        note:            item.thisMonth?.note ?? '',
+        evidenceUrl:     item.thisMonth?.evidenceUrl ?? '',
+        deviationReason: item.thisMonth?.deviationReason ?? '',
+        actionNote:      item.thisMonth?.actionNote ?? '',
         busy: false,
         preview: null,                 // نتيجة /kpi/entries/preview
         result: null,                  // نتيجة /kpi/entries (بعد الحفظ)
@@ -45,6 +47,8 @@
         spent: f.spent === '' ? null : Number(f.spent),
         note: f.note || null,
         evidenceUrl: f.evidenceUrl || null,
+        deviationReason: f.deviationReason?.trim() || null,
+        actionNote:      f.actionNote?.trim()      || null,
       };
       if (f.item.kind === 'objective')      payload.objectiveId = f.item.id;
       else if (f.item.kind === 'indicator') payload.indicatorId = f.item.id;

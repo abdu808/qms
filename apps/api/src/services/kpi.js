@@ -74,6 +74,7 @@ export async function computeKpiFeedback({ objectiveId, activityId, year, month 
 export async function upsertKpiEntry({
   objectiveId, activityId, year, month,
   actualValue, spent, note, evidenceUrl,
+  deviationReason, actionNote,   // Audit task 6 (architectural): حقول منفصلة
   userId, userRole, skipRollup = false, tx = globalPrisma,
 }) {
   // منع الإدخال على شهر في المستقبل
@@ -91,6 +92,47 @@ export async function upsertKpiEntry({
     );
   }
 
+  // ── Audit task 6 (architectural): KPI deviation reason ────────────────
+  // ratio < 80% → deviationReason إلزامي
+  // ratio < 60% → actionNote إلزامي (الإجراء التصحيحي)
+  if (objectiveId || activityId) {
+    const parent = objectiveId
+      ? await tx.objective.findUnique({ where: { id: objectiveId } })
+      : await tx.operationalActivity.findUnique({ where: { id: activityId } });
+    if (parent) {
+      const existing = await tx.kpiEntry.findMany({
+        where: objectiveId ? { objectiveId, year } : { activityId, year },
+        orderBy: [{ month: 'asc' }],
+      });
+      const overlay = existing.filter(e => e.month !== month);
+      overlay.push({ month, actualValue: Number(actualValue), spent: spent != null ? Number(spent) : null });
+      overlay.sort((a, b) => a.month - b.month);
+      const kpi = {
+        kpiType:     parent.kpiType,
+        seasonality: parent.seasonality,
+        direction:   parent.direction,
+        targetValue: objectiveId ? parent.target : parent.targetValue,
+        unit:        objectiveId ? parent.unit   : parent.targetUnit,
+      };
+      const ev = evaluateKpi(kpi, overlay, year, month);
+      const ratio = ev?.ratio;
+      if (ratio != null && ratio < 0.80) {
+        if (!deviationReason || String(deviationReason).trim() === '') {
+          throw BadRequest(
+            `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 80% — سبب الانحراف (deviationReason) إلزامي`,
+          );
+        }
+        if (ratio < 0.60) {
+          if (!actionNote || String(actionNote).trim() === '') {
+            throw BadRequest(
+              `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 60% — الإجراء التصحيحي (actionNote) إلزامي`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   const where = objectiveId
     ? { objectiveId_year_month: { objectiveId, year, month } }
     : { activityId_year_month:  { activityId,  year, month } };
@@ -102,6 +144,8 @@ export async function upsertKpiEntry({
     actualValue: Number(actualValue),
     spent:       spent != null ? Number(spent) : null,
     note:        note || null,
+    deviationReason: deviationReason ? String(deviationReason).trim() : null,
+    actionNote:      actionNote      ? String(actionNote).trim()      : null,
     evidenceUrl: evidenceUrl || null,
     enteredById: userId,
   };

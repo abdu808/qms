@@ -6,7 +6,9 @@ import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { MGMT_REVIEW_STATUS, assertTransition } from '../lib/stateMachines.js';
 import { requireSignatureFor } from '../lib/signatureGuard.js';
+import { nextCode } from '../utils/codeGen.js';
 import { createSchema as mrCreate, updateSchema as mrUpdate } from '../schemas/managementReview.schema.js';
+import { parseDecisionsField } from '../services/managementReviewTasks.js';
 
 const base = crudRouter({
   resource: 'management-review',
@@ -21,27 +23,21 @@ const base = crudRouter({
   schemas: { create: mrCreate, update: mrUpdate },
   beforeUpdate: async (data, req) => {
     if (data.status) {
+      // COMPLETED يُنجز حصراً عبر POST /:id/complete لضمان الذرية مع مهام المتابعة
+      if (data.status === 'COMPLETED') {
+        throw BadRequest(
+          'لإكمال المراجعة الإدارية استخدم: POST /api/management-review/:id/complete — ' +
+          'يضمن إنشاء مهام المتابعة بشكل ذري مع تحديث الحالة (ISO 9.3.3)',
+        );
+      }
       const current = await prisma.managementReview.findUnique({
-        where: { id: req.params.id, deletedAt: null }, select: { status: true },
+        where: { id: req.params.id, deletedAt: null },
+        select: { status: true },
       });
       if (!current) throw NotFound('المراجعة غير موجودة');
       assertTransition(MGMT_REVIEW_STATUS, current.status, data.status, {
         label: 'المراجعة الإدارية', role: req.user?.role,
       });
-
-      // ISO 9.3.1: لا يمكن إكمال المراجعة دون تأكيد حضور الإدارة العليا
-      if (data.status === 'COMPLETED') {
-        if (data.topManagementPresent !== true && data.topManagementPresent !== 'true') {
-          throw BadRequest('لا يمكن إكمال المراجعة الإدارية دون تأكيد حضور الإدارة العليا (ISO 9.3.1)');
-        }
-        // ISO 9.3.3: مخرجات المراجعة يجب توثيقها — توقيع رقمي من مدير الجودة
-        await requireSignatureFor(req, {
-          entityType: 'ManagementReview',
-          entityId:   req.params.id,
-          purpose:    'complete',
-          label:      'اعتماد مخرجات المراجعة الإدارية',
-        });
-      }
     }
     return data;
   },
@@ -245,6 +241,119 @@ router.post(
       skipped: Object.keys(generated).filter(k => !(k in updates)),
     });
   })
+);
+
+/**
+ * POST /api/management-review/:id/complete
+ * ISO 9.3.3 — اعتماد مخرجات المراجعة الإدارية بشكل ذري
+ *
+ * يجمع في transaction واحدة:
+ *   1. تحديث الحالة إلى COMPLETED
+ *   2. إنشاء FollowUpTask لكل عنصر في decisions/improvementActions
+ *
+ * إذا فشل أيٌّ منهما → تراجع كامل، تبقى المراجعة بحالتها السابقة.
+ */
+router.post(
+  '/:id/complete',
+  requireAction('management-review', 'update'),
+  asyncHandler(async (req, res) => {
+    const current = await prisma.managementReview.findUnique({
+      where: { id: req.params.id, deletedAt: null },
+      select: { status: true, decisions: true, improvementActions: true, code: true },
+    });
+    if (!current) throw NotFound('المراجعة غير موجودة');
+
+    // 1. التحقق من الانتقال المسموح
+    assertTransition(MGMT_REVIEW_STATUS, current.status, 'COMPLETED', {
+      label: 'المراجعة الإدارية', role: req.user?.role,
+    });
+
+    // 2. ISO 9.3.1 — حضور الإدارة العليا إلزامي
+    const {
+      topManagementPresent,
+      decisions:          bodyDecisions,
+      improvementActions: bodyImprovementActions,
+    } = req.body || {};
+
+    if (topManagementPresent !== true && topManagementPresent !== 'true') {
+      throw BadRequest('لا يمكن إكمال المراجعة الإدارية دون تأكيد حضور الإدارة العليا (ISO 9.3.1)');
+    }
+
+    // 3. التحقق من بنية decisions/improvementActions قبل بدء الـ TX
+    const merged = {
+      decisions:          bodyDecisions          ?? current.decisions,
+      improvementActions: bodyImprovementActions ?? current.improvementActions,
+    };
+    const decisionItems = parseDecisionsField('decisions',          merged.decisions);
+    const actionItems   = parseDecisionsField('improvementActions', merged.improvementActions);
+    const allItems = [
+      ...decisionItems.map(i => ({ ...i, _from: 'decisions' })),
+      ...actionItems.map(i => ({ ...i, _from: 'improvementActions' })),
+    ];
+
+    // 4. ISO 9.3.3 — توقيع رقمي من مدير الجودة
+    await requireSignatureFor(req, {
+      entityType: 'ManagementReview',
+      entityId:   req.params.id,
+      purpose:    'complete',
+      label:      'اعتماد مخرجات المراجعة الإدارية',
+    });
+
+    // 5. توليد كودات المهام قبل الـ TX (nextCode يستخدم الـ prisma العام)
+    //    يُولَّد مرة واحدة — نادر التعارض؛ P2002 يُراجع كلا الجانبين للـ tx
+    const pregenCodes = [];
+    for (let i = 0; i < allItems.length; i++) {
+      pregenCodes.push(await nextCode('followUpTask', 'FUT'));
+    }
+
+    // 6. Transaction ذري: تحديث الحالة + إنشاء المهام في عملية واحدة
+    const updateData = { status: 'COMPLETED', topManagementPresent: true };
+    if (bodyDecisions          !== undefined) updateData.decisions          = bodyDecisions;
+    if (bodyImprovementActions !== undefined) updateData.improvementActions = bodyImprovementActions;
+
+    const { item, followUpTasksCreated } = await prisma.$transaction(async (tx) => {
+      const review = await tx.managementReview.update({
+        where:   { id: req.params.id },
+        data:    updateData,
+        include: { plan: { select: { id: true, code: true, title: true } } },
+      });
+
+      // Idempotency داخل الـ TX — تمنع التكرار لو استُدعي /complete مرتين
+      const existingCount = await tx.followUpTask.count({
+        where: { source: 'MANAGEMENT_REVIEW', sourceId: req.params.id, deletedAt: null },
+      });
+
+      let created = 0;
+      if (existingCount === 0 && allItems.length > 0) {
+        for (let i = 0; i < allItems.length; i++) {
+          const it = allItems[i];
+          await tx.followUpTask.create({
+            data: {
+              code:        pregenCodes[i],
+              title:       String(it.title).trim(),
+              description: it.description?.trim() ||
+                           `[من ${it._from} في مراجعة ${review.code}]`,
+              ownerId:     it.ownerId,
+              dueDate:     new Date(it.dueDate),
+              source:      'MANAGEMENT_REVIEW',
+              sourceId:    req.params.id,
+              priority:    it.priority || null,
+              status:      'OPEN',
+              createdById: req.user.sub,
+            },
+          });
+          created++;
+        }
+      }
+
+      return { item: review, followUpTasksCreated: created };
+    });
+
+    if (followUpTasksCreated > 0) {
+      console.log(`[mgmt-review] atomic: ${followUpTasksCreated} FollowUpTask(s) created from ${item.code}`);
+    }
+    res.json({ ok: true, item, followUpTasksCreated });
+  }),
 );
 
 router.use('/', base);

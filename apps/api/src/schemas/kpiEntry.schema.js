@@ -41,6 +41,9 @@ const baseShape = {
   spent:        numField(0),
   evidenceUrl:  optionalTrimmedString(500),
   note:         optionalTrimmedString(2000),
+  // Audit task 6 (architectural): حقول منفصلة بدلاً من workaround على note
+  deviationReason: optionalTrimmedString(4000),
+  actionNote:      optionalTrimmedString(4000),
 };
 
 const fkCount = (d) =>
@@ -54,10 +57,12 @@ export const createSchema = z.object(baseShape)
   );
 
 export const updateSchema = z.object({
-  actualValue: requiredNumField(0).optional(),
-  spent:       numField(0),
-  evidenceUrl: optionalTrimmedString(500),
-  note:        optionalTrimmedString(2000),
+  actualValue:     requiredNumField(0).optional(),
+  spent:           numField(0),
+  evidenceUrl:     optionalTrimmedString(500),
+  note:            optionalTrimmedString(2000),
+  deviationReason: optionalTrimmedString(4000),
+  actionNote:      optionalTrimmedString(4000),
 }).strip();
 
 export const querySchema = z.object({
