@@ -1674,6 +1674,7 @@ model Axis {
   weight    Float    @default(0)  // وزن المحور %
   order     Int      @default(0)  // ترتيب العرض
   goals     StrategicGoal[]
+  indicators Indicator[]          // المؤشرات المرتبطة بهذا المحور
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
@@ -1708,6 +1709,10 @@ model Indicator {
   objectiveId      String?
   objective        Objective?  @relation(fields: [objectiveId], references: [id])
 
+  // ربط بمحور BSC
+  axisId           String?
+  axis             Axis?       @relation(fields: [axisId], references: [id], onDelete: SetNull)
+
   // المالكون
   ownerId          String?
   owner            User?       @relation("IndicatorOwner",    fields: [ownerId],          references: [id])
@@ -1724,6 +1729,7 @@ model Indicator {
   deletedAt        DateTime?
 
   @@index([objectiveId])
+  @@index([axisId])
   @@index([ownerId])
   @@index([deletedAt])
 }
