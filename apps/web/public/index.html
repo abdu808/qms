@@ -2932,6 +2932,25 @@
                         <div class="text-xs text-gray-600">وثائق منشورة</div>
                       </div>
                     </div>
+                    <!-- مؤشرات الامتثال — مهام المتابعة وملاحظات التدقيق -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+                      <div class="bg-violet-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-violet-700" x-text="myWork.exec.followUpTasks?.pending || 0"></div>
+                        <div class="text-xs text-gray-600">مهام متابعة معلّقة</div>
+                      </div>
+                      <div class="bg-red-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-red-700" x-text="myWork.exec.followUpTasks?.overdue || 0"></div>
+                        <div class="text-xs text-gray-600">مهام متأخرة</div>
+                      </div>
+                      <div class="bg-sky-50 rounded p-3 text-center">
+                        <div class="text-2xl font-bold text-sky-700" x-text="myWork.exec.auditFindings?.open || 0"></div>
+                        <div class="text-xs text-gray-600">ملاحظات تدقيق مفتوحة</div>
+                      </div>
+                      <div class="bg-pink-50 rounded p-3 text-center" title="MAJOR_NC غير مغلقة — عدم مطابقات رئيسية تحتاج معالجة">
+                        <div class="text-2xl font-bold text-pink-700" x-text="myWork.exec.auditFindings?.critical || 0"></div>
+                        <div class="text-xs text-gray-600">MAJOR_NC مفتوحة</div>
+                      </div>
+                    </div>
                     <template x-if="myWork.exec.mgmtReview">
                       <div class="mt-3 text-xs text-gray-600 bg-gray-50 rounded p-2">
                         🗓️ آخر مراجعة إدارية: <b x-text="myWork.exec.mgmtReview.meetingDate ? new Date(myWork.exec.mgmtReview.meetingDate).toLocaleDateString('ar-SA') : '—'"></b>
@@ -3487,9 +3506,11 @@
                   </table>
                 </div>
 
-                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 text-sm">
-                  <div class="font-bold text-amber-800 mb-1">💡 ملاحظة</div>
-                  <div class="text-amber-700">هذا التقرير يعكس جاهزية البيانات المدخلة في النظام. الاعتماد الفعلي للأيزو يتطلب أيضاً: تنفيذ فعلي على أرض الواقع، دليل جودة موثق، ومراجعة من جهة مانحة معتمدة.</div>
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 text-sm flex items-start gap-2">
+                  <span class="flex-shrink-0">💡</span>
+                  <div class="text-amber-700">يعكس هذا التقرير جاهزية البيانات المُدخلة فقط — الاعتماد الفعلي يتطلب تنفيذاً ميدانياً ومراجعة جهة مانحة.
+                    <a @click.prevent="goToResource('userGuide')" href="#" class="underline text-amber-900 font-medium mr-1">دليل الاستخدام ←</a>
+                  </div>
                 </div>
               </div>
             </template>
@@ -5493,9 +5514,10 @@
               <!-- ── Footer buttons ───────────────────────────── -->
               <div class="flex gap-3 mt-6 pt-4 border-t border-gray-100">
                 <button type="submit"
-                  class="flex-1 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm shadow-brand-200">
-                  <span>💾</span>
-                  <span x-text="modal.mode==='edit' ? 'حفظ التعديلات' : 'إضافة السجل'"></span>
+                  :disabled="modal.saving"
+                  class="flex-1 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm shadow-brand-200 disabled:opacity-60 disabled:cursor-not-allowed">
+                  <span x-text="modal.saving ? '⏳' : '💾'"></span>
+                  <span x-text="modal.saving ? 'جارٍ الحفظ…' : 'حفظ'"></span>
                 </button>
                 <button type="button" @click="tryCloseModal()"
                   class="px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
@@ -5909,9 +5931,9 @@
         </table>
       </div>
 
-      <div class="bg-gray-50 border-t px-6 py-3 text-xs text-gray-500">
-        💡 الروابط شخصية — كل رابط يُسجِّل الإقرار باسم صاحبه مع IP وتاريخ.
-        استخدم "📱" لفتح واتساب ورسالة جاهزة.
+      <div class="bg-gray-50 border-t px-6 py-3 text-xs text-gray-500 flex items-center justify-between gap-4">
+        <span>💡 كل رابط شخصي — يُسجِّل الإقرار باسم صاحبه. استخدم "📱" لإرسال واتساب.</span>
+        <a @click.prevent="goToResource('userGuide')" href="#" class="text-blue-600 hover:underline whitespace-nowrap">دليل الاستخدام ←</a>
       </div>
     </div>
   </div>

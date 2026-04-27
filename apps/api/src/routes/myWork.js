@@ -272,7 +272,9 @@ router.get('/', asyncHandler(async (req, res) => {
   let execBlock = null;
   if (viewMode === 'EXEC') {
     try {
-      const [objectives, risks, complaintsAll, ncrsAll, documents, mgmtReview] = await Promise.all([
+        const nowExec = new Date();
+      const [objectives, risks, complaintsAll, ncrsAll, documents, mgmtReview,
+             futPending, futOverdue, afOpen, afCritical] = await Promise.all([
         prisma.objective.groupBy({
           by: ['status'], _count: { id: true }, where: activeWhere({}),
         }),
@@ -291,6 +293,10 @@ router.get('/', asyncHandler(async (req, res) => {
           orderBy: { meetingDate: 'desc' },
           select: { id: true, meetingDate: true, status: true },
         }).catch(() => null),
+        prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] } } }).catch(() => 0),
+        prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] }, dueDate: { lt: nowExec } } }).catch(() => 0),
+        prisma.auditFinding.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_REVIEW'] } } }).catch(() => 0),
+        prisma.auditFinding.count({ where: { deletedAt: null, type: 'MAJOR_NC', status: { not: 'CLOSED' } } }).catch(() => 0),
       ]);
 
       const objByStatus = Object.fromEntries(objectives.map(r => [r.status, r._count.id]));
@@ -317,6 +323,8 @@ router.get('/', asyncHandler(async (req, res) => {
         },
         documents: { published: documents },
         mgmtReview,
+        followUpTasks: { pending: futPending, overdue: futOverdue },
+        auditFindings: { open: afOpen, critical: afCritical },
       };
     } catch { /* non-fatal */ }
   }

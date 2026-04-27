@@ -19,12 +19,18 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
     months.push({ start, end, label: start.toLocaleDateString('ar-SA', { month: 'short', year: '2-digit' }) });
   }
 
+  const now = new Date();
+
   // جمع كل البيانات بالتوازي
   const [
     ncrByStatus,
     complaintsByStatus,
     riskDistribution,
     objectivesAll,
+    futPending,
+    futOverdue,
+    afOpen,
+    afCritical,
     ...monthData
   ] = await Promise.all([
     // NCR by status
@@ -35,6 +41,14 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
     prisma.risk.groupBy({ by: ['level'], _count: { id: true }, where: activeWhere({ status: { not: 'CLOSED' } }) }),
     // Objectives
     prisma.objective.groupBy({ by: ['status'], _count: { id: true }, where: activeWhere() }),
+    // FollowUpTask — pending (OPEN | IN_PROGRESS)
+    prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+    // FollowUpTask — overdue (pending + dueDate passed)
+    prisma.followUpTask.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_PROGRESS'] }, dueDate: { lt: now } } }),
+    // AuditFinding — open (OPEN | IN_REVIEW)
+    prisma.auditFinding.count({ where: { deletedAt: null, status: { in: ['OPEN', 'IN_REVIEW'] } } }),
+    // AuditFinding — critical (MAJOR_NC not CLOSED)
+    prisma.auditFinding.count({ where: { deletedAt: null, type: 'MAJOR_NC', status: { not: 'CLOSED' } } }),
     // Month data (6 أشهر × 3 استعلامات = 18 استعلام بالتوازي)
     ...months.flatMap(m => [
       prisma.objective.count({ where: activeWhere({ status: 'ACHIEVED', updatedAt: { gte: m.start, lt: m.end } }) }),
@@ -77,6 +91,8 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
     riskDistribution:   riskDistribution.map(r => ({ level: r.level || 'غير محدد', count: r._count.id })),
     objectivesAchievement,
     totals: { objectives: objTotal, ncrs: ncrTotal, complaints: cmpTotal },
+    followUpTasks: { pending: futPending, overdue: futOverdue },
+    auditFindings: { open: afOpen, critical: afCritical },
   });
 }));
 
