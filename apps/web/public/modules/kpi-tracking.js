@@ -15,7 +15,7 @@
       matrix: null,
       alerts: [],
       detail: null,
-      entryForm: { kind: 'objective', id: '', actualValue: '', spent: '', note: '', evidenceUrl: '' },
+      entryForm: { kind: 'objective', id: '', actualValue: '', spent: '', note: '', evidenceUrl: '', deviationReason: '', actionNote: '' },
       objectivesList: [],
       activitiesList: [],
       loading: false,
@@ -148,11 +148,13 @@
         actualValue: Number(f.actualValue),
         spent: f.spent !== '' ? Number(f.spent) : null,
         note: f.note || null, evidenceUrl: f.evidenceUrl || null,
+        deviationReason: f.deviationReason?.trim() || null,
+        actionNote:      f.actionNote?.trim()      || null,
       };
       try {
         await this.api('POST', '/kpi/entries', body);
         this.toast('تم حفظ القيمة الفعلية', 'success');
-        this.kpi.entryForm = { ...this.kpi.entryForm, actualValue: '', spent: '', note: '', evidenceUrl: '' };
+        this.kpi.entryForm = { ...this.kpi.entryForm, actualValue: '', spent: '', note: '', evidenceUrl: '', deviationReason: '', actionNote: '' };
       } catch (e) { this.toast('فشل الحفظ: ' + (e.message || 'خطأ'), 'error'); }
     },
 
@@ -167,10 +169,12 @@
       this.kpi.entryForm = {
         kind: row.kind,
         id:   row.id,
-        actualValue: '',
-        spent: '',
-        note: '',
-        evidenceUrl: '',
+        actualValue:     '',
+        spent:           '',
+        note:            '',
+        evidenceUrl:     '',
+        deviationReason: '',
+        actionNote:      '',
       };
       this.kpi.view = 'entry';
     },

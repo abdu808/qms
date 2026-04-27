@@ -39,7 +39,7 @@
         // إعادة تعيين الأب لتفعيل Alpine reactivity على مفاتيح ديناميكية
         this._kpiDraft = {
           ...this._kpiDraft,
-          [id]: { actualValue: '', spent: '', busy: false, lastImpact: null },
+          [id]: { actualValue: '', spent: '', deviationReason: '', actionNote: '', busy: false, lastImpact: null },
         };
       }
       return this._kpiDraft[id];
@@ -62,6 +62,8 @@
         else if (item.kind === 'indicator') body.indicatorId = item.id;
         else                                 body.activityId  = item.id;
         if (draft.spent != null && draft.spent !== '') body.spent = Number(draft.spent);
+        if (draft.deviationReason?.trim()) body.deviationReason = draft.deviationReason.trim();
+        if (draft.actionNote?.trim())      body.actionNote      = draft.actionNote.trim();
 
         const res = await this.api('POST', '/kpi/entries', body);
         const newProgress = res?.rollup?.progress;

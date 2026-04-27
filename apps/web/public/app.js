@@ -1471,7 +1471,12 @@ function app() {
           // خزّن الحمولة وافتح مودال التوقيع
           const pendingSave = async () => {
             try {
-              await this.api('PUT', `/${mod.endpoint}/${payload.id}`, payload);
+              // Management review completion uses dedicated atomic endpoint (ISO 9.3.3)
+              if (this.page === 'managementReview' && sigCfg.status === 'COMPLETED') {
+                await this.api('POST', `/${mod.endpoint}/${payload.id}/complete`, payload);
+              } else {
+                await this.api('PUT', `/${mod.endpoint}/${payload.id}`, payload);
+              }
               this.modal.open = false;
               this._modalInitialSnapshot = null;
               this.toast('✅ تم حفظ التعديلات بعد التوقيع', 'success');
