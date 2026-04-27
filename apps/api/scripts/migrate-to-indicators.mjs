@@ -178,7 +178,7 @@ async function main() {
         // 3. تحديث KpiEntry.indicatorId للقراءات الموجودة
         const updated = await tx.kpiEntry.updateMany({
           where: { objectiveId: obj.id, indicatorId: null },
-          data: { indicatorId: indicator.id },
+          data: { indicatorId: indicator.id, objectiveId: null },
         });
         console.log(`   ✅ KpiEntries محدَّثة: ${updated.count}`);
       });
