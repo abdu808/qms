@@ -71,7 +71,7 @@ export const MATRIX = {
   'strategic-goals':{ read: ANY,        create: QM_UP, update: QM_UP, delete: QM_UP },
 
   // ── Planning (ISO clause 6) ──────────────────────────────────────
-  objectives:       { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
+  objectives:       { read: ANY, create: QM_UP, update: MANAGER_UP, delete: QM_UP },
   risks:            { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP },
   swot:             { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
   'interested-parties': { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
@@ -95,7 +95,7 @@ export const MATRIX = {
   communication:    { read: ANY, create: MANAGER_UP,  update: MANAGER_UP,  delete: QM_UP },
 
   // ── Operation (ISO 8) ────────────────────────────────────────────
-  'operational-activities': { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP },
+  'operational-activities': { read: ANY, create: QM_UP, update: MANAGER_UP, delete: QM_UP },
   suppliers:        { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP },
   'supplier-evals': { read: ANY, create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
 
@@ -132,10 +132,11 @@ export const MATRIX = {
   alerts:           { read: MANAGER_UP },
 
   // ── Strategic Planning v2 (BSC / Indicator model) ────────────────
-  'axes':            { read: ANY,        create: QM_UP,       update: QM_UP,      delete: QM_UP },
-  'indicators':      { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
-  'annual-targets':  { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
-  'initiatives':     { read: ANY,        create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
+  'axes':            { read: ANY,        create: SA,          update: SA,         delete: SA    },
+  'indicators':      { read: ANY,        create: QM_UP,       update: QM_UP,      delete: QM_UP },
+  'annual-targets':  { read: ANY,        create: QM_UP,       update: QM_UP,      delete: QM_UP },
+  'initiatives':     { read: ANY,        create: QM_UP,       update: MANAGER_UP, delete: QM_UP },
+  'change-requests': { read: ANY,        create: MANAGER_UP,  update: SA,         delete: SA, approve: QM_UP },
   'funding-sources': { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
   'funding-plans':   { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
   'plan-versions':   { read: ANY,        create: QM_UP,       update: SA,         delete: SA    },

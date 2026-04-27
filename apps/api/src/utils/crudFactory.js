@@ -39,6 +39,10 @@ export function crudRouter(opts) {
     // Zod schemas موحّدة (المرحلة 2 — طبقة تحقق رسمية).
     // { create?, update? } — يُنفَّذ قبل beforeCreate/beforeUpdate.
     schemas,
+    // Field-Level Security: حقول مقفولة لأدوار محددة على UPDATE.
+    // مثال: { DEPT_MANAGER: ['title','target'], EMPLOYEE: ['title'] }
+    // إذا حاول الدور تعديل حقل مقفل، يُحذف بصمت من الـ payload قبل التحقق.
+    lockedFieldsForRole,
   } = opts;
 
   const createValidator = schemas?.create ? runSchema(schemas.create) : null;
@@ -203,6 +207,15 @@ export function crudRouter(opts) {
   // ── UPDATE ───────────────────────────────────────────────────────
   router.put('/:id', gate('update'), asyncHandler(async (req, res) => {
     let data = stripProtected({ ...req.body });
+    // Field-Level Security: حذف الحقول المقفولة للدور قبل الـ validate
+    if (lockedFieldsForRole && req.user?.role) {
+      const lockedFields = lockedFieldsForRole[req.user.role];
+      if (Array.isArray(lockedFields)) {
+        for (const field of lockedFields) {
+          if (field in data) delete data[field];
+        }
+      }
+    }
     if (updateValidator) data = updateValidator(data, req);
     if (beforeUpdate) data = await beforeUpdate(data, req);
     // Optimistic locking: if beforeUpdate sets __expectedVersion, use it as a where guard.
@@ -230,6 +243,15 @@ export function crudRouter(opts) {
 
   router.patch('/:id', gate('update'), asyncHandler(async (req, res) => {
     let data = stripProtected({ ...req.body });
+    // Field-Level Security: حذف الحقول المقفولة للدور قبل الـ validate
+    if (lockedFieldsForRole && req.user?.role) {
+      const lockedFields = lockedFieldsForRole[req.user.role];
+      if (Array.isArray(lockedFields)) {
+        for (const field of lockedFields) {
+          if (field in data) delete data[field];
+        }
+      }
+    }
     if (updateValidator) data = updateValidator(data, req);
     if (beforeUpdate) data = await beforeUpdate(data, req);
     // Optimistic locking: if beforeUpdate sets __expectedVersion, use it as a where guard.

@@ -14,7 +14,7 @@ import express from 'express';
 import { prisma } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireAction } from '../lib/permissions.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
+import { BadRequest, NotFound, Forbidden } from '../utils/errors.js';
 import { evaluateKpi, expectedByMonth, actualByMonth, ragStatus, achievementRatio, forecastYearEnd, detectAlerts } from '../lib/kpi-engine.js';
 import { createSchema as kpiCreateSchema } from '../schemas/kpiEntry.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
@@ -341,6 +341,62 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
       },
       pending, entered,
     });
+  } catch (e) { next(e); }
+});
+
+// ─── KpiEntry Approval Workflow ──────────────────────────────
+// DRAFT → SUBMITTED → APPROVED | REJECTED
+// المُدخِل يقدّم القراءة، والمدير/QM يعتمد أو يرفض.
+
+router.post('/entries/:id/submit', requireAction('kpi', 'update'), async (req, res, next) => {
+  try {
+    const entry = await prisma.kpiEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry) throw NotFound();
+    if (entry.enteredById !== req.user.sub && !['QUALITY_MANAGER', 'SUPER_ADMIN'].includes(req.user?.role)) {
+      throw Forbidden('يمكنك تقديم قراءاتك فقط');
+    }
+    if (entry.entryStatus !== 'DRAFT') throw BadRequest('القراءة ليست في حالة DRAFT');
+    const updated = await prisma.kpiEntry.update({
+      where: { id: entry.id },
+      data: { entryStatus: 'SUBMITTED', submittedAt: new Date() },
+    });
+    res.json({ ok: true, item: updated });
+  } catch (e) { next(e); }
+});
+
+router.post('/entries/:id/approve', requireAction('kpi', 'update'), async (req, res, next) => {
+  try {
+    const entry = await prisma.kpiEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry) throw NotFound();
+    if (!['SUBMITTED', 'DRAFT'].includes(entry.entryStatus)) throw BadRequest('القراءة ليست قابلة للاعتماد');
+    const role = req.user?.role;
+    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(role)) {
+      throw Forbidden('فقط المدير أو QM يستطيع الاعتماد');
+    }
+    const updated = await prisma.kpiEntry.update({
+      where: { id: entry.id },
+      data: { entryStatus: 'APPROVED', approvedById: req.user.sub, approvedAt: new Date(), rejectionReason: null },
+    });
+    res.json({ ok: true, item: updated });
+  } catch (e) { next(e); }
+});
+
+router.post('/entries/:id/reject', requireAction('kpi', 'update'), async (req, res, next) => {
+  try {
+    const reason = req.body?.reason?.trim();
+    if (!reason) throw BadRequest('سبب الرفض مطلوب');
+    const entry = await prisma.kpiEntry.findUnique({ where: { id: req.params.id } });
+    if (!entry) throw NotFound();
+    if (entry.entryStatus !== 'SUBMITTED') throw BadRequest('القراءة ليست في حالة SUBMITTED');
+    const role = req.user?.role;
+    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(role)) {
+      throw Forbidden('فقط المدير أو QM يستطيع الرفض');
+    }
+    const updated = await prisma.kpiEntry.update({
+      where: { id: entry.id },
+      data: { entryStatus: 'REJECTED', rejectionReason: reason, approvedById: req.user.sub, approvedAt: new Date() },
+    });
+    res.json({ ok: true, item: updated });
   } catch (e) { next(e); }
 });
 

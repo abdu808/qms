@@ -21,6 +21,11 @@ const crud = crudRouter({
   allowedSortFields: ['createdAt', 'score', 'status'],
   allowedFilters: ['status', 'level', 'departmentId', 'ownerId', 'workflowState'],
   schemas: { create: riskCreateSchema, update: riskUpdateSchema },
+  // Field-Level Security: الموظف ينشئ المخاطرة لكنه لا يعدّل الحقول الحاكمة لاحقاً
+  lockedFieldsForRole: {
+    EMPLOYEE: ['title','description','type','source','probability','impact','strategicGoalId'],
+    DEPT_MANAGER: ['strategicGoalId'],
+  },
   beforeCreate: async (data, req) => {
     const p = Math.min(5, Math.max(1, Number(data.probability) || 1));
     const i = Math.min(5, Math.max(1, Number(data.impact) || 1));

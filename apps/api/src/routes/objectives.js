@@ -11,6 +11,11 @@ export default crudRouter({
   allowedSortFields: ['createdAt', 'dueDate', 'status', 'progress'],
   allowedFilters: ['status', 'departmentId', 'ownerId'],
   schemas: { create: objCreateSchema, update: objUpdateSchema },
+  // Field-Level Security: مدير القسم/الموظف لا يعدّلان الحقول الحاكمة (تتطلب Change Request)
+  lockedFieldsForRole: {
+    DEPT_MANAGER: ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
+    EMPLOYEE:     ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
+  },
   // RBAC: مسؤول القسم → قسمه فقط | الموظف → ما كُلِّف به فقط
   scopeFilter: (req) => {
     const { role, departmentId, sub } = req.user || {};

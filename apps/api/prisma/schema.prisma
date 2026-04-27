@@ -90,6 +90,12 @@ model User {
   ownedInitiatives     Initiative[]          @relation("InitiativeOwner")
   planVersionsCreated  StrategicPlanVersion[] @relation("PlanVersionCreator")
 
+  // ── Governance back-relations ────────────────────
+  changeRequestsRequested ChangeRequest[] @relation("ChangeRequestRequester")
+  changeRequestsReviewed  ChangeRequest[] @relation("ChangeRequestReviewer")
+  plansFrozen             StrategicPlan[] @relation("PlanFreezer")
+  kpiEntriesApproved      KpiEntry[]      @relation("KpiEntryApprover")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -900,6 +906,12 @@ model StrategicPlan {
   fundingPlans FundingPlan[]
   versions     StrategicPlanVersion[]
 
+  // Plan Freeze
+  frozenAt        DateTime?
+  frozenById      String?
+  frozenBy        User?    @relation("PlanFreezer", fields: [frozenById], references: [id])
+  freezeReason    String?  @db.Text
+
   @@index([status])
   @@index([deletedAt])
 }
@@ -1015,6 +1027,14 @@ model KpiEntry {
   enteredBy    User      @relation("KpiEnteredBy", fields: [enteredById], references: [id])
   enteredAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  // Approval Workflow
+  entryStatus     String    @default("DRAFT")
+  submittedAt     DateTime?
+  approvedById    String?
+  approvedBy      User?     @relation("KpiEntryApprover", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?   @db.Text
 
   @@unique([objectiveId, year, month])
   @@unique([activityId, year, month])
@@ -1968,4 +1988,40 @@ model InvestigationFlag {
   @@index([status])
   @@index([type])
   @@index([reportId])
+}
+
+// =====================================================
+// GOVERNANCE — Change Request System
+// =====================================================
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ChangeRequest {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  resource       String
+  resourceId     String
+  resourceTitle  String?
+  fieldName      String
+  oldValue       String?  @db.Text
+  newValue       String   @db.Text
+  reason         String   @db.Text
+  status         ChangeRequestStatus @default(PENDING)
+  requestedById  String
+  requestedBy    User     @relation("ChangeRequestRequester", fields: [requestedById], references: [id])
+  reviewedById   String?
+  reviewedBy     User?    @relation("ChangeRequestReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewerNote   String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status])
+  @@index([resource, resourceId])
+  @@index([requestedById])
 }

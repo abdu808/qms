@@ -19,4 +19,9 @@ export default crudRouter({
     if (role === 'EMPLOYEE') return { OR: [{ ownerId: sub }, { deptId: departmentId }] };
     return {};
   },
+  // Field-Level Security: تعديل البيانات الحاكمة محصور بالـ QM (يتم عبر Change Request)
+  lockedFieldsForRole: {
+    DEPT_MANAGER: ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction'],
+    EMPLOYEE:     ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction','ownerId','deptId'],
+  },
 });

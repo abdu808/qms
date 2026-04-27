@@ -4,7 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { activeWhere } from '../lib/dataHelpers.js';
-import { NotFound } from '../utils/errors.js';
+import { NotFound, BadRequest, Forbidden } from '../utils/errors.js';
 import { createSchema, updateSchema } from '../schemas/strategicPlan.schema.js';
 
 const base = crudRouter({
@@ -83,6 +83,44 @@ router.post('/:id/activate', requireAction('strategic-plans', 'update'), asyncHa
   ]);
 
   res.json({ ok: true, plan: activated });
+}));
+
+/**
+ * POST /api/strategic-plans/:id/freeze
+ * تجميد الخطة — يمنع تعديل بياناتها (يُعتمد لاحقاً على middleware عند التوسعة).
+ * يتطلب صلاحية approve على strategic-plans (QM_UP).
+ */
+router.post('/:id/freeze', requireAction('strategic-plans', 'approve'), asyncHandler(async (req, res) => {
+  const reason = req.body?.reason?.trim();
+  if (!reason) throw BadRequest('سبب التجميد مطلوب');
+  const plan = await prisma.strategicPlan.findUnique({ where: { id: req.params.id } });
+  if (!plan) throw NotFound();
+  if (plan.frozenAt) throw BadRequest('الخطة مُجمَّدة بالفعل');
+  const updated = await prisma.strategicPlan.update({
+    where: { id: req.params.id },
+    data: { frozenAt: new Date(), frozenById: req.user.sub, freezeReason: reason },
+  });
+  res.json({ ok: true, item: updated });
+}));
+
+/**
+ * POST /api/strategic-plans/:id/unfreeze
+ * فك التجميد — SUPER_ADMIN فقط.
+ */
+router.post('/:id/unfreeze', asyncHandler(async (req, res, next) => {
+  if (req.user?.role !== 'SUPER_ADMIN') {
+    return next(Forbidden('فك التجميد يتطلب صلاحية المدير الأعلى'));
+  }
+  const reason = req.body?.reason?.trim();
+  if (!reason) throw BadRequest('سبب فك التجميد مطلوب');
+  const plan = await prisma.strategicPlan.findUnique({ where: { id: req.params.id } });
+  if (!plan) throw NotFound();
+  if (!plan.frozenAt) throw BadRequest('الخطة ليست مُجمَّدة');
+  const updated = await prisma.strategicPlan.update({
+    where: { id: req.params.id },
+    data: { frozenAt: null, frozenById: null, freezeReason: null },
+  });
+  res.json({ ok: true, item: updated });
 }));
 
 router.use('/', base);

@@ -380,4 +380,41 @@ window.QMS_MODULES_PLANNING = {
       { key: 'notes',              label: 'ملاحظات', type: 'textarea' },
     ],
   },
+
+  changeRequests: {
+    endpoint: 'change-requests',
+    exportable: true,
+    statusOptions: [
+      { v: '', l: 'كل الحالات' },
+      { v: 'PENDING',   l: 'قيد المراجعة' },
+      { v: 'APPROVED',  l: 'مُعتَمَد' },
+      { v: 'REJECTED',  l: 'مرفوض' },
+      { v: 'CANCELLED', l: 'مُلغى' },
+    ],
+    cols: [
+      { key: 'code',                label: 'الرمز' },
+      { key: 'resource',            label: 'المورد' },
+      { key: 'resourceTitle',       label: 'عنوان السجل' },
+      { key: 'fieldName',           label: 'الحقل' },
+      { key: 'newValue',            label: 'القيمة المقترحة' },
+      { key: 'requestedBy.name',    label: 'الطالب' },
+      { key: 'status',              label: 'الحالة', type: 'status' },
+    ],
+    fields: [
+      { key: 'resource', label: 'نوع المورد', required: true, type: 'select', options: [
+        { v: 'indicators',              l: 'مؤشرات' },
+        { v: 'objectives',              l: 'أهداف تشغيلية' },
+        { v: 'annual-targets',          l: 'مستهدفات سنوية' },
+        { v: 'initiatives',             l: 'مبادرات' },
+        { v: 'operational-activities',  l: 'أنشطة تشغيلية' },
+        { v: 'risks',                   l: 'مخاطر' },
+        { v: 'strategic-goals',         l: 'أهداف استراتيجية' },
+      ]},
+      { key: 'resourceId', label: 'معرّف السجل (ID)', required: true, hint: 'انسخ ID من شاشة السجل المراد تعديله — مثال: cmofmkhh40072ugzukux0ohlc' },
+      { key: 'fieldName',  label: 'اسم الحقل', required: true, hint: 'مثال: targetValue, kpi, target, name, weight' },
+      { key: 'oldValue',   label: 'القيمة الحالية', hint: 'اختياري — للمرجع' },
+      { key: 'newValue',   label: 'القيمة المقترحة', required: true },
+      { key: 'reason',     label: 'سبب الطلب', type: 'textarea', required: true, hint: 'اشرح لماذا تطلب هذا التعديل — يصل لمدير الجودة للمراجعة' },
+    ],
+  },
 };
