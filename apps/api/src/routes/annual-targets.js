@@ -32,14 +32,16 @@ const base = crudRouter({
           data: {
             userId: req.user.sub,
             action: 'UPDATE_ANNUAL_TARGET',
-            resource: 'annual-targets',
-            resourceId: existing.id,
-            details: {
+            entityType: 'annual-targets',
+            entityId: existing.id,
+            changesJson: JSON.stringify({
               oldValue: existing.targetValue,
               newValue: data.targetValue,
               year: existing.year,
               reason: data.modificationReason,
-            },
+            }),
+            ipAddress: req.ip || null,
+            userAgent: req.get?.('user-agent') || null,
           },
         });
       }
