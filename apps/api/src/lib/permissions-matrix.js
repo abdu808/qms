@@ -114,6 +114,14 @@ export const MATRIX = {
   // organization-wide aggregates (financials, PII, risks). The snapshot has no
   // departmental scope (it's an aggregate by design), so we restrict to QM+
   // rather than try to scope-filter every cross-cut query.
+  //
+  // COMMITTEE_MEMBER POLICY (audit decision 2026-04-27):
+  //   - Excluded here from /management-review-snapshot — it's a top-management
+  //     financial+PII summary, outside quality-committee scope.
+  //   - Retains full read on /api/integration/* aggregators and on AI
+  //     get_system_state (committee role IS cross-departmental review per
+  //     ISO 9001 §5.1.2 / §9.3).
+  //   - Cannot execute any AI write tool (committee reviews; QM approves).
   'management-review': { read: QM_UP, create: QM_UP, update: QM_UP, delete: QM_UP },
   // تقارير التقدّم الشهرية (المحقق الشهري) — DEPT_MANAGER يملأ قسمه، QM يُعتمد
   'progress-reports': { read: MANAGER_UP, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP, approve: QM_UP },
