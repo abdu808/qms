@@ -216,6 +216,44 @@
 
 ---
 
+## 🏗️ التخطيط الاستراتيجي v2 — حالة المراحل
+
+> آخر تحديث: 2026-04-28 | تقرير الجاهزية النهائي
+
+| المرحلة | الوصف | الحالة | التاريخ |
+|---------|-------|--------|---------|
+| Phase 1 | Schema: Axis, Indicator, AnnualTarget, Initiative, FundingSource, FundingPlan, StrategicPlanVersion | ✅ مكتمل على main | — |
+| Phase 2 | rollup.js: recomputeIndicator + kpiEntry.schema (indicatorId) | ✅ مكتمل على main | — |
+| Phase 3 | Routes × 7: axes, indicators, annual-targets, initiatives, funding-sources, funding-plans, plan-versions | ✅ مكتمل على main | — |
+| Phase 4 | kpi.js: دعم indicatorId في كل endpoints (entries, preview, matrix, dashboard, alerts) | ✅ مكتمل على main | — |
+| Phase 5 | Permissions + Server mounts + AI tools (create_indicator, update_indicator, create_initiative) + planning.js | ✅ مكتمل على main | — |
+| Phase 6 | **ترحيل البيانات: Objective.kpi → Indicator** | ✅ **مكتمل على production** | **2026-04-28** |
+
+### Phase 6 — نتائج الترحيل الفعلي على production
+
+| المقياس | النتيجة | الحالة |
+|---------|---------|--------|
+| Indicators مُنشأة | 13 / 13 | ✅ |
+| AnnualTargets (سنة 2026 لكل indicator) | 13 / 13 | ✅ |
+| KpiEntries مُرتبطة بـ indicatorId | 2 | ✅ |
+| KpiEntries اليتيمة (بدون أي FK) | 0 | ✅ |
+| صفوف بـ objectiveId+indicatorId معاً | 0 | ✅ |
+| AnnualTarget مكررة | 0 | ✅ |
+| Idempotency (إعادة تشغيل) | 13 متخطاة، 0 مُنشأة | ✅ |
+
+### Phase 6 — التحقق من البيانات
+
+| الفحص | النتيجة |
+|-------|---------|
+| GET /api/indicators (محاكاة DB) | 13 indicators، كل منها مرتبط بـ Objective + AnnualTarget |
+| GET /api/annual-targets (محاكاة DB) | 13 targets، جميعها لسنة 2026 |
+| GET /api/kpi/entries (محاكاة DB) | 2 entries، كلاهما عبر indicatorId=IND-2026-014 |
+| OBJ-2026-001 entries | objectiveId=null، indicatorId=IND-2026-014 ✅ |
+
+> **UI verification:** يتطلب تسجيل دخول يدوي على https://quality.aqiltech.sa للتحقق من شاشة المؤشرات والمستهدفات السنوية.
+
+---
+
 ## 📊 ملخص حالة الوحدات
 
 | الوحدة | الحالة | مشاكل حرجة | تحسينات مطلوبة |
