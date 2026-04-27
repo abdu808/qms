@@ -139,10 +139,13 @@ export const TOOL_PERMISSIONS = {
   create_management_review:   { resource: 'management-review', action: 'create' },
   update_management_review:   { resource: 'management-review', action: 'update' },
 
-  // ── المؤشرات + المبادرات (الخطة الاستراتيجية v2) ────────
-  create_indicator:           { resource: 'indicators', action: 'create' },
-  update_indicator:           { resource: 'indicators', action: 'update' },
-  create_initiative:          { resource: 'initiatives', action: 'create' },
+  // ── المؤشرات + المستهدفات + المبادرات (الخطة الاستراتيجية v2) ──
+  create_indicator:           { resource: 'indicators',     action: 'create' },
+  update_indicator:           { resource: 'indicators',     action: 'update' },
+  create_annual_target:       { resource: 'annual-targets', action: 'create' },
+  update_annual_target:       { resource: 'annual-targets', action: 'update' },
+  create_initiative:          { resource: 'initiatives',    action: 'create' },
+  update_initiative:          { resource: 'initiatives',    action: 'update' },
 
   // ── التدريب ─────────────────────────────────────────────
   schedule_training:          { resource: 'training', action: 'create' },
@@ -239,6 +242,9 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
   'create_indicator',
   'update_indicator',
   'create_initiative',
+  'update_initiative',
+  'create_annual_target',
+  'update_annual_target',
 ]);
 
 const ALL_TOOLS = [
@@ -254,7 +260,7 @@ const ALL_TOOLS = [
 - الفجوات والمشاكل الحالية
 - الرد على "تحقق" / "ماذا في النظام"
 
-الخيارات: plans, goals, activities, objectives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")
+الخيارات: plans, goals, activities, objectives, axes, indicators, annualTargets, initiatives, users, departments, risks, ncrs, capas, audits, complaints, swot, management_reviews, interested_parties, suppliers, trainings, gaps (أو كلها بـ "all")
 limit: عدد السجلات لكل قسم (افتراضي 50، أقصى 200) — استخدم قيمة أصغر لتسريع الاستجابة
 offset: للصفحات التالية (0, 50, 100...)`,
     input_schema: {
@@ -264,9 +270,9 @@ offset: للصفحات التالية (0, 50, 100...)`,
           type: 'array',
           items: {
             type: 'string',
-            enum: ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
+            enum: ['plans','goals','activities','objectives','axes','indicators','annualTargets','initiatives','users','departments','risks','ncrs','capas','audits','complaints','swot','management_reviews','interested_parties','suppliers','trainings','gaps','all'],
           },
-          description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps) — أضف "axes" للمحاور، "indicators" للمؤشرات',
+          description: 'الأقسام المطلوبة (افتراضي: goals, activities, objectives, gaps) — أضف "axes" للمحاور، "indicators" للمؤشرات، "annualTargets" للمستهدفات السنوية، "initiatives" للمبادرات',
         },
         limit:  { type: 'number', description: 'حد السجلات لكل قسم (افتراضي 50، أقصى 200)' },
         offset: { type: 'number', description: 'تخطي N سجل للصفحة التالية (افتراضي 0)' },
@@ -1291,6 +1297,69 @@ CAPAs منتهية الأجل بدون إغلاق، CAPAs بدون تحقق من
       required: ['name', 'goalId'],
     },
   },
+
+  {
+    name: 'update_initiative',
+    description: 'حدِّث مبادرة استراتيجية موجودة. استخدم get_system_state sections:[initiatives] أولاً للحصول على id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:           { type: 'string', description: 'CUID المبادرة (من get_system_state sections:[initiatives])' },
+        name:         { type: 'string' },
+        description:  { type: 'string' },
+        ownerId:      { type: 'string' },
+        departmentId: { type: 'string' },
+        startDate:    { type: 'string', description: 'ISO date' },
+        endDate:      { type: 'string', description: 'ISO date' },
+        budget:       { type: 'number' },
+        spent:        { type: 'number', description: 'المبلغ الفعلي المنصرف' },
+        progress:     { type: 'number', description: 'نسبة الإنجاز 0-100' },
+        status:       { type: 'string', enum: ['NOT_STARTED','IN_PROGRESS','COMPLETED','ON_HOLD','CANCELLED'] },
+        notes:        { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
+
+  {
+    name: 'create_annual_target',
+    description: `أنشئ مستهدفاً سنوياً (AnnualTarget) لمؤشر أداء.
+يُكمل السلسلة: Indicator → AnnualTarget → KpiEntry.
+استخدم get_system_state sections:[indicators] أولاً للحصول على indicatorId.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        indicatorId:  { type: 'string', description: 'CUID المؤشر (من get_system_state sections:[indicators])' },
+        year:         { type: 'number', description: 'السنة المستهدفة مثل 2026' },
+        targetValue:  { type: 'number', description: 'القيمة المستهدفة للسنة كاملة' },
+        q1Target:     { type: 'number', description: 'مستهدف الربع الأول (اختياري)' },
+        q2Target:     { type: 'number', description: 'مستهدف الربع الثاني (اختياري)' },
+        q3Target:     { type: 'number', description: 'مستهدف الربع الثالث (اختياري)' },
+        q4Target:     { type: 'number', description: 'مستهدف الربع الرابع (اختياري)' },
+        modificationReason: { type: 'string', description: 'سبب تحديد هذا المستهدف (مطلوب عند التعديل)' },
+      },
+      required: ['indicatorId', 'year', 'targetValue'],
+    },
+  },
+
+  {
+    name: 'update_annual_target',
+    description: `عدِّل مستهدفاً سنوياً موجوداً. يتطلب modificationReason عند تغيير targetValue.
+استخدم get_system_state sections:[annualTargets] أولاً للحصول على id.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:           { type: 'string', description: 'CUID المستهدف السنوي (من get_system_state sections:[annualTargets])' },
+        targetValue:  { type: 'number', description: 'القيمة الجديدة' },
+        q1Target:     { type: 'number' },
+        q2Target:     { type: 'number' },
+        q3Target:     { type: 'number' },
+        q4Target:     { type: 'number' },
+        modificationReason: { type: 'string', description: 'سبب التعديل — مطلوب عند تغيير targetValue' },
+      },
+      required: ['id', 'modificationReason'],
+    },
+  },
 ];
 
 // الوكيل يرى فقط الأدوات التشغيلية/التحليلية — الحذف مخفي للأدوار العادية
@@ -1360,8 +1429,8 @@ export async function executeTool(name, input, ctx) {
       let want = new Set(input.sections || ['goals','activities','objectives','gaps']);
       if (want.has('all')) {
         // 'all' is for QM+ only. Lower roles get a curated safe expansion (no users/departments).
-        const expansionForQmUp     = ['plans','goals','activities','objectives','axes','indicators','users','departments','risks','ncrs','capas','audits','complaints','gaps'];
-        const expansionForManagers = ['plans','goals','activities','objectives','axes','indicators','risks','ncrs','capas','audits','complaints','gaps'];
+        const expansionForQmUp     = ['plans','goals','activities','objectives','axes','indicators','annualTargets','initiatives','users','departments','risks','ncrs','capas','audits','complaints','gaps'];
+        const expansionForManagers = ['plans','goals','activities','objectives','axes','indicators','annualTargets','initiatives','risks','ncrs','capas','audits','complaints','gaps'];
         const expansion = isQmUp ? expansionForQmUp : expansionForManagers;
         want.delete('all');
         expansion.forEach(s => want.add(s));
@@ -1444,6 +1513,35 @@ export async function executeTool(name, input, ctx) {
           },
         });
         result.indicators = { items, total, limit: pgLimit, offset: pgOffset };
+      }
+      if (want.has('annualTargets')) {
+        const total = await prisma.annualTarget.count();
+        const items = await prisma.annualTarget.findMany({
+          orderBy: [{ year: 'desc' }, { indicator: { code: 'asc' } }],
+          take: pgLimit, skip: pgOffset,
+          select: {
+            id: true, year: true, targetValue: true,
+            q1Target: true, q2Target: true, q3Target: true, q4Target: true,
+            modificationReason: true,
+            indicator: { select: { id: true, code: true, nameAr: true, objectiveId: true } },
+          },
+        });
+        result.annualTargets = { items, total, limit: pgLimit, offset: pgOffset };
+      }
+      if (want.has('initiatives')) {
+        const total = await prisma.initiative.count({ where: { deletedAt: null } });
+        const items = await prisma.initiative.findMany({
+          where: { deletedAt: null },
+          orderBy: { code: 'asc' }, take: pgLimit, skip: pgOffset,
+          select: {
+            id: true, code: true, name: true, status: true, progress: true,
+            budget: true, spent: true, startDate: true, endDate: true,
+            goalId: true,
+            goal:   { select: { id: true, code: true, title: true } },
+            owner:  { select: { id: true, name: true } },
+          },
+        });
+        result.initiatives = { items, total, limit: pgLimit, offset: pgOffset };
       }
       if (want.has('users')) {
         result.users = await prisma.user.findMany({
@@ -1574,12 +1672,15 @@ export async function executeTool(name, input, ctx) {
       }
 
       const lines = [];
-      if (result.plans)      lines.push(`${result.plans.length} خطة استراتيجية`);
+      if (result.plans)        lines.push(`${result.plans.length} خطة استراتيجية`);
       // result.goals هو { items:[], total:N, ... } — نستخدم total للملخص
-      if (result.goals)      lines.push(`${result.goals.total ?? result.goals.items?.length ?? 0} أهداف استراتيجية`);
-      if (result.activities) lines.push(`${result.activities.total ?? result.activities.items?.length ?? 0} أنشطة تشغيلية`);
-      if (result.objectives) lines.push(`${result.objectives.total ?? result.objectives.items?.length ?? 0} أهداف تشغيلية`);
-      if (result.risks)      lines.push(`${result.risks.total ?? result.risks.items?.length ?? 0} مخاطر/فرص`);
+      if (result.goals)        lines.push(`${result.goals.total ?? result.goals.items?.length ?? 0} أهداف استراتيجية`);
+      if (result.activities)   lines.push(`${result.activities.total ?? result.activities.items?.length ?? 0} أنشطة تشغيلية`);
+      if (result.objectives)   lines.push(`${result.objectives.total ?? result.objectives.items?.length ?? 0} أهداف تشغيلية`);
+      if (result.indicators)   lines.push(`${result.indicators.total ?? result.indicators.items?.length ?? 0} مؤشر`);
+      if (result.annualTargets)lines.push(`${result.annualTargets.total ?? result.annualTargets.items?.length ?? 0} مستهدف سنوي`);
+      if (result.initiatives)  lines.push(`${result.initiatives.total ?? result.initiatives.items?.length ?? 0} مبادرة`);
+      if (result.risks)        lines.push(`${result.risks.total ?? result.risks.items?.length ?? 0} مخاطر/فرص`);
       if (result.ncrs)       lines.push(`${result.ncrs.total ?? result.ncrs.items?.length ?? 0} NCR`);
       if (result.capas)      lines.push(`${result.capas.total ?? result.capas.items?.length ?? 0} CAPA`);
       if (result.audits)             lines.push(`${result.audits.total ?? result.audits.items?.length ?? 0} تدقيق`);
@@ -3322,6 +3423,69 @@ export async function executeTool(name, input, ctx) {
         if (e.code==='P2002') return { ok:false, error:'الكود مكرر', summary:'فشل: كود مكرر' };
         throw e;
       }
+    }
+
+    // ══ update_initiative ═════════════════════════════════════════════════
+    case 'update_initiative': {
+      const { id, ...fields } = input;
+      if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      const ini = await prisma.initiative.findUnique({ where:{ id }, select:{ id:true, code:true, name:true } });
+      if (!ini) return { ok:false, error:`المبادرة ${id} غير موجودة`, summary:'فشل' };
+      const data = pickFields(fields, [
+        'name','description','ownerId','departmentId','startDate','endDate',
+        'budget','spent','progress','status','notes',
+      ]);
+      if (data.startDate) data.startDate = new Date(data.startDate);
+      if (data.endDate)   data.endDate   = new Date(data.endDate);
+      if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتعديل', summary:'فشل' };
+      await prisma.initiative.update({ where:{ id }, data });
+      return { ok:true, summary:`✅ حُدِّثت مبادرة ${ini.code}: ${Object.keys(data).join(', ')}` };
+    }
+
+    // ══ create_annual_target ══════════════════════════════════════════════
+    case 'create_annual_target': {
+      const { indicatorId, year, targetValue, q1Target, q2Target, q3Target, q4Target, modificationReason } = input;
+      if (!indicatorId || !year || targetValue == null)
+        return { ok:false, error:'indicatorId, year, targetValue مطلوبة', summary:'فشل' };
+      const ind = await prisma.indicator.findUnique({ where:{ id:indicatorId }, select:{ id:true, code:true } });
+      if (!ind) return { ok:false, error:`المؤشر ${indicatorId} غير موجود`, summary:'فشل' };
+      try {
+        const at = await prisma.annualTarget.upsert({
+          where:  { indicatorId_year: { indicatorId, year: Number(year) } },
+          create: {
+            id: (await import('crypto')).randomBytes ? ('c' + (await import('crypto')).randomBytes(16).toString('hex')) : crypto.randomUUID(),
+            indicatorId, year: Number(year), targetValue: Number(targetValue),
+            q1Target: q1Target ?? null, q2Target: q2Target ?? null,
+            q3Target: q3Target ?? null, q4Target: q4Target ?? null,
+            modificationReason: modificationReason || null,
+            createdById: actingUserId,
+          },
+          update: {},  // idempotent — لا تعديل عند التكرار
+        });
+        return { ok:true, data:{ id:at.id, indicatorId, year, targetValue },
+          summary:`✅ أُنشئ مستهدف سنوي: ${ind.code} / ${year} → ${targetValue}` };
+      } catch(e) {
+        if (e.code==='P2002') return { ok:false, error:`مستهدف ${year} موجود بالفعل لـ ${ind.code}`, summary:'فشل: مكرر' };
+        throw e;
+      }
+    }
+
+    // ══ update_annual_target ══════════════════════════════════════════════
+    case 'update_annual_target': {
+      const { id, modificationReason, ...fields } = input;
+      if (!id) return { ok:false, error:'id مطلوب', summary:'فشل' };
+      if (!modificationReason?.trim()) return { ok:false, error:'modificationReason مطلوب', summary:'فشل' };
+      const at = await prisma.annualTarget.findUnique({
+        where:{ id }, select:{ id:true, indicatorId:true, year:true, targetValue:true,
+          indicator: { select:{ code:true } } },
+      });
+      if (!at) return { ok:false, error:`المستهدف ${id} غير موجود`, summary:'فشل' };
+      const data = pickFields(fields, ['targetValue','q1Target','q2Target','q3Target','q4Target']);
+      data.modificationReason = modificationReason;
+      if (!Object.keys(data).filter(k => k !== 'modificationReason').length)
+        return { ok:false, error:'لا حقول للتعديل غير modificationReason', summary:'فشل' };
+      await prisma.annualTarget.update({ where:{ id }, data });
+      return { ok:true, summary:`✅ حُدِّث مستهدف ${at.indicator.code}/${at.year}: ${JSON.stringify(pickFields(fields,['targetValue','q1Target','q2Target','q3Target','q4Target']))}` };
     }
 
     default:
