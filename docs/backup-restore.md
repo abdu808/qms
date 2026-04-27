@@ -1,132 +1,131 @@
 # النسخ الاحتياطي والاستعادة — QMS
 
-> ISO 9001 §7.5.3 (ضبط المعلومات الموثّقة) + §9.1 (المراقبة والقياس).
-> آخر تحديث: 2026-04-19
+> **تحذير أمني:** لا تُخزِّن كلمات المرور أو سلاسل الاتصال في هذا الملف.
+> استخدم متغيرات البيئة أو مدير الأسرار الخاص بـ Coolify.
 
 ---
 
-## 1) ما الذي يُنسخ؟
+## 1. قاعدة البيانات (PostgreSQL — Neon.tech)
 
-| المورد | المصدر | الوجهة | الصيغة |
-|--------|--------|--------|--------|
-| قاعدة البيانات | `DATABASE_URL` (Postgres) | `BACKUP_DIR/db-YYYY-MM-DD.sql.gz` | `pg_dump` plain → gzip |
-| الملفات المرفوعة | `UPLOADS_DIR` | `BACKUP_DIR/files-YYYY-MM-DD.tar.gz` | `tar -czf` |
-
-القيم الافتراضية: `BACKUP_DIR=./backups`, `UPLOADS_DIR=./uploads`.
-
----
-
-## 2) التشغيل
-
-### تلقائياً (Cron داخلي)
-
-يعمل مجدول عمليات `scheduler.js` داخل العملية مرة يومياً بعد 2ص:
-
-```
-QMS_BACKUP=on
-DATABASE_URL=postgresql://user:pass@host:5432/db
-BACKUP_DIR=/var/qms/backups
-UPLOADS_DIR=/var/qms/uploads
-```
-
-- `runDailyBackupIfDue()` يمنع التكرار عبر `lastBackupDate` في الذاكرة + تحقق وجود الملف على القرص.
-- السجلات تُطبع كـ JSON: `[backup] {...}` لجمعها في أنظمة التسجيل.
-
-### يدوياً
+### 1.1 نسخة يدوية
 
 ```bash
-cd apps/api
-npm run backup
+# يُقرأ DATABASE_URL من متغيرات البيئة — لا تُكتب بالنص الواضح
+pg_dump "$DATABASE_URL" \
+  --format=custom \
+  --no-acl \
+  --no-owner \
+  --file="qms_$(date +%Y%m%d_%H%M%S).dump"
 ```
 
-يُخرج ملخّصاً JSON ويُنهي بكود `0` عند نجاح جزء DB.
+> **ملاحظة Neon:** الخطة المجانية تحتفظ بنقاط استعادة لمدة 24 ساعة تلقائياً.
+> الخطط المدفوعة تدعم Branch-based restores.
+
+### 1.2 استعادة كاملة
+
+```bash
+# أوقِف التطبيق أولاً لتجنب التعارض (اختياري على Neon بسبب الـ branching)
+pg_restore \
+  --dbname="$DATABASE_URL" \
+  --clean \
+  --if-exists \
+  --no-acl \
+  --no-owner \
+  qms_20260428_120000.dump
+```
+
+### 1.3 استعادة جزئية (جداول محددة)
+
+```bash
+# استعادة جدول واحد فقط
+pg_restore \
+  --dbname="$DATABASE_URL" \
+  --table="User" \
+  --no-acl \
+  --no-owner \
+  qms_20260428_120000.dump
+```
+
+### 1.4 استعادة باستخدام Neon Branching (الطريقة المفضَّلة)
+
+1. اذهب إلى Neon Console ← مشروعك ← **Branches**.
+2. أنشئ فرعاً من نقطة زمنية قبل الحادثة (Branch from: a point in time).
+3. اختبر الفرع الجديد ثم أبدِّل متغير `DATABASE_URL` في Coolify للإشارة إليه.
+4. احذف الفرع القديم بعد التحقق.
 
 ---
 
-## 3) التدوير
+## 2. ملفات التطبيق (المرفقات)
 
-`rotateBackups('db' | 'files')`:
+التطبيق يعتمد على تخزين Coolify Volume لملفات المرفقات.
 
-- الأيام 0–7: يُحتفظ بكل نسخة.
-- الأيام 8–35: نسخة واحدة لكل أسبوع ISO.
-- الأيام 36–210: نسخة واحدة لكل شهر.
-- أكثر من 210 يوم: تُحذف.
+### 2.1 تحديد موقع الـ Volume
 
-السقف العملي: 7 يومية + 4 أسبوعية + 6 شهرية ≈ 17 نسخة لكل نوع.
+في Coolify ← التطبيق ← **Storages** ← انظر مسار الـ Volume المرتبط (مثل `/data/uploads`).
 
----
+### 2.2 نسخ الملفات
 
-## 4) تمرين الاستعادة (Restore Drill)
+```bash
+# من سيرفر Coolify عبر SSH
+tar -czf uploads_$(date +%Y%m%d).tar.gz /data/uploads/
 
-> **يُنفَّذ ربع سنوي على الأقل** للتأكد من قابلية الاسترجاع (وليس فقط وجود الملف).
+# نقل النسخة إلى موقع خارجي
+scp uploads_20260428.tar.gz user@backup-server:/backups/qms/
+```
 
-### الخطوات
+### 2.3 استعادة الملفات
 
-1. **تجهيز بيئة اختبار معزولة** (لا تستعد على قاعدة البيانات الحيّة):
-   ```bash
-   docker run --name qms-restore-test -e POSTGRES_PASSWORD=test -p 55432:5432 -d postgres:15
-   export TEST_URL=postgresql://postgres:test@localhost:55432/postgres
-   ```
-
-2. **نسخ آخر backup محليّاً**:
-   ```bash
-   scp user@prod:/var/qms/backups/db-2026-04-19.sql.gz ./
-   ```
-
-3. **فك الضغط والاستعادة**:
-   ```bash
-   gunzip -c db-2026-04-19.sql.gz | psql "$TEST_URL"
-   ```
-
-4. **تشغيل Prisma ضد البيئة المؤقتة**:
-   ```bash
-   cd apps/api
-   DATABASE_URL="$TEST_URL" npx prisma migrate deploy   # إذا لزم
-   DATABASE_URL="$TEST_URL" npm start
-   ```
-
-5. **استعادة الملفات** (اختياري):
-   ```bash
-   mkdir -p /tmp/qms-uploads-restore
-   tar -xzf files-2026-04-19.tar.gz -C /tmp/qms-uploads-restore
-   ```
-
-6. **تحقق سلامة البيانات**:
-   - تسجيل الدخول بحساب `SUPER_ADMIN`.
-   - عدّ السجلات الرئيسية: `users`, `documents`, `complaints`, `ncrs`, `kpiObjectives`, `kpiActivities`, `kpiEntries`.
-   - فتح `dataHealth` — يجب ألا تظهر مشاكل جديدة.
-   - افتح مستند PDF واحد على الأقل (تأكّد من استعادة `uploads`).
-
-7. **تنظيف**:
-   ```bash
-   docker rm -f qms-restore-test
-   rm -f db-2026-04-19.sql.gz files-2026-04-19.tar.gz
-   rm -rf /tmp/qms-uploads-restore
-   ```
-
-### نموذج توثيق التمرين
-
-| التاريخ | من نفّذ | النسخة المُستَعادة | المدة (ث) | النتيجة | ملاحظات |
-|---------|---------|-------------------|-----------|---------|---------|
-| 2026-04-19 | مدير الجودة | `db-2026-04-18.sql.gz` | 42 | ✅ ناجح | كل الجداول استُعيدت |
-
-احتفظ بهذا الجدول في سجل مراجعة الإدارة (Mgmt Review) كدليل §9.3.
+```bash
+# أوقِف التطبيق مؤقتاً في Coolify
+tar -xzf uploads_20260428.tar.gz -C /
+# أعِد تشغيل التطبيق
+```
 
 ---
 
-## 5) الأخطاء الشائعة
+## 3. الجدول الزمني الموصى به
 
-| الخطأ | السبب | الحل |
-|-------|-------|------|
-| `pg_dump غير مُثبَّت` | صورة Docker بلا postgres-client | أضف `RUN apk add --no-cache postgresql-client` أو مكافئ |
-| `tar غير مُثبَّت` | بيئة Windows بدون Git Bash | استخدم WSL أو تجاهل files backup |
-| حجم الملف 0 bytes | فشل `pg_dump` قبل الكتابة | راجع سجل `stderr` في مخرجات `[backup]` |
-| `DATABASE_URL ليس Postgres` | بيئة اختبار بـ SQLite | الباكاب الحالي يدعم Postgres فقط — لبيئات SQLite انسخ ملف `.db` مباشرة |
+| النوع | التكرار | الاحتفاظ | الأداة |
+|-------|---------|----------|--------|
+| قاعدة البيانات (كاملة) | يومياً | 14 يوماً | pg_dump + cron |
+| قاعدة البيانات (تزايدية) | Neon Branching | 24 ساعة (مجاني) / 30 يوماً (مدفوع) | Neon Console |
+| ملفات المرفقات | أسبوعياً | 4 أسابيع | tar + cron |
+
+### مثال cron (على سيرفر منفصل)
+
+```cron
+# /etc/cron.d/qms-backup
+0 2 * * * root pg_dump "$DATABASE_URL" --format=custom -f /backups/db/qms_$(date +\%Y\%m\%d).dump
+0 3 * * 0 root tar -czf /backups/files/uploads_$(date +\%Y\%m\%d).tar.gz /data/uploads/
+```
 
 ---
 
-## 6) خارطة الطريق (ديون تقنية)
+## 4. التحقق من النسخ الاحتياطية
 
-- [ ] رفع النسخ إلى S3/R2 لعزل جغرافي (حالياً محلية فقط).
-- [ ] تشفير النسخ بمفتاح خارجي قبل التخزين.
-- [ ] اختبار استعادة مؤتمت أسبوعياً (دوكر + diff عدّ الصفوف).
+**لا قيمة لنسخة لم تُختبر.** كل أسبوعين على الأقل:
+
+```bash
+# إنشاء قاعدة بيانات اختبار مؤقتة
+createdb qms_test_restore
+pg_restore --dbname="postgresql://localhost/qms_test_restore" --no-acl --no-owner latest.dump
+
+# تشغيل اختبار بسيط
+psql qms_test_restore -c "SELECT COUNT(*) FROM \"User\";"
+
+# حذف قاعدة الاختبار
+dropdb qms_test_restore
+```
+
+---
+
+## 5. تأمين النسخ الاحتياطية
+
+- تشفير النسخ قبل التخزين الخارجي:
+  ```bash
+  gpg --symmetric --cipher-algo AES256 qms_20260428.dump
+  ```
+- احفظ مفتاح التشفير في مكان **مستقل** عن ملفات النسخ.
+- لا ترفع النسخ على مستودعات Git أو تخزين عام.
+- حدّد صلاحيات الوصول للنسخ: `chmod 600 *.dump`
+- سجّل كل عملية استعادة في سجل التدقيق الداخلي.

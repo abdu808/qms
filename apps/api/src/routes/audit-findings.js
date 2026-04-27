@@ -47,7 +47,7 @@ const smartFilters = {
  * | EMPLOYEE          | ما يملكه أو أنشأه فقط                                    |
  * | GUEST_AUDITOR     | ما يملكه أو أنشأه فقط (قراءة فقط كما في permissions)     |
  */
-const scopeFilter = (req) => {
+export const scopeFilter = (req) => {
   const { role, departmentId, sub } = req.user || {};
   if (!role) return { id: '__deny__' }; // لا ينبغي أن يصل هنا بدون دور
 

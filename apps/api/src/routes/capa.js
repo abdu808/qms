@@ -7,6 +7,22 @@ import { activeWhere } from '../lib/dataHelpers.js';
 import { runSchema } from '../schemas/_helpers.js';
 import { capaCreateSchema, capaUpdateSchema } from '../schemas/capa.schema.js';
 
+/**
+ * guardCapaClose — يتحقق من اكتمال شروط إغلاق CAPA قبل تنفيذه.
+ * دالة pure مُستخرجة من handler لتسهيل الاختبار (Audit task 17).
+ */
+export function guardCapaClose({ effective, implementedAction, verificationNote, verifiedById }) {
+  const missing = [];
+  if (!implementedAction || String(implementedAction).trim() === '') missing.push('الإجراء المُنفَّذ');
+  if (!verificationNote  || String(verificationNote ).trim() === '') missing.push('ملاحظة التحقق');
+  if (!verifiedById) missing.push('المُتحقِّق (verifiedBy)');
+  if (effective === undefined || effective === null) missing.push('نتيجة الفعالية');
+  if (missing.length) throw BadRequest(`لا يمكن إغلاق CAPA — الحقول الناقصة: ${missing.join('، ')}`);
+  if (effective === false || effective === 'false') {
+    throw BadRequest('CAPA غير فعالة (effective=false) — لا تُغلق. أعد فتحها للتخطيط من جديد.');
+  }
+}
+
 const router = Router();
 const validateCreate = runSchema(capaCreateSchema);
 const validateUpdate = runSchema(capaUpdateSchema);
