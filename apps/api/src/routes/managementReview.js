@@ -14,7 +14,10 @@ const base = crudRouter({
   codePrefix: 'MR',
   searchFields: ['title', 'attendees', 'decisions', 'improvementActions'],
   allowedSortFields: ['createdAt', 'meetingDate', 'status'],
-  allowedFilters: ['status'],
+  allowedFilters: ['status', 'planId', 'year'],
+  include: {
+    plan: { select: { id: true, code: true, title: true } },
+  },
   schemas: { create: mrCreate, update: mrUpdate },
   beforeUpdate: async (data, req) => {
     if (data.status) {

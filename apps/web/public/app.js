@@ -324,6 +324,29 @@ function app() {
       } catch (e) { alert(e.message || 'فشل الختم'); }
     },
 
+    // ── Management Review Smart Snapshot (aggregator) ──────────────
+    reviewSnapshot: { open: false, loading: false, data: null, error: '', planId: '', year: '' },
+    async openReviewSnapshot(item) {
+      this.reviewSnapshot = {
+        open: true, loading: true, data: null, error: '',
+        planId: item?.planId || '',
+        year: item?.year || (item?.meetingDate ? new Date(item.meetingDate).getFullYear() : new Date().getFullYear()),
+      };
+      try {
+        const qs = new URLSearchParams();
+        if (this.reviewSnapshot.planId) qs.set('planId', this.reviewSnapshot.planId);
+        if (this.reviewSnapshot.year)   qs.set('year', this.reviewSnapshot.year);
+        // TODO: backend endpoint to be built
+        const r = await this.api('GET', `/integration/management-review-snapshot?${qs.toString()}`);
+        this.reviewSnapshot.data = r;
+      } catch (e) {
+        this.reviewSnapshot.error = e.message || 'تعذّر تحميل اللوحة (قد يكون الـ endpoint قيد البناء)';
+      } finally {
+        this.reviewSnapshot.loading = false;
+      }
+    },
+    closeReviewSnapshot() { this.reviewSnapshot.open = false; },
+
     // ── Auto-populate Management Review inputs (P-13 §6.1 · ISO 9.3.2) ─
     async populateReviewInputs(item) {
       const overwrite = confirm(
@@ -370,6 +393,9 @@ function app() {
       fundingSources: [],
       departments: [],
       users: [],
+      risks: [],
+      processes: [],
+      beneficiaries: [],
     },
 
     // ISO readiness report
@@ -1175,12 +1201,15 @@ function app() {
       }
       const endpoints = {
         strategicGoals:  '/strategic-goals?limit=200',
-        strategicPlans:  '/strategic-plans?limit=100',
+        strategicPlans:  '/strategic-plans?limit=20',
         objectives:      '/objectives?limit=200',
         indicators:      '/indicators?limit=200',
         fundingSources:  '/funding-sources?limit=100',
         departments:     '/departments?limit=100',
         users:           '/users?limit=100',
+        risks:           '/risks?limit=200',
+        processes:       '/processes?limit=100',
+        beneficiaries:   '/beneficiaries?limit=100',
       };
       for (const rel of needed) {
         try {

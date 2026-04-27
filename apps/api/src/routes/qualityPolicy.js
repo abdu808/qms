@@ -12,6 +12,9 @@ const base = crudRouter({
   resource: 'quality-policy',
   searchFields: ['title', 'content', 'version'],
   allowedSortFields: ['createdAt', 'effectiveDate', 'active'],
+  include: {
+    ackDocument: { select: { id: true, code: true, title: true, active: true } },
+  },
   beforeCreate: async (data) => {
     // Friendly Arabic error on duplicate version
     return data;

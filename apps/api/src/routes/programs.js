@@ -7,6 +7,13 @@ export default crudRouter({
   codePrefix: 'PRG',
   searchFields: ['name', 'description'],
   allowedSortFields: ['createdAt', 'startDate', 'status'],
+  allowedFilters: ['status', 'category', 'departmentId', 'managerId'],
+  include: {
+    programDepartment: { select: { id: true, name: true } },
+    manager:           { select: { id: true, name: true } },
+    beneficiaries:     { take: 10, include: { beneficiary: { select: { id: true, code: true, fullName: true } } } },
+    donations:         { include: { donation: { select: { id: true, code: true, amount: true, donorName: true } } } },
+  },
   // C8: المصروف لا يتجاوز الميزانية المعتمدة
   beforeCreate: async (data) => {
     if (data.budget != null && data.spent != null) {

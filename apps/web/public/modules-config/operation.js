@@ -15,6 +15,8 @@ window.QMS_MODULES_OPERATION = {
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'fullName', label: 'الاسم' },
       { key: 'category', label: 'الفئة' }, { key: 'city', label: 'المدينة' },
+      { key: 'caseManager.name', label: 'مدير الحالة' },
+      { key: 'benDepartment.name', label: 'الإدارة' },
       { key: 'status', label: 'الحالة', type: 'status' },
     ],
     fields: [
@@ -52,6 +54,8 @@ window.QMS_MODULES_OPERATION = {
         { v: 'INACTIVE', l: 'غير نشط' }, { v: 'GRADUATED', l: 'تخرج' },
         { v: 'REJECTED', l: 'مرفوض' },
       ]},
+      { key: 'caseManagerId', label: 'مدير الحالة', type: 'relation', relation: 'users' },
+      { key: 'departmentId', label: 'الإدارة', type: 'relation', relation: 'departments' },
     ],
     rowActions: [
       { action: 'openBeneficiaryAssess', label: '📋 تقييم', condition: () => true },
@@ -106,6 +110,7 @@ window.QMS_MODULES_OPERATION = {
         { v: 'RECEIVED', l: 'مستلم' }, { v: 'VERIFIED', l: 'مدقق / معتمد' },
         { v: 'DISTRIBUTED', l: 'موزع' }, { v: 'REJECTED', l: 'مرفوض' },
       ]},
+      { key: 'recipientId', label: 'المستفيد المحدد (اختياري)', type: 'relation', relation: 'beneficiaries', hint: 'إذا التبرع مخصص لمستفيد معين' },
     ],
   },
 
@@ -115,6 +120,8 @@ window.QMS_MODULES_OPERATION = {
       { key: 'code', label: 'الرمز' }, { key: 'name', label: 'البرنامج' },
       { key: 'category', label: 'الفئة' }, { key: 'budget', label: 'الميزانية' },
       { key: 'beneficiariesCount', label: 'المستفيدون' },
+      { key: 'programDepartment.name', label: 'الإدارة' },
+      { key: 'manager.name', label: 'المدير' },
     ],
     fields: [
       { key: 'name', label: 'اسم البرنامج', required: true },
@@ -140,6 +147,8 @@ window.QMS_MODULES_OPERATION = {
       { key: 'budget', label: 'الميزانية المرصودة (ريال)', type: 'number' },
       { key: 'spent', label: 'المبلغ المصروف (ريال)', type: 'number' },
       { key: 'beneficiariesCount', label: 'عدد المستفيدين المستهدفين', type: 'number' },
+      { key: 'departmentId', label: 'الإدارة المنفّذة', type: 'relation', relation: 'departments' },
+      { key: 'managerId', label: 'مدير البرنامج', type: 'relation', relation: 'users' },
     ],
   },
 

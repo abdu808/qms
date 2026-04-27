@@ -137,6 +137,8 @@ window.QMS_MODULES_EVALUATION = {
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
       { key: 'type', label: 'النوع' }, { key: 'plannedDate', label: 'التاريخ المخطط', type: 'date' },
+      { key: 'auditDepartment.name', label: 'الإدارة' },
+      { key: 'process.name', label: 'العملية' },
       { key: 'status', label: 'الحالة', type: 'status' },
     ],
     fields: [
@@ -145,6 +147,8 @@ window.QMS_MODULES_EVALUATION = {
         { v: 'INTERNAL', l: 'داخلي' }, { v: 'EXTERNAL', l: 'خارجي' },
         { v: 'SUPPLIER', l: 'موردين' }, { v: 'FOLLOWUP', l: 'متابعة' },
       ]},
+      { key: 'departmentId', label: 'الإدارة المعنية بالتدقيق', type: 'relation', relation: 'departments' },
+      { key: 'processId', label: 'العملية المعنية', type: 'relation', relation: 'processes' },
       { key: 'scope', label: 'النطاق', type: 'textarea', required: true },
       { key: 'criteria', label: 'المعايير' },
       { key: 'plannedDate', label: 'تاريخ التخطيط', type: 'date', required: true },
@@ -220,6 +224,8 @@ window.QMS_MODULES_EVALUATION = {
       { key: 'status', label: 'الحالة', type: 'select', options: [
         { v: 'PLANNED', l: 'مخطط' }, { v: 'COMPLETED', l: 'مكتمل' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
+      { key: 'planId', label: 'الخطة الاستراتيجية', type: 'relation', relation: 'strategicPlans' },
+      { key: 'year', label: 'السنة المالية', type: 'number' },
     ],
   },
 

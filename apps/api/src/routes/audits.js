@@ -10,9 +10,14 @@ export default crudRouter({
   model: 'audit',
   codePrefix: 'AUD',
   searchFields: ['title', 'scope'],
-  include: { leadAuditor: { select: { id: true, name: true } } },
+  include: {
+    leadAuditor:     { select: { id: true, name: true } },
+    auditDepartment: { select: { id: true, name: true } },
+    process:         { select: { id: true, code: true, name: true } },
+    auditNcrs:       { include: { ncr: { select: { id: true, code: true, title: true, status: true } } } },
+  },
   allowedSortFields: ['createdAt', 'plannedDate', 'status'],
-  allowedFilters: ['status', 'type', 'leadAuditorId'],
+  allowedFilters: ['type', 'status', 'departmentId', 'processId', 'leadAuditorId'],
   schemas: { create: auditCreateSchema, update: auditUpdateSchema },
   beforeUpdate: async (data, req) => {
     if (data.status) {

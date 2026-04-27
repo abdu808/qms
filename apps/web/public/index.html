@@ -1997,6 +1997,13 @@
                                   title="توليد نصوص جاهزة لكل حقل من حقول مدخلات المراجعة (KPIs, NCRs, شكاوى، مخاطر...)">
                             📥 توليد المدخلات
                           </button>
+                          <!-- TODO: aggregator endpoint /api/integration/management-review-snapshot to be built -->
+                          <button x-show="page==='managementReview'"
+                                  @click="openReviewSnapshot(item)"
+                                  class="text-fuchsia-700 hover:underline text-xs ml-2"
+                                  title="لوحة موحَّدة تجمع KPIs + NCRs + شكاوى + تدقيقات + مخاطر للفترة">
+                            📊 لوحة المراجعة الذكية
+                          </button>
                           <!-- UX-4: DetailShell drawer — unified quick-view -->
                           <button x-show="['complaints','ncr','objectives','documents','risks','suppliers'].includes(page)"
                                   @click="openDetail(
@@ -7100,10 +7107,36 @@
 
 </div><!-- end userGuide -->
 
-<script src="/modules/kpi-common.js?v=2026-04-27h"></script>
+<!-- ── Management Review Smart Snapshot Modal ────────────────────── -->
+<div x-show="reviewSnapshot.open" x-cloak
+     class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+     @keydown.escape.window="closeReviewSnapshot()">
+  <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between border-b px-5 py-3">
+      <h3 class="font-bold text-lg">📊 لوحة المراجعة الذكية</h3>
+      <button @click="closeReviewSnapshot()" class="text-gray-500 hover:text-gray-700 text-xl">×</button>
+    </div>
+    <div class="p-5 space-y-4 text-sm">
+      <div class="text-xs text-gray-500">
+        الخطة: <span x-text="reviewSnapshot.planId || '—'"></span> ·
+        السنة: <span x-text="reviewSnapshot.year || '—'"></span>
+      </div>
+      <div x-show="reviewSnapshot.loading" class="text-center text-gray-500 py-8">جاري التحميل...</div>
+      <div x-show="reviewSnapshot.error" class="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3" x-text="reviewSnapshot.error"></div>
+      <template x-if="reviewSnapshot.data">
+        <pre class="bg-gray-50 border rounded-lg p-3 text-xs overflow-x-auto" x-text="JSON.stringify(reviewSnapshot.data, null, 2)"></pre>
+      </template>
+    </div>
+    <div class="border-t px-5 py-3 text-left">
+      <button @click="closeReviewSnapshot()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script src="/modules/kpi-common.js?v=2026-04-27i"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
-<script src="/modules/kpi-quickentry.js?v=2026-04-27h"></script>
+<script src="/modules/kpi-quickentry.js?v=2026-04-27i"></script>
 <script src="/modules/kpi-bulk.js?v=2026-04-19g"></script>
 <script src="/modules/data-import.js?v=2026-04-21a"></script>
 <script src="/modules/portal-admin.js?v=2026-04-21a"></script>
@@ -7123,7 +7156,7 @@
 <script src="/modules/notifications.js?v=2026-04-21c"></script>
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
-<script src="/modules/my-kpi.js?v=2026-04-27h"></script>
+<script src="/modules/my-kpi.js?v=2026-04-27i"></script>
 <script src="/modules/kpi-tracking.js?v=2026-04-21c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
@@ -7132,11 +7165,11 @@
 <script src="/modules/progress-reports.js?v=2026-04-22a"></script>
 <script src="/modules/exec-dashboard.js?v=2026-04-21d"></script>
 <script src="/modules/capa.js?v=2026-04-21d"></script>
-<script src="/modules-config/context.js?v=2026-04-27h"></script>
-<script src="/modules-config/planning.js?v=2026-04-27h"></script>
-<script src="/modules-config/support.js?v=2026-04-27h"></script>
-<script src="/modules-config/operation.js?v=2026-04-27h"></script>
-<script src="/modules-config/evaluation.js?v=2026-04-27h"></script>
-<script src="/app.js?v=modules-2026-04-27h"></script>
+<script src="/modules-config/context.js?v=2026-04-27i"></script>
+<script src="/modules-config/planning.js?v=2026-04-27i"></script>
+<script src="/modules-config/support.js?v=2026-04-27i"></script>
+<script src="/modules-config/operation.js?v=2026-04-27i"></script>
+<script src="/modules-config/evaluation.js?v=2026-04-27i"></script>
+<script src="/app.js?v=modules-2026-04-27i"></script>
 </body>
 </html>

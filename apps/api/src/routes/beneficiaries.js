@@ -33,7 +33,13 @@ const crud = crudRouter({
   codePrefix: 'BEN',
   searchFields: ['fullName', 'nationalId', 'phone'],
   allowedSortFields: ['createdAt', 'appliedAt', 'status', 'priorityScore'],
-  allowedFilters: ['status', 'category', 'city'],
+  allowedFilters: ['category', 'status', 'caseManagerId', 'departmentId', 'city'],
+  include: {
+    caseManager:    { select: { id: true, name: true } },
+    benDepartment:  { select: { id: true, name: true } },
+    programs:       { include: { program: { select: { id: true, code: true, name: true } } } },
+    donationsReceived: { take: 5, orderBy: { receivedAt: 'desc' } },
+  },
   schemas: { create: benCreateSchema, update: benUpdateSchema },
   smartFilters: {
     applicants:  () => ({ status: 'APPLICANT' }),

@@ -79,6 +79,7 @@ import consultantRoutes from './routes/consultant.js';
 import consultSessionsRouter from './routes/consultSessions.js';
 import automationRoutes from './routes/automation.js';
 import progressReportsRoutes from './routes/progressReports.js';
+import integrationRoutes from './routes/integration.js';
 import axesRoutes          from './routes/axes.js';
 import indicatorsRoutes    from './routes/indicators.js';
 import annualTargetsRoutes from './routes/annual-targets.js';
@@ -409,6 +410,7 @@ app.use('/api/eval-tokens',             evalTokensRoutes);
 app.use('/api/reports',                 reportsRoutes);
 app.use('/api/operational-reports',     operationalReportsRoutes);
 app.use('/api/kpi',                     kpiRoutes);
+app.use('/api/integration',             integrationRoutes);
 
 // ── Strategic Planning v2 ─────────────────────────────────────────────
 app.use('/api/axes',            axesRoutes);

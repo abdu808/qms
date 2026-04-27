@@ -94,6 +94,7 @@ window.QMS_MODULES_SUPPORT = {
       { key: 'certifications', label: 'الشهادات المطلوبة', type: 'textarea' },
       { key: 'trainings', label: 'التدريبات المطلوبة', type: 'textarea' },
       { key: 'evaluationMethod', label: 'طريقة التقييم', type: 'textarea' },
+      { key: 'departmentId', label: 'الإدارة', type: 'relation', relation: 'departments' },
     ],
   },
 
@@ -128,6 +129,7 @@ window.QMS_MODULES_SUPPORT = {
       ]},
       { key: 'responsible', label: 'المسؤول', required: true },
       { key: 'format', label: 'الشكل' },
+      { key: 'responsibleUserId', label: 'المسؤول', type: 'relation', relation: 'users' },
     ],
   },
 

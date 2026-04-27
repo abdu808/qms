@@ -7,6 +7,11 @@ export default crudRouter({
   codePrefix: 'DON',
   searchFields: ['donorName', 'itemName'],
   allowedSortFields: ['createdAt', 'receivedAt', 'amount'],
-  allowedFilters: ['status', 'type', 'donorType'],
+  allowedFilters: ['type', 'status', 'donorType', 'recipientId'],
+  include: {
+    recipient:    { select: { id: true, code: true, fullName: true } },
+    allocations:  { include: { program: { select: { id: true, code: true, name: true } } } },
+    evaluations:  { take: 1, orderBy: { createdAt: 'desc' } },
+  },
   schemas: { create: createSchema, update: updateSchema },
 });

@@ -15,6 +15,8 @@ window.QMS_MODULES_CONTEXT = {
       { key: 'category', label: 'الفئة' },
       { key: 'description', label: 'الوصف' },
       { key: 'impact', label: 'الأثر' },
+      { key: 'swotDepartment.name', label: 'الإدارة' },
+      { key: 'ownerUser.name', label: 'المسؤول' },
       { key: 'status', label: 'الحالة', type: 'status' },
     ],
     fields: [
@@ -24,6 +26,10 @@ window.QMS_MODULES_CONTEXT = {
         { v: 'OPPORTUNITY', l: 'فرصة (Opportunity)' },
         { v: 'THREAT', l: 'تهديد (Threat)' },
       ]},
+      { key: 'departmentId', label: 'الإدارة المعنية', type: 'relation', relation: 'departments' },
+      { key: 'ownerUserId', label: 'المسؤول', type: 'relation', relation: 'users' },
+      { key: 'relatedRiskId', label: 'مخاطرة مرتبطة (تُولَّد للتهديدات)', type: 'relation', relation: 'risks', hint: 'لتهديد SWOT يُربط بمخاطرة في سجل المخاطر' },
+      { key: 'relatedGoalId', label: 'هدف استراتيجي مرتبط (للفرص)', type: 'relation', relation: 'strategicGoals' },
       { key: 'category', label: 'الفئة', type: 'select', options: [
         { v: 'داخلي', l: 'داخلي' },
         { v: 'سياسي', l: 'سياسي (خارجي)' },
@@ -73,6 +79,9 @@ window.QMS_MODULES_CONTEXT = {
       ]},
       { key: 'monitoring', label: 'طريقة الرصد والاستجابة', type: 'textarea' },
       { key: 'responsible', label: 'المسؤول' },
+      { key: 'departmentId', label: 'الإدارة المعنية', type: 'relation', relation: 'departments' },
+      { key: 'responsibleUserId', label: 'المسؤول عن هذا الطرف', type: 'relation', relation: 'users' },
+      { key: 'relatedRiskId', label: 'مخاطرة مرتبطة', type: 'relation', relation: 'risks', hint: 'لو توقعات الطرف غير ملبّاة قد تنتج مخاطرة' },
     ],
   },
 
@@ -84,6 +93,8 @@ window.QMS_MODULES_CONTEXT = {
       { key: 'name', label: 'العملية' },
       { key: 'type', label: 'النوع' },
       { key: 'owner', label: 'المالك' },
+      { key: 'processDepartment.name', label: 'الإدارة' },
+      { key: 'ownerUser.name', label: 'المالك' },
     ],
     fields: [
       { key: 'name', label: 'اسم العملية', required: true },
@@ -93,6 +104,8 @@ window.QMS_MODULES_CONTEXT = {
         { v: 'MANAGEMENT', l: 'عملية إدارية' },
       ]},
       { key: 'owner', label: 'مالك العملية' },
+      { key: 'departmentId', label: 'الإدارة المسؤولة', type: 'relation', relation: 'departments' },
+      { key: 'ownerUserId', label: 'مالك العملية (شخص)', type: 'relation', relation: 'users', hint: 'الحقل القديم "owner" نص — هذا الحقل يربط بمستخدم فعلي' },
       { key: 'inputs', label: 'المدخلات', type: 'textarea' },
       { key: 'outputs', label: 'المخرجات', type: 'textarea' },
       { key: 'resources', label: 'الموارد المطلوبة', type: 'textarea' },
