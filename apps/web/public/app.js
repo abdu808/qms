@@ -378,7 +378,7 @@ function app() {
     },
 
     // Modals
-    modal: { open: false, mode: 'create', data: {} },
+    modal: { open: false, mode: 'create', data: {}, saving: false },
 
     // evalModal — moved to modules/supplier-eval.js (window.QmsSupplierEval)
 
@@ -1419,7 +1419,7 @@ function app() {
       for (const f of this.currentFields) {
         if (f.type === 'date' && copy[f.key]) copy[f.key] = copy[f.key].split('T')[0];
       }
-      this.modal = { open: true, mode: 'create', data: copy };
+      this.modal = { open: true, mode: 'create', data: copy, saving: false };
       this.toast('تم نسخ السجل — راجع البيانات قبل الحفظ', 'warn');
     },
 
@@ -1431,7 +1431,7 @@ function app() {
         return;
       }
       await this.loadRelations();
-      this.modal = { open: true, mode: 'create', data: {} };
+      this.modal = { open: true, mode: 'create', data: {}, saving: false };
       this.$nextTick ? this.$nextTick(() => this._snapshotModal()) : this._snapshotModal();
     },
     async openEdit(item) {
@@ -1440,7 +1440,7 @@ function app() {
       for (const f of this.currentFields) {
         if (f.type === 'date' && data[f.key]) data[f.key] = data[f.key].split('T')[0];
       }
-      this.modal = { open: true, mode: 'edit', data };
+      this.modal = { open: true, mode: 'edit', data, saving: false };
       this.$nextTick ? this.$nextTick(() => this._snapshotModal()) : this._snapshotModal();
     },
     // Batch 11 — خريطة الانتقالات النهائية التي تتطلب توقيعاً رقمياً (ISO §7.1.5.2 / §9.3.3 / §10.2)
@@ -1519,6 +1519,7 @@ function app() {
           payload[f.key] = null;
         }
       }
+      this.modal.saving = true;
       try {
         if (this.modal.mode === 'edit') {
           await this.api('PUT', `/${mod.endpoint}/${payload.id}`, payload);
@@ -1530,6 +1531,7 @@ function app() {
         this.toast(this.modal.mode === 'edit' ? '✅ تم حفظ التعديلات' : '✅ تم إضافة السجل بنجاح', 'success');
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل الحفظ'); }
+      finally { this.modal.saving = false; }
     },
     async remove(id) {
       if (!confirm('هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
