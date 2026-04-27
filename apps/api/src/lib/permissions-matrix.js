@@ -65,7 +65,8 @@ export const MATRIX = {
   // 'reports' مُعرَّف في القسم السفلي بقيم محدّثة — أُزيل التعريف المكرر القديم
 
   // ── People & Org ─────────────────────────────────────────────────
-  users:            { read: MANAGER_UP, create: SA,    update: SA,    delete: SA },
+  // QM may CRUD users for daily operations, but cannot touch SUPER_ADMIN — enforced in routes/users.js
+  users:            { read: MANAGER_UP, create: QM_UP, update: QM_UP, delete: SA },
   departments:      { read: ANY,        create: QM_UP, update: QM_UP, delete: SA },
   'strategic-plans':{ read: ANY,        create: QM_UP, update: QM_UP, delete: QM_UP },
   'strategic-goals':{ read: ANY,        create: QM_UP, update: QM_UP, delete: QM_UP },
@@ -109,7 +110,9 @@ export const MATRIX = {
   complaints:       { read: ANY, create: EMPLOYEE_UP, update: MANAGER_UP, delete: QM_UP, close: QM_UP },
   surveys:          { read: ANY, create: MANAGER_UP,  update: MANAGER_UP, delete: QM_UP },
   audits:           { read: ANY, create: QM_UP,       update: QM_UP,      delete: QM_UP },
-  'management-review': { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
+  // SECURITY: management review minutes + cross-system snapshot expose
+  // organization-wide aggregates (financials, complaints, PII, risks).
+  'management-review': { read: MANAGER_UP, create: QM_UP, update: QM_UP, delete: QM_UP },
   // تقارير التقدّم الشهرية (المحقق الشهري) — DEPT_MANAGER يملأ قسمه، QM يُعتمد
   'progress-reports': { read: MANAGER_UP, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP, approve: QM_UP },
 
@@ -125,7 +128,7 @@ export const MATRIX = {
   // ── KPI & ISO readiness ──────────────────────────────────────────
   kpi:              { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
   'iso-readiness':  { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
-  'report-builder': { create: QM_UP, read: MANAGER_UP, update: QM_UP, delete: SA, approve: QM_UP },
+  'report-builder': { read: COMMITTEE_UP, create: QM_UP, update: QM_UP, delete: SA, approve: QM_UP },
 
   // ── Proactive alerts (live health signals) ───────────────────────
   // للقراءة فقط لإدارة الجودة والمسؤولين؛ لا عمليات كتابة (detectors محسوبة).
@@ -142,16 +145,25 @@ export const MATRIX = {
   'plan-versions':   { read: ANY,        create: QM_UP,       update: SA,         delete: SA    },
 
   // ── Phase 9: تقارير HTML قابلة للطباعة ─────────────────────────────────────
-  'reports':         { read: ANY,        create: SA,          update: SA,         delete: SA    },
+  // Read restricted to managers+ — printable reports may aggregate sensitive cross-dept data.
+  'reports':         { read: MANAGER_UP, create: SA,          update: SA,         delete: SA    },
 };
 
 /**
  * Lookup the allowed roles for a (resource, action) pair.
- * Returns null if action not defined AND no default exists (treat as forbidden).
+ *
+ * Resolution order:
+ *   1. MATRIX[resource][action]   — explicit per-resource, per-action policy
+ *   2. DEFAULT_POLICY[action]     — safe default for the action
+ *   3. null                       — forbidden (deny-by-default)
+ *
+ * IMPORTANT: When a resource is missing from MATRIX (e.g., new route added without
+ * matrix entry), we fall back to DEFAULT_POLICY rather than returning null.
+ * Returning null would deny ALL actions including read — far stricter than intended,
+ * and inconsistent with the "safe default" documented at the top of this file.
  */
 export function rolesFor(resource, action) {
-  const policy = MATRIX[resource];
-  if (!policy) return null;
+  const policy = MATRIX[resource] || DEFAULT_POLICY;
   if (policy[action]) return policy[action];
   if (DEFAULT_POLICY[action]) return DEFAULT_POLICY[action];
   return null;

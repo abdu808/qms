@@ -237,7 +237,15 @@ const SUPER_ADMIN_PROMPT_SECTION = `
 //  buildContext — لقطة موجزة لعرضها في /context endpoint
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function buildContext({ compact = false } = {}) {
+/**
+ * @param {object} opts
+ * @param {boolean} [opts.compact]
+ * @param {string}  [opts.callerRole] — لتقييد البيانات الحساسة (users/departments)
+ *                                       لـ QM+ فقط. لو غير مُمرَّر، نُرجع كل شيء (توافق خلفي).
+ */
+export async function buildContext({ compact = false, callerRole = null } = {}) {
+  const isQmUp      = callerRole === 'QUALITY_MANAGER' || callerRole === 'SUPER_ADMIN';
+  const isManagerUp = isQmUp || callerRole === 'DEPT_MANAGER' || callerRole === 'COMMITTEE_MEMBER';
   const [goals, activities, objectives, kpiEntries, users, departments, activePolicy, docsCount] =
     await Promise.all([
       prisma.strategicGoal.findMany({
@@ -264,14 +272,20 @@ export async function buildContext({ compact = false } = {}) {
 
   const gaps = analyzeGaps({ goals, activities, objectives });
 
+  // SECURITY: users قائمة PII. departments قائمة هيكلية للمنظمة.
+  // عند تمرير callerRole، نُرجع فقط ما يحق لهذا الدور رؤيته. للتوافق العكسي
+  // (إذا لم يُمرَّر callerRole) نُرجع الكل — استدعاؤنا الجديد من /context يمرّره.
+  const exposeUsers       = (callerRole === null) || isQmUp;
+  const exposeDepartments = (callerRole === null) || isManagerUp;
+
   return {
     summary: {
       strategicGoals: goals.length,
       operationalActivities: activities.length,
       objectives: objectives.length,
       kpiEntries,
-      users: users.length,
-      departments: departments.length,
+      users: exposeUsers ? users.length : null,
+      departments: exposeDepartments ? departments.length : null,
       documents: docsCount,
       activePolicy: activePolicy ? `${activePolicy.title} (v${activePolicy.version})` : null,
     },
@@ -279,8 +293,10 @@ export async function buildContext({ compact = false } = {}) {
     goals:       compact ? goals.map(g => ({ id: g.id, code: g.code, title: g.title })) : goals,
     activities:  compact ? activities.map(a => ({ id: a.id, code: a.code, title: a.title })) : activities,
     objectives,
-    users:       users.map(u => ({ id: u.id, name: u.name, role: u.role, departmentId: u.departmentId })),
-    departments,
+    users:       exposeUsers
+      ? users.map(u => ({ id: u.id, name: u.name, role: u.role, departmentId: u.departmentId }))
+      : [],
+    departments: exposeDepartments ? departments : [],
   };
 }
 
@@ -423,9 +439,12 @@ function isSimpleConversation(messages) {
 const QUICK_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 رد بشكل ودود ومختصر. إذا احتاج الطلب تحليلاً أو تنفيذاً، أخبر المستخدم أنك ستحتاج لقراءة بيانات النظام وعليه إرسال طلبه بشكل أوضح.`;
 
-export async function chat({ messages, callerUserId, callerRole, mode = 'auto', modelOverride, providerOverride, onProgress }) {
+export async function chat({ messages, callerUserId, callerRole, callerUser, mode = 'auto', modelOverride, providerOverride, onProgress }) {
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
+  // SECURITY: نضمن أن callerUser يحمل sub/role/departmentId ليُفحص ضد المصفوفة.
+  // AI_AGENT_USER_ID للتتبع فقط، لا للصلاحيات.
+  const effectiveCaller = callerUser || (callerUserId ? { sub: callerUserId, role: callerRole } : null);
 
   // قراءة الإعدادات لمعرفة المزود والموديل الفعليين
   const settings = await getAiSettings();
@@ -510,6 +529,7 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
     actingUserId,
     callerUserId,
     callerRole,
+    callerUser: effectiveCaller, // ⚠️ لفحص الصلاحيات داخل executeTool
     mode,
     feature:     'consultant',
     maxTokens:   8192,
@@ -546,9 +566,12 @@ export async function chat({ messages, callerUserId, callerRole, mode = 'auto', 
 //  يُستخدَم من /api/consultant/apply إن أرسل client actions قديمة الصيغة
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function applyActions(actions, callerUserId) {
+export async function applyActions(actions, callerUser) {
+  // Backward compat: لو نُودي بـ string قديم (callerUserId)، نحوِّله لكائن
+  // ضعيف بدون role — كل الأدوات سترفض، وهو السلوك الآمن المقصود.
+  if (typeof callerUser === 'string') callerUser = { sub: callerUser };
   const agentUserId = await getAiAgentUserId();
-  const actingUserId = agentUserId || callerUserId;
+  const actingUserId = agentUserId || callerUser?.sub || null;
 
   const results = [];
   for (const a of actions) {
@@ -556,7 +579,7 @@ export async function applyActions(actions, callerUserId) {
       // حوِّل صيغة actions القديمة لاستدعاء executeTool
       const toolName  = legacyActionToToolName(a.type);
       const toolInput = legacyActionToToolInput(a);
-      const r = await executeTool(toolName, toolInput, actingUserId);
+      const r = await executeTool(toolName, toolInput, { callerUser, actingUserId });
       results.push({ ok: r.ok, message: r.summary, error: r.error, action: a });
     } catch (e) {
       results.push({ ok: false, error: e.message, action: a });

@@ -30,6 +30,75 @@ router.use(authenticate);
 const currentMonth = () => new Date().getMonth() + 1;
 const currentYear  = () => new Date().getFullYear();
 
+// ─── Scope helper: can a user act on a specific KpiEntry? ───────────────
+// SUPER_ADMIN / QUALITY_MANAGER  → full scope (any entry)
+// COMMITTEE_MEMBER               → read-only scope (any entry, read only)
+// DEPT_MANAGER                   → entries whose parent (objective/activity/indicator)
+//                                  belongs to their department
+// EMPLOYEE                       → only entries they themselves entered
+// GUEST_AUDITOR                  → read-only
+//
+// `entry` may be either a full KpiEntry record, or { objectiveId, activityId,
+// indicatorId, enteredById }. action ∈ {read, update, delete, submit, approve, reject}.
+async function canAccessKpiEntry(user, entry, action) {
+  if (!user?.role) return false;
+  const role = user.role;
+  if (role === 'SUPER_ADMIN' || role === 'QUALITY_MANAGER') return true;
+  if (role === 'GUEST_AUDITOR' || role === 'COMMITTEE_MEMBER') return action === 'read';
+  if (role === 'EMPLOYEE') {
+    // Employees may only see/touch entries they themselves entered
+    if (action !== 'read' && action !== 'update' && action !== 'submit') return false;
+    return entry?.enteredById === user.sub;
+  }
+  if (role === 'DEPT_MANAGER') {
+    if (!user.departmentId) return false;
+    let parentDeptId = null;
+    if (entry.objectiveId) {
+      const o = await prisma.objective.findUnique({
+        where: { id: entry.objectiveId }, select: { departmentId: true },
+      });
+      parentDeptId = o?.departmentId || null;
+    } else if (entry.indicatorId) {
+      const ind = await prisma.indicator.findUnique({
+        where: { id: entry.indicatorId },
+        select: { objective: { select: { departmentId: true } } },
+      });
+      parentDeptId = ind?.objective?.departmentId || null;
+    } else if (entry.activityId) {
+      const a = await prisma.operationalActivity.findUnique({
+        where: { id: entry.activityId }, select: { deptId: true },
+      });
+      parentDeptId = a?.deptId || null;
+    }
+    return parentDeptId && parentDeptId === user.departmentId;
+  }
+  return false;
+}
+
+// Build a Prisma `where` filter that limits KpiEntry rows to the caller's scope.
+async function kpiEntryScopeWhere(user) {
+  const role = user?.role;
+  if (!role) return { id: '___never___' };
+  if (role === 'SUPER_ADMIN' || role === 'QUALITY_MANAGER' ||
+      role === 'COMMITTEE_MEMBER' || role === 'GUEST_AUDITOR') {
+    return {}; // full read scope
+  }
+  if (role === 'EMPLOYEE') return { enteredById: user.sub };
+  if (role === 'DEPT_MANAGER') {
+    if (!user.departmentId) return { id: '___never___' };
+    return {
+      OR: [
+        { objective: { departmentId: user.departmentId } },
+        { activity:  { deptId: user.departmentId } },
+        { indicator: { objective: { departmentId: user.departmentId } } },
+      ],
+    };
+  }
+  return { id: '___never___' };
+}
+
+export { canAccessKpiEntry, kpiEntryScopeWhere };
+
 // ─── upsert قيمة شهرية ────────────────────────────────────────
 router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) => {
   try {
@@ -352,7 +421,9 @@ router.post('/entries/:id/submit', requireAction('kpi', 'update'), async (req, r
   try {
     const entry = await prisma.kpiEntry.findUnique({ where: { id: req.params.id } });
     if (!entry) throw NotFound();
-    if (entry.enteredById !== req.user.sub && !['QUALITY_MANAGER', 'SUPER_ADMIN'].includes(req.user?.role)) {
+    const inScope = await canAccessKpiEntry(req.user, entry, 'submit');
+    if (!inScope && entry.enteredById !== req.user.sub &&
+        !['QUALITY_MANAGER', 'SUPER_ADMIN'].includes(req.user?.role)) {
       throw Forbidden('يمكنك تقديم قراءاتك فقط');
     }
     if (entry.entryStatus !== 'DRAFT') throw BadRequest('القراءة ليست في حالة DRAFT');
@@ -370,8 +441,13 @@ router.post('/entries/:id/approve', requireAction('kpi', 'update'), async (req, 
     if (!entry) throw NotFound();
     if (!['SUBMITTED', 'DRAFT'].includes(entry.entryStatus)) throw BadRequest('القراءة ليست قابلة للاعتماد');
     const role = req.user?.role;
-    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(role)) {
+    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER'].includes(role)) {
       throw Forbidden('فقط المدير أو QM يستطيع الاعتماد');
+    }
+    // DEPT_MANAGER must be in scope (own department) to approve
+    if (role === 'DEPT_MANAGER') {
+      const inScope = await canAccessKpiEntry(req.user, entry, 'approve');
+      if (!inScope) throw Forbidden('لا تملك صلاحية اعتماد قراءات خارج نطاق إدارتك');
     }
     const updated = await prisma.kpiEntry.update({
       where: { id: entry.id },
@@ -389,8 +465,12 @@ router.post('/entries/:id/reject', requireAction('kpi', 'update'), async (req, r
     if (!entry) throw NotFound();
     if (entry.entryStatus !== 'SUBMITTED') throw BadRequest('القراءة ليست في حالة SUBMITTED');
     const role = req.user?.role;
-    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(role)) {
+    if (!['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER'].includes(role)) {
       throw Forbidden('فقط المدير أو QM يستطيع الرفض');
+    }
+    if (role === 'DEPT_MANAGER') {
+      const inScope = await canAccessKpiEntry(req.user, entry, 'reject');
+      if (!inScope) throw Forbidden('لا تملك صلاحية رفض قراءات خارج نطاق إدارتك');
     }
     const updated = await prisma.kpiEntry.update({
       where: { id: entry.id },
@@ -401,18 +481,22 @@ router.post('/entries/:id/reject', requireAction('kpi', 'update'), async (req, r
 });
 
 // ─── حذف إدخال ───────────────────────────────────────────────
-router.delete('/entries/:id', requireAction('kpi', 'update'), async (req, res, next) => {
+// SECURITY: requires 'delete' permission (QM_UP) — NOT 'update'.
+// Previously used 'update' which let DEPT_MANAGER delete KPI entries.
+router.delete('/entries/:id', requireAction('kpi', 'delete'), async (req, res, next) => {
   try {
     // نلتقط الأب/السنة قبل الحذف لإعادة الحساب بعده — كل شيء داخل transaction واحدة
     await prisma.$transaction(async (tx) => {
       const entry = await tx.kpiEntry.findUnique({
         where: { id: req.params.id },
-        select: { objectiveId: true, activityId: true, indicatorId: true, year: true },
+        select: { objectiveId: true, activityId: true, indicatorId: true, year: true, enteredById: true },
       });
+      if (!entry) throw NotFound('القراءة غير موجودة');
+      // Scope: even with 'delete' permission, a user must be in scope for this entry
+      const allowed = await canAccessKpiEntry(req.user, entry, 'delete');
+      if (!allowed) throw Forbidden('لا تملك صلاحية حذف هذه القراءة (خارج نطاقك)');
       await tx.kpiEntry.delete({ where: { id: req.params.id } });
-      if (entry) {
-        await recomputeAfterEntry(entry, tx);
-      }
+      await recomputeAfterEntry(entry, tx);
     });
     res.json({ ok: true });
   } catch (e) { next(e); }
@@ -423,7 +507,8 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
   try {
     const year = Number(req.query.year) || currentYear();
     const month = req.query.month ? Number(req.query.month) : undefined;
-    const where = { year, ...(month ? { month } : {}) };
+    const scope = await kpiEntryScopeWhere(req.user);
+    const where = { year, ...(month ? { month } : {}), ...scope };
     if (req.query.objectiveId) where.objectiveId = req.query.objectiveId;
     if (req.query.activityId)  where.activityId  = req.query.activityId;
     if (req.query.indicatorId) where.indicatorId = req.query.indicatorId;

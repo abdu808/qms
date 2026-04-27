@@ -12,6 +12,20 @@ const base = crudRouter({
   allowedFilters: ['indicatorId', 'year'],
   softDelete: false,
   schemas: { create: createSchema, update: updateSchema },
+  // Plan Freeze: target → indicator → objective → goal → plan
+  // Once the plan is frozen, target values lock — must go through change-request workflow.
+  enforceFreezeFor: async (id, prisma) => {
+    const t = await prisma.annualTarget.findUnique({
+      where: { id },
+      select: {
+        indicator: { select: { objective: { select: { goal: { select: { planId: true } } } } } },
+      },
+    });
+    return t?.indicator?.objective?.goal?.planId || null;
+  },
+  // Quarter sub-targets and the (mandatory) modificationReason are operational
+  // adjustments and remain editable while the parent plan is frozen.
+  transactionFields: ['q1Target', 'q2Target', 'q3Target', 'q4Target', 'modificationReason'],
   include: {
     indicator: { select: { id: true, code: true, nameAr: true } },
     createdBy: { select: { id: true, name: true } },

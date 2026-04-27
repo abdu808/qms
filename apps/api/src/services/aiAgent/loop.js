@@ -58,6 +58,7 @@ export async function runAgentLoop({
   callerUserId,
   mode = 'auto',
   callerRole,  // دور المستخدم الأصلي
+  callerUser,  // المستخدم الكامل {sub, role, departmentId} — مطلوب لفحص الصلاحيات
   feature = 'consultant',
   maxTokens = 4096,
   provider,    // override المزود (من الموجِّه الذكي)
@@ -222,7 +223,9 @@ export async function runAgentLoop({
       // إخبار الواجهة ببدء التنفيذ
       onProgress?.({ type: 'tool_start', tool: call.name, label: toolLabel(call.name) });
       try {
-        toolResult = await executeTool(call.name, call.input, actingUserId);
+        // SECURITY: نُمرِّر callerUser الحقيقي ليُفحص ضد المصفوفة. AI_AGENT_USER_ID
+        // يستخدم في acting لتسجيل الـ audit trail (من نفّذ نيابة عن من) فقط.
+        toolResult = await executeTool(call.name, call.input, { callerUser, actingUserId });
       } catch (e) {
         toolResult = { ok: false, error: e.message, summary: `خطأ: ${e.message}` };
       }
@@ -296,14 +299,28 @@ export async function runAgentLoop({
 }
 
 /**
- * ينفِّذ pendingActions التي وافق عليها المستخدم
+ * ينفِّذ pendingActions التي وافق عليها المستخدم.
+ *
+ * SECURITY: callerUser هو من فعَّل الموافقة (req.user في الـ route).
+ * actingUserId هو ما يُسجَّل في audit trail (عادةً AI_AGENT_USER_ID للتمييز).
+ * فحص الصلاحيات يقع داخل executeTool عبر gateToolForCaller(callerUser, ...).
+ *
+ * @param {Array}  pendingActions
+ * @param {object} callerUser   — {sub, role, departmentId} من req.user
+ * @param {string} [actingUserId] — لـ audit trail فقط (لا يمنح صلاحيات)
  */
-export async function applyPendingActions(pendingActions, actingUserId) {
+export async function applyPendingActions(pendingActions, callerUser, actingUserId) {
+  // Backward-compat: لو نُودي بحجتين فقط (الشكل القديم) عامِل الثانية كـ actingUserId
+  // مع callerUser=null — كل الأدوات سترفض، وهذا السلوك المقصود لتفادي تجاوز RBAC.
+  if (typeof callerUser === 'string' && actingUserId === undefined) {
+    actingUserId = callerUser;
+    callerUser = null;
+  }
   const results = [];
   for (const action of pendingActions) {
     const t0 = Date.now();
     try {
-      const r = await executeTool(action.tool, action.input, actingUserId);
+      const r = await executeTool(action.tool, action.input, { callerUser, actingUserId });
       results.push({
         id:         action.id,
         tool:       action.tool,

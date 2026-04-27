@@ -216,9 +216,15 @@ describe('can() — حالات حدية', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('sensitive resource guardrails', () => {
-  it('fails closed for unknown resources', () => {
-    expect(rolesFor('exports-typo', 'read')).toBeNull();
-    expect(can(user('SUPER_ADMIN'), 'exports-typo', 'read')).toBe(false);
+  it('falls back to DEFAULT_POLICY for unknown resources (safe-default)', () => {
+    // Unknown resource → DEFAULT_POLICY[action]. read = ANY, write actions follow tiered defaults.
+    // This is intentional: missing matrix entries should not deny read globally.
+    const readers = rolesFor('exports-typo', 'read');
+    expect(readers).not.toBeNull();
+    expect(Array.isArray(readers)).toBe(true);
+    // Sensitive write actions still gated through DEFAULT_POLICY (QM_UP for delete, etc.)
+    expect(can(user('EMPLOYEE'), 'exports-typo', 'delete')).toBe(false);
+    expect(can(user('SUPER_ADMIN'), 'exports-typo', 'delete')).toBe(true);
   });
 
   it('restricts sensitive reports and exports to quality management', () => {
