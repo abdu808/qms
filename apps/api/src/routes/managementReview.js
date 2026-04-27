@@ -7,6 +7,7 @@ import { requireAction } from '../lib/permissions.js';
 import { MGMT_REVIEW_STATUS, assertTransition } from '../lib/stateMachines.js';
 import { requireSignatureFor } from '../lib/signatureGuard.js';
 import { createSchema as mrCreate, updateSchema as mrUpdate } from '../schemas/managementReview.schema.js';
+import { parseDecisionsField, createFollowUpTasksFromReview } from '../services/managementReviewTasks.js';
 
 const base = crudRouter({
   resource: 'management-review',
@@ -22,7 +23,8 @@ const base = crudRouter({
   beforeUpdate: async (data, req) => {
     if (data.status) {
       const current = await prisma.managementReview.findUnique({
-        where: { id: req.params.id, deletedAt: null }, select: { status: true },
+        where: { id: req.params.id, deletedAt: null },
+        select: { status: true, decisions: true, improvementActions: true },
       });
       if (!current) throw NotFound('المراجعة غير موجودة');
       assertTransition(MGMT_REVIEW_STATUS, current.status, data.status, {
@@ -34,6 +36,17 @@ const base = crudRouter({
         if (data.topManagementPresent !== true && data.topManagementPresent !== 'true') {
           throw BadRequest('لا يمكن إكمال المراجعة الإدارية دون تأكيد حضور الإدارة العليا (ISO 9.3.1)');
         }
+
+        // Audit task 8 (architectural): Pre-validate decisions/actions structure
+        // قبل الاعتماد. إن لم تكن JSON صالحاً → throw. هذا يضمن قابلية توليد المهام.
+        const merged = {
+          decisions:          data.decisions          ?? current.decisions,
+          improvementActions: data.improvementActions ?? current.improvementActions,
+        };
+        // throws BadRequest عند خلل
+        parseDecisionsField('decisions',          merged.decisions);
+        parseDecisionsField('improvementActions', merged.improvementActions);
+
         // ISO 9.3.3: مخرجات المراجعة يجب توثيقها — توقيع رقمي من مدير الجودة
         await requireSignatureFor(req, {
           entityType: 'ManagementReview',
@@ -44,6 +57,22 @@ const base = crudRouter({
       }
     }
     return data;
+  },
+  // Audit task 8: بعد الـ update، إن انتقلت إلى COMPLETED، أنشئ المهام تلقائياً.
+  // يقع خارج الـ transaction الأصلي للـ update لأن crudFactory لا يمرّر tx —
+  // idempotency محمية في الـ service.
+  afterUpdate: async (item, req) => {
+    if (item.status === 'COMPLETED') {
+      try {
+        const created = await createFollowUpTasksFromReview(prisma, item, req.user.sub);
+        if (created.length > 0) {
+          console.log(`[mgmt-review] auto-created ${created.length} FollowUpTasks from ${item.code}`);
+        }
+      } catch (err) {
+        // لا نُفشل الاعتماد إن فشل توليد المهام (المراجعة معتمدة فعلاً) — نسجِّل.
+        console.error('[mgmt-review] FollowUpTask generation failed:', err?.message || err);
+      }
+    }
   },
 });
 

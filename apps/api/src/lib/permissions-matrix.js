@@ -154,6 +154,11 @@ export const MATRIX = {
   'funding-plans':   { read: MANAGER_UP, create: QM_UP,       update: QM_UP,      delete: QM_UP },
   'plan-versions':   { read: ANY,        create: QM_UP,       update: SA,         delete: SA    },
 
+  // ── Audit task 8 (architectural): مهام متابعة من Management Review ────────
+  // أي موظف يستطيع رؤية مهامه (أحد smart filters هو 'mine'). الإنشاء اليدوي
+  // وتحديث الحالة لمدير القسم وما فوق. الحذف لـ QM فقط.
+  'follow-up-tasks':  { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
+
   // ── Phase 9: تقارير HTML قابلة للطباعة ─────────────────────────────────────
   // Read restricted to managers+ — printable reports may aggregate sensitive cross-dept data.
   'reports':         { read: MANAGER_UP, create: SA,          update: SA,         delete: SA    },
