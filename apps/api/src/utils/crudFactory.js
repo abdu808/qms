@@ -43,6 +43,13 @@ export function crudRouter(opts) {
     // مثال: { DEPT_MANAGER: ['title','target'], EMPLOYEE: ['title'] }
     // إذا حاول الدور تعديل حقل مقفل، يُحذف بصمت من الـ payload قبل التحقق.
     lockedFieldsForRole,
+    // Plan Freeze enforcement: دالة (entityId) => planId | null
+    // إذا الكيان ينتمي لخطة مُجمَّدة، يُمنع تعديل master data ويُسمح فقط بـ progress/status/notes
+    // مثال: enforceFreezeFor: async (id, prisma) => { const x = await prisma.objective.findUnique({ where:{id}, select:{ strategicGoal:{ select:{ planId: true } } } }); return x?.strategicGoal?.planId; }
+    enforceFreezeFor,
+    // الحقول المسموحة في حالة plan مُجمَّدة (transaction data)
+    // مثال: ['progress','currentValue','status','notes','spent']
+    transactionFields,
   } = opts;
 
   const createValidator = schemas?.create ? runSchema(schemas.create) : null;
@@ -204,6 +211,40 @@ export function crudRouter(opts) {
     return data;
   };
 
+  // ── Plan Freeze enforcement helper ────────────────────────────────
+  // يفحص: إذا الكيان ينتمي لخطة مُجمَّدة، يحذف master data fields من الـ payload
+  // ويُبقي فقط transaction data (progress, status, notes...).
+  // SUPER_ADMIN معفى — يستطيع تعديل خطة مُجمَّدة عند الطوارئ.
+  const enforceFreezeIfNeeded = async (data, entityId, req) => {
+    if (!enforceFreezeFor) return data;
+    if (req.user?.role === 'SUPER_ADMIN') return data;  // SA bypass
+    const planId = await enforceFreezeFor(entityId, prisma);
+    if (!planId) return data;
+    const plan = await prisma.strategicPlan.findUnique({
+      where: { id: planId },
+      select: { frozenAt: true, code: true },
+    });
+    if (!plan?.frozenAt) return data;
+    // الخطة مُجمَّدة: احتفظ فقط بـ transaction fields
+    if (transactionFields && Array.isArray(transactionFields)) {
+      const allowed = new Set(transactionFields);
+      const filtered = {};
+      const blocked = [];
+      for (const k of Object.keys(data)) {
+        if (allowed.has(k)) filtered[k] = data[k];
+        else blocked.push(k);
+      }
+      if (blocked.length > 0) {
+        // أضِف ملاحظة في الاستجابة (req.freezeBlockedFields) للعرض في الـ UI لاحقاً
+        req.freezeBlockedFields = blocked;
+      }
+      return filtered;
+    }
+    // لو لم تُحدَّد transactionFields، ارفض كل التعديل
+    const { Forbidden } = await import('./errors.js');
+    throw Forbidden(`الخطة ${plan.code} مُجمَّدة — استخدم "طلب تعديل" لتعديل البيانات الحاكمة`);
+  };
+
   // ── UPDATE ───────────────────────────────────────────────────────
   router.put('/:id', gate('update'), asyncHandler(async (req, res) => {
     let data = stripProtected({ ...req.body });
@@ -216,6 +257,8 @@ export function crudRouter(opts) {
         }
       }
     }
+    // Plan Freeze enforcement
+    data = await enforceFreezeIfNeeded(data, req.params.id, req);
     if (updateValidator) data = updateValidator(data, req);
     if (beforeUpdate) data = await beforeUpdate(data, req);
     // Optimistic locking: if beforeUpdate sets __expectedVersion, use it as a where guard.
@@ -252,6 +295,8 @@ export function crudRouter(opts) {
         }
       }
     }
+    // Plan Freeze enforcement
+    data = await enforceFreezeIfNeeded(data, req.params.id, req);
     if (updateValidator) data = updateValidator(data, req);
     if (beforeUpdate) data = await beforeUpdate(data, req);
     // Optimistic locking: if beforeUpdate sets __expectedVersion, use it as a where guard.

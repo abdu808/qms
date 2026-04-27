@@ -24,4 +24,12 @@ export default crudRouter({
     DEPT_MANAGER: ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction'],
     EMPLOYEE:     ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction','ownerId','deptId'],
   },
+  // Plan Freeze enforcement
+  enforceFreezeFor: async (id, prisma) => {
+    const a = await prisma.operationalActivity.findUnique({
+      where: { id }, select: { strategicGoal: { select: { planId: true } } },
+    });
+    return a?.strategicGoal?.planId || null;
+  },
+  transactionFields: ['progress','spent','status','notes'],
 });

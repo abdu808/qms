@@ -16,6 +16,14 @@ export default crudRouter({
     DEPT_MANAGER: ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
     EMPLOYEE:     ['title','kpi','target','unit','startDate','dueDate','strategicGoalId','baseline'],
   },
+  // Plan Freeze enforcement
+  enforceFreezeFor: async (id, prisma) => {
+    const o = await prisma.objective.findUnique({
+      where: { id }, select: { strategicGoal: { select: { planId: true } } },
+    });
+    return o?.strategicGoal?.planId || null;
+  },
+  transactionFields: ['progress','currentValue','status','notes'],
   // RBAC: مسؤول القسم → قسمه فقط | الموظف → ما كُلِّف به فقط
   scopeFilter: (req) => {
     const { role, departmentId, sub } = req.user || {};

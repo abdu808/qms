@@ -61,8 +61,8 @@ export const DEFAULT_POLICY = {
 export const MATRIX = {
   // Cross-cutting sensitive surfaces
   dashboard:        { read: MANAGER_UP },
-  reports:          { read: QM_UP },
   exports:          { read: QM_UP },
+  // 'reports' مُعرَّف في القسم السفلي بقيم محدّثة — أُزيل التعريف المكرر القديم
 
   // ── People & Org ─────────────────────────────────────────────────
   users:            { read: MANAGER_UP, create: SA,    update: SA,    delete: SA },

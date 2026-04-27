@@ -61,6 +61,13 @@ const PERMISSIONS = {
   'progress-reports':{ read:_MANAGER_UP, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
   'iso-readiness':   { read:_ANY, create:_QM_UP, update:_QM_UP, delete:_QM_UP },
   'change-requests': { read:_ANY, create:_MANAGER_UP, update:_SA, delete:_SA, approve:_QM_UP },
+  // ─── أُضيفت في تدقيق 2026-04-27 (كانت مفقودة فيُطبَّق DEFAULT خاطئاً) ───
+  alerts:           { read:_MANAGER_UP },
+  capa:             { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP, close:_QM_UP },
+  dashboard:        { read:_MANAGER_UP },
+  exports:          { read:_QM_UP },
+  kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
+  reports:          { read:_ANY, create:_SA, update:_SA, delete:_SA },
 };
 
 // Module endpoint → resource key resolver (handles cases where endpoint ≠ resource string)
