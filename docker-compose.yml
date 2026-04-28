@@ -71,6 +71,10 @@ services:
     labels:
       - "traefik.docker.network=c1ojqmcis6neccou4phwldek"
       - "traefik.http.services.qms-api-c1ojqmcis6neccou4phwldek.loadbalancer.server.port=3000"
+      # Traefik active health check — removes dead backends within 10s instead of waiting for proxy restart
+      - "traefik.http.services.qms-api-c1ojqmcis6neccou4phwldek.loadbalancer.healthCheck.path=/api/health/deep"
+      - "traefik.http.services.qms-api-c1ojqmcis6neccou4phwldek.loadbalancer.healthCheck.interval=10s"
+      - "traefik.http.services.qms-api-c1ojqmcis6neccou4phwldek.loadbalancer.healthCheck.timeout=5s"
     networks:
       - qms-net
     healthcheck:
