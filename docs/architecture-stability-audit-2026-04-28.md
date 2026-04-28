@@ -2,7 +2,7 @@
 **التاريخ:** 2026-04-28  
 **الفرع:** `architecture-stabilization-audit` → مدمج في `main` @ `79967e6`  
 **النطاق:** بعد دمج C1–C7 + Strategic Planning v2  
-**حالة Pre-UAT:** Deploy #1 ✅ · فحص البيانات 10/10 ✅ · health db=ok ✅
+**حالة Pre-UAT:** Deploy #1 ✅ · Deploy #2 ✅ · Deploy #3 جارٍ · فحص البيانات 10/10 ✅ · health db=ok ✅
 
 ---
 
