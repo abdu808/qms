@@ -64,6 +64,13 @@ services:
       - ./backups:/app/uploads/backups
     expose:
       - "3000"
+    # Traefik routing labels — permanent fix for post-deploy 504
+    # Without traefik.docker.network, Traefik may pick qms-net (172.19.x)
+    # instead of the shared proxy network (172.18.x) → 504 gateway timeout.
+    # c1ojqmcis6neccou4phwldek is the Coolify application UUID (stable).
+    labels:
+      - "traefik.docker.network=c1ojqmcis6neccou4phwldek"
+      - "traefik.http.services.qms-api-c1ojqmcis6neccou4phwldek.loadbalancer.server.port=3000"
     networks:
       - qms-net
     healthcheck:
