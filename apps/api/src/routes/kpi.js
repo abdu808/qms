@@ -19,6 +19,7 @@ import { evaluateKpi, expectedByMonth, actualByMonth, ragStatus, achievementRati
 import { createSchema as kpiCreateSchema } from '../schemas/kpiEntry.schema.js';
 import { runSchema } from '../schemas/_helpers.js';
 import { upsertKpiEntry, isPeriodLocked } from '../services/kpi.js';
+import { validateKpiEntryFKs } from '../lib/kpiEntry-integrity.js';
 import { recomputeAfterEntry, recomputeIndicator } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
 
@@ -104,10 +105,8 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
   try {
     // Zod موحّد: يضمن الأنواع والمدى (year/month/actualValue) وينظف الحقول المجهولة
     const parsed = validateKpiEntry(req.body);
-    if (parsed.objectiveId && parsed.activityId)
-      throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
-    if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
-      throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
+    // DATA-001: exactly-one-FK guard (orphan + mixed FK combinations)
+    validateKpiEntryFKs(parsed);
 
     const result = await prisma.$transaction(async (tx) => {
       return upsertKpiEntry({
@@ -143,10 +142,8 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
       const row = rows[i];
       try {
         const parsed = validateKpiEntry(row);
-        if (parsed.objectiveId && parsed.activityId)
-          throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
-        if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
-          throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
+        // DATA-001: exactly-one-FK guard (orphan + mixed FK combinations)
+        validateKpiEntryFKs(parsed);
         // استخدم upsertKpiEntry بـ skipRollup=true (سنعمل rollup دفعة واحدة)
         const result = await upsertKpiEntry({
           ...parsed,
@@ -217,10 +214,8 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
 router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, next) => {
   try {
     const parsed = validateKpiEntry(req.body);
-    if (parsed.objectiveId && parsed.activityId)
-      throw BadRequest('حدّد objectiveId أو activityId — ليس الاثنين معاً');
-    if (parsed.indicatorId && (parsed.objectiveId || parsed.activityId))
-      throw BadRequest('حدّد indicatorId أو objectiveId أو activityId — ليس أكثر من واحد');
+    // DATA-001: exactly-one-FK guard (read-only preview but same validation for consistency)
+    validateKpiEntryFKs(parsed);
     const { objectiveId, activityId, indicatorId, year, month, actualValue, spent } = parsed;
 
     // السجل الأب (للحصول على kpiType/target/seasonality/direction)
