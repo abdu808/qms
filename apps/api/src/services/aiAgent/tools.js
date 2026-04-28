@@ -245,6 +245,13 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
   'update_initiative',
   'create_annual_target',
   'update_annual_target',
+  // AI-GOV-001: أدوات إنشاء سجلات رسمية — تتطلب موافقة بشرية دائماً
+  // لأنها تُنشئ عدم مطابقة / إجراء تصحيحي / تدقيق / شكوى / خطر في السجل الرسمي
+  'create_ncr',
+  'create_capa',
+  'plan_audit',
+  'create_complaint',
+  'create_risk',
 ]);
 
 const ALL_TOOLS = [
