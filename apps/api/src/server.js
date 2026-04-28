@@ -10,6 +10,8 @@ import { existsSync } from 'fs';
 import { randomUUID } from 'crypto';
 
 import { config } from './config.js';
+import { getBackupDiagnostics } from './services/backup.js';
+import { getBackupRunStatus }   from './lib/scheduler.js';
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 import { authenticate, denyReadOnly } from './middleware/auth.js';
 import { auditTrail } from './middleware/audit.js';
@@ -297,6 +299,8 @@ app.get('/api/health/deep', async (req, res) => {
   try {
     const { prisma } = await import('./db.js');
     await prisma.$queryRawUnsafe('SELECT 1');
+    // SCHED-001: safe backup config snapshot (no secrets)
+    const backupDiag = getBackupDiagnostics();
     res.json({
       ok: true,
       status: 'ready',
@@ -304,6 +308,13 @@ app.get('/api/health/deep', async (req, res) => {
       ms: Date.now() - t0,
       uptime: Math.round(process.uptime()),
       time: new Date().toISOString(),
+      backup: {
+        enabled:              backupDiag.enabled,
+        encryptionConfigured: backupDiag.encryptionConfigured,
+        plaintextAllowed:     backupDiag.plaintextAllowed,
+        misconfigured:        backupDiag.misconfigured,
+        lastRunStatus:        getBackupRunStatus().status,
+      },
     });
   } catch (err) {
     res.status(500).json({
@@ -315,6 +326,40 @@ app.get('/api/health/deep', async (req, res) => {
       time: new Date().toISOString(),
     });
   }
+});
+
+// Health — diagnostics (SCHED-001). Detailed backup config status for ops.
+// No auth required — secrets are never exposed, only booleans and safe strings.
+app.get('/api/health/diagnostics', (req, res) => {
+  const backupDiag   = getBackupDiagnostics();
+  const backupRun    = getBackupRunStatus();
+
+  const warnings = [];
+  if (backupDiag.enabled && backupDiag.plaintextAllowed) {
+    warnings.push('BACKUP_ALLOW_PLAINTEXT=true — النسخ الاحتياطية تُحفظ بدون تشفير (مقبول للتطوير فقط)');
+  }
+  if (backupDiag.misconfigured) {
+    warnings.push(backupDiag.misconfiguredReason);
+  }
+
+  res.json({
+    ok: true,
+    time: new Date().toISOString(),
+    backup: {
+      enabled:              backupDiag.enabled,
+      encryptionConfigured: backupDiag.encryptionConfigured,
+      encryptionKeyStatus:  backupDiag.encryptionKeyStatus,  // 'valid'|'missing'|'invalid'
+      plaintextAllowed:     backupDiag.plaintextAllowed,
+      misconfigured:        backupDiag.misconfigured,
+      misconfiguredReason:  backupDiag.misconfiguredReason,
+      lastRun: {
+        status:    backupRun.status,
+        at:        backupRun.lastRunAt,
+        lastError: backupRun.lastError,  // first line only, no paths/secrets
+      },
+    },
+    warnings,
+  });
 });
 
 // Health — deep readiness. Verifies the DB actually responds.

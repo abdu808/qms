@@ -456,6 +456,65 @@ export async function runBackupCycle() {
   return summary;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHED-001: Backup diagnostics — safe config snapshot (no secrets exposed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a safe backup configuration snapshot for /api/health/diagnostics.
+ *
+ * Rules:
+ *   - NEVER expose BACKUP_ENCRYPTION_KEY value (only presence/validity)
+ *   - NEVER expose DATABASE_URL or any path that reveals infrastructure
+ *   - encryptionConfigured = key present AND parseable as 32 bytes
+ *   - plaintextAllowed     = BACKUP_ALLOW_PLAINTEXT=true
+ *   - If backup enabled but no key and no plaintext → misconfigured (warn)
+ *
+ * @returns {{
+ *   enabled: boolean,
+ *   encryptionConfigured: boolean,
+ *   encryptionKeyStatus: 'valid'|'missing'|'invalid',
+ *   plaintextAllowed: boolean,
+ *   misconfigured: boolean,
+ *   misconfiguredReason: string|null,
+ * }}
+ */
+export function getBackupDiagnostics() {
+  const enabled      = process.env.QMS_BACKUP === 'on';
+  const keyEnv       = process.env.BACKUP_ENCRYPTION_KEY;
+  const allowPlain   = process.env.BACKUP_ALLOW_PLAINTEXT === 'true';
+
+  let encryptionConfigured = false;
+  let encryptionKeyStatus  = 'missing'; // 'valid' | 'missing' | 'invalid'
+
+  if (keyEnv) {
+    try {
+      parseEncryptionKey(keyEnv);  // throws if malformed
+      encryptionConfigured = true;
+      encryptionKeyStatus  = 'valid';
+    } catch {
+      // key present but malformed
+      encryptionConfigured = false;
+      encryptionKeyStatus  = 'invalid';
+    }
+  }
+
+  // Detect misconfiguration: backup on but no valid key and plaintext not allowed
+  const misconfigured = enabled && !encryptionConfigured && !allowPlain;
+  const misconfiguredReason = misconfigured
+    ? 'QMS_BACKUP=on لكن BACKUP_ENCRYPTION_KEY غير محدد وBACKUP_ALLOW_PLAINTEXT≠true — النسخ الاحتياطية ستفشل'
+    : null;
+
+  return {
+    enabled,
+    encryptionConfigured,
+    encryptionKeyStatus,
+    plaintextAllowed: allowPlain,
+    misconfigured,
+    misconfiguredReason,
+  };
+}
+
 // ── CLI: تشغيل يدوي ───────────────────────────────────────────────────────────
 // node src/services/backup.js
 if (import.meta.url === `file://${process.argv[1]}`) {

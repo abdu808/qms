@@ -618,6 +618,20 @@ async function sendWeeklyExecSummary() {
 // نسخ احتياطي آلي — مرة واحدة يومياً (عند أول فحص بعد منتصف الليل).
 // idempotent: لا يُعيد التنفيذ إذا كان ملف اليوم موجود أصلاً.
 let lastBackupDate = null;
+
+// SCHED-001: in-memory last-run status (reset on process restart — intentional)
+// Exported via getBackupRunStatus() for /api/health/diagnostics.
+let _backupRunStatus = {
+  status: 'unknown',   // 'unknown' | 'ok' | 'failed'
+  lastRunAt: null,     // ISO string of last attempt
+  lastError: null,     // first line of error message (no secrets)
+};
+
+/** Returns a safe copy of the last backup run status. */
+export function getBackupRunStatus() {
+  return { ..._backupRunStatus };
+}
+
 async function runDailyBackupIfDue() {
   if (process.env.QMS_BACKUP !== 'on') return;
   const today = new Date().toISOString().slice(0, 10);
@@ -626,10 +640,20 @@ async function runDailyBackupIfDue() {
   const hour = new Date().getHours();
   if (hour < 2) return;
   lastBackupDate = today;
+  _backupRunStatus.lastRunAt = new Date().toISOString();
   try {
     const r = await runBackupCycle();
-    if (!r.db?.ok) console.warn('[scheduler] backup DB failed:', r.db?.error);
+    if (r.db?.ok) {
+      _backupRunStatus.status    = 'ok';
+      _backupRunStatus.lastError = null;
+    } else {
+      _backupRunStatus.status    = 'failed';
+      _backupRunStatus.lastError = (r.db?.error ?? r.error ?? 'unknown').split('\n')[0];
+      console.warn('[scheduler] backup DB failed:', r.db?.error);
+    }
   } catch (e) {
+    _backupRunStatus.status    = 'failed';
+    _backupRunStatus.lastError = (e?.message ?? 'unknown').split('\n')[0];
     console.error('[scheduler] backup cycle failed:', e);
   }
 }
