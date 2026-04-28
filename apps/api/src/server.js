@@ -282,6 +282,37 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, app: config.appName, time: new Date().toISOString() });
 });
 
+// Health — deep check. يُرجع 200 فقط إذا: (1) اكتمل startup، (2) DB تستجيب على SELECT 1.
+// 503 = startup لم يكتمل بعد، 500 = فشل اتصال DB.
+// هذا هو المسار المقترح لـ Coolify healthcheck بدلاً من /api/health السطحي.
+app.get('/api/health/deep', async (req, res) => {
+  if (!existsSync('/tmp/startup-complete')) {
+    return res.status(503).json({ ok: false, status: 'starting', db: 'unknown' });
+  }
+  const t0 = Date.now();
+  try {
+    const { prisma } = await import('./db.js');
+    await prisma.$queryRawUnsafe('SELECT 1');
+    res.json({
+      ok: true,
+      status: 'ready',
+      db: 'ok',
+      ms: Date.now() - t0,
+      uptime: Math.round(process.uptime()),
+      time: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      status: 'db_error',
+      db: 'error',
+      error: err.message?.split('\n')[0] || 'unknown',
+      ms: Date.now() - t0,
+      time: new Date().toISOString(),
+    });
+  }
+});
+
 // Health — deep readiness. Verifies the DB actually responds.
 // If this returns 503, Coolify's healthcheck should restart the container.
 app.get('/api/health/ready', async (req, res) => {

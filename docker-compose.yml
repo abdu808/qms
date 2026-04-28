@@ -67,12 +67,13 @@ services:
     networks:
       - qms-net
     healthcheck:
-      # الـ migrations تعمل قبل الخادم — start_period=180s يمنحها وقتاً كافياً
-      test: ["CMD-SHELL", "wget -qO- --timeout=5 http://localhost:3000/api/health 2>/dev/null | grep -q '\"ok\"' || exit 1"]
+      # /api/health/deep يتحقق من startup-complete + SELECT 1 على DB
+      # start_period=240s يمنح جميع مراحل entrypoint.sh وقتاً كافياً
+      test: ["CMD-SHELL", "wget -qO- --timeout=9 http://localhost:3000/api/health/deep 2>/dev/null | grep -q '\"ok\":true' || exit 1"]
       interval: 20s
-      timeout: 10s
+      timeout: 15s
       retries: 5
-      start_period: 180s
+      start_period: 240s
 
   # qms-web (nginx) محذوف — Express يخدم الواجهة مباشرةً من /web/public
   # في Coolify: غيّر الـ Port من 80 (qms-web) إلى 3000 (qms-api)

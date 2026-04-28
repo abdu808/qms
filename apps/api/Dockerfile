@@ -59,9 +59,10 @@ USER node
 
 EXPOSE 3000
 
-# start_period=180s يمنح الـ migrations وقتاً كافياً قبل أن يعتبر الـ container غير جاهز
-HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
-  CMD wget -qO- --timeout=4 http://127.0.0.1:3000/api/health || exit 1
+# /api/health/deep يتحقق من اكتمال startup + استجابة DB — أكثر موثوقية من الفحص السطحي
+# start_period=240s يمنح جميع مراحل entrypoint.sh وقتاً كافياً قبل بدء الفحص
+HEALTHCHECK --interval=30s --timeout=10s --start-period=240s --retries=3 \
+  CMD wget -qO- --timeout=9 http://127.0.0.1:3000/api/health/deep | grep -q '"ok":true' || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/app/entrypoint.sh"]
