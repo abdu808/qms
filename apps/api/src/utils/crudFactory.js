@@ -105,7 +105,8 @@ export function crudRouter(opts) {
     if (req.query.filter && typeof req.query.filter === 'object') {
       for (const [k, v] of Object.entries(req.query.filter)) {
         if (allowedFilters && !allowedFilters.includes(k)) continue;
-        where[k] = v;
+        // Coerce numeric-looking strings to integers (e.g. filter[year]="2026" → 2026)
+        where[k] = /^\d+$/.test(v) ? Number(v) : v;
       }
     }
     // Smart filter chips: ?quick=<key> — merge partial where
