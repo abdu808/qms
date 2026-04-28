@@ -271,25 +271,22 @@ async function checkCapaClosedWithoutEffectiveness() {
   };
 }
 
-/** 10. KpiEntry بـ actualValue = null (إدخال ناقص) */
-async function checkKpiNullValues() {
-  const count = await prisma.kpiEntry.count({
-    where: { actualValue: null },
-  });
-  const samples = count > 0
-    ? await prisma.kpiEntry.findMany({
-        where:   { actualValue: null },
-        select:  { id: true, year: true, month: true, objectiveId: true, activityId: true, indicatorId: true },
-        take:    5,
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      })
-    : [];
+/** 10. KpiEntry مرتبطة بـ Objective محذوف (soft-delete لم يُزل الـ entries) */
+async function checkKpiLinkedToDeletedObjective() {
+  const rows = await prisma.$queryRaw`
+    SELECT ke.id, ke.year, ke.month, ke."objectiveId"
+    FROM   "KpiEntry" ke
+    JOIN   "Objective" o ON o.id = ke."objectiveId"
+    WHERE  ke."objectiveId" IS NOT NULL
+      AND  o."deletedAt" IS NOT NULL
+    LIMIT  20
+  `;
   return {
     id: 'KPI-003',
-    label: 'KpiEntry بـ actualValue = null (إدخال ناقص)',
-    count,
+    label: 'KpiEntry مرتبطة بـ Objective محذوف (soft-deleted)',
+    count: rows.length,
     severity: 'WARN',
-    samples: samples.map(r => `id=${r.id} (${r.year}/${r.month})`),
+    samples: rows.map(r => `id=${r.id} (${r.year}/${r.month}) objectiveId=${r.objectiveId}`),
   };
 }
 
@@ -304,7 +301,7 @@ async function main() {
   log(`  ${CYAN}التاريخ:${RESET} ${new Date().toISOString()}`);
 
   const checks = [
-    { id: 'KPI',    title: 'KpiEntry — سلامة الروابط',              fns: [checkKpiOrphans, checkKpiDualFk, checkKpiNullValues] },
+    { id: 'KPI',    title: 'KpiEntry — سلامة الروابط',              fns: [checkKpiOrphans, checkKpiDualFk, checkKpiLinkedToDeletedObjective] },
     { id: 'AT',     title: 'AnnualTarget — تكرار',                  fns: [checkAnnualTargetDuplicates] },
     { id: 'IND',    title: 'Indicator — هيكل الربط',                fns: [checkIndicatorDuplicatesPerObjective] },
     { id: 'FUT',    title: 'FollowUpTask — ملكية المهام',           fns: [checkFollowUpTaskOwner] },
