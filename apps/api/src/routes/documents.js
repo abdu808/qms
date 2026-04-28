@@ -37,10 +37,29 @@ const storage = multer.diskStorage({
     cb(null, `${ts}${ext}`);
   },
 });
+// Blocklist of dangerous extensions — rejected before writing to disk.
+// Defense-in-depth: magic-byte check (fileSignatures.js) runs post-write, but this
+// stops obviously dangerous filenames even when mimetype is spoofed by the client.
+const DANGEROUS_EXTENSIONS = new Set([
+  '.exe', '.dll', '.com', '.bat', '.cmd', '.ps1', '.psm1', '.vbs', '.vbe',
+  '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
+  '.php', '.php3', '.php4', '.php5', '.phtml',
+  '.py', '.rb', '.pl', '.sh', '.bash', '.zsh', '.fish',
+  '.jar', '.war', '.ear', '.class',
+  '.asp', '.aspx', '.cer', '.cgi',
+  '.htaccess', '.htpasswd',
+]);
+
 const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
   fileFilter: (_req, file, cb) => {
+    // 1. Extension check (client-side filename — fast gate before disk write)
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (DANGEROUS_EXTENSIONS.has(ext)) {
+      return cb(new Error(`امتداد الملف "${ext}" غير مسموح به لأسباب أمنية`));
+    }
+    // 2. MIME type allowlist (client-provided — kept as secondary check)
     const allowed = [
       'application/pdf',
       'application/msword',
