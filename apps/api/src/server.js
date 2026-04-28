@@ -189,8 +189,12 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // ── Request-ID middleware: يضيف X-Request-Id لكل طلب — يسهّل التتبّع عبر logs ──
+// Regex validates client-supplied header to prevent log injection (CWE-117).
+// Only alphanumeric + safe punctuation, max 80 chars. Invalid → server-generated UUID.
+const SAFE_REQUEST_ID_RE = /^[a-zA-Z0-9._:\-]{1,80}$/;
 app.use((req, res, next) => {
-  req.id = req.headers['x-request-id'] || randomUUID();
+  const incoming = req.headers['x-request-id'];
+  req.id = (incoming && SAFE_REQUEST_ID_RE.test(incoming)) ? incoming : randomUUID();
   res.setHeader('X-Request-Id', req.id);
   next();
 });

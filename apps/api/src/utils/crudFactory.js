@@ -195,7 +195,7 @@ export function crudRouter(opts) {
       }
     }
 
-    if (afterCreate) { try { await afterCreate(item, req); } catch (e) { console.error('[crud afterCreate]', e.message); } }
+    if (afterCreate) { await afterCreate(item, req); }
     res.status(201).json({ ok: true, item });
   }));
 
@@ -281,7 +281,7 @@ export function crudRouter(opts) {
       }
       throw err;
     }
-    if (afterUpdate) { try { await afterUpdate(item, req); } catch (e) { console.error('[crud afterUpdate]', e.message); } }
+    if (afterUpdate) { await afterUpdate(item, req); }
     res.json({ ok: true, item });
   }));
 
@@ -319,7 +319,7 @@ export function crudRouter(opts) {
       }
       throw err;
     }
-    if (afterUpdate) { try { await afterUpdate(item, req); } catch (e) { console.error('[crud afterUpdate]', e.message); } }
+    if (afterUpdate) { await afterUpdate(item, req); }
     res.json({ ok: true, item });
   }));
 
@@ -327,7 +327,7 @@ export function crudRouter(opts) {
   router.delete('/:id', gate('delete'), asyncHandler(async (req, res) => {
     let snapshot = null;
     if (afterDelete) {
-      try { snapshot = await prisma[model].findUnique({ where: { id: req.params.id } }); } catch {}
+      try { snapshot = await prisma[model].findUnique({ where: { id: req.params.id } }); } catch (e) { console.error('[crud] snapshot fetch failed:', e.message); }
     }
     if (softDelete) {
       await prisma[model].update({
@@ -337,7 +337,7 @@ export function crudRouter(opts) {
     } else {
       await prisma[model].delete({ where: { id: req.params.id } });
     }
-    if (afterDelete && snapshot) { try { await afterDelete(snapshot, req); } catch (e) { console.error('[crud afterDelete]', e.message); } }
+    if (afterDelete && snapshot) { await afterDelete(snapshot, req); }
     res.json({ ok: true });
   }));
 

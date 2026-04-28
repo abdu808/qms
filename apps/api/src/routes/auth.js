@@ -113,18 +113,26 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// DUMMY_HASH: bcrypt digest of a random string at cost factor 12.
+// Used for constant-time comparison when email not found — prevents timing-based
+// email enumeration (CWE-208). Cost must match config.bcryptRounds (default 12).
+const DUMMY_HASH = '$2b$12$WFB5uanHbLsJwkAhS9YYjeWOtm0LCmhKTJmRomUgeBXZNRUt1aMHK';
+
 router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) throw BadRequest('بيانات الدخول غير صالحة');
   const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  if (!user || !user.active) throw Unauthorized('بيانات الدخول غير صحيحة');
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) {
-    // Record failed attempt for security audit (ISO 9001 §7.5.3.2)
-    await logAuth(user.id, 'LOGIN_FAILED', req).catch(() => {});
+  // Always run bcrypt.compare — even for unknown/inactive users — to prevent
+  // timing-based email enumeration (response time must be indistinguishable).
+  const hashToCompare = (user?.active && user?.passwordHash) ? user.passwordHash : DUMMY_HASH;
+  const ok = await bcrypt.compare(password, hashToCompare);
+
+  if (!user || !user.active || !ok) {
+    // Record failed attempt for security audit (ISO 9001 §7.5.3.2) — only if user exists
+    if (user) await logAuth(user.id, 'LOGIN_FAILED', req).catch(() => {});
     throw Unauthorized('بيانات الدخول غير صحيحة');
   }
 
