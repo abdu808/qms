@@ -4158,10 +4158,10 @@
               </div>
 
               <!-- Active alerts -->
-              <div class="bg-white border rounded-xl p-4 mt-4" x-show="(kpi.dashboard?.alerts||[]).length">
-                <h3 class="font-bold text-gray-700 mb-3">🚨 التنبيهات النشطة (<span x-text="kpi.dashboard?.alerts.length"></span>)</h3>
+              <div class="bg-white border rounded-xl p-4 mt-4" x-show="(kpi.dashboard && kpi.dashboard.alerts || []).length">
+                <h3 class="font-bold text-gray-700 mb-3">🚨 التنبيهات النشطة (<span x-text="(kpi.dashboard && kpi.dashboard.alerts || []).length"></span>)</h3>
                 <div class="space-y-2 max-h-96 overflow-y-auto">
-                  <template x-for="a in (kpi.dashboard?.alerts||[])" :key="a.id+a.code">
+                  <template x-for="a in (kpi.dashboard && kpi.dashboard.alerts || [])" :key="a.id">
                     <div class="flex items-center gap-3 p-2 rounded-lg border" :class="kpiSeverityColor(a.severity)">
                       <span class="text-xs font-bold px-2 py-0.5 rounded bg-white" x-text="kpiSeverityLabel(a.severity)"></span>
                       <div class="flex-1">
@@ -4276,6 +4276,7 @@
                   <label class="block text-sm font-medium mb-1">النوع</label>
                   <div class="flex gap-2">
                     <button @click="kpi.entryForm.kind='objective';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='objective'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">🎯 مؤشر استراتيجي</button>
+                    <button @click="kpi.entryForm.kind='indicator';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='indicator'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">📊 مؤشر مستقل</button>
                     <button @click="kpi.entryForm.kind='activity';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='activity'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">⚙️ نشاط تشغيلي</button>
                   </div>
                 </div>
@@ -4285,6 +4286,9 @@
                     <option value="">— اختر —</option>
                     <template x-if="kpi.entryForm.kind==='objective'">
                       <template x-for="o in kpi.objectivesList" :key="o.id"><option :value="o.id" x-text="o.title + ' (هدف: ' + o.targetValue + ' ' + (o.unit||'') + ')'"></option></template>
+                    </template>
+                    <template x-if="kpi.entryForm.kind==='indicator'">
+                      <template x-for="i in kpi.indicatorsList" :key="i.id"><option :value="i.id" x-text="(i.code||'') + ' — ' + i.nameAr + ' (' + (i.unit||'') + ')'"></option></template>
                     </template>
                     <template x-if="kpi.entryForm.kind==='activity'">
                       <template x-for="a in kpi.activitiesList" :key="a.id"><option :value="a.id" x-text="a.code + ' — ' + a.title + ' (هدف: ' + (a.targetValue||'') + ' ' + (a.unit||'') + ')'"></option></template>
@@ -4334,7 +4338,7 @@
             <div x-show="kpi.view==='alerts' && !kpi.loading" x-cloak class="bg-white border rounded-xl p-4">
               <h3 class="font-bold text-gray-700 mb-3">🚨 مركز التنبيهات (<span x-text="kpi.alerts.length"></span>)</h3>
               <div class="space-y-2 max-h-[600px] overflow-y-auto">
-                <template x-for="a in kpi.alerts" :key="a.id+a.code">
+                <template x-for="a in kpi.alerts" :key="a.id">
                   <div class="flex items-start gap-3 p-3 rounded-lg border" :class="kpiSeverityColor(a.severity)">
                     <span class="text-xs font-bold px-2 py-0.5 rounded bg-white flex-shrink-0" x-text="kpiSeverityLabel(a.severity)"></span>
                     <div class="flex-1">
