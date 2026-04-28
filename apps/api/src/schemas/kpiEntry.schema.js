@@ -46,14 +46,17 @@ const baseShape = {
   actionNote:      optionalTrimmedString(4000),
 };
 
+// DATA-001: exactly-one-FK counter used by both the Zod refine (createSchema)
+// and the standalone guard in lib/kpiEntry-integrity.js (update path).
 const fkCount = (d) =>
   (d.objectiveId ? 1 : 0) + (d.activityId ? 1 : 0) + (d.indicatorId ? 1 : 0);
 
 export const createSchema = z.object(baseShape)
   .strip()
+  // DATA-001: reject orphan (0 FKs) and mixed combinations (>1 FK).
   .refine(
     d => fkCount(d) === 1,
-    { message: 'يجب تحديد objectiveId أو activityId أو indicatorId (واحد فقط)', path: ['objectiveId'] },
+    { message: 'يجب تحديد objectiveId أو activityId أو indicatorId — مصدر واحد بالضبط (DATA-001)', path: ['objectiveId'] },
   );
 
 export const updateSchema = z.object({
