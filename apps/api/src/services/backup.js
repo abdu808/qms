@@ -456,6 +456,65 @@ export async function runBackupCycle() {
   return summary;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SCHED-001: Backup diagnostics — safe config snapshot (no secrets exposed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a safe backup configuration snapshot for /api/health/diagnostics.
+ *
+ * Rules:
+ *   - NEVER expose BACKUP_ENCRYPTION_KEY value (only presence/validity)
+ *   - NEVER expose DATABASE_URL or any path that reveals infrastructure
+ *   - encryptionConfigured = key present AND parseable as 32 bytes
+ *   - plaintextAllowed     = BACKUP_ALLOW_PLAINTEXT=true
+ *   - If backup enabled but no key and no plaintext → misconfigured (warn)
+ *
+ * @returns {{
+ *   enabled: boolean,
+ *   encryptionConfigured: boolean,
+ *   encryptionKeyLength: number|null,   // 32 if valid, null if absent/invalid
+ *   plaintextAllowed: boolean,
+ *   misconfigured: boolean,
+ *   misconfiguredReason: string|null,
+ * }}
+ */
+export function getBackupDiagnostics() {
+  const enabled      = process.env.QMS_BACKUP === 'on';
+  const keyEnv       = process.env.BACKUP_ENCRYPTION_KEY;
+  const allowPlain   = process.env.BACKUP_ALLOW_PLAINTEXT === 'true';
+
+  let encryptionConfigured = false;
+  let encryptionKeyLength  = null;
+
+  if (keyEnv) {
+    try {
+      const buf = parseEncryptionKey(keyEnv);  // throws if malformed
+      encryptionConfigured = true;
+      encryptionKeyLength  = buf.length;       // always 32 if parseEncryptionKey succeeds
+    } catch {
+      // key present but malformed — treated as not configured
+      encryptionConfigured = false;
+      encryptionKeyLength  = null;
+    }
+  }
+
+  // Detect misconfiguration: backup on but no valid key and plaintext not allowed
+  const misconfigured = enabled && !encryptionConfigured && !allowPlain;
+  const misconfiguredReason = misconfigured
+    ? 'QMS_BACKUP=on لكن BACKUP_ENCRYPTION_KEY غير محدد وBACKUP_ALLOW_PLAINTEXT≠true — النسخ الاحتياطية ستفشل'
+    : null;
+
+  return {
+    enabled,
+    encryptionConfigured,
+    encryptionKeyLength,
+    plaintextAllowed: allowPlain,
+    misconfigured,
+    misconfiguredReason,
+  };
+}
+
 // ── CLI: تشغيل يدوي ───────────────────────────────────────────────────────────
 // node src/services/backup.js
 if (import.meta.url === `file://${process.argv[1]}`) {
