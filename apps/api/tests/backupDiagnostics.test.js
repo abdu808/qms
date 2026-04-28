@@ -73,17 +73,17 @@ describe('SCHED-001 — backup enabled + encryption configured', () => {
       const d = getBackupDiagnostics();
       expect(d.enabled).toBe(true);
       expect(d.encryptionConfigured).toBe(true);
-      expect(d.encryptionKeyLength).toBe(32);
+      expect(d.encryptionKeyStatus).toBe('valid');
       expect(d.plaintextAllowed).toBe(false);
       expect(d.misconfigured).toBe(false);
       expect(d.misconfiguredReason).toBeNull();
     });
   });
 
-  it('encryptionKeyLength is 32 — never the actual key bytes', () => {
+  it('encryptionKeyStatus is "valid" — never the actual key bytes', () => {
     withEnv({ QMS_BACKUP: 'on', BACKUP_ENCRYPTION_KEY: VALID_KEY_HEX }, () => {
       const d = getBackupDiagnostics();
-      expect(d.encryptionKeyLength).toBe(32);
+      expect(d.encryptionKeyStatus).toBe('valid');
       // Confirm the key value is not anywhere in the response
       expect(JSON.stringify(d)).not.toContain(VALID_KEY_HEX);
     });
@@ -97,7 +97,7 @@ describe('SCHED-001 — backup enabled + missing encryption key', () => {
       const d = getBackupDiagnostics();
       expect(d.enabled).toBe(true);
       expect(d.encryptionConfigured).toBe(false);
-      expect(d.encryptionKeyLength).toBeNull();
+      expect(d.encryptionKeyStatus).toBe('missing');
       expect(d.plaintextAllowed).toBe(false);
       expect(d.misconfigured).toBe(true);
       expect(d.misconfiguredReason).toMatch(/BACKUP_ENCRYPTION_KEY/);
@@ -117,7 +117,7 @@ describe('SCHED-001 — backup enabled + missing encryption key', () => {
     withEnv({ QMS_BACKUP: 'on', BACKUP_ENCRYPTION_KEY: 'tooshort', BACKUP_ALLOW_PLAINTEXT: undefined }, () => {
       const d = getBackupDiagnostics();
       expect(d.encryptionConfigured).toBe(false);
-      expect(d.encryptionKeyLength).toBeNull();
+      expect(d.encryptionKeyStatus).toBe('invalid');
       // Still misconfigured: key exists but is invalid, plaintext not allowed
       expect(d.misconfigured).toBe(true);
     });

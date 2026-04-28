@@ -473,7 +473,7 @@ export async function runBackupCycle() {
  * @returns {{
  *   enabled: boolean,
  *   encryptionConfigured: boolean,
- *   encryptionKeyLength: number|null,   // 32 if valid, null if absent/invalid
+ *   encryptionKeyStatus: 'valid'|'missing'|'invalid',
  *   plaintextAllowed: boolean,
  *   misconfigured: boolean,
  *   misconfiguredReason: string|null,
@@ -485,17 +485,17 @@ export function getBackupDiagnostics() {
   const allowPlain   = process.env.BACKUP_ALLOW_PLAINTEXT === 'true';
 
   let encryptionConfigured = false;
-  let encryptionKeyLength  = null;
+  let encryptionKeyStatus  = 'missing'; // 'valid' | 'missing' | 'invalid'
 
   if (keyEnv) {
     try {
-      const buf = parseEncryptionKey(keyEnv);  // throws if malformed
+      parseEncryptionKey(keyEnv);  // throws if malformed
       encryptionConfigured = true;
-      encryptionKeyLength  = buf.length;       // always 32 if parseEncryptionKey succeeds
+      encryptionKeyStatus  = 'valid';
     } catch {
-      // key present but malformed — treated as not configured
+      // key present but malformed
       encryptionConfigured = false;
-      encryptionKeyLength  = null;
+      encryptionKeyStatus  = 'invalid';
     }
   }
 
@@ -508,7 +508,7 @@ export function getBackupDiagnostics() {
   return {
     enabled,
     encryptionConfigured,
-    encryptionKeyLength,
+    encryptionKeyStatus,
     plaintextAllowed: allowPlain,
     misconfigured,
     misconfiguredReason,

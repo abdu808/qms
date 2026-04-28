@@ -348,7 +348,7 @@ app.get('/api/health/diagnostics', (req, res) => {
     backup: {
       enabled:              backupDiag.enabled,
       encryptionConfigured: backupDiag.encryptionConfigured,
-      encryptionKeyLength:  backupDiag.encryptionKeyLength,  // 32 or null
+      encryptionKeyStatus:  backupDiag.encryptionKeyStatus,  // 'valid'|'missing'|'invalid'
       plaintextAllowed:     backupDiag.plaintextAllowed,
       misconfigured:        backupDiag.misconfigured,
       misconfiguredReason:  backupDiag.misconfiguredReason,
