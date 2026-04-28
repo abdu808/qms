@@ -230,6 +230,27 @@
       const cell = row.months.find(c => c.month === m);
       return !!cell && cell.actualValue == null;
     },
+    // قائمة الاختيار الحالية حسب نوع الإدخال (بديل عن x-if+x-for المتداخل داخل select)
+    kpiCurrentEntryList() {
+      const f = this.kpi.entryForm;
+      if (f.kind === 'objective') {
+        return (this.kpi.objectivesList || []).map(o => ({
+          id: o.id,
+          label: o.title + ' (هدف: ' + (o.targetValue ?? '') + ' ' + (o.unit || '') + ')',
+        }));
+      }
+      if (f.kind === 'indicator') {
+        return (this.kpi.indicatorsList || []).map(i => ({
+          id: i.id,
+          label: (i.code || '') + ' — ' + i.nameAr + ' (' + (i.unit || '') + ')',
+        }));
+      }
+      return (this.kpi.activitiesList || []).map(a => ({
+        id: a.id,
+        label: a.code + ' — ' + a.title + ' (هدف: ' + (a.targetValue || '') + ' ' + (a.unit || '') + ')',
+      }));
+    },
+
     async kpiInit() {
       // أولاً: احسب السنوات المتاحة من الخطة الاستراتيجية
       await this.kpiLoadAvailableYears();

@@ -4284,14 +4284,8 @@
                   <label class="block text-sm font-medium mb-1">المؤشر/النشاط</label>
                   <select x-model="kpi.entryForm.id" class="w-full border rounded-lg px-3 py-2">
                     <option value="">— اختر —</option>
-                    <template x-if="kpi.entryForm.kind==='objective'">
-                      <template x-for="o in kpi.objectivesList" :key="o.id"><option :value="o.id" x-text="o.title + ' (هدف: ' + o.targetValue + ' ' + (o.unit||'') + ')'"></option></template>
-                    </template>
-                    <template x-if="kpi.entryForm.kind==='indicator'">
-                      <template x-for="i in kpi.indicatorsList" :key="i.id"><option :value="i.id" x-text="(i.code||'') + ' — ' + i.nameAr + ' (' + (i.unit||'') + ')'"></option></template>
-                    </template>
-                    <template x-if="kpi.entryForm.kind==='activity'">
-                      <template x-for="a in kpi.activitiesList" :key="a.id"><option :value="a.id" x-text="a.code + ' — ' + a.title + ' (هدف: ' + (a.targetValue||'') + ' ' + (a.unit||'') + ')'"></option></template>
+                    <template x-for="item in kpiCurrentEntryList()" :key="item.id">
+                      <option :value="item.id" x-text="item.label"></option>
                     </template>
                   </select>
                 </div>
@@ -7599,7 +7593,7 @@
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
 <script src="/modules/my-kpi.js?v=2026-04-28a"></script>
-<script src="/modules/kpi-tracking.js?v=2026-04-28b"></script>
+<script src="/modules/kpi-tracking.js?v=2026-04-28c"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
 <script src="/modules/ai-settings.js?v=2026-04-24b"></script>
