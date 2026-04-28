@@ -72,7 +72,7 @@ export async function computeKpiFeedback({ objectiveId, activityId, year, month 
  * يقبل tx اختيارياً لتشغيله ضمن prisma.$transaction.
  */
 export async function upsertKpiEntry({
-  objectiveId, activityId, year, month,
+  objectiveId, activityId, indicatorId, year, month,
   actualValue, spent, note, evidenceUrl,
   deviationReason, actionNote,   // Audit task 6 (architectural): حقول منفصلة
   userId, userRole, skipRollup = false, tx = globalPrisma,
@@ -138,8 +138,12 @@ export async function upsertKpiEntry({
     : { activityId_year_month:  { activityId,  year, month } };
 
   const data = {
-    objectiveId: objectiveId || null,
-    activityId:  activityId  || null,
+    objectiveId:  objectiveId  || null,
+    activityId:   activityId   || null,
+    // DATA-001: explicitly null out indicatorId on objectiveId/activityId paths so that
+    // UPDATE never preserves a stale indicatorId from a contaminated record.
+    // (indicatorId path will be handled separately in Strategic Planning v2 Phase 4.)
+    indicatorId:  indicatorId  || null,
     year, month,
     actualValue: Number(actualValue),
     spent:       spent != null ? Number(spent) : null,

@@ -185,6 +185,43 @@ describe('mergeKpiEntryFKs — PATCH merge semantics', () => {
   });
 });
 
+// ─── DATA-001 upsert-merge scenarios (per review comment) ────────────────────
+// These mirror the two scenarios raised during PR review:
+//   1. Existing indicatorId record + incoming patch adding objectiveId → REJECT
+//   2. Patch that removes the only FK from an indicatorId record → REJECT (orphan)
+// NOTE: In the current upsert route the merge guard runs at the service level
+// (indicatorId: null is now explicit in upsertKpiEntry.data). These tests
+// validate the mergeKpiEntryFKs helper that will protect a future PATCH /entries/:id route.
+
+describe('DATA-001 upsert-merge scenarios (review)', () => {
+  const existingWithIndicator = {
+    id: 'entry_2',
+    indicatorId: INDICATOR_ID,
+    objectiveId: null,
+    activityId:  null,
+    year: 2026,
+    month: 4,
+    actualValue: 88,
+  };
+
+  it('UPSERT/PATCH: adding objectiveId to an indicatorId-based record → REJECTED (mixed FKs)', () => {
+    // Simulates: existing row has indicatorId; incoming patch tries to also set objectiveId
+    const merged = mergeKpiEntryFKs(existingWithIndicator, { objectiveId: OBJECTIVE_ID });
+    const msg = check(merged);
+    expect(msg).toBeTruthy();
+    expect(msg).toMatch(/indicatorId/);
+    expect(msg).toMatch(/objectiveId/);
+  });
+
+  it('UPSERT/PATCH: removing indicatorId without providing another FK → REJECTED (orphan)', () => {
+    // Simulates: patch nulls out indicatorId but provides no replacement FK
+    const merged = mergeKpiEntryFKs(existingWithIndicator, { indicatorId: null });
+    const msg = check(merged);
+    expect(msg).toBeTruthy();
+    expect(msg).toMatch(/مصدر واحد/);
+  });
+});
+
 // ─── Zod createSchema integration (DATA-001 refine) ──────────────────────────
 
 describe('kpiEntry createSchema — Zod refine (DATA-001)', () => {
