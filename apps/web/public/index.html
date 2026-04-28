@@ -1895,13 +1895,16 @@
                       <button x-show="canEdit(currentResource) && !item.deletedAt" @click="openEdit(item)" class="text-blue-600 hover:underline">✏️ تعديل</button>
                       <button x-show="canDelete(currentResource) && !item.deletedAt" @click="remove(item.id)" class="text-red-600 hover:underline">🗑️ حذف</button>
                       <button x-show="item.deletedAt && canDelete(currentResource)" @click="restoreItem(item)" class="text-green-600 hover:underline">♻️ استعادة</button>
-                      <button x-show="['complaints','ncr','objectives','documents','risks','suppliers'].includes(page)"
+                      <button x-show="['complaints','ncr','objectives','documents','risks','suppliers','indicators','initiatives','capa'].includes(page)"
                               @click="openDetail(
                                 page==='complaints' ? 'complaint' :
                                 page==='ncr' ? 'ncr' :
                                 page==='objectives' ? 'objective' :
                                 page==='documents' ? 'document' :
-                                page==='risks' ? 'risk' : 'supplier', item.id)"
+                                page==='risks' ? 'risk' :
+                                page==='indicators' ? 'indicator' :
+                                page==='initiatives' ? 'initiative' :
+                                page==='capa' ? 'capa' : 'supplier', item.id)"
                               class="text-indigo-600 hover:underline">🔍 عرض</button>
                     </div>
                   </div>
@@ -2015,13 +2018,16 @@
                             📊 لوحة المراجعة الذكية
                           </button>
                           <!-- UX-4: DetailShell drawer — unified quick-view -->
-                          <button x-show="['complaints','ncr','objectives','documents','risks','suppliers'].includes(page)"
+                          <button x-show="['complaints','ncr','objectives','documents','risks','suppliers','indicators','initiatives','capa'].includes(page)"
                                   @click="openDetail(
                                     page==='complaints' ? 'complaint' :
                                     page==='ncr' ? 'ncr' :
                                     page==='objectives' ? 'objective' :
                                     page==='documents' ? 'document' :
-                                    page==='risks' ? 'risk' : 'supplier', item.id)"
+                                    page==='risks' ? 'risk' :
+                                    page==='indicators' ? 'indicator' :
+                                    page==='initiatives' ? 'initiative' :
+                                    page==='capa' ? 'capa' : 'supplier', item.id)"
                                   class="text-indigo-600 hover:underline text-xs ml-2"
                                   title="ملخص + خطوة تالية + Timeline">👁 تفاصيل</button>
                           <button x-show="['managementReview','ncr','suppliers'].includes(page)" @click="printReport(item)" class="text-gray-600 hover:underline text-xs ml-2">🖨️ طباعة</button>
