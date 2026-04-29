@@ -1,4 +1,5 @@
 import { crudRouter } from '../utils/crudFactory.js';
+import { recomputeStrategicGoal } from '../services/rollup.js';
 
 export default crudRouter({
   resource: 'operational-activities',
@@ -32,4 +33,19 @@ export default crudRouter({
     return a?.strategicGoal?.planId || null;
   },
   transactionFields: ['progress','spent','status','notes'],
+  // ROLLUP-001: cascade تلقائي → StrategicGoal.progress عند تعديل أو حذف النشاط التشغيلي
+  afterUpdate: async (item) => {
+    if (item.strategicGoalId) {
+      await recomputeStrategicGoal(item.strategicGoalId).catch(e =>
+        console.error('[rollup] afterUpdate activity', item.id, e.message),
+      );
+    }
+  },
+  afterDelete: async (snapshot) => {
+    if (snapshot.strategicGoalId) {
+      await recomputeStrategicGoal(snapshot.strategicGoalId).catch(e =>
+        console.error('[rollup] afterDelete activity', snapshot.id, e.message),
+      );
+    }
+  },
 });

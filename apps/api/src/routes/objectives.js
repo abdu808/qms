@@ -1,6 +1,7 @@
 import { crudRouter } from '../utils/crudFactory.js';
 import { BadRequest } from '../utils/errors.js';
 import { createSchema as objCreateSchema, updateSchema as objUpdateSchema } from '../schemas/objective.schema.js';
+import { recomputeStrategicGoal } from '../services/rollup.js';
 
 export default crudRouter({
   resource: 'objectives',
@@ -60,5 +61,20 @@ export default crudRouter({
       data.progress = Math.round(p);
     }
     return data;
+  },
+  // ROLLUP-001: cascade تلقائي → StrategicGoal.progress عند تعديل أو حذف الهدف التشغيلي
+  afterUpdate: async (item) => {
+    if (item.strategicGoalId) {
+      await recomputeStrategicGoal(item.strategicGoalId).catch(e =>
+        console.error('[rollup] afterUpdate objective', item.id, e.message),
+      );
+    }
+  },
+  afterDelete: async (snapshot) => {
+    if (snapshot.strategicGoalId) {
+      await recomputeStrategicGoal(snapshot.strategicGoalId).catch(e =>
+        console.error('[rollup] afterDelete objective', snapshot.id, e.message),
+      );
+    }
   },
 });
