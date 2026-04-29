@@ -42,7 +42,11 @@ const crud = crudRouter({
   },
   beforeCreate: async (data, req) => {
     data = guardNcrCreate(data);
-    return { ...data, reporterId: req.user.sub };
+    // detectedAt: null يُرسَل عند عدم تعبئة الحقل — نحذفه ليستخدم @default(now()) من DB
+    if (data.detectedAt === null) delete data.detectedAt;
+    // Prisma checked-input: نستخدم reporter.connect بدلاً من reporterId scalar
+    const { reporterId: _drop, ...rest } = data; // eslint-disable-line no-unused-vars
+    return { ...rest, reporter: { connect: { id: req.user.sub } } };
   },
   beforeUpdate: async (data, req) => guardNcrUpdate(data, { ncrId: req.params.id, req }),
 });

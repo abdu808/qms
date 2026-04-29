@@ -174,7 +174,7 @@ router.post(
           title:       finding.title,
           description: finding.description,
           departmentId: finding.departmentId ?? finding.audit.departmentId ?? null,
-          reporterId:  req.user.sub,
+          reporter:    { connect: { id: req.user.sub } },
           severity:    finding.type === 'MAJOR_NC' ? 'مرتفعة' : 'متوسطة',
           status:      'OPEN',
         },
