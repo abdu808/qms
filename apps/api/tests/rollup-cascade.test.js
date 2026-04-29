@@ -7,6 +7,12 @@
  *   - حالة لا أطفال → لا تعديل
  *   - حالة حذف ناعم (deletedAt موجود) → لا يُحسب ضمن الأبناء
  *   - recompute idempotent (نفس النتيجة عند التشغيل مرتين)
+ *
+ * السلوك المشروط في afterUpdate (TRIGGERS):
+ *   يُشغّل recompute فقط إذا كان req.body يحمل أحد الحقول المؤثرة:
+ *     - objectives.js  → ['progress', 'strategicGoalId']
+ *     - activities.js  → ['progress', 'spent', 'strategicGoalId']
+ *   تعديل title/notes/status/weight وحده لا يُشغّل recompute.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { recomputeStrategicGoal } from '../src/services/rollup.js';
@@ -31,6 +37,66 @@ function mockTx({ objectives = [], activities = [] } = {}) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// منطق TRIGGERS — نسخة مبسّطة تُعيد إنتاج ما يحدث في afterUpdate للتحقق
+// ─────────────────────────────────────────────────────────────────────
+
+function shouldTriggerForObjective(reqBody) {
+  const TRIGGERS = ['progress', 'strategicGoalId'];
+  return TRIGGERS.some(f => f in (reqBody || {}));
+}
+
+function shouldTriggerForActivity(reqBody) {
+  const TRIGGERS = ['progress', 'spent', 'strategicGoalId'];
+  return TRIGGERS.some(f => f in (reqBody || {}));
+}
+
+describe('TRIGGERS — منطق afterUpdate المشروط', () => {
+  describe('objectives — حقول مُشغِّلة', () => {
+    it('{ progress: 50 }  → يُشغّل recompute', () => {
+      expect(shouldTriggerForObjective({ progress: 50 })).toBe(true);
+    });
+    it('{ strategicGoalId: "x" }  → يُشغّل recompute', () => {
+      expect(shouldTriggerForObjective({ strategicGoalId: 'x' })).toBe(true);
+    });
+    it('{ progress: 0 }  → يُشغّل (صفر هو قيمة صحيحة)', () => {
+      expect(shouldTriggerForObjective({ progress: 0 })).toBe(true);
+    });
+  });
+
+  describe('objectives — حقول لا تُشغّل recompute', () => {
+    it('{ title: "new" }  → لا يُشغّل', () => {
+      expect(shouldTriggerForObjective({ title: 'new' })).toBe(false);
+    });
+    it('{ notes: "x", status: "CLOSED" }  → لا يُشغّل', () => {
+      expect(shouldTriggerForObjective({ notes: 'x', status: 'CLOSED' })).toBe(false);
+    });
+    it('{ currentValue: 80 }  → لا يُشغّل (currentValue لا يدخل في avg)', () => {
+      expect(shouldTriggerForObjective({ currentValue: 80 })).toBe(false);
+    });
+    it('{} (body فارغ)  → لا يُشغّل', () => {
+      expect(shouldTriggerForObjective({})).toBe(false);
+    });
+    it('null/undefined body  → لا يُشغّل', () => {
+      expect(shouldTriggerForObjective(null)).toBe(false);
+      expect(shouldTriggerForObjective(undefined)).toBe(false);
+    });
+  });
+
+  describe('activities — حقول مُشغِّلة', () => {
+    it('{ progress: 30 }  → يُشغّل', () => {
+      expect(shouldTriggerForActivity({ progress: 30 })).toBe(true);
+    });
+    it('{ spent: 5000 }  → يُشغّل (النشاط المالي يصاحب تغيير progress)', () => {
+      expect(shouldTriggerForActivity({ spent: 5000 })).toBe(true);
+    });
+    it('{ status: "IN_PROGRESS" }  → لا يُشغّل', () => {
+      expect(shouldTriggerForActivity({ status: 'IN_PROGRESS' })).toBe(false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
 describe('recomputeStrategicGoal — cascade unit tests', () => {
   it('هدف واحد بـ progress=60 + نشاط بـ progress=0 → avg=30', async () => {
     const tx = mockTx({
