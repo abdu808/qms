@@ -75,6 +75,7 @@
 | UAT-001 | 2026-04-29 | Pre-UAT | — | محاور BSC | (مرحَّلة من Pre-UAT) Failed to fetch + صف واحد قديم من الشاشة السابقة | 🟡 متوسط | ✅ مُصلح ومُتحقَّق 2026-04-29 — 9 محاور تظهر · Console نظيف · `db5280f`+`4d2c289` |
 | UAT-002 | 2026-04-29 | Claude | — | الأهداف الاستراتيجية | قيم `progress` متجمّدة لجميع الأهداف الثمانية — لا cascade تلقائي من Objective.progress → StrategicGoal.progress. STR-2026-006 كانت 83% بدلاً من 49% الفعلية. | 🟡 متوسط | ✅ مُصلح 2026-04-29 (بيانات: /recompute يدوي) · ✅ مغلق نهائياً 2026-04-30 بـ ROLLUP-001 (cascade تلقائي) · `02644cf` |
 | UAT-003 | 2026-04-30 | فريق التطوير | — | نموذج تعديل الأهداف الاستراتيجية | حقل "المحور الاستراتيجي" يعرض "لا شيء" عند فتح التعديل رغم وجود axisId صالح — `axes` غائب من `loadRelations()` endpoints | 🟡 متوسط | ✅ مُصلح ومُتحقَّق 2026-04-30 — 9 محاور تُحمَّل، المحور الحالي يُحدَّد تلقائياً، axisIdMatch=true لكل الأهداف · `6264465` |
+| UAT-004 | 2026-04-30 | فريق التطوير | — | إنشاء NCR | 500 عند إنشاء أي NCR: `reporterId scalar` يُرفض من Prisma checked-input · `detectedAt: null` يُرفض لحقل non-nullable `@default(now())` | 🔴 حرج | ✅ مُصلح ومُتحقَّق 2026-04-30 — `reporter: { connect: { id } }` + حذف `detectedAt` عند null · NCR-2026-001 أُنشئ بنجاح · `8400751` |
 
 ---
 
@@ -121,7 +122,9 @@
 | ROLLUP-001 | 2026-04-30 | cascade تلقائي Objective/Activity.progress → StrategicGoal.progress عبر afterUpdate/afterDelete مشروط | ✅ مغلق · npm test 529/529 · لا schema · لا migration | `02644cf` |
 | AXIS-PICKER | 2026-04-30 | إضافة `axes` لـ `loadRelations()` + `relationOptions` — يُعرض المحور الصحيح في نموذج التعديل | ✅ مغلق · 9 محاور · axisIdMatch=true · لا schema · لا migration | `6264465` |
 | INITIATIVES-DISPLAY | 2026-04-30 | جدول المبادرات يعرض الهدف بصيغة STR-XXXX — عنوان بدلاً من UUID: إضافة code لـ goal.select + col.format() في renderCell | ✅ مغلق · 529/529 · لا schema · لا migration | `3785293` |
+| NCR-BUG-001 | 2026-04-30 | إصلاح إنشاء NCR: `reporter.connect` بدلاً من `reporterId scalar` + حذف `detectedAt: null` قبل Prisma create — نفس الإصلاح في audit-findings.js | ✅ مغلق · 529/529 · لا schema · لا migration | `8400751` |
+| NCR-CAPA-SMOKE | 2026-04-30 | Smoke test كامل لدورة NCR/CAPA: إنشاء → workflow OPEN→ROOT_CAUSE→ACTION_PLANNED→IN_PROGRESS→VERIFICATION→CLOSED (6 خطوات) · validation يرفض الانتقال بدون الحقول المطلوبة ✅ · توقيع رقمي مطلوب قبل الإغلاق ✅ · CAPA-2026-001 أُنشئ مرتبطاً بـ NCR ودورته كاملة ✅ · حذف ناعم للسجلين التجريبيين ✅ | ✅ مكتمل · لا كود · لا migration | — |
 
 ---
 
-*آخر تحديث: 2026-04-30 (INITIATIVES-DISPLAY) · Claude Sonnet 4.6*
+*آخر تحديث: 2026-04-30 (NCR-CAPA-SMOKE) · Claude Sonnet 4.6*
