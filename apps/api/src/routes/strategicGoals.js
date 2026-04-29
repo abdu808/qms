@@ -13,9 +13,10 @@ const base = crudRouter({
   codePrefix: 'STR',
   searchFields: ['title', 'perspective', 'kpi', 'legacyInitiatives', 'responsible'],
   allowedSortFields: ['createdAt', 'status', 'progress', 'startYear', 'endYear'],
-  // إرجاع اسم المحور مع كل هدف (لعرض axis.nameAr في الجدول)
+  // إرجاع اسم المحور + أعداد الأهداف التشغيلية والمبادرات (لعرض البيانات الحقيقية في الجدول)
   include: {
-    axis: { select: { nameAr: true, code: true, color: true } },
+    axis:   { select: { nameAr: true, code: true, color: true } },
+    _count: { select: { objectives: true, initiatives: true } },
   },
   // Plan Freeze: once the parent strategic plan is frozen, master fields on the goal
   // are locked. transactionFields below remain editable (operational follow-up).
