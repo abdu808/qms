@@ -389,6 +389,7 @@ function app() {
 
     // Relation dropdowns cache (loaded on demand when opening form)
     relationOptions: {
+      axes: [],
       strategicGoals: [],
       strategicPlans: [],
       objectives: [],
@@ -1235,6 +1236,7 @@ function app() {
         if (f.type === 'relation' && f.relation) needed.add(f.relation);
       }
       const endpoints = {
+        axes:            '/axes?limit=100',           // جميع المحاور (AXIS-01..04 + BSC)
         strategicGoals:  '/strategic-goals?limit=200',
         strategicPlans:  '/strategic-plans?limit=20',
         objectives:      '/objectives?limit=200',
