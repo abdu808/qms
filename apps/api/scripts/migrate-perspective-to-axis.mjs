@@ -18,39 +18,13 @@
  * تتطلب تشغيل seed-axis.mjs أولاً لإنشاء سجلات Axis.
  */
 import { PrismaClient } from '@prisma/client';
+import { PERSPECTIVE_TO_AXIS_CODE } from '../src/lib/perspective-axis-mapping.js';
+
+export { PERSPECTIVE_TO_AXIS_CODE };   // re-export for tests that import from this script directly
 
 const prisma   = new PrismaClient({ log: ['warn', 'error'] });
 const args     = process.argv.slice(2);
 const DRY_RUN  = args.includes('--dry-run');
-
-// ─── Mapping: قيمة perspective النصية → code محور Axis ───────────────────────
-// يقبل القيم الإنجليزية (الموجودة في DB حالياً) والعربية (للاستيراد القديم)
-export const PERSPECTIVE_TO_AXIS_CODE = {
-  // English enum values (stored in current DB)
-  'FINANCIAL':   'FINANCIAL',
-  'CUSTOMER':    'CUSTOMER',
-  'PROCESS':     'PROCESS',
-  'LEARNING':    'LEARNING',
-  'GOVERNANCE':  'GOVERNANCE',
-
-  // Arabic aliases (from legacy import/seed data)
-  'مالي':                      'FINANCIAL',
-  'مالي واستدامي':             'FINANCIAL',
-  'المالي':                    'FINANCIAL',
-  'المالي واستدامي':           'FINANCIAL',
-  'مستفيدون':                  'CUSTOMER',
-  'المستفيدون':                'CUSTOMER',
-  'المستفيدون والمجتمع':       'CUSTOMER',
-  'عمليات':                    'PROCESS',
-  'عمليات داخلية':             'PROCESS',
-  'العمليات الداخلية':         'PROCESS',
-  'تعلم':                      'LEARNING',
-  'تعلم ونمو':                 'LEARNING',
-  'التعلم والنمو':             'LEARNING',
-  'حوكمة':                     'GOVERNANCE',
-  'حوكمة وامتثال':             'GOVERNANCE',
-  'الحوكمة والامتثال':        'GOVERNANCE',
-};
 
 async function main() {
   const mode = DRY_RUN ? '🔍 DRY-RUN (معاينة فقط — لا تغيير فعلي)' : '⚡ LIVE (تنفيذ فعلي)';

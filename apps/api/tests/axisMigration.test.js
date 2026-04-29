@@ -8,7 +8,8 @@
  * تتحقق من صحة الـ mapping والسلوك الصحيح للـ dry-run وidempotency.
  */
 import { describe, it, expect } from 'vitest';
-import { PERSPECTIVE_TO_AXIS_CODE } from '../scripts/migrate-perspective-to-axis.mjs';
+// نستورد من lib مباشرةً (بدون shebang) لتفادي SyntaxError في Vitest/esbuild
+import { PERSPECTIVE_TO_AXIS_CODE } from '../src/lib/perspective-axis-mapping.js';
 
 // ─── 1. mapping صحيح للقيم الإنجليزية (الموجودة في DB) ───────────────────────
 describe('PERSPECTIVE_TO_AXIS_CODE — قيم إنجليزية (DB values)', () => {
