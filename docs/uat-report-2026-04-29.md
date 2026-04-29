@@ -125,7 +125,49 @@
 | NCR-BUG-001 | 2026-04-30 | إصلاح إنشاء NCR: `reporter.connect` بدلاً من `reporterId scalar` + حذف `detectedAt: null` قبل Prisma create — نفس الإصلاح في audit-findings.js | ✅ مغلق · 529/529 · لا schema · لا migration | `8400751` |
 | NCR-CAPA-SMOKE | 2026-04-30 | Smoke test كامل لدورة NCR/CAPA: إنشاء → workflow OPEN→ROOT_CAUSE→ACTION_PLANNED→IN_PROGRESS→VERIFICATION→CLOSED (6 خطوات) · validation يرفض الانتقال بدون الحقول المطلوبة ✅ · توقيع رقمي مطلوب قبل الإغلاق ✅ · CAPA-2026-001 أُنشئ مرتبطاً بـ NCR ودورته كاملة ✅ · حذف ناعم للسجلين التجريبيين ✅ | ✅ مكتمل · لا كود · لا migration | — |
 | DOCS-SMOKE | 2026-04-30 | Smoke test الوثائق: إنشاء DOC-2026-001 (PROCEDURE · v1.0 · ISO 8.5.1) ✅ · validation يرفض الحفظ بدون العنوان ✅ · رفع ملف PDF عبر POST /upload ✅ · سجل الإصدارات يظهر في الواجهة ✅ · download 200 ✅ · حذف ناعم ✅ · ملاحظة: رسالة validation بالإنجليزي "title: Required" (UX مؤجل) | ✅ مكتمل · لا كود · لا migration | — |
+| AXIS-CLEANUP-001 | 2026-04-30 | إخفاء محاور BSC الخمس غير المستخدمة من axis picker في نماذج الأهداف الاستراتيجية: إضافة `smartFilters.active` لـ `/api/axes?quick=active` + تحديث `loadRelations()` في app.js · محاور الخطة الحالية AXIS-01..04 تظهر فقط · صفحة إدارة المحاور (SUPER_ADMIN) تعرض الجميع كما هو · لا schema · لا migration · قرار DATA-002 موثق في architecture-stability-audit | ✅ مغلق · 529/529 · لا schema · لا migration | `91285c0` |
 
 ---
 
-*آخر تحديث: 2026-04-30 (DOCS-SMOKE) · Claude Sonnet 4.6*
+## § 7 — قرار الإطلاق النهائي
+
+**تاريخ القرار:** 2026-04-30  
+**الإصدار المُراجَع:** `main @ 91285c0`
+
+### ملخص جولات الاختبار المكتملة
+
+| الجولة | الوحدة المختبرة | النتيجة | ملاحظات |
+|--------|---------------|---------|---------|
+| Health/Backup | `/api/health/deep` + backup + diagnostics | ✅ | db=ok · encryption=valid · backup=enabled |
+| Roles | تسجيل دخول لـ 5 أدوار + صلاحيات + landing pages | ✅ | جميع الأدوار تصل للصفحة الصحيحة |
+| Planning/KPI | الخطة الاستراتيجية · 8 أهداف · cascade rollup · axis picker | ✅ | UAT-001/002/003 مُصلَحة · ROLLUP-001 · AXIS-PICKER · INITIATIVES-DISPLAY |
+| NCR/CAPA | دورة NCR كاملة (6 خطوات) + توقيع رقمي + CAPA كاملة | ✅ | UAT-004 مُصلَح · NCR-BUG-001 |
+| Documents | إنشاء وثيقة + رفع PDF + إصدارات + تنزيل + حذف ناعم | ✅ | UX validation text مؤجل (غير حاجب) |
+| ISO Readiness | `/api/health/diagnostics` · 54% · 93/100 | ✅ | بيانات Pre-UAT |
+| Data Health | صحة البيانات المؤسسية 89/100 | ✅ | بيانات Pre-UAT |
+
+### تقييم معايير الإطلاق
+
+| المعيار | الحد | الواقع | النتيجة |
+|---------|------|--------|---------|
+| أخطاء حرجة 🔴 مفتوحة | 0 | 0 | ✅ |
+| صفحات فارغة عند مستخدمين حقيقيين | 0 | 0 | ✅ |
+| مشكلات تسجيل الدخول | 0 | 0 | ✅ |
+| ملاحظات متوسطة 🟡 مفتوحة | ≤ 3 مع خطة | 0 مفتوحة (كلها مُصلَحة أو مؤجلة بقرار) | ✅ |
+| إدخال KPI يعمل | ✅ | ✅ | ✅ |
+| صحة البيانات تعمل | ✅ | ✅ | ✅ |
+
+### القرار
+
+> ## ✅ إطلاق رسمي — النظام جاهز للإنتاج
+>
+> جميع معايير الإطلاق محققة. النسخة `main @ 91285c0` مُعتمَدة للنشر الرسمي.
+>
+> **ملاحظات مؤجلة (غير حاجبة):**
+> - NCR guard: التحقق من PATCH body فقط بدل دمجه مع DB (UX — post-launch)
+> - رسائل validation بالعربية بدل الإنجليزية (UX — post-launch)
+> - رفع ملفات / موافقات workflow / AI / ERP / WhatsApp / PDF-DOCX (خارج نطاق)
+
+---
+
+*آخر تحديث: 2026-04-30 (قرار إطلاق § 7) · Claude Sonnet 4.6*
