@@ -1,6 +1,7 @@
 import { crudRouter } from '../utils/crudFactory.js';
 import { BadRequest } from '../utils/errors.js';
 import { createSchema as objCreateSchema, updateSchema as objUpdateSchema } from '../schemas/objective.schema.js';
+import { recomputeStrategicGoal } from '../services/rollup.js';
 
 export default crudRouter({
   resource: 'objectives',
@@ -60,5 +61,28 @@ export default crudRouter({
       data.progress = Math.round(p);
     }
     return data;
+  },
+  // ROLLUP-001: cascade مشروط → StrategicGoal.progress فقط عند تغيّر حقل مؤثر.
+  // الحقول المُشغِّلة: progress (يدخل في متوسط recompute)، strategicGoalId (ربط جديد).
+  // ملاحظة: weight وstatus لا يُحسبان ضمن recomputeStrategicGoal — لا يُشغّلان recompute.
+  // حالة حافة: تغيير strategicGoalId ينقل الهدف بين خطتين →
+  //   item.strategicGoalId = الخطة الجديدة (مُعاد حسابها هنا)
+  //   الخطة القديمة تُعاد يدوياً عبر /recompute (DEPT_MANAGER وEMPLOYEE لا يملكون هذا التعديل)
+  afterUpdate: async (item, req) => {
+    const TRIGGERS = ['progress', 'strategicGoalId'];
+    const body = req.body || {};
+    if (item.strategicGoalId && TRIGGERS.some(f => f in body)) {
+      await recomputeStrategicGoal(item.strategicGoalId).catch(e =>
+        console.error('[rollup] afterUpdate objective', item.id, e.message),
+      );
+    }
+  },
+  afterDelete: async (snapshot) => {
+    // الحذف الناعم دائماً يُشغّل recompute — الابن أصبح غير محسوب (deletedAt ≠ null)
+    if (snapshot.strategicGoalId) {
+      await recomputeStrategicGoal(snapshot.strategicGoalId).catch(e =>
+        console.error('[rollup] afterDelete objective', snapshot.id, e.message),
+      );
+    }
   },
 });
