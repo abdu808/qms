@@ -35,7 +35,7 @@
 |-------|--------|--------|---------|---------|---------|
 | 2 | FE-001 | `planning.js` | `planVersions` غائب من modules-config | لا يوجد UI لعرض/إنشاء StrategicPlanVersion رغم وجود route ونموذج | إضافة قسم `planVersions` (read-only) لـ planning.js |
 | 3 | DATA-001 | `schema.prisma` + DB | لا يوجد CHECK constraint على مستوى DB لفرض FK واحد في KpiEntry | Prisma Studio / migration script يمكنه إدراج صفوف بـ FK مزدوج أو صفر | تطبيق migration يدوي يضيف CHECK (راجع خطة v2 § 1.3) |
-| 4 | DATA-002 | `schema.prisma` + `planning.js` | StrategicGoal: `perspective String?` (legacy) + `axisId String?` (v2) كلاهما نشط | الفرونت يعرض `perspective` كنص حر (قائمة قديمة) بجانب `axisId` FK — خطر تعارض بيانات | بعد اكتمال ترحيل البيانات: ترحيل perspective → Axis ثم soft-deprecate الحقل |
+| 4 | DATA-002 | `schema.prisma` + `planning.js` | StrategicGoal: `perspective String?` (legacy) + `axisId String?` (v2) كلاهما نشط | الفرونت يعرض `perspective` كنص حر (قائمة قديمة) بجانب `axisId` FK — خطر تعارض بيانات | **Phase 1 ✅ مُغلق 2026-04-29** — جميع الأهداف لديها `axisId` صالح · `perspective=null` · DANGLING=0. Phase 2 مؤجل (قرار توحيد المحاور). |
 
 ### 🔵 منخفضة / معلومات
 
@@ -75,9 +75,33 @@ node scripts/check-data-integrity.mjs --json | jq '.summary'
 | RSK-001 | Risk مرتفع/حرج ناقص بيانات (owner/dept/treatment/reviewDate) | ERROR |
 | NCR-001 | NCR مُغلق بلا توثيق التحقق (verifiedAt/verifiedNote/effective) | ERROR |
 | CAPA-001 | CAPA مُغلقة بلا فحص فاعلية (effective = null) | ERROR |
+| GOAL-001 | StrategicGoal لديه `perspective` لكن بلا `axisId` | WARN |
 
 > **ملاحظة:** النتائج الفعلية تُولَّد عند تشغيل السكربت على البيانات الحقيقية.
 > عند تشغيله على بيئة development فارغة سترى جميع الفحوصات "✅ نظيفة".
+
+---
+
+### DATA-002 Phase 1 — نتائج الإنتاج (2026-04-29)
+
+تم تشغيل سكربتَي `seed-axis.mjs` و`migrate-perspective-to-axis.mjs` بوضع `--dry-run` ثم تشغيل استعلام تشخيصي مباشر داخل الحاوية الإنتاجية.
+
+**نتيجة الاستعلام التشخيصي المباشر:**
+
+```
+AXES_COUNT       = 9
+  • AXIS-01, AXIS-02, AXIS-03, AXIS-04          ← محاور legacy (أُنشئت قبل v2)
+  • FINANCIAL, CUSTOMER, PROCESS, LEARNING, GOVERNANCE ← محاور BSC (seed-axis Phase 1)
+
+DANGLING         = 0   ← لا توجد axisId يتيمة تشير لمحاور غير موجودة
+GOALS_TOTAL      = 8
+GOALS_WITH_AXIS  = 8   ← جميع الأهداف مربوطة بمحور صالح
+GOALS_WITH_PERSP = 0   ← لا يوجد هدف لديه perspective نصي بعد الآن
+```
+
+**التفسير:** جميع الأهداف الاستراتيجية الثمانية مربوطة بمحاور AXIS-01..04 (الـ legacy)، ولا يوجد أي حقل `perspective` نشط. سكربت `migrate-perspective-to-axis.mjs` لا حاجة لتشغيله (لا يوجد ما يُرحَّل). Phase 1 مُكتمل.
+
+**القرار المؤجل (Phase 2):** هل تُوحَّد AXIS-01..04 مع رموز BSC الجديدة (FINANCIAL/CUSTOMER/…) أم تُبقى منفصلة؟ ← يتطلب قرار إداري. **لا تعديل على البيانات أو الـ schema حتى صدور القرار.**
 
 ---
 
@@ -279,5 +303,26 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
 7. كتابة اختبارات plan freeze + DEPT_MANAGER AI scope (التوصيات المعلَّقة من v2)
 
 ### مؤجلة (خارج النطاق الحالي)
-8. ترحيل `perspective` → `axisId` بعد اكتمال ترحيل البيانات (Phase 6 من خطة v2)
+8. **DATA-002 Phase 1 ✅ مُغلق 2026-04-29** — ترحيل `perspective → axisId` اكتمل على الإنتاج (DANGLING=0). الحقل `perspective` محتفَظ به في الـ schema حتى صدور قرار Phase 2.
 9. إضافة `SCHED-001` لـ `/api/health/deep` (فحص `QMS_BACKUP`)
+
+---
+
+### 📌 ملاحظة مؤجلة — DATA-002 Phase 2: Axis Consolidation Decision
+
+**العنوان:** DATA-002 Phase 2 — Axis Consolidation Decision
+
+**الوضع الحالي في الإنتاج:**
+- يوجد 9 محاور: AXIS-01, AXIS-02, AXIS-03, AXIS-04 (legacy، أُنشئت قبل v2) + FINANCIAL, CUSTOMER, PROCESS, LEARNING, GOVERNANCE (BSC، أُنشئت بـ seed-axis Phase 1)
+- جميع الأهداف الاستراتيجية الثمانية مربوطة بـ AXIS-01..04 فقط
+- المحاور البنفسجية الخمسة (BSC) موجودة في DB لكن لا تُستخدم بعد
+
+**القرار المطلوب من الإدارة:**
+> هل نُوحِّد المحاور بحيث تصبح AXIS-01..04 مُدمجة أو مُعاد تسميتها لتطابق رموز BSC (FINANCIAL/CUSTOMER/PROCESS/LEARNING/GOVERNANCE)، أم نُبقي على المجموعتين منفصلتين مع ربط الأهداف الحالية يدوياً بالمحاور الجديدة؟
+
+**الممنوع قبل صدور القرار:**
+- ❌ لا حذف AXIS-01..04
+- ❌ لا إعادة ربط الأهداف الحالية
+- ❌ لا حذف حقل `perspective` من الـ schema
+- ❌ لا migrations جديدة تمس Axis أو StrategicGoal
+- ❌ لا تعديلات على واجهة المستخدم أو التقارير المتعلقة بالمحاور
