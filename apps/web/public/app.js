@@ -429,6 +429,7 @@ function app() {
       { id: 'initiatives',            label: 'المبادرات الاستراتيجية', icon: '🚀' },
       { id: 'fundingSources',         label: 'مصادر التمويل',         icon: '💰' },
       { id: 'fundingPlans',           label: 'خطط التمويل',           icon: '📊' },
+      { id: 'planVersions',           label: 'إصدارات الخطة',          icon: '🗂️' },
       { id: 'strategicGoals',         label: 'الأهداف الاستراتيجية',  icon: '🏆' },
       { id: 'operationalActivities',  label: 'الخطة التشغيلية',       icon: '📅' },
       { id: 'kpiTracking',            label: 'متابعة الأداء',        icon: '📈' },
@@ -473,7 +474,7 @@ function app() {
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
     menuGroups: [
       { id: 'home',      title: 'الرئيسية',            icon: '🏠', iso: '',         color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
-      { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks','changeRequests'] },
+      { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','objectives','kpiTracking','myKpi','risks','changeRequests'] },
       { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
       { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix'] },
       { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
@@ -1529,7 +1530,10 @@ function app() {
         if (this.modal.mode === 'edit') {
           await this.api('PUT', `/${mod.endpoint}/${payload.id}`, payload);
         } else {
-          await this.api('POST', `/${mod.endpoint}`, payload);
+          // FE-001: createEndpoint allows a module to POST to a different URL than the list endpoint
+          // (e.g. plan-versions: list = /plan-versions, create = /plan-versions/snapshot)
+          const createEp = mod.createEndpoint || mod.endpoint;
+          await this.api('POST', `/${createEp}`, payload);
         }
         this.modal.open = false;
         this._modalInitialSnapshot = null;
