@@ -1263,6 +1263,8 @@ function app() {
     async loadList(page = null) {
       if (!this.currentModule) return;
       if (page !== null) this.currentPage = page;
+      this.items = [];          // UI-BSC-001: تنظيف فوري — لا بيانات قديمة تظهر عند الانتقال
+      this.totalItems = 0;
       const params = new URLSearchParams();
       params.set('page', this.currentPage);
       params.set('limit', this.perPage);
@@ -1271,9 +1273,15 @@ function app() {
       if (this.filterYear)   params.set('filter[year]', this.filterYear);
       if (this.quickFilter)  params.set('quick', this.quickFilter);
       if (this.showDeleted && this.canViewDeleted) params.set('onlyDeleted', '1');
-      const r = await this.api('GET', `/${this.currentModule.endpoint}?${params}`);
-      this.items = r.items || [];
-      this.totalItems = r.total || 0;
+      try {
+        const r = await this.api('GET', `/${this.currentModule.endpoint}?${params}`);
+        this.items = r.items || [];
+        this.totalItems = r.total || 0;
+      } catch (e) {
+        this.items = [];
+        this.totalItems = 0;
+        console.error('[loadList]', this.currentModule.endpoint, e.message);
+      }
     },
 
     async prevPage() {
