@@ -292,7 +292,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
   // ══════════════════════════════════════════════════
   {
     name: 'update_strategic_goal',
-    description: 'حدِّث حقول هدف استراتيجي. id = CUID أو code (STR-2026-XXX). responsible = نص عربي (ليس user ID).',
+    description: 'حدِّث حقول هدف استراتيجي. id = CUID أو code (STR-2026-XXX). responsible = نص عربي (ليس user ID). لإضافة مبادرات استخدم create_initiative / update_initiative.',
     input_schema: {
       type: 'object',
       properties: {
@@ -302,7 +302,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
         responsible: { type: 'string', description: 'اسم المسؤول نصياً' },
         kpi:         { type: 'string' },
         baseline:    { type: 'string' },
-        initiatives: { type: 'string' },
+        // AI-GOV-002: initiatives (text) حُذف — استخدم create_initiative / update_initiative بدلاً منه
         startYear:   { type: 'number' },
         endYear:     { type: 'number' },
         progress:    { type: 'number', minimum: 0, maximum: 100 },
@@ -329,7 +329,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
 
   {
     name: 'create_strategic_goal',
-    description: 'أنشئ هدفاً استراتيجياً جديداً. استخدم get_system_state أولاً لتجنب التكرار.',
+    description: 'أنشئ هدفاً استراتيجياً جديداً. استخدم get_system_state أولاً لتجنب التكرار. لإضافة مبادرات بعد الإنشاء استخدم create_initiative.',
     input_schema: {
       type: 'object',
       properties: {
@@ -339,7 +339,7 @@ offset: للصفحات التالية (0, 50, 100...)`,
         target:      { type: 'string', description: 'القيمة المستهدفة' },
         baseline:    { type: 'string', description: 'الوضع الراهن' },
         responsible: { type: 'string', description: 'اسم الجهة المسؤولة' },
-        initiatives: { type: 'string', description: 'المبادرات الاستراتيجية' },
+        // AI-GOV-002: initiatives (text) حُذف — استخدم create_initiative بعد إنشاء الهدف
         startYear:   { type: 'number' },
         endYear:     { type: 'number' },
         planId:      { type: 'string', description: 'CUID الخطة الاستراتيجية لربط الهدف بها (اختياري)' },
@@ -1718,7 +1718,8 @@ export async function executeTool(name, input, ctx) {
       if (!id) return { ok:false, error:'id مطلوب', summary:'فشل: id مفقود' };
       const resolvedId = await resolveGoal(id).catch(e => ({ err: e.message }));
       if (resolvedId?.err) return { ok:false, error:resolvedId.err, summary:'فشل: الهدف غير موجود' };
-      const data = pickFields(fields, ['title','target','responsible','kpi','baseline','initiatives','startYear','endYear','progress','status','planId','notes']);
+      // AI-GOV-002: 'initiatives' (text legacy) مُزالة من pickFields — استخدم create_initiative / update_initiative
+      const data = pickFields(fields, ['title','target','responsible','kpi','baseline','startYear','endYear','progress','status','planId','notes']);
       if (!Object.keys(data).length) return { ok:false, error:'لا حقول للتحديث', summary:'فشل: لا حقول' };
       try {
         const u = await prisma.strategicGoal.update({ where:{id:resolvedId}, data });
@@ -1746,7 +1747,8 @@ export async function executeTool(name, input, ctx) {
     }
 
     case 'create_strategic_goal': {
-      const { title, perspective, kpi, target, baseline, responsible, initiatives, startYear, endYear, planId, notes } = input;
+      // AI-GOV-002: 'initiatives' (text legacy) مُزالة — استخدم create_initiative بعد إنشاء الهدف
+      const { title, perspective, kpi, target, baseline, responsible, startYear, endYear, planId, notes } = input;
       if (!title) return { ok:false, error:'title مطلوب', summary:'فشل: title مفقود' };
       // توليد code تلقائي
       const lastGoal = await prisma.strategicGoal.findFirst({ orderBy:{ createdAt:'desc' }, select:{ code:true } });
@@ -1760,7 +1762,7 @@ export async function executeTool(name, input, ctx) {
         code: finalCode, title,
         perspective: perspective||null, kpi: kpi||null, target: target||null,
         baseline: baseline||null, responsible: responsible||null,
-        initiatives: initiatives||null,
+        // initiatives (text legacy) intentionally omitted — use create_initiative instead
         startYear: startYear ? Number(startYear) : year,
         endYear: endYear ? Number(endYear) : year+1,
         planId: planId||null, notes: notes||null, status:'PLANNED',
