@@ -386,6 +386,61 @@ window.QMS_MODULES_PLANNING = {
     ],
   },
 
+  // ── FE-001: إصدارات الخطة الاستراتيجية ──────────────────────────────────────
+  // القراءة: GET /api/plan-versions?planId=X
+  // الإنشاء: POST /api/plan-versions/snapshot  { planId, reason }
+  // لا يوجد تعديل من الواجهة (SA فقط، وهو edge case نادر)
+  // لا يوجد حذف من الواجهة
+  planVersions: {
+    endpoint:       'plan-versions',
+    createEndpoint: 'plan-versions/snapshot',   // FE-001: يُوجَّه الإنشاء للـ snapshot endpoint
+    exportable: false,
+    allowedFilters: ['planId'],
+    statusOptions: [
+      { v: '',             l: 'كل المشغّلات' },
+      { v: 'MANUAL',      l: 'يدوي' },
+      { v: 'QUARTERLY',   l: 'ربعي' },
+      { v: 'ACTIVATION',  l: 'عند التفعيل' },
+    ],
+    cols: [
+      { key: 'version',         label: 'رقم الإصدار' },
+      { key: 'plan.title',      label: 'الخطة الاستراتيجية' },
+      { key: 'trigger',         label: 'المشغّل', type: 'status' },
+      { key: 'reason',          label: 'سبب الإصدار' },
+      { key: 'createdBy.name',  label: 'أنشأه' },
+      { key: 'createdAt',       label: 'تاريخ الإصدار', type: 'date' },
+    ],
+    fields: [
+      {
+        key: 'planId', label: 'الخطة الاستراتيجية', required: true,
+        type: 'relation', relation: 'strategicPlans',
+        hint: 'اختر الخطة التي تريد أخذ لقطة لها',
+      },
+      {
+        key: 'reason', label: 'سبب أخذ اللقطة',
+        type: 'textarea',
+        hint: 'اختياري — مثال: قبل اعتماد المراجعة الإدارية Q2-2026',
+      },
+      {
+        key: 'trigger', label: 'المشغّل', type: 'select',
+        options: [
+          { v: 'MANUAL',     l: 'يدوي' },
+          { v: 'QUARTERLY',  l: 'ربعي' },
+          { v: 'ACTIVATION', l: 'عند التفعيل' },
+        ],
+      },
+    ],
+    // Detail drawer: يعرض snapshot كـ JSON مقروء — لا يوجد تعديل
+    detailFields: [
+      { key: 'version',        label: 'رقم الإصدار' },
+      { key: 'plan.title',     label: 'الخطة الاستراتيجية' },
+      { key: 'trigger',        label: 'المشغّل' },
+      { key: 'reason',         label: 'سبب الإصدار' },
+      { key: 'createdBy.name', label: 'أنشأه' },
+      { key: 'createdAt',      label: 'تاريخ الإصدار', type: 'date' },
+    ],
+  },
+
   changeRequests: {
     endpoint: 'change-requests',
     exportable: true,
