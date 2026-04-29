@@ -124,7 +124,8 @@
 | INITIATIVES-DISPLAY | 2026-04-30 | جدول المبادرات يعرض الهدف بصيغة STR-XXXX — عنوان بدلاً من UUID: إضافة code لـ goal.select + col.format() في renderCell | ✅ مغلق · 529/529 · لا schema · لا migration | `3785293` |
 | NCR-BUG-001 | 2026-04-30 | إصلاح إنشاء NCR: `reporter.connect` بدلاً من `reporterId scalar` + حذف `detectedAt: null` قبل Prisma create — نفس الإصلاح في audit-findings.js | ✅ مغلق · 529/529 · لا schema · لا migration | `8400751` |
 | NCR-CAPA-SMOKE | 2026-04-30 | Smoke test كامل لدورة NCR/CAPA: إنشاء → workflow OPEN→ROOT_CAUSE→ACTION_PLANNED→IN_PROGRESS→VERIFICATION→CLOSED (6 خطوات) · validation يرفض الانتقال بدون الحقول المطلوبة ✅ · توقيع رقمي مطلوب قبل الإغلاق ✅ · CAPA-2026-001 أُنشئ مرتبطاً بـ NCR ودورته كاملة ✅ · حذف ناعم للسجلين التجريبيين ✅ | ✅ مكتمل · لا كود · لا migration | — |
+| DOCS-SMOKE | 2026-04-30 | Smoke test الوثائق: إنشاء DOC-2026-001 (PROCEDURE · v1.0 · ISO 8.5.1) ✅ · validation يرفض الحفظ بدون العنوان ✅ · رفع ملف PDF عبر POST /upload ✅ · سجل الإصدارات يظهر في الواجهة ✅ · download 200 ✅ · حذف ناعم ✅ · ملاحظة: رسالة validation بالإنجليزي "title: Required" (UX مؤجل) | ✅ مكتمل · لا كود · لا migration | — |
 
 ---
 
-*آخر تحديث: 2026-04-30 (NCR-CAPA-SMOKE) · Claude Sonnet 4.6*
+*آخر تحديث: 2026-04-30 (DOCS-SMOKE) · Claude Sonnet 4.6*
