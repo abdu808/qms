@@ -1236,7 +1236,7 @@ function app() {
         if (f.type === 'relation' && f.relation) needed.add(f.relation);
       }
       const endpoints = {
-        axes:            '/axes?limit=100',           // جميع المحاور (AXIS-01..04 + BSC)
+        axes:            '/axes?quick=active&limit=100', // المحاور النشطة فقط (لها أهداف) — AXIS-01..04
         strategicGoals:  '/strategic-goals?limit=200',
         strategicPlans:  '/strategic-plans?limit=20',
         objectives:      '/objectives?limit=200',
