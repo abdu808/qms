@@ -14,7 +14,7 @@
 | مسارات API | ✅ مكتملة | 80+ ملف route، crudFactory موحَّد |
 | الجدول الزمني (Scheduler) | ✅ يعمل | 8 فحوصات ساعية + 3 مهام يومية + 1 أسبوعية |
 | النسخ الاحتياطي | ✅ C7 AES-256-GCM | يعمل بـ `QMS_BACKUP=on` |
-| حوكمة الذكاء الاصطناعي | ⚠️ ثغرة جزئية | 5 أدوات كتابة خارج ALWAYS_REVIEW |
+| حوكمة الذكاء الاصطناعي | ✅ مُغلق | AI-GOV-001 ✅ · AI-GOV-002 ✅ — مُعالَجان في tools.js |
 | الواجهة الأمامية | ✅ مكتملة | axes · indicators · annualTargets · initiatives · fundingSources · fundingPlans · planVersions — جميعها موجودة |
 | سلامة البيانات | 🔲 بانتظار التشغيل | سكربت جاهز: `check-data-integrity.mjs` |
 | الاختبارات | ✅ شاملة | 20 ملف · ~393 حالة اختبار |
@@ -27,22 +27,24 @@
 
 | الرقم | المعرف | المكان | المشكلة | التأثير | الإصلاح |
 |-------|--------|--------|---------|---------|---------|
-| 1 | AI-GOV-001 | `tools.js` → `ALWAYS_REVIEW_TOOLS` | 5 أدوات كتابة خارج ALWAYS_REVIEW: `create_ncr`, `create_capa`, `plan_audit`, `create_complaint`, `create_risk` | المستشار الآلي يمكنه إنشاء NCR / CAPA / شكاوى / مراجعات دون عرضها على المستخدم للموافقة | إضافة الخمسة لـ `ALWAYS_REVIEW_TOOLS` في tools.js |
+| 1 | AI-GOV-001 | `tools.js` → `ALWAYS_REVIEW_TOOLS` | ~~5 أدوات كتابة خارج ALWAYS_REVIEW: `create_ncr`, `create_capa`, `plan_audit`, `create_complaint`, `create_risk`~~ | **✅ مُغلق 2026-04-29** — الأدوات الخمس موجودة في ALWAYS_REVIEW_TOOLS (lines 250-254). المستشار يعرض الجميع على المستخدم قبل التنفيذ. | — |
 
 ### 🟡 متوسطة الأولوية
 
 | الرقم | المعرف | المكان | المشكلة | التأثير | الإصلاح |
 |-------|--------|--------|---------|---------|---------|
 | 2 | FE-001 | `planning.js` | ~~`planVersions` غائب من modules-config~~ | **✅ مُغلق** — تم إضافة قسم planVersions لـ planning.js | — |
-| 3 | DATA-001 | `schema.prisma` + DB | لا يوجد CHECK constraint على مستوى DB لفرض FK واحد في KpiEntry | Prisma Studio / migration script يمكنه إدراج صفوف بـ FK مزدوج أو صفر | تطبيق migration يدوي يضيف CHECK (راجع خطة v2 § 1.3) |
-| 4 | DATA-002 | `schema.prisma` + `planning.js` | StrategicGoal: `perspective String?` (legacy) + `axisId String?` (v2) كلاهما نشط | الفرونت يعرض `perspective` كنص حر (قائمة قديمة) بجانب `axisId` FK — خطر تعارض بيانات | **Phase 1 ✅ مُغلق 2026-04-29** — جميع الأهداف لديها `axisId` صالح · `perspective=null` · DANGLING=0. Phase 2 مؤجل (قرار توحيد المحاور). |
+| 3 | FE-002 | `planning.js` → strategicGoals cols | ~~الأعمدة القديمة `kpi` و `perspective` و `target` تُعرض رغم كونها null~~ | **✅ مُغلق 2026-04-29** — أُزيل `kpi`/`perspective`/`target`، استُبدلا بـ `axis.nameAr` و `_count.objectives` و `_count.initiatives` | — |
+| 4 | FE-003 | `planning.js` → strategicGoals fields | ~~حقل `axisId` غائب من نموذج الأهداف الاستراتيجية، يظهر `perspective` القديم~~ | **✅ مُغلق 2026-04-29** — أُضيف `axisId` كـ relation field يشير لـ `axes`، أُزيل `perspective` من النموذج | — |
+| 5 | DATA-001 | `schema.prisma` + DB | لا يوجد CHECK constraint على مستوى DB لفرض FK واحد في KpiEntry | Prisma Studio / migration script يمكنه إدراج صفوف بـ FK مزدوج أو صفر | تطبيق migration يدوي يضيف CHECK (راجع خطة v2 § 1.3) |
+| 6 | DATA-002 | `schema.prisma` + `planning.js` | StrategicGoal: `perspective String?` (legacy) + `axisId String?` (v2) كلاهما نشط | الفرونت يعرض `perspective` كنص حر (قائمة قديمة) بجانب `axisId` FK — خطر تعارض بيانات | **Phase 1 ✅ مُغلق 2026-04-29** — جميع الأهداف لديها `axisId` صالح · `perspective=null` · DANGLING=0. Phase 2 مؤجل (قرار توحيد المحاور). |
 
 ### 🔵 منخفضة / معلومات
 
 | الرقم | المعرف | المكان | المشكلة | التأثير | الإصلاح |
 |-------|--------|--------|---------|---------|---------|
-| 5 | SCHED-001 | `scheduler.js:622` | النسخ الاحتياطي يتطلب `QMS_BACKUP=on` (env) — غير موثَّق في startup checklist | قد يُنسى تفعيله في بيئة Coolify الجديدة | إضافة فحص `/api/health/deep` يكشف عن غياب القيمة |
-| 6 | AI-GOV-002 | `tools.js` → `update_strategic_goal` | الأداة تقبل `initiatives: String` (legacy field) وترسله للـ route الذي يكتبه على `legacyInitiatives` — يتعارض مع v2 Initiative model | الذكاء يكتب على الحقل القديم بدلاً من إنشاء Initiative عبر `create_initiative` | إزالة حقل `initiatives` من schema أداة `update_strategic_goal` / `create_strategic_goal` |
+| 7 | SCHED-001 | `scheduler.js:622` | النسخ الاحتياطي يتطلب `QMS_BACKUP=on` (env) — غير موثَّق في startup checklist | قد يُنسى تفعيله في بيئة Coolify الجديدة | إضافة فحص `/api/health/deep` يكشف عن غياب القيمة |
+| 8 | AI-GOV-002 | `tools.js` → `update_strategic_goal` | ~~الأداة تقبل `initiatives: String` (legacy field)~~ | **✅ مُغلق 2026-04-29** — حقل `initiatives` أُزيل من schemas أداتَي `update_strategic_goal` / `create_strategic_goal`؛ المستشار يستخدم `create_initiative` / `update_initiative` حصراً | — |
 
 ---
 
@@ -149,7 +151,7 @@ GOALS_WITH_PERSP = 0   ← لا يوجد هدف لديه perspective نصي بع
 | READ_ONLY_TOOLS | 15 | ✅ لا تحتاج مراجعة |
 | ALWAYS_REVIEW_TOOLS | 14 | ✅ مُعرَّفة بشكل صريح |
 | أدوات كتابة عادية | 22 | ✅ محمية بـ TOOL_PERMISSIONS |
-| **أدوات كتابة خارج ALWAYS_REVIEW** | **5** | ❌ ثغرة |
+| **أدوات كتابة خارج ALWAYS_REVIEW** | **0** | ✅ مُغلق 2026-04-29 |
 
 ### ✅ ما يعمل صحيح
 
@@ -165,35 +167,13 @@ GOALS_WITH_PERSP = 0   ← لا يوجد هدف لديه perspective نصي بع
 5. **EMPLOYEE لا يستطيع الكتابة**: TOOL_PERMISSIONS يتطلب `MANAGER_UP` للأدوات الحساسة ✅
 6. **لا بيانات حساسة في logs**: backup key لا يُطبع، المفتاح من env فقط ✅
 
-### ❌ AI-GOV-001 — الثغرة المحددة
+### ✅ AI-GOV-001 — مُغلق 2026-04-29
 
-الأدوات التالية تُنشئ/تُعدِّل سجلات **بدون** عرض على المستخدم للموافقة أولاً:
+الأدوات الخمس `create_ncr`, `create_capa`, `plan_audit`, `create_complaint`, `create_risk` موجودة في `ALWAYS_REVIEW_TOOLS` (tools.js lines 250-254). المستشار يعرضها على المستخدم قبل التنفيذ في جميع الأحوال (بما فيها auto mode).
 
-```
-create_ncr       → ينشئ عدم مطابقة رسمية تلقائياً
-create_capa      → ينشئ إجراء تصحيحي/وقائي تلقائياً  
-plan_audit       → يُجدول تدقيقاً داخلياً تلقائياً
-create_complaint → ينشئ شكوى رسمية تلقائياً
-create_risk      → ينشئ خطراً في السجل الرسمي تلقائياً
-```
+### ✅ AI-GOV-002 — مُغلق 2026-04-29
 
-**الإصلاح المقترح:**
-
-```javascript
-// في tools.js — إضافة للـ ALWAYS_REVIEW_TOOLS
-export const ALWAYS_REVIEW_TOOLS = new Set([
-  // ... الأدوات الموجودة ...
-  'create_ncr',
-  'create_capa',
-  'plan_audit',
-  'create_complaint',
-  'create_risk',
-]);
-```
-
-### ⚠️ AI-GOV-002 — حقل initiatives القديم
-
-أداة `update_strategic_goal` و `create_strategic_goal` تقبلان `initiatives: String` مما يكتب على `legacyInitiatives` — يتجاوز نموذج `Initiative` المستقل الجديد.
+حقل `initiatives: String` أُزيل من schemas أداتَي `update_strategic_goal` / `create_strategic_goal`. المستشار يستخدم `create_initiative` / `update_initiative` حصراً لإنشاء وتعديل المبادرات.
 
 ---
 
@@ -292,18 +272,20 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
 ## الخطوات الموصى بها
 
 ### أولوية عالية (هذا الأسبوع)
-1. **AI-GOV-001**: إضافة `create_ncr`, `create_capa`, `plan_audit`, `create_complaint`, `create_risk` لـ `ALWAYS_REVIEW_TOOLS`
-2. **DATA-001**: تطبيق migration يدوي يضيف CHECK constraint على KpiEntry
+1. ~~**AI-GOV-001**~~ ✅ مُغلق 2026-04-29
+2. **DATA-001**: تطبيق migration يدوي يضيف CHECK constraint على KpiEntry (مؤجل لما بعد UAT)
 3. تشغيل `node scripts/check-data-integrity.mjs` على الإنتاج والتحقق من النتائج
 
 ### أولوية متوسطة (ما بعد UAT)
 4. ~~**FE-001**: إضافة قسم `planVersions` (read-only) لـ planning.js~~ ✅ مُغلق
-5. **FE-003**: إضافة `axisId` كـ relation field في نموذج strategic goals
-6. **AI-GOV-002**: إزالة `initiatives: String` من schemas أدوات الأهداف الاستراتيجية
-7. كتابة اختبارات plan freeze + DEPT_MANAGER AI scope (التوصيات المعلَّقة من v2)
+5. ~~**FE-002**: إزالة الأعمدة القديمة من جدول الأهداف الاستراتيجية~~ ✅ مُغلق 2026-04-29
+6. ~~**FE-003**: إضافة `axisId` كـ relation field في نموذج strategic goals~~ ✅ مُغلق 2026-04-29
+7. ~~**AI-GOV-002**: إزالة `initiatives: String` من schemas أدوات الأهداف الاستراتيجية~~ ✅ مُغلق 2026-04-29
+8. كتابة اختبارات plan freeze + DEPT_MANAGER AI scope (التوصيات المعلَّقة من v2)
 
 ### مؤجلة (خارج النطاق الحالي)
-8. **DATA-002 Phase 1 ✅ مُغلق 2026-04-29** — ترحيل `perspective → axisId` اكتمل على الإنتاج (DANGLING=0). الحقل `perspective` محتفَظ به في الـ schema حتى صدور قرار Phase 2.
+8. **ROLLUP-001** (ما بعد UAT): إضافة cascade تلقائي في `rollup.js` عند تعديل `Objective.progress` ليُشغِّل إعادة حساب `StrategicGoal.progress`. حالياً الـ rollup يدوي عبر `PATCH /strategic-goals/:id/recompute`. ← اكتُشف 2026-04-29 عند فحص UAT-002.
+9. **DATA-002 Phase 1 ✅ مُغلق 2026-04-29** — ترحيل `perspective → axisId` اكتمل على الإنتاج (DANGLING=0). الحقل `perspective` محتفَظ به في الـ schema حتى صدور قرار Phase 2.
 9. إضافة `SCHED-001` لـ `/api/health/deep` (فحص `QMS_BACKUP`)
 
 ---
