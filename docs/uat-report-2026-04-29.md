@@ -1,7 +1,7 @@
 # تقرير UAT — نظام إدارة الجودة
 **المنظومة:** نظام إدارة الجودة · جمعية البر بصبيا  
 **الرابط:** https://quality.aqiltech.sa  
-**النسخة:** `main @ 02644cf`  
+**النسخة:** `main @ 3785293`  
 **تاريخ البدء:** 2026-04-29  
 **حالة UAT:** ✅ مُكتمل — رُفع الـ freeze · Sprint ما قبل الإطلاق جارٍ
 
@@ -120,7 +120,8 @@
 |--------|---------|-------|--------|--------|
 | ROLLUP-001 | 2026-04-30 | cascade تلقائي Objective/Activity.progress → StrategicGoal.progress عبر afterUpdate/afterDelete مشروط | ✅ مغلق · npm test 529/529 · لا schema · لا migration | `02644cf` |
 | AXIS-PICKER | 2026-04-30 | إضافة `axes` لـ `loadRelations()` + `relationOptions` — يُعرض المحور الصحيح في نموذج التعديل | ✅ مغلق · 9 محاور · axisIdMatch=true · لا schema · لا migration | `6264465` |
+| INITIATIVES-DISPLAY | 2026-04-30 | جدول المبادرات يعرض الهدف بصيغة STR-XXXX — عنوان بدلاً من UUID: إضافة code لـ goal.select + col.format() في renderCell | ✅ مغلق · 529/529 · لا schema · لا migration | `3785293` |
 
 ---
 
-*آخر تحديث: 2026-04-30 · Claude Sonnet 4.6*
+*آخر تحديث: 2026-04-30 (INITIATIVES-DISPLAY) · Claude Sonnet 4.6*
