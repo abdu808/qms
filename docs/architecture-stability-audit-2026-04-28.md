@@ -15,7 +15,7 @@
 | الجدول الزمني (Scheduler) | ✅ يعمل | 8 فحوصات ساعية + 3 مهام يومية + 1 أسبوعية |
 | النسخ الاحتياطي | ✅ C7 AES-256-GCM | يعمل بـ `QMS_BACKUP=on` |
 | حوكمة الذكاء الاصطناعي | ⚠️ ثغرة جزئية | 5 أدوات كتابة خارج ALWAYS_REVIEW |
-| الواجهة الأمامية | ⚠️ ناقصة | `planVersions` غائبة من planning.js |
+| الواجهة الأمامية | ✅ مكتملة | axes · indicators · annualTargets · initiatives · fundingSources · fundingPlans · planVersions — جميعها موجودة |
 | سلامة البيانات | 🔲 بانتظار التشغيل | سكربت جاهز: `check-data-integrity.mjs` |
 | الاختبارات | ✅ شاملة | 20 ملف · ~393 حالة اختبار |
 
@@ -33,7 +33,7 @@
 
 | الرقم | المعرف | المكان | المشكلة | التأثير | الإصلاح |
 |-------|--------|--------|---------|---------|---------|
-| 2 | FE-001 | `planning.js` | `planVersions` غائب من modules-config | لا يوجد UI لعرض/إنشاء StrategicPlanVersion رغم وجود route ونموذج | إضافة قسم `planVersions` (read-only) لـ planning.js |
+| 2 | FE-001 | `planning.js` | ~~`planVersions` غائب من modules-config~~ | **✅ مُغلق** — تم إضافة قسم planVersions لـ planning.js | — |
 | 3 | DATA-001 | `schema.prisma` + DB | لا يوجد CHECK constraint على مستوى DB لفرض FK واحد في KpiEntry | Prisma Studio / migration script يمكنه إدراج صفوف بـ FK مزدوج أو صفر | تطبيق migration يدوي يضيف CHECK (راجع خطة v2 § 1.3) |
 | 4 | DATA-002 | `schema.prisma` + `planning.js` | StrategicGoal: `perspective String?` (legacy) + `axisId String?` (v2) كلاهما نشط | الفرونت يعرض `perspective` كنص حر (قائمة قديمة) بجانب `axisId` FK — خطر تعارض بيانات | **Phase 1 ✅ مُغلق 2026-04-29** — جميع الأهداف لديها `axisId` صالح · `perspective=null` · DANGLING=0. Phase 2 مؤجل (قرار توحيد المحاور). |
 
@@ -296,8 +296,8 @@ export const ALWAYS_REVIEW_TOOLS = new Set([
 2. **DATA-001**: تطبيق migration يدوي يضيف CHECK constraint على KpiEntry
 3. تشغيل `node scripts/check-data-integrity.mjs` على الإنتاج والتحقق من النتائج
 
-### أولوية متوسطة (هذا الشهر)
-4. **FE-001**: إضافة قسم `planVersions` (read-only) لـ planning.js
+### أولوية متوسطة (ما بعد UAT)
+4. ~~**FE-001**: إضافة قسم `planVersions` (read-only) لـ planning.js~~ ✅ مُغلق
 5. **FE-003**: إضافة `axisId` كـ relation field في نموذج strategic goals
 6. **AI-GOV-002**: إزالة `initiatives: String` من schemas أدوات الأهداف الاستراتيجية
 7. كتابة اختبارات plan freeze + DEPT_MANAGER AI scope (التوصيات المعلَّقة من v2)
