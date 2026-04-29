@@ -311,7 +311,7 @@ window.QMS_MODULES_PLANNING = {
     cols: [
       { key: 'code',     label: 'الرمز' },
       { key: 'name',     label: 'المبادرة' },
-      { key: 'goal.title', label: 'الهدف' },
+      { key: 'goal', label: 'الهدف', format: item => item.goal ? (item.goal.code ? item.goal.code + ' — ' + item.goal.title : item.goal.title) : null },
       { key: 'budget',   label: 'الميزانية' },
       { key: 'spent',    label: 'المصروف' },
       { key: 'progress', label: 'الإنجاز %' },

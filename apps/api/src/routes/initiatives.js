@@ -22,7 +22,7 @@ export default crudRouter({
   },
   transactionFields: ['progress','spent','status','notes'],
   include: {
-    goal: { select: { id: true, title: true } },
+    goal: { select: { id: true, code: true, title: true } },
     owner: { select: { id: true, name: true } },
     department: { select: { id: true, name: true } },
   },

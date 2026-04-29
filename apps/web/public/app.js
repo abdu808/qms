@@ -1585,6 +1585,13 @@ function app() {
 
     // ------ rendering helpers ------
     renderCell(item, col) {
+      // support format function for computed/combined display (e.g. code + ' — ' + title)
+      if (typeof col.format === 'function') {
+        const formatted = col.format(item);
+        return (formatted == null || formatted === '')
+          ? '<span class="text-gray-300">—</span>'
+          : this.escape(String(formatted));
+      }
       // support dot-notation keys like "indicator.nameAr"
       let v = col.key.includes('.')
         ? col.key.split('.').reduce((o, k) => (o != null ? o[k] : undefined), item)
