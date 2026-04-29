@@ -19,6 +19,7 @@
  *   8. NCR بحالة CLOSED بلا توثيق الإغلاق (verifiedAt أو verifiedNote أو effective)
  *   9. CAPA بحالة CLOSED بلا فحص الفاعلية (effective = null)
  *  10. KpiEntry بلا قيمة فعلية (actualValue = null — تعني إدخالاً ناقصاً)
+ *  11. StrategicGoal لديه perspective بلا axisId (DATA-002 — تحذير للترحيل غير المكتمل)
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -290,6 +291,26 @@ async function checkKpiLinkedToDeletedObjective() {
   };
 }
 
+/** 11. StrategicGoal لديه perspective بلا axisId — DATA-002 ترحيل غير مكتمل */
+async function checkGoalPerspectiveWithoutAxis() {
+  const rows = await prisma.strategicGoal.findMany({
+    where: {
+      deletedAt:   null,
+      perspective: { not: null },
+      axisId:      null,
+    },
+    select: { id: true, code: true, perspective: true },
+    take: 20,
+  });
+  return {
+    id: 'GOAL-001',
+    label: 'StrategicGoal لديه perspective بلا axisId (يحتاج migrate-perspective-to-axis)',
+    count: rows.length,
+    severity: 'WARN',
+    samples: rows.map(r => `code=${r.code} perspective="${r.perspective}"`),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // التشغيل الرئيسي
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -309,6 +330,7 @@ async function main() {
     { id: 'RSK',    title: 'Risk — اكتمال البيانات',                fns: [checkCriticalRisksMissingFields] },
     { id: 'NCR',    title: 'NCR — توثيق الإغلاق',                   fns: [checkNcrClosedWithoutVerification] },
     { id: 'CAPA',   title: 'CAPA — فحص الفاعلية',                   fns: [checkCapaClosedWithoutEffectiveness] },
+    { id: 'GOAL',   title: 'StrategicGoal — ترحيل البيانات (DATA-002)', fns: [checkGoalPerspectiveWithoutAxis] },
   ];
 
   for (const group of checks) {
