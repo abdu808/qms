@@ -135,136 +135,123 @@ content.push(pageBreak());
 content.push(h1('الملحق — قائمة السياسات واللوائح والإجراءات المعتمدة'));
 
 content.push(p(
-  'القائمة الكاملة بالوثائق المرجعية المعتمدة بموجب البند الثاني من هذا المحضر، ويُعتمد جميعها بنفس تاريخ هذا المحضر:',
+  'القائمة الكاملة بالوثائق المرجعية المعتمدة بموجب البند الثاني من هذا المحضر، مُنظَّمة وفق طبيعة كل وثيقة وحاجتها للاعتماد، ويُعتمَد جميعها بنفس تاريخ هذا المحضر:',
   { italics: true, color: '595959' },
 ));
 
-// المجموعة 1: السياسات والأهداف
-content.push(h2('1. السياسات والأهداف الاستراتيجية'));
+// ─── أولاً: وثائق الحوكمة ─────────────────────────────
+content.push(h2('أولاً: وثائق الحوكمة'));
+content.push(p('سياسات وأطر تخص حوكمة المجلس وأصحاب المصلحة والامتثال — يعتمدها المجلس بشكل مباشر:', { italics: true, color: '595959' }));
+content.push(buildTable([
+  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
+  [{ text: 'GOV-001', center: true, bold: true }, { text: 'ميثاق مجلس الإدارة واللجان' }],
+  [{ text: 'GOV-002', center: true, bold: true }, { text: 'سياسة الإفصاح والشفافية' }],
+  [{ text: 'CHR-01', center: true, bold: true }, { text: 'الميثاق الأخلاقي' }],
+  [{ text: 'CHR-02', center: true, bold: true }, { text: 'إقرار تضارب المصالح' }],
+  [{ text: 'CHR-03', center: true, bold: true }, { text: 'اتفاقية السرية' }],
+  [{ text: 'CHR-04', center: true, bold: true }, { text: 'سياسة مكافحة الفساد' }],
+  [{ text: 'CHR-05', center: true, bold: true }, { text: 'سياسة الإبلاغ عن المخالفات (Whistleblowing)' }],
+  [{ text: 'CHR-06', center: true, bold: true }, { text: 'لائحة العمل الداخلية' }],
+], [1800, 7560]));
+
+// ─── ثانياً: نظام الجودة الأساسي ──────────────────────
+content.push(p(''));
+content.push(h2('ثانياً: وثائق نظام الجودة الأساسية (ISO 9001:2015)'));
+content.push(p('الإطار المرجعي الأساسي لنظام إدارة الجودة — يعتمده المجلس لمرة واحدة:', { italics: true, color: '595959' }));
 content.push(buildTable([
   [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }, { text: 'بند ISO', center: true }],
-  [{ text: 'QM-001-2026', center: true, bold: true }, { text: 'دليل نظام إدارة الجودة' }, { text: '7.5', center: true }],
-  [{ text: 'QM-002-2026', center: true, bold: true }, { text: 'نطاق نظام إدارة الجودة' }, { text: '4.4', center: true }],
-  [{ text: 'QP-001-2026', center: true, bold: true }, { text: 'سياسة الجودة' }, { text: '5.2', center: true }],
-  [{ text: 'QP-002-2026', center: true, bold: true }, { text: 'أهداف الجودة' }, { text: '6.2', center: true }],
-  [{ text: 'QP-003-2026', center: true, bold: true }, { text: 'إدارة المخاطر والفرص' }, { text: '6.1', center: true }],
-  [{ text: 'QP-004-2026', center: true, bold: true }, { text: 'ضبط الوثائق والسجلات' }, { text: '7.5', center: true }],
-  [{ text: 'QP-005-2026', center: true, bold: true }, { text: 'سياسة التوثيق الرشيق' }, { text: '7.5', center: true }],
-], [1800, 5760, 1800]));
+  [{ text: 'QM-001', center: true, bold: true }, { text: 'دليل نظام إدارة الجودة' }, { text: '7.5', center: true }],
+  [{ text: 'QM-002', center: true, bold: true }, { text: 'نطاق نظام إدارة الجودة' }, { text: '4.4', center: true }],
+  [{ text: 'QP-001', center: true, bold: true }, { text: 'سياسة الجودة' }, { text: '5.2', center: true }],
+  [{ text: 'QP-002', center: true, bold: true }, { text: 'أهداف الجودة' }, { text: '6.2', center: true }],
+  [{ text: 'QP-003', center: true, bold: true }, { text: 'إدارة المخاطر والفرص' }, { text: '6.1', center: true }],
+  [{ text: 'QP-004', center: true, bold: true }, { text: 'ضبط الوثائق والسجلات' }, { text: '7.5', center: true }],
+  [{ text: 'QP-005', center: true, bold: true }, { text: 'سياسة التوثيق الرشيق' }, { text: '7.5', center: true }],
+], [1500, 6060, 1800]));
 
-// المجموعة 2: الإجراءات التشغيلية
+// ─── ثالثاً: السياسات الحساسة ─────────────────────────
 content.push(p(''));
-content.push(h2('2. الإجراءات التشغيلية'));
+content.push(h2('ثالثاً: السياسات الحساسة لحماية الفئات'));
+content.push(p('سياسات تحمي المستفيدين والموظفين والمتبرعين — اعتمادها ضمانة قانونية وأخلاقية:', { italics: true, color: '595959' }));
 content.push(buildTable([
   [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
-  [{ text: 'FIN-001-2026', center: true, bold: true }, { text: 'السياسة المالية واسترداد التبرعات' }],
-  [{ text: 'HR-001-2026', center: true, bold: true }, { text: 'إجراء الموارد البشرية والكفاءة' }],
-  [{ text: 'IT-001-2026', center: true, bold: true }, { text: 'سياسة البنية التحتية التقنية' }],
-  [{ text: 'PUR-001-2026', center: true, bold: true }, { text: 'إجراء المشتريات والموردين' }],
-  [{ text: 'QS-001-2026', center: true, bold: true }, { text: 'إجراءات تقديم الخدمات' }],
-  [{ text: 'QS-002-2026', center: true, bold: true }, { text: 'إدارة المتطوعين' }],
-  [{ text: 'QS-003-2026', center: true, bold: true }, { text: 'إدارة التبرعات' }],
-  [{ text: 'QS-004-2026', center: true, bold: true }, { text: 'حماية المستفيدين والشكاوى' }],
-], [1800, 7560]));
-
-// المجموعة 3: الحوكمة
-content.push(p(''));
-content.push(h2('3. الحوكمة والمخاطر'));
-content.push(buildTable([
-  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
-  [{ text: 'GOV-001-2026', center: true, bold: true }, { text: 'ميثاق مجلس الإدارة واللجان' }],
-  [{ text: 'GOV-002-2026', center: true, bold: true }, { text: 'سياسة الإفصاح والشفافية' }],
-  [{ text: 'MR-001-2026', center: true, bold: true }, { text: 'أجندة مراجعة الإدارة' }],
-  [{ text: 'MR-002-2026', center: true, bold: true }, { text: 'تقرير مراجعة الإدارة' }],
-], [1800, 7560]));
-
-// المجموعة 4: التدقيق والتحسين
-content.push(p(''));
-content.push(h2('4. التدقيق والتحسين'));
-content.push(buildTable([
-  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
-  [{ text: 'CA-001-2026', center: true, bold: true }, { text: 'إجراء عدم المطابقة والإجراءات التصحيحية' }],
-  [{ text: 'CA-002-2026', center: true, bold: true }, { text: 'سجل متابعة الإجراءات التصحيحية' }],
-  [{ text: 'IA-001-2026', center: true, bold: true }, { text: 'خطة التدقيق الداخلي' }],
-  [{ text: 'IA-002-2026', center: true, bold: true }, { text: 'نموذج تقرير التدقيق الداخلي' }],
-], [1800, 7560]));
-
-// المجموعة 5: السياسات العامة المنشورة
-content.push(p(''));
-content.push(h2('5. السياسات العامة المنشورة'));
-content.push(buildTable([
-  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
-  [{ text: 'PUB-005-2026', center: true, bold: true }, { text: 'سياسة الإفصاح والشفافية (نسخة عامة)' }],
-  [{ text: 'PUB-006-2026', center: true, bold: true }, { text: 'سياسة مكافحة الاحتيال' }],
-  [{ text: 'PUB-007-2026', center: true, bold: true }, { text: 'سياسة حماية المستفيدين' }],
-  [{ text: 'PUB-008-2026', center: true, bold: true }, { text: 'سياسة استرداد التبرعات' }],
-  [{ text: 'PUB-009-2026', center: true, bold: true }, { text: 'السياسة المالية العامة' }],
+  [{ text: 'PRT-01', center: true, bold: true }, { text: 'سياسة حماية البيانات الشخصية' }],
+  [{ text: 'PRT-02', center: true, bold: true }, { text: 'سياسة الحماية (Safeguarding)' }],
+  [{ text: 'PRT-03', center: true, bold: true }, { text: 'سياسة مكافحة التحرش' }],
+  [{ text: 'PRT-04', center: true, bold: true }, { text: 'حقوق ومسؤوليات المستفيد' }],
+  [{ text: 'PRT-05', center: true, bold: true }, { text: 'ميثاق سلوك الموردين' }],
+  [{ text: 'PRT-06', center: true, bold: true }, { text: 'سياسة خصوصية المتبرع' }],
 ], [1800, 7560]));
 
 content.push(pageBreak());
 
-// المجموعة 6: المواثيق
-content.push(h2('6. المواثيق والسياسات الحوكمية 2026'));
+// ─── رابعاً: الإجراءات التشغيلية ──────────────────────
+content.push(h2('رابعاً: الإجراءات التشغيلية'));
+content.push(p('إجراءات تنفيذية لإدارات الجمعية — يعتمد المجلس إطارها · ويُفوَّض المدير التنفيذي ومدير الجودة بتحديث تفاصيلها التشغيلية:', { italics: true, color: '595959' }));
 content.push(buildTable([
-  [{ text: '#', center: true }, { text: 'الوثيقة', center: true }],
-  [{ text: '1', center: true, bold: true }, { text: 'الميثاق الأخلاقي' }],
-  [{ text: '2', center: true, bold: true }, { text: 'إقرار تضارب المصالح' }],
-  [{ text: '3', center: true, bold: true }, { text: 'اتفاقية السرية' }],
-  [{ text: '4', center: true, bold: true }, { text: 'سياسة حماية البيانات الشخصية' }],
-  [{ text: '5', center: true, bold: true }, { text: 'سياسة الحماية (Safeguarding)' }],
-  [{ text: '6', center: true, bold: true }, { text: 'سياسة مكافحة التحرش' }],
-  [{ text: '7', center: true, bold: true }, { text: 'سياسة مكافحة الفساد' }],
-  [{ text: '8', center: true, bold: true }, { text: 'سياسة الإبلاغ عن المخالفات (Whistleblowing)' }],
-  [{ text: '9', center: true, bold: true }, { text: 'لائحة العمل الداخلية' }],
-  [{ text: '10', center: true, bold: true }, { text: 'ميثاق مجلس الإدارة' }],
-  [{ text: '11', center: true, bold: true }, { text: 'حقوق ومسؤوليات المستفيد' }],
-  [{ text: '12', center: true, bold: true }, { text: 'ميثاق سلوك الموردين' }],
-  [{ text: '13', center: true, bold: true }, { text: 'سياسة خصوصية المتبرع' }],
-], [1200, 8160]));
+  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
+  [{ text: 'FIN-001', center: true, bold: true }, { text: 'السياسة المالية واسترداد التبرعات' }],
+  [{ text: 'HR-001', center: true, bold: true }, { text: 'إجراء الموارد البشرية والكفاءة' }],
+  [{ text: 'IT-001', center: true, bold: true }, { text: 'سياسة البنية التحتية التقنية' }],
+  [{ text: 'PUR-001', center: true, bold: true }, { text: 'إجراء المشتريات والموردين' }],
+  [{ text: 'QS-001', center: true, bold: true }, { text: 'إجراءات تقديم الخدمات' }],
+  [{ text: 'QS-002', center: true, bold: true }, { text: 'إدارة المتطوعين' }],
+  [{ text: 'QS-003', center: true, bold: true }, { text: 'إدارة التبرعات' }],
+  [{ text: 'QS-004', center: true, bold: true }, { text: 'حماية المستفيدين والشكاوى' }],
+], [1800, 7560]));
 
-// المجموعة 7: خرائط الإجراءات الموحدة
+// ─── خامساً: المراجعة والتدقيق ────────────────────────
 content.push(p(''));
-content.push(h2('7. خرائط الإجراءات الموحدة 2026'));
+content.push(h2('خامساً: وثائق المراجعة والتدقيق'));
+content.push(p('أُطر المراجعة الإدارية والتدقيق الداخلي وعدم المطابقة — يعتمدها المجلس كأطر:', { italics: true, color: '595959' }));
 content.push(buildTable([
-  [{ text: 'الكود', center: true }, { text: 'الإجراء', center: true }],
-  [{ text: 'P-01', center: true, bold: true }, { text: 'إجراء فهم سياق المنظمة' }],
-  [{ text: 'P-02', center: true, bold: true }, { text: 'إجراء سياسة وأهداف الجودة' }],
-  [{ text: 'P-03', center: true, bold: true }, { text: 'إجراء إدارة المخاطر والفرص' }],
-  [{ text: 'P-04', center: true, bold: true }, { text: 'إجراء ضبط الوثائق والسجلات' }],
-  [{ text: 'P-05', center: true, bold: true }, { text: 'إجراء الموارد البشرية والكفاءة' }],
-  [{ text: 'P-06', center: true, bold: true }, { text: 'إجراء الاتصال الداخلي والخارجي' }],
-  [{ text: 'P-07', center: true, bold: true }, { text: 'إجراء التخطيط التشغيلي' }],
-  [{ text: 'P-08', center: true, bold: true }, { text: 'إجراء خدمة المستفيدين' }],
-  [{ text: 'P-09', center: true, bold: true }, { text: 'إجراء إدارة التبرعات' }],
-  [{ text: 'P-10', center: true, bold: true }, { text: 'إجراء المشتريات والموردين' }],
-  [{ text: 'P-11', center: true, bold: true }, { text: 'إجراء الشكاوى والرضا' }],
-  [{ text: 'P-12', center: true, bold: true }, { text: 'إجراء التدقيق الداخلي' }],
-  [{ text: 'P-13', center: true, bold: true }, { text: 'إجراء المراجعة الإدارية' }],
-  [{ text: 'P-14', center: true, bold: true }, { text: 'إجراء عدم المطابقة والإجراء التصحيحي' }],
-  [{ text: 'P-15', center: true, bold: true }, { text: 'إجراء التحسين المستمر' }],
-], [1200, 8160]));
+  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
+  [{ text: 'MR-001', center: true, bold: true }, { text: 'أجندة مراجعة الإدارة' }],
+  [{ text: 'MR-002', center: true, bold: true }, { text: 'تقرير مراجعة الإدارة' }],
+  [{ text: 'IA-001', center: true, bold: true }, { text: 'خطة التدقيق الداخلي' }],
+  [{ text: 'IA-002', center: true, bold: true }, { text: 'نموذج تقرير التدقيق الداخلي' }],
+  [{ text: 'CA-001', center: true, bold: true }, { text: 'إجراء عدم المطابقة والإجراءات التصحيحية' }],
+  [{ text: 'CA-002', center: true, bold: true }, { text: 'سجل متابعة الإجراءات التصحيحية' }],
+], [1800, 7560]));
+
+// ─── سادساً: السياسات العامة المنشورة ─────────────────
+content.push(p(''));
+content.push(h2('سادساً: السياسات العامة المنشورة (للجمهور)'));
+content.push(p('نسخ علنية من سياسات حوكمية تخص الجمهور — تُعتمَد ثم تُنشَر على الموقع الرسمي للجمعية:', { italics: true, color: '595959' }));
+content.push(buildTable([
+  [{ text: 'الكود', center: true }, { text: 'الوثيقة', center: true }],
+  [{ text: 'PUB-005', center: true, bold: true }, { text: 'سياسة الإفصاح والشفافية (نسخة عامة)' }],
+  [{ text: 'PUB-006', center: true, bold: true }, { text: 'سياسة مكافحة الاحتيال' }],
+  [{ text: 'PUB-007', center: true, bold: true }, { text: 'سياسة حماية المستفيدين' }],
+  [{ text: 'PUB-008', center: true, bold: true }, { text: 'سياسة استرداد التبرعات' }],
+  [{ text: 'PUB-009', center: true, bold: true }, { text: 'السياسة المالية العامة' }],
+], [1800, 7560]));
 
 content.push(pageBreak());
 
-// ─── ملخص ───────────────────────────────────────
+// ─── ملخص الاعتماد ─────────────────────────────────
 content.push(h2('ملخص الاعتماد'));
 
 content.push(buildTable([
-  [{ text: 'الفئة', center: true }, { text: 'العدد', center: true }],
-  [{ text: 'السياسات والأهداف الاستراتيجية' }, { text: '7', center: true, bold: true }],
-  [{ text: 'الإجراءات التشغيلية' }, { text: '8', center: true, bold: true }],
-  [{ text: 'وثائق الحوكمة والمخاطر' }, { text: '4', center: true, bold: true }],
-  [{ text: 'وثائق التدقيق والتحسين' }, { text: '4', center: true, bold: true }],
-  [{ text: 'السياسات العامة المنشورة' }, { text: '5', center: true, bold: true }],
-  [{ text: 'المواثيق والسياسات الحوكمية' }, { text: '13', center: true, bold: true }],
-  [{ text: 'خرائط الإجراءات الموحدة', bold: true }, { text: '15', center: true, bold: true }],
-  [{ text: 'الإجمالي', bold: true, color: '1F4E79' }, { text: '56 وثيقة', center: true, bold: true, color: '1F4E79' }],
-], [6500, 2860]));
+  [{ text: 'الفئة', center: true }, { text: 'الطبيعة', center: true }, { text: 'العدد', center: true }],
+  [{ text: 'أولاً: وثائق الحوكمة' }, { text: 'حوكمة', center: true }, { text: '8', center: true, bold: true }],
+  [{ text: 'ثانياً: نظام الجودة الأساسية' }, { text: 'جودة', center: true }, { text: '7', center: true, bold: true }],
+  [{ text: 'ثالثاً: السياسات الحساسة' }, { text: 'حماية', center: true }, { text: '6', center: true, bold: true }],
+  [{ text: 'رابعاً: الإجراءات التشغيلية' }, { text: 'جودة + تشغيل', center: true }, { text: '8', center: true, bold: true }],
+  [{ text: 'خامساً: المراجعة والتدقيق' }, { text: 'جودة', center: true }, { text: '6', center: true, bold: true }],
+  [{ text: 'سادساً: السياسات العامة المنشورة' }, { text: 'حوكمة + إفصاح', center: true }, { text: '5', center: true, bold: true }],
+  [{ text: 'الإجمالي', bold: true, color: '1F4E79' }, { text: '—', center: true }, { text: '40 وثيقة', center: true, bold: true, color: '1F4E79' }],
+], [4800, 2700, 1860]));
 
 content.push(p(''));
-
 content.push(p(
-  'جميع الوثائق المُدرَجة أعلاه محفوظة في نظام إدارة الجودة (QMS) كنسخ إلكترونية معتمدة، ومتاحة للمراجعة والتحقق من قبل الجهات الرقابية والتدقيق الداخلي والخارجي.',
+  'ملاحظة: لا تشمل القائمة أعلاه (35) وثيقة داخلية استرشادية — مثل أدلة التدريب، أدوات التدقيق الذكي، خرائط الإجراءات الموحدة، نماذج التقييم — حيث يعتمدها المدير التنفيذي ومدير الجودة وفق صلاحياتهم المُفوَّضة في البند الثاني.',
+  { italics: true, color: '595959' },
+));
+
+content.push(p(''));
+content.push(p(
+  'جميع الوثائق المُدرَجة محفوظة في نظام إدارة الجودة (QMS) كنسخ إلكترونية معتمدة، ومتاحة للمراجعة والتحقق من قبل الجهات الرقابية والتدقيق الداخلي والخارجي.',
   { italics: true, color: '595959' },
 ));
 
