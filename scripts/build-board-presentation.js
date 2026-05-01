@@ -252,9 +252,19 @@ content.push(table([
 content.push(p(''));
 content.push(p('المعالجة المعتمدة: تعديل الهدف إلى "كفالة 200 يتيم بحلول 2027" — تضاعف 4× من الواقع، وهو طموح قابل للتحقق.', { bold: true }));
 
-content.push(h2('4.3 خط الأساس المالي 2025'));
-content.push(p('الإيرادات المُعلَنة في الخطة الأولية: 10.9 مليون ريال للعام 2025.'));
-content.push(p('الحالة الراهنة: التقرير المالي التفصيلي 2025 (PDF) لم يُمكن تحويله إلى بيانات قابلة للقراءة الآلية. ينتظر استخراجاً يدوياً من إدارة الشؤون المالية واعتماده قبل التقديم النهائي للمجلس.', { color: 'C00000', bold: true }));
+content.push(h2('4.3 خط الأساس المالي 2025 — مُؤكَّد رسمياً'));
+content.push(table([
+  [{ text: 'البند', center: true }, { text: 'القيمة (ريال)', center: true }],
+  [{ text: 'إجمالي الإيرادات' }, { text: '11,309,157', center: true, bold: true }],
+  [{ text: 'إجمالي المصروفات' }, { text: '10,641,351', center: true }],
+  [{ text: 'صافي الفائض' }, { text: '667,806 (فائض)', center: true, color: '006100', bold: true }],
+  [{ text: 'صافي الأصول' }, { text: '7,837,407', center: true }],
+  [{ text: 'الموارد الذاتية' }, { text: '964,203 (8.5%)', center: true }],
+  [{ text: 'إيرادات معاهد شعاع المعالي' }, { text: '409,685', center: true }],
+  [{ text: 'نسبة مصروفات البرامج من الإيرادات' }, { text: '88.4% — ✅ يفوق المعيار', center: true, color: '006100' }],
+], [4680, 4680]));
+content.push(p('المصدر: التقرير المالي الرسمي 2025 — جمعية البر بصبيا', { color: '595959', size: 18 }));
+content.push(p('💡 ملاحظة هامة: نسبة مصروفات البرامج 88.4% تفوق المعيار الدولي للقطاع غير الربحي (80%) — مؤشر صحة مالية ممتاز.', { color: '006100', bold: true, size: 22 }));
 
 content.push(pageBreak());
 
@@ -263,14 +273,16 @@ content.push(h1('5. المستهدفات السنوية للسنوات الخم�
 
 content.push(p('اعتمدت الخطة نموذج النمو المتسارع: نمو معتدل في 2026-2027 (مرحلة بناء قدرات)، ثم نمو متسارع في 2028-2030 (مرحلة الحصاد). يعكس هذا واقع المنظمات الناشئة في القطاع الثالث.'));
 
-content.push(h2('5.1 المؤشرات المالية'));
+content.push(h2('5.1 المؤشرات المالية (مُؤكَّدة من التقرير المالي 2025)'));
 content.push(table([
   [{ text: 'المؤشر', center: true }, { text: 'خط الأساس 2025', center: true }, { text: '2026', center: true }, { text: '2027', center: true }, { text: '2028', center: true }, { text: '2029', center: true }, { text: '2030', center: true }],
-  [{ text: 'نسبة الموارد الذاتية' }, { text: '~9%*', center: true }, { text: '13%', center: true }, { text: '16%', center: true }, { text: '20%', center: true }, { text: '25%', center: true }, { text: '30%', center: true }],
-  [{ text: 'عدد مصادر الإيرادات' }, { text: '5', center: true }, { text: '7', center: true }, { text: '8', center: true }, { text: '9', center: true }, { text: '9', center: true }, { text: '9', center: true }],
-  [{ text: 'إيرادات مركز التدريب (ريال)' }, { text: '~50K*', center: true }, { text: '250K', center: true }, { text: '450K', center: true }, { text: '700K', center: true }, { text: '1M', center: true }, { text: '1.4M', center: true }],
+  [{ text: 'إجمالي الإيرادات (M ريال)' }, { text: '11.3', center: true }, { text: '12.1', center: true }, { text: '13.0', center: true }, { text: '14.0', center: true }, { text: '15.2', center: true }, { text: '16.6', center: true }],
+  [{ text: 'نسبة الموارد الذاتية' }, { text: '8.5%', center: true }, { text: '13%', center: true }, { text: '17%', center: true }, { text: '21%', center: true }, { text: '26%', center: true }, { text: '30%', center: true }],
+  [{ text: 'عدد مصادر الإيرادات' }, { text: '5', center: true }, { text: '7', center: true }, { text: '8', center: true }, { text: '8', center: true }, { text: '9', center: true }, { text: '9', center: true }],
+  [{ text: 'إيرادات معاهد شعاع المعالي (K)' }, { text: '410', center: true }, { text: '500', center: true }, { text: '700', center: true }, { text: '1,000', center: true }, { text: '1,300', center: true }, { text: '1,600', center: true }],
+  [{ text: 'الفائض السنوي (K ريال)' }, { text: '668', center: true }, { text: '700', center: true }, { text: '750', center: true }, { text: '800', center: true }, { text: '850', center: true }, { text: '900', center: true }],
 ], [2400, 1640, 880, 880, 880, 880, 800]));
-content.push(p('* تقديري — يُستكمل من التقرير المالي الرسمي', { color: '595959', size: 18 }));
+content.push(p('المصدر: التقرير المالي الرسمي 2025 — جمعية البر بصبيا', { color: '595959', size: 18 }));
 
 content.push(h2('5.2 مؤشرات الأثر الاجتماعي'));
 content.push(table([
