@@ -311,6 +311,53 @@ async function checkGoalPerspectiveWithoutAxis() {
   };
 }
 
+// ─── 12. AnnualTarget coverage gaps — فجوات تغطية المؤشرات للسنوات ─────────
+async function checkIndicatorTargetGaps() {
+  // كل خطة نشطة + مؤشرات تخصها (عبر objective.goal.plan) + AnnualTargets
+  const plans = await prisma.strategicPlan.findMany({
+    where: { status: 'ACTIVE', deletedAt: null },
+    select: { id: true, code: true, startYear: true, endYear: true },
+  });
+
+  const gaps = [];
+  for (const plan of plans) {
+    if (!plan.startYear || !plan.endYear) continue;
+    const expectedYears = [];
+    for (let y = plan.startYear; y <= plan.endYear; y++) expectedYears.push(y);
+
+    // مؤشرات الخطة عبر السلسلة: indicator → objective → goal → plan
+    const indicators = await prisma.indicator.findMany({
+      where: {
+        deletedAt: null,
+        objective: {
+          deletedAt: null,
+          goal: { deletedAt: null, planId: plan.id },
+        },
+      },
+      select: {
+        id: true, code: true, nameAr: true,
+        annualTargets: { select: { year: true } },
+      },
+    });
+
+    for (const ind of indicators) {
+      const haveYears = new Set(ind.annualTargets.map(t => t.year));
+      const missing = expectedYears.filter(y => !haveYears.has(y));
+      if (missing.length) {
+        gaps.push(`${ind.code} (${plan.code}) — ينقص: ${missing.join(', ')}`);
+      }
+    }
+  }
+
+  return {
+    id: 'AT-COVERAGE-001',
+    label: 'AnnualTarget — مؤشرات لا تغطي نطاق الخطة الكامل',
+    count: gaps.length,
+    severity: 'WARN',
+    samples: gaps.slice(0, 20),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // التشغيل الرئيسي
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -331,6 +378,7 @@ async function main() {
     { id: 'NCR',    title: 'NCR — توثيق الإغلاق',                   fns: [checkNcrClosedWithoutVerification] },
     { id: 'CAPA',   title: 'CAPA — فحص الفاعلية',                   fns: [checkCapaClosedWithoutEffectiveness] },
     { id: 'GOAL',   title: 'StrategicGoal — ترحيل البيانات (DATA-002)', fns: [checkGoalPerspectiveWithoutAxis] },
+    { id: 'ATCOV',  title: 'AnnualTarget — تغطية نطاق الخطة',          fns: [checkIndicatorTargetGaps] },
   ];
 
   for (const group of checks) {
