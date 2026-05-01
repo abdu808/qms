@@ -252,6 +252,20 @@ function app() {
     get canViewDeleted() {
       return ['SUPER_ADMIN','QUALITY_MANAGER'].includes(this.user?.role);
     },
+
+    // سنوات الفلتر المتاحة — تُحسب من نطاق الخطة النشطة (لا تخلط مع سنوات قديمة)
+    get planYears() {
+      const plans = this.relationOptions?.strategicPlans || [];
+      const active = plans.find(p => p.status === 'ACTIVE') || plans[0];
+      if (active?.startYear && active?.endYear) {
+        const years = [];
+        for (let y = active.endYear; y >= active.startYear; y--) years.push(y);
+        return years;
+      }
+      // fallback: السنة الحالية ±2
+      const cy = new Date().getFullYear();
+      return [cy+2, cy+1, cy, cy-1, cy-2];
+    },
     async restoreItem(item) {
       if (!confirm(`استعادة السجل "${item.code || item.title || item.id}"؟`)) return;
       try {
@@ -948,6 +962,10 @@ function app() {
             this.startNotifPolling();
             this.startAlertsPolling();
             this.loadStateMachines();
+            // تحميل الخطط الاستراتيجية مسبقاً لـ planYears (نطاق فلتر السنوات)
+            this.api('GET', '/strategic-plans?limit=20').then(r => {
+              this.relationOptions.strategicPlans = r.items || [];
+            }).catch(() => {});
           }
           // Audit improvement #1: استخدم homePageForRole بدلاً من dashboard ثابت
           this.goto(this.homePageForRole());

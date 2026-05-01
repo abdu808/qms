@@ -30,6 +30,20 @@ const base = crudRouter({
     indicator: { select: { id: true, code: true, nameAr: true } },
     createdBy: { select: { id: true, name: true } },
   },
+  // Prisma checked-input fix: relations must use connect syntax.
+  // Same pattern as NCR-BUG-001 fix in routes/ncr.js.
+  beforeCreate: async (data, req) => {
+    if (data.indicatorId) {
+      data.indicator = { connect: { id: data.indicatorId } };
+      delete data.indicatorId;
+    }
+    const creatorId = data.createdById || req.user?.sub;
+    if (creatorId) {
+      data.createdBy = { connect: { id: creatorId } };
+      delete data.createdById;
+    }
+    return data;
+  },
   beforeUpdate: async (data, req) => {
     if (data.targetValue !== undefined) {
       if (!data.modificationReason || String(data.modificationReason).trim() === '') {
