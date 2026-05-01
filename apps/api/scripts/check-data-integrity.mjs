@@ -358,6 +358,53 @@ async function checkIndicatorTargetGaps() {
   };
 }
 
+// ─── 13. User Ownership — مالكون غير نشطين لديهم سجلات حية ────────────
+async function checkOrphanOwnership() {
+  // ابحث عن مستخدمين محذوفين أو غير نشطين يملكون سجلات حية
+  // (StrategicGoals, Initiatives, Indicators, OperationalActivities, FollowUpTasks)
+  const inactiveUsers = await prisma.user.findMany({
+    where: {
+      OR: [
+        { deletedAt: { not: null } },
+        { isActive: false },
+      ],
+    },
+    select: {
+      id: true, name: true, deletedAt: true, isActive: true,
+      ownedStrategicGoals: { where: { deletedAt: null }, select: { code: true } },
+      ownedInitiatives:    { where: { deletedAt: null }, select: { code: true } },
+      ownedIndicators:     { where: { deletedAt: null }, select: { code: true } },
+      ownedActivities:     { where: { deletedAt: null }, select: { code: true } },
+    },
+  }).catch(() => []);
+
+  const orphans = [];
+  for (const u of inactiveUsers) {
+    const counts = [
+      u.ownedStrategicGoals?.length || 0,
+      u.ownedInitiatives?.length || 0,
+      u.ownedIndicators?.length || 0,
+      u.ownedActivities?.length || 0,
+    ];
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const status = u.deletedAt ? 'محذوف' : 'غير نشط';
+      orphans.push(
+        `${u.name} (${status}) — يملك: ` +
+        `${counts[0]} هدف · ${counts[1]} مبادرة · ${counts[2]} مؤشر · ${counts[3]} نشاط (إجمالي ${total})`
+      );
+    }
+  }
+
+  return {
+    id: 'USER-OWNERSHIP-001',
+    label: 'User — مستخدم غير نشط/محذوف يملك سجلات حية (يحتاج نقل ملكية)',
+    count: orphans.length,
+    severity: 'WARN',
+    samples: orphans.slice(0, 20),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // التشغيل الرئيسي
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -379,6 +426,7 @@ async function main() {
     { id: 'CAPA',   title: 'CAPA — فحص الفاعلية',                   fns: [checkCapaClosedWithoutEffectiveness] },
     { id: 'GOAL',   title: 'StrategicGoal — ترحيل البيانات (DATA-002)', fns: [checkGoalPerspectiveWithoutAxis] },
     { id: 'ATCOV',  title: 'AnnualTarget — تغطية نطاق الخطة',          fns: [checkIndicatorTargetGaps] },
+    { id: 'USR',    title: 'User — ملكية السجلات والاستدامة',           fns: [checkOrphanOwnership] },
   ];
 
   for (const group of checks) {
