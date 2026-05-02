@@ -12,7 +12,7 @@
 | SSRF prevention | ✅ | `validateWebhookUrl()` |
 | Connection status (متصل/معطّل/فشل/لم يُختبر) | ✅ | GET `/webhook-settings` extended |
 | Last test result + last success + last failure | ✅ | extended endpoint |
-| n8n callback endpoint (HMAC verified) | ✅ | `POST /api/integrations/delivery-status` |
+| n8n callback endpoint (X-Webhook-Secret) | ✅ | `POST /api/integrations/callback/delivery-status` |
 | سجل الإرسال (IntegrationDelivery) | ✅ | model + UI tab |
 | قوالب رسائل قابلة للتعديل | ✅ | `NotificationTemplate` model + 5 seeds |
 | Variables {{employeeName}}, {{indicatorName}}…  | ✅ | renderer in `notificationDispatcher.js` |

@@ -10,6 +10,8 @@
  *  GET  /api/automation/kpi-summary     — ملخص مؤشرات الأداء
  *  POST /api/automation/weekly-report   — توليد التقرير الأسبوعي بـ AI
  *  POST /api/automation/send-alert      — إرسال تنبيه عبر n8n webhook
+ *  POST /api/automation/delivery-status — [DEPRECATED] استخدم
+ *       POST /api/integrations/callback/delivery-status بدلاً منه.
  */
 import { Router }        from 'express';
 import { asyncHandler }  from '../utils/asyncHandler.js';
@@ -257,7 +259,14 @@ router.post('/send-alert', requireWebhookAuth, asyncHandler(async (req, res) => 
   res.json({ ok: true, sent: result.ok, status: result.status });
 }));
 
-// n8n calls this endpoint after SMS/WhatsApp/email provider execution.
+// ──────────────────────────────────────────────────────────────
+// DEPRECATED: المسار القديم لـ delivery callback
+// ──────────────────────────────────────────────────────────────
+// المسار المعتمد الآن: POST /api/integrations/callback/delivery-status
+// نُبقي هذا المسار يعمل لتوافق n8n workflows قديمة قد تكون مُكوَّنة عليه،
+// لكن نُضيف header تحذيري ونوصي بالترحيل.
+//
+// الوظيفة نفسها (X-Webhook-Secret + markIntegrationDeliveryStatus).
 router.post('/delivery-status', requireWebhookAuth, asyncHandler(async (req, res) => {
   const {
     deliveryId,
@@ -288,7 +297,17 @@ router.post('/delivery-status', requireWebhookAuth, asyncHandler(async (req, res
     error,
   });
 
-  res.json({ ok: true, item });
+  // header تحذيري للترحيل
+  res.set('Deprecation', 'true');
+  res.set('Link', '</api/integrations/callback/delivery-status>; rel="successor-version"');
+  res.json({
+    ok: true,
+    item,
+    deprecation: {
+      message: 'هذا المسار سيُحذف. استخدم POST /api/integrations/callback/delivery-status',
+      successor: '/api/integrations/callback/delivery-status',
+    },
+  });
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────

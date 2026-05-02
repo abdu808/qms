@@ -74,9 +74,14 @@ Content-Type: application/json
 بعد تنفيذ الإرسال، يستدعي n8n:
 
 ```http
-POST /api/automation/delivery-status
+POST /api/integrations/callback/delivery-status
 X-Webhook-Secret: <n8n_webhook_secret>
+Content-Type: application/json
 ```
+
+> ملاحظة: المسار القديم `/api/automation/delivery-status` لم يعد معتمداً.
+> المسار الموحَّد الوحيد للـ callback هو `/api/integrations/callback/delivery-status`.
+> لا يُستخدم HMAC على JSON body — المصادقة فقط عبر header `X-Webhook-Secret`.
 
 ```json
 {
@@ -115,4 +120,4 @@ X-Webhook-Secret: <n8n_webhook_secret>
 4. إرسال WhatsApp أولًا عند وجود رقم.
 5. fallback إلى SMS عند فشل WhatsApp.
 6. fallback إلى Email عند وجود بريد.
-7. استدعاء `/api/automation/delivery-status` بنتيجة الإرسال.
+7. استدعاء `/api/integrations/callback/delivery-status` بنتيجة الإرسال (مع header `X-Webhook-Secret`).

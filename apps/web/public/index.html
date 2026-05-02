@@ -3066,10 +3066,10 @@
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium mb-1">المفتاح السري (HMAC)</label>
+                    <label class="block text-sm font-medium mb-1">السر المشترك (X-Webhook-Secret)</label>
                     <input type="password" x-model="integrationN8nForm.secret" :placeholder="integrationN8n?.secret || 'اتركه فارغاً لعدم التغيير'"
                       class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none" dir="ltr">
-                    <p class="text-[10px] text-gray-500 mt-1">يُستخدم للتحقق من التواقيع في الـ callback. يُحفظ مشفّراً (AES-256-GCM).</p>
+                    <p class="text-[10px] text-gray-500 mt-1">يُرسله n8n في header <code class="bg-gray-100 px-1">X-Webhook-Secret</code> عند استدعاء callback. يُحفظ مشفّراً (AES-256-GCM).</p>
                   </div>
 
                   <div class="flex items-center gap-3">
@@ -7284,10 +7284,10 @@
                  class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">المفتاح السري (HMAC Secret)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">السر المشترك (X-Webhook-Secret)</label>
           <input x-model="webhookCfg.secret" type="password" placeholder="اتركه فارغاً لعدم التغيير"
                  class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
-          <p class="text-xs text-gray-400 mt-1">يُستخدم للتحقق من صحة الطلبات في n8n</p>
+          <p class="text-xs text-gray-400 mt-1">يُرسله n8n في header X-Webhook-Secret. يُحفظ مشفّراً.</p>
         </div>
         <div class="flex items-center gap-3">
           <label class="relative inline-flex items-center cursor-pointer">
