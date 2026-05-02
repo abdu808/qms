@@ -10,8 +10,11 @@
  *  GET  /api/automation/kpi-summary     — ملخص مؤشرات الأداء
  *  POST /api/automation/weekly-report   — توليد التقرير الأسبوعي بـ AI
  *  POST /api/automation/send-alert      — إرسال تنبيه عبر n8n webhook
- *  POST /api/automation/delivery-status — [DEPRECATED] استخدم
- *       POST /api/integrations/callback/delivery-status بدلاً منه.
+ *
+ * ملاحظة: callback تحديث حالة الإرسال من n8n موجود في مسار منفصل
+ * مُسجَّل قبل JWT middleware:
+ *   POST /api/integrations/callback/delivery-status
+ * هذا هو المسار الخارجي الوحيد المعتمد لـ n8n.
  */
 import { Router }        from 'express';
 import { asyncHandler }  from '../utils/asyncHandler.js';
@@ -20,7 +23,6 @@ import { decrypt }       from '../lib/ai/crypto.js';
 import { generateWeeklyReport } from '../services/automation/weeklyReport.js';
 import { collectAlerts }        from '../services/automation/alertsCollector.js';
 import { emitWebhookStrict }    from '../lib/webhookEmitter.js';
-import { markIntegrationDeliveryStatus } from '../services/integrationDelivery.js';
 
 const router = Router();
 
@@ -259,56 +261,12 @@ router.post('/send-alert', requireWebhookAuth, asyncHandler(async (req, res) => 
   res.json({ ok: true, sent: result.ok, status: result.status });
 }));
 
-// ──────────────────────────────────────────────────────────────
-// DEPRECATED: المسار القديم لـ delivery callback
-// ──────────────────────────────────────────────────────────────
-// المسار المعتمد الآن: POST /api/integrations/callback/delivery-status
-// نُبقي هذا المسار يعمل لتوافق n8n workflows قديمة قد تكون مُكوَّنة عليه،
-// لكن نُضيف header تحذيري ونوصي بالترحيل.
-//
-// الوظيفة نفسها (X-Webhook-Secret + markIntegrationDeliveryStatus).
-router.post('/delivery-status', requireWebhookAuth, asyncHandler(async (req, res) => {
-  const {
-    deliveryId,
-    eventKey,
-    status,
-    channel,
-    provider,
-    providerMessageId,
-    response,
-    error,
-  } = req.body || {};
-
-  if (!deliveryId && !eventKey) {
-    return res.status(400).json({ ok: false, error: 'deliveryId or eventKey is required' });
-  }
-  if (!status) {
-    return res.status(400).json({ ok: false, error: 'status is required' });
-  }
-
-  const item = await markIntegrationDeliveryStatus({
-    deliveryId,
-    eventKey,
-    status,
-    channel,
-    provider,
-    providerMessageId,
-    response,
-    error,
-  });
-
-  // header تحذيري للترحيل
-  res.set('Deprecation', 'true');
-  res.set('Link', '</api/integrations/callback/delivery-status>; rel="successor-version"');
-  res.json({
-    ok: true,
-    item,
-    deprecation: {
-      message: 'هذا المسار سيُحذف. استخدم POST /api/integrations/callback/delivery-status',
-      successor: '/api/integrations/callback/delivery-status',
-    },
-  });
-}));
+// ملاحظة: كان هنا router.post('/delivery-status') قديم — حُذف بالكامل.
+// السبب: كان مُسجَّلاً تحت /api/automation/* الذي يقع خلف JWT middleware،
+// فلم يكن يعمل أصلاً لـ n8n (الذي لا يملك جلسة). إبقاؤه كان يخلق وهم
+// "توافق خلفي" غير حقيقي. المسار الخارجي الوحيد المعتمد هو:
+//   POST /api/integrations/callback/delivery-status
+// (مُسجَّل قبل JWT في server.js، ويستخدم X-Webhook-Secret).
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  دالة مساعدة: حساب درجة صحة النظام

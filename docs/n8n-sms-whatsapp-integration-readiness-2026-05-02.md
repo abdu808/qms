@@ -79,9 +79,14 @@ X-Webhook-Secret: <n8n_webhook_secret>
 Content-Type: application/json
 ```
 
-> ملاحظة: المسار القديم `/api/automation/delivery-status` لم يعد معتمداً.
-> المسار الموحَّد الوحيد للـ callback هو `/api/integrations/callback/delivery-status`.
-> لا يُستخدم HMAC على JSON body — المصادقة فقط عبر header `X-Webhook-Secret`.
+> ملاحظة: المسار الخارجي الوحيد المعتمد لـ callback من n8n هو
+> `POST /api/integrations/callback/delivery-status` (مُسجَّل قبل JWT
+> middleware ويستخدم header `X-Webhook-Secret`).
+>
+> أي مسار آخر تحت `/api/automation/*` يقع خلف JWT ولا يُمكن استدعاؤه
+> من n8n خارجياً — لا تربطه بـ workflows.
+>
+> لا يُستخدم HMAC على JSON body — المصادقة فقط عبر `X-Webhook-Secret`.
 
 ```json
 {
