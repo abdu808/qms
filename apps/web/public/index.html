@@ -2396,6 +2396,10 @@
                       class="bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-lg text-sm transition">
                       📥 تصدير CSV
                     </button>
+                    <button @click="loadKpiFollowUpIsoReport()"
+                      class="bg-purple-500 hover:bg-purple-600 px-3 py-2 rounded-lg text-sm transition">
+                      📊 تقرير ISO 9001
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2791,14 +2795,127 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex gap-2 pt-3 border-t">
+                  <div class="flex flex-wrap gap-2 pt-3 border-t">
                     <button x-show="!['RESOLVED','ABORTED'].includes(kpiFollowUpDetailModal.followUp.status) && kpiFollowUpDetailModal.followUp.escalationLevel < 2"
                       @click="openKpiFollowUpEscalate(kpiFollowUpDetailModal.followUp); closeKpiFollowUpDetail()"
                       class="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold px-3 py-2 rounded-lg">🚨 تصعيد</button>
                     <button x-show="!['RESOLVED','ABORTED'].includes(kpiFollowUpDetailModal.followUp.status)"
                       @click="openKpiFollowUpResolve(kpiFollowUpDetailModal.followUp); closeKpiFollowUpDetail()"
                       class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-3 py-2 rounded-lg">✓ حل</button>
+                    <button @click="createCapaFromFollowUp(kpiFollowUpDetailModal.followUp)"
+                      class="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-3 py-2 rounded-lg"
+                      title="فتح إجراء تصحيحي مرتبط">🛠️ فتح CAPA</button>
                     <button @click="closeKpiFollowUpDetail()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 text-sm">إغلاق</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ MODAL: ISO 9001 Compliance Report ═══ -->
+          <template x-if="kpiFollowUpIsoReport">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeKpiFollowUpIsoReport()">
+              <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div class="bg-gradient-to-l from-purple-700 to-indigo-700 text-white p-5 rounded-t-2xl sticky top-0">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <div class="text-xs opacity-90 font-mono">ISO 9001:2015 §9.1.3</div>
+                      <h3 class="font-bold text-xl mt-1">📊 تقرير الامتثال - تحليل أداء العمليات</h3>
+                      <div class="text-xs opacity-80 mt-1">السنة: <span x-text="kpiFollowUpIsoReport.year"></span></div>
+                    </div>
+                    <button @click="closeKpiFollowUpIsoReport()" class="text-white/70 hover:text-white text-2xl">✖</button>
+                  </div>
+                </div>
+
+                <div class="p-5 space-y-5">
+                  <!-- Compliance Badge -->
+                  <div class="text-center">
+                    <div class="inline-block px-6 py-3 rounded-full text-lg font-bold border-2"
+                         :class="kpiFollowUpComplianceClass(kpiFollowUpIsoReport.complianceLevel)"
+                         x-text="kpiFollowUpComplianceLabel(kpiFollowUpIsoReport.complianceLevel)"></div>
+                    <p class="text-xs text-gray-500 mt-2">مستوى الامتثال العام</p>
+                  </div>
+
+                  <!-- Rates -->
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 text-center">
+                      <div class="text-3xl font-bold text-green-700" x-text="kpiFollowUpIsoReport.rates.onTimeRate + '%'"></div>
+                      <div class="text-xs text-green-700 mt-1">في الموعد</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 text-center">
+                      <div class="text-3xl font-bold text-blue-700" x-text="kpiFollowUpIsoReport.rates.resolutionRate + '%'"></div>
+                      <div class="text-xs text-blue-700 mt-1">معدل الحل</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 text-center">
+                      <div class="text-3xl font-bold text-orange-700" x-text="kpiFollowUpIsoReport.rates.escalationRate + '%'"></div>
+                      <div class="text-xs text-orange-700 mt-1">معدل التصعيد</div>
+                    </div>
+                  </div>
+
+                  <!-- Metrics Grid -->
+                  <div>
+                    <h4 class="font-bold text-gray-700 mb-2">📈 المقاييس التفصيلية</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">المؤشرات المتابعة</div>
+                        <div class="font-bold text-lg" x-text="kpiFollowUpIsoReport.metrics.totalIndicatorsTracked"></div>
+                      </div>
+                      <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">إجمالي المتابعات</div>
+                        <div class="font-bold text-lg" x-text="kpiFollowUpIsoReport.metrics.totalFollowUps"></div>
+                      </div>
+                      <div class="bg-green-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">المحلولة</div>
+                        <div class="font-bold text-lg text-green-700" x-text="kpiFollowUpIsoReport.metrics.resolved"></div>
+                      </div>
+                      <div class="bg-orange-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">المُصعَّدة</div>
+                        <div class="font-bold text-lg text-orange-700" x-text="kpiFollowUpIsoReport.metrics.escalated"></div>
+                      </div>
+                      <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">المُغلقة نهائياً</div>
+                        <div class="font-bold text-lg text-gray-700" x-text="kpiFollowUpIsoReport.metrics.aborted"></div>
+                      </div>
+                      <div class="bg-yellow-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">متوسط أيام التأخير</div>
+                        <div class="font-bold text-lg text-yellow-700" x-text="kpiFollowUpIsoReport.metrics.avgDaysLate + ' يوم'"></div>
+                      </div>
+                      <div class="bg-red-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">أقصى تأخير</div>
+                        <div class="font-bold text-lg text-red-700" x-text="kpiFollowUpIsoReport.metrics.maxDaysLate + ' يوم'"></div>
+                      </div>
+                      <div class="bg-purple-50 rounded-lg p-3">
+                        <div class="text-xs text-gray-500">إجراءات تصحيحية</div>
+                        <div class="font-bold text-lg text-purple-700" x-text="kpiFollowUpIsoReport.metrics.capasOpened"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Recommendations -->
+                  <div>
+                    <h4 class="font-bold text-gray-700 mb-2">💡 التوصيات والملاحظات</h4>
+                    <div class="space-y-2">
+                      <template x-for="(rec, idx) in kpiFollowUpIsoReport.recommendations" :key="idx">
+                        <div class="border-r-4 rounded-lg p-3 text-sm"
+                             :class="{
+                               'bg-red-50 border-red-500': rec.severity === 'critical',
+                               'bg-amber-50 border-amber-500': rec.severity === 'high',
+                               'bg-blue-50 border-blue-500': rec.severity === 'info',
+                             }">
+                          <div class="font-semibold flex items-center gap-1">
+                            <span x-show="rec.severity === 'critical'">🚨</span>
+                            <span x-show="rec.severity === 'high'">⚠️</span>
+                            <span x-show="rec.severity === 'info'">ℹ️</span>
+                            <span x-text="rec.finding"></span>
+                          </div>
+                          <div class="text-xs text-gray-700 mt-1" x-text="rec.recommendation"></div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+
+                  <div class="text-center pt-3 border-t">
+                    <button @click="closeKpiFollowUpIsoReport()" class="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold">إغلاق</button>
                   </div>
                 </div>
               </div>

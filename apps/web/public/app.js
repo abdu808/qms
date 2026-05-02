@@ -1411,6 +1411,55 @@ function app() {
       return ({ 0: 'لا يوجد', 1: 'مدير القسم', 2: 'الإدارة العليا' })[level] || '—';
     },
 
+    // ─── Integration: Create CAPA from follow-up ────────────────────
+    async createCapaFromFollowUp(followUp) {
+      const rootCause = prompt('السبب الجذري للتأخر (RCA):', '');
+      if (rootCause === null) return;
+      const plannedAction = prompt('الإجراء المُخطّط:', '');
+      if (plannedAction === null) return;
+      try {
+        const r = await this.api('POST', `/kpi-followups/${followUp.id}/create-capa`, {
+          rootCause: rootCause.trim(),
+          plannedAction: plannedAction.trim(),
+        });
+        alert(`✓ تم فتح إجراء تصحيحي: ${r.capa?.code}`);
+        await this.loadKpiFollowUp();
+        if (this.kpiFollowUpDetailModal) this.closeKpiFollowUpDetail();
+      } catch (e) {
+        alert(e.message || 'فشل فتح الإجراء التصحيحي');
+      }
+    },
+
+    // ─── ISO 9001 Compliance Report ─────────────────────────────────
+    kpiFollowUpIsoReport: null,
+    async loadKpiFollowUpIsoReport() {
+      try {
+        const year = this.kpiFollowUpFilters.year || new Date().getFullYear();
+        const r = await this.api('GET', `/kpi-followups/reports/iso-compliance?year=${year}`);
+        this.kpiFollowUpIsoReport = r;
+      } catch (e) {
+        alert(e.message || 'فشل تحميل تقرير الامتثال');
+      }
+    },
+    closeKpiFollowUpIsoReport() { this.kpiFollowUpIsoReport = null; },
+
+    kpiFollowUpComplianceClass(level) {
+      return ({
+        EXCELLENT:          'bg-green-100 text-green-800 border-green-300',
+        GOOD:               'bg-blue-100 text-blue-800 border-blue-300',
+        NEEDS_IMPROVEMENT:  'bg-amber-100 text-amber-800 border-amber-300',
+        CRITICAL:           'bg-red-100 text-red-800 border-red-300',
+      })[level] || 'bg-gray-100 text-gray-800';
+    },
+    kpiFollowUpComplianceLabel(level) {
+      return ({
+        EXCELLENT:         '✨ ممتاز',
+        GOOD:              '👍 جيد',
+        NEEDS_IMPROVEMENT: '⚠️ يحتاج تحسين',
+        CRITICAL:          '🚨 حرج',
+      })[level] || level;
+    },
+
     // ─── Trends Chart ───────────────────────────────────────────────
     _kpiFollowUpChart: null,
     renderKpiFollowUpChart() {

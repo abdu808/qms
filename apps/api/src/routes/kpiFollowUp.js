@@ -594,6 +594,182 @@ router.post('/:id/abort', authenticate, requireQMAccess, async (req, res) => {
 });
 
 // ──────────────────────────────────────────────────────────────
+// INTEGRATION — POST /:id/create-capa
+// إنشاء إجراء تصحيحي (CAPA) من المتابعة تلقائياً
+// ──────────────────────────────────────────────────────────────
+
+router.post('/:id/create-capa', authenticate, requireQMAccess, async (req, res) => {
+  try {
+    const { rootCause, plannedAction, dueDate, ownerId } = req.body;
+
+    const followUp = await prisma.kpiFollowUp.findUnique({
+      where: { id: req.params.id },
+      include: {
+        indicator: { select: { code: true, nameAr: true } },
+        department: { select: { name: true } },
+        dataEntryUser: { select: { name: true } },
+      },
+    });
+    if (!followUp) return res.status(404).json({ error: 'السجل غير موجود' });
+
+    // توليد رمز CAPA
+    const capaCount = await prisma.capa.count();
+    const capaCode = `CAPA-${new Date().getFullYear()}-${String(capaCount + 1).padStart(4, '0')}`;
+
+    const title = `تأخّر متكرر: ${followUp.indicator.nameAr} (${followUp.month}/${followUp.year})`;
+    const description = [
+      `سجل المتابعة: ${followUp.code}`,
+      `المؤشر: ${followUp.indicator.code} — ${followUp.indicator.nameAr}`,
+      `الفترة: ${followUp.month}/${followUp.year}`,
+      `الإدارة: ${followUp.department?.name || '—'}`,
+      `مدخل البيانات: ${followUp.dataEntryUser?.name || '—'}`,
+      `أيام التأخير: ${followUp.daysLate || '—'}`,
+      `مستوى التصعيد: ${followUp.escalationLevel}`,
+      followUp.qmNotes ? `\n--- ملاحظات الجودة ---\n${followUp.qmNotes}` : '',
+    ].join('\n');
+
+    const capa = await prisma.capa.create({
+      data: {
+        code: capaCode,
+        type: 'CORRECTIVE',
+        status: 'OPEN',
+        title,
+        description,
+        sourceType: 'KPI_FOLLOWUP',
+        sourceId: followUp.id,
+        sourceCode: followUp.code,
+        rootCauseAnalysis: rootCause || null,
+        plannedAction: plannedAction || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        ownerId: ownerId || followUp.dataEntryUserId,
+        createdById: req.user.id,
+      },
+    });
+
+    // تسجيل الإجراء في ملاحظات المتابعة
+    const noteEntry = `[${new Date().toISOString().slice(0, 16).replace('T', ' ')}] ${req.user.name}: تم فتح إجراء تصحيحي ${capa.code}`;
+    await prisma.kpiFollowUp.update({
+      where: { id: followUp.id },
+      data: {
+        qmNotes: followUp.qmNotes ? `${followUp.qmNotes}\n${noteEntry}` : noteEntry,
+      },
+    });
+
+    res.status(201).json({ message: 'تم فتح إجراء تصحيحي', capa });
+  } catch (error) {
+    console.error('POST /:id/create-capa error:', error);
+    res.status(500).json({ error: 'فشل فتح الإجراء التصحيحي', details: error.message });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────
+// ISO 9001 COMPLIANCE REPORT — GET /reports/iso-compliance
+// تقرير امتثال ISO 9001 §9.1.3 — تحليل أداء العمليات
+// ──────────────────────────────────────────────────────────────
+
+router.get('/reports/iso-compliance', authenticate, requireFollowUpReadAccess, async (req, res) => {
+  try {
+    const targetYear = parseInt(req.query.year) || new Date().getFullYear();
+    let where = { year: targetYear };
+    where = buildScopeFilter(req.user, where);
+
+    const [
+      totalIndicatorsTracked,
+      totalFollowUps,
+      resolvedCount,
+      escalatedCount,
+      abortedCount,
+      avgDaysLateAgg,
+      capasOpened,
+    ] = await Promise.all([
+      prisma.indicator.count({ where: { frequency: 'MONTHLY', deletedAt: null } }),
+      prisma.kpiFollowUp.count({ where }),
+      prisma.kpiFollowUp.count({ where: { ...where, status: 'RESOLVED' } }),
+      prisma.kpiFollowUp.count({ where: { ...where, status: 'ESCALATED' } }),
+      prisma.kpiFollowUp.count({ where: { ...where, status: 'ABORTED' } }),
+      prisma.kpiFollowUp.aggregate({
+        where: { ...where, daysLate: { gt: 0 } },
+        _avg: { daysLate: true },
+        _max: { daysLate: true },
+      }),
+      prisma.capa.count({ where: { sourceType: 'KPI_FOLLOWUP', createdAt: { gte: new Date(targetYear, 0, 1), lt: new Date(targetYear + 1, 0, 1) } } }),
+    ]);
+
+    // حساب المعدلات
+    const onTimeRate = totalFollowUps === 0 ? 100 :
+      Math.round(((totalFollowUps - escalatedCount - abortedCount) / totalFollowUps) * 100);
+    const resolutionRate = totalFollowUps === 0 ? 100 :
+      Math.round((resolvedCount / totalFollowUps) * 100);
+    const escalationRate = totalFollowUps === 0 ? 0 :
+      Math.round((escalatedCount / totalFollowUps) * 100);
+
+    // تحديد مستوى الامتثال
+    let complianceLevel = 'EXCELLENT';
+    if (resolutionRate < 60) complianceLevel = 'CRITICAL';
+    else if (resolutionRate < 80) complianceLevel = 'NEEDS_IMPROVEMENT';
+    else if (resolutionRate < 95) complianceLevel = 'GOOD';
+
+    res.json({
+      year: targetYear,
+      isoClause: '9.1.3',
+      complianceLevel,
+      metrics: {
+        totalIndicatorsTracked,
+        totalFollowUps,
+        resolved: resolvedCount,
+        escalated: escalatedCount,
+        aborted: abortedCount,
+        avgDaysLate: Math.round(avgDaysLateAgg._avg.daysLate || 0),
+        maxDaysLate: avgDaysLateAgg._max.daysLate || 0,
+        capasOpened,
+      },
+      rates: {
+        onTimeRate,
+        resolutionRate,
+        escalationRate,
+      },
+      recommendations: buildRecommendations({ resolutionRate, escalationRate, abortedCount, totalFollowUps }),
+    });
+  } catch (error) {
+    console.error('GET /reports/iso-compliance error:', error);
+    res.status(500).json({ error: 'فشل توليد تقرير الامتثال' });
+  }
+});
+
+function buildRecommendations({ resolutionRate, escalationRate, abortedCount, totalFollowUps }) {
+  const recs = [];
+  if (resolutionRate < 80) {
+    recs.push({
+      severity: 'high',
+      finding: `معدل الحل أقل من 80% (الفعلي: ${resolutionRate}%)`,
+      recommendation: 'مراجعة عمليات إدخال البيانات وتعزيز ثقافة الالتزام بالمواعيد',
+    });
+  }
+  if (escalationRate > 30) {
+    recs.push({
+      severity: 'high',
+      finding: `معدل التصعيد مرتفع (${escalationRate}%)`,
+      recommendation: 'تحليل أسباب التصعيد المتكرر وعقد ورش تأهيلية لمدخلي البيانات',
+    });
+  }
+  if (abortedCount > 0 && totalFollowUps > 0 && (abortedCount / totalFollowUps) > 0.1) {
+    recs.push({
+      severity: 'critical',
+      finding: `إغلاق نهائي بدون حل لـ ${abortedCount} مؤشر`,
+      recommendation: 'فتح إجراءات تصحيحية فورية ومراجعة ملكية المؤشرات في Management Review',
+    });
+  }
+  if (recs.length === 0) {
+    recs.push({
+      severity: 'info',
+      finding: 'الأداء ضمن المعدلات المقبولة',
+      recommendation: 'الاستمرار في المراقبة الدورية والمحافظة على المستوى',
+    });
+  }
+  return recs;
+}
+
+// ──────────────────────────────────────────────────────────────
 // DELETE — DELETE /:id (soft via abort)
 // ──────────────────────────────────────────────────────────────
 
