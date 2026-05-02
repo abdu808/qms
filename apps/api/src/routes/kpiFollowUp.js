@@ -57,7 +57,7 @@ function buildScopeFilter(user, where = {}) {
     return { ...where, departmentId: user.departmentId };
   }
   // EMPLOYEE / GUEST_AUDITOR fallback (not allowed but defensive)
-  return { ...where, dataEntryUserId: user.id };
+  return { ...where, dataEntryUserId: user.sub };
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -543,7 +543,7 @@ router.post('/:id/escalate', authenticate, requireQMAccess, async (req, res) => 
         status: 'ESCALATED',
         escalationLevel: lvl,
         escalatedAt: new Date(),
-        escalatedById: req.user.id,
+        escalatedById: req.user.sub,
         qmNotes: newNotes,
       },
       include: { indicator: true, department: true, escalatedBy: true },
@@ -674,7 +674,7 @@ router.post('/:id/create-capa', authenticate, requireQMAccess, async (req, res) 
         plannedAction: plannedAction || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         ownerId: ownerId || followUp.dataEntryUserId,
-        createdById: req.user.id,
+        createdById: req.user.sub,
       },
     });
 
