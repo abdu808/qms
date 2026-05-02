@@ -839,20 +839,18 @@ function buildRecommendations({ resolutionRate, escalationRate, abortedCount, to
 }
 
 // ──────────────────────────────────────────────────────────────
-// DELETE — DELETE /:id (soft via abort)
+// DELETE — مُعطَّل عمداً (قرار إشرافي)
 // ──────────────────────────────────────────────────────────────
+// لا يوجد مسار حذف لسجلات المتابعة. الإغلاق النهائي يجب أن يمرّ
+// حصراً عبر POST /:id/abort مع سبب موثَّق.
+// السماح بـ DELETE هنا كان "باباً جانبياً" يلتف على شرط التوثيق
+// ويُفقد السجل صدقه. أيّ استدعاء DELETE يُرفض بـ 405.
 
-router.delete('/:id', authenticate, requireQMAccess, async (req, res) => {
-  try {
-    await prisma.kpiFollowUp.update({
-      where: { id: req.params.id },
-      data: { status: 'ABORTED' },
-    });
-    res.json({ message: 'تم الإغلاق' });
-  } catch (error) {
-    console.error('DELETE /:id error:', error);
-    res.status(500).json({ error: 'فشل الحذف' });
-  }
+router.delete('/:id', authenticate, (req, res) => {
+  res.status(405).json({
+    error: 'الحذف غير مسموح. استخدم POST /:id/abort مع سبب موثَّق للإغلاق النهائي.',
+    correctEndpoint: `POST /api/kpi-followups/${req.params.id}/abort`,
+  });
 });
 
 export default router;

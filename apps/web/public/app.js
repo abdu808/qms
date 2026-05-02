@@ -67,7 +67,8 @@ const PERMISSIONS = {
   dashboard:        { read:_MANAGER_UP },
   exports:          { read:_QM_UP },
   kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
-  'kpi-followups':  { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP, escalate:_QM_UP },
+  // ملاحظة: لا توجد صلاحية delete — الإغلاق النهائي حصراً عبر /abort مع سبب موثَّق
+  'kpi-followups':  { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, escalate:_QM_UP },
   reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
 };
 
