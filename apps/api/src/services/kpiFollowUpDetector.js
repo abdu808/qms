@@ -23,6 +23,7 @@
  */
 
 import { prisma } from '../db.js';
+import { dispatchIntegrationEvent } from './integrationDelivery.js';
 
 // ─── ثوابت التدرج ───────────────────────────────────────────────
 const ESCALATION_THRESHOLDS = {
@@ -86,6 +87,32 @@ function resolveDataEntryUser(indicator) {
   if (indicator.ownerId) return indicator.ownerId;
   if (indicator.approverUserId) return indicator.approverUserId;
   return null;
+}
+
+async function dispatchKpiFollowUpReminder({ event, eventKey, followUp, recipient, title, message }) {
+  if (!recipient?.id) return;
+  await dispatchIntegrationEvent({
+    event,
+    eventKey: `${eventKey}:N8N`,
+    title,
+    message,
+    recipient,
+    entityType: 'KpiFollowUp',
+    entityId: followUp.id,
+    link: '/qms#/kpiFollowUp',
+    data: {
+      followUpId: followUp.id,
+      followUpCode: followUp.code,
+      indicatorCode: followUp.indicator?.code || null,
+      indicatorName: followUp.indicator?.nameAr || null,
+      departmentName: followUp.department?.name || null,
+      year: followUp.year,
+      month: followUp.month,
+      daysLate: followUp.daysLate,
+      status: followUp.status,
+      escalationLevel: followUp.escalationLevel,
+    },
+  });
 }
 
 /**
@@ -254,10 +281,14 @@ export async function notifyEscalatedFollowUps() {
     where: { status: 'FIRST_NOTICE' },
     include: {
       indicator: { select: { code: true, nameAr: true } },
+      department: { select: { name: true } },
+      dataEntryUser: { select: { id: true, name: true, email: true, phone: true, role: true } },
     },
   });
   for (const f of firstNotices) {
     const eventKey = `KFU_FIRST_NOTICE:${f.id}:${today}`;
+    const externalTitle = `مؤشر متأخر: ${f.indicator.code}`;
+    const externalMessage = `لم تدخل قراءة ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (متأخر ${f.daysLate} يوم).`;
     const r = await prisma.notification.createMany({
       data: [{
         userId: f.dataEntryUserId,
@@ -271,7 +302,17 @@ export async function notifyEscalatedFollowUps() {
       }],
       skipDuplicates: true,
     });
-    if (r.count > 0) sent.firstNotice++;
+    if (r.count > 0) {
+      sent.firstNotice++;
+      await dispatchKpiFollowUpReminder({
+        event: 'KPI_FOLLOWUP_FIRST_NOTICE',
+        eventKey,
+        followUp: f,
+        recipient: f.dataEntryUser,
+        title: externalTitle,
+        message: externalMessage,
+      });
+    }
   }
 
   // 2. ESCALATED Level 1 → إشعار مدير القسم
@@ -284,7 +325,7 @@ export async function notifyEscalatedFollowUps() {
           name: true,
           users: {
             where: { role: 'DEPT_MANAGER', active: true },
-            select: { id: true },
+            select: { id: true, name: true, email: true, phone: true, role: true },
           },
         },
       },
@@ -295,6 +336,8 @@ export async function notifyEscalatedFollowUps() {
     const managers = f.department?.users || [];
     for (const mgr of managers) {
       const eventKey = `KFU_ESC_L1:${f.id}:${mgr.id}:${today}`;
+      const externalTitle = `تصعيد: مؤشر ${f.indicator.code} متأخر`;
+      const externalMessage = `${f.dataEntryUser?.name || 'الموظف'} لم يدخل ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (${f.daysLate} يوم).`;
       const r = await prisma.notification.createMany({
         data: [{
           userId: mgr.id,
@@ -308,7 +351,17 @@ export async function notifyEscalatedFollowUps() {
         }],
         skipDuplicates: true,
       });
-      if (r.count > 0) sent.deptManager++;
+      if (r.count > 0) {
+        sent.deptManager++;
+        await dispatchKpiFollowUpReminder({
+          event: 'KPI_FOLLOWUP_ESCALATED_L1',
+          eventKey,
+          followUp: f,
+          recipient: mgr,
+          title: externalTitle,
+          message: externalMessage,
+        });
+      }
     }
   }
 
@@ -323,11 +376,13 @@ export async function notifyEscalatedFollowUps() {
   if (lvl2.length > 0) {
     const execs = await prisma.user.findMany({
       where: { role: { in: ['QUALITY_MANAGER', 'SUPER_ADMIN'] }, active: true },
-      select: { id: true },
+      select: { id: true, name: true, email: true, phone: true, role: true },
     });
     for (const f of lvl2) {
       for (const exec of execs) {
         const eventKey = `KFU_ESC_L2:${f.id}:${exec.id}:${today}`;
+        const externalTitle = `تصعيد حرج: ${f.indicator.code}`;
+        const externalMessage = `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في ${f.indicator.nameAr} (${f.month}/${f.year}).`;
         const r = await prisma.notification.createMany({
           data: [{
             userId: exec.id,
@@ -341,7 +396,17 @@ export async function notifyEscalatedFollowUps() {
           }],
           skipDuplicates: true,
         });
-        if (r.count > 0) sent.executive++;
+        if (r.count > 0) {
+          sent.executive++;
+          await dispatchKpiFollowUpReminder({
+            event: 'KPI_FOLLOWUP_ESCALATED_L2',
+            eventKey,
+            followUp: f,
+            recipient: exec,
+            title: externalTitle,
+            message: externalMessage,
+          });
+        }
       }
     }
   }

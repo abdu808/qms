@@ -1391,6 +1391,43 @@ model Notification {
   @@index([createdAt])
 }
 
+model IntegrationDelivery {
+  id                String   @id @default(cuid())
+  event             String
+  eventKey          String   @unique
+  status            String   @default("PENDING") // PENDING | DISPATCHED | DELIVERED | FAILED | SKIPPED
+  channel           String   @default("N8N")     // N8N | WHATSAPP | SMS | EMAIL
+  provider          String?
+  providerMessageId String?
+
+  recipientUserId   String?
+  recipientName     String?
+  recipientEmail    String?
+  recipientPhone    String?
+  recipientRole     String?
+
+  entityType        String?
+  entityId          String?
+  title             String
+  message           String   @db.Text
+  link              String?
+  payloadJson       String   @db.Text
+  responseJson      String?  @db.Text
+  error             String?  @db.Text
+
+  requestedAt       DateTime @default(now())
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  failedAt          DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([event])
+  @@index([recipientUserId])
+  @@index([entityType, entityId])
+  @@index([requestedAt])
+}
+
 // =====================================================
 // CLAUSE 10.3 - CONTINUAL IMPROVEMENT (PDCA projects)
 // =====================================================

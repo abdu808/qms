@@ -18,6 +18,7 @@ import { decrypt }       from '../lib/ai/crypto.js';
 import { generateWeeklyReport } from '../services/automation/weeklyReport.js';
 import { collectAlerts }        from '../services/automation/alertsCollector.js';
 import { emitWebhookStrict }    from '../lib/webhookEmitter.js';
+import { markIntegrationDeliveryStatus } from '../services/integrationDelivery.js';
 
 const router = Router();
 
@@ -254,6 +255,40 @@ router.post('/send-alert', requireWebhookAuth, asyncHandler(async (req, res) => 
   });
 
   res.json({ ok: true, sent: result.ok, status: result.status });
+}));
+
+// n8n calls this endpoint after SMS/WhatsApp/email provider execution.
+router.post('/delivery-status', requireWebhookAuth, asyncHandler(async (req, res) => {
+  const {
+    deliveryId,
+    eventKey,
+    status,
+    channel,
+    provider,
+    providerMessageId,
+    response,
+    error,
+  } = req.body || {};
+
+  if (!deliveryId && !eventKey) {
+    return res.status(400).json({ ok: false, error: 'deliveryId or eventKey is required' });
+  }
+  if (!status) {
+    return res.status(400).json({ ok: false, error: 'status is required' });
+  }
+
+  const item = await markIntegrationDeliveryStatus({
+    deliveryId,
+    eventKey,
+    status,
+    channel,
+    provider,
+    providerMessageId,
+    response,
+    error,
+  });
+
+  res.json({ ok: true, item });
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────

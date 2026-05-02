@@ -115,6 +115,39 @@ export async function collectAlerts({ thresholdDays = 7 } = {}) {
   }
 
   // ── 5. مخاطر مرتفعة/حرجة بدون مراجعة منذ 90 يوم ────────────────────────
+  const overdueFollowUps = await prisma.kpiFollowUp.findMany({
+    where: {
+      status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] },
+    },
+    select: {
+      code: true,
+      year: true,
+      month: true,
+      daysLate: true,
+      escalationLevel: true,
+      indicator: { select: { code: true, nameAr: true } },
+      department: { select: { name: true } },
+      dataEntryUser: { select: { name: true } },
+    },
+    orderBy: [{ escalationLevel: 'desc' }, { daysLate: 'desc' }],
+    take: 25,
+  });
+  for (const f of overdueFollowUps) {
+    const severity = f.escalationLevel >= 2 ? 'CRITICAL' : f.escalationLevel === 1 ? 'HIGH' : 'MEDIUM';
+    alerts.push({
+      severity,
+      type: 'KPI_FOLLOWUP_OVERDUE',
+      code: f.code,
+      title: `${f.indicator.code} - ${f.indicator.nameAr}`,
+      department: f.department?.name,
+      message: `${f.indicator.code} لم تدخل قراءته لشهر ${f.month}/${f.year} منذ ${f.daysLate || 0} يوم`,
+      action: 'تابع سجل المتأخرات أو افتح إجراء تصحيحي عند التكرار',
+      daysLate: f.daysLate || 0,
+      escalationLevel: f.escalationLevel,
+      dataEntryUser: f.dataEntryUser?.name || null,
+    });
+  }
+
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
   const staleRisks = await prisma.risk.findMany({
     where: {

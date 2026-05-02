@@ -29,6 +29,11 @@ async function getConfig() {
 
 export function invalidateWebhookCache() { _cfg = null; }
 
+export async function isWebhookDeliveryEnabled() {
+  const cfg = await getConfig();
+  return Boolean(cfg.enabled && cfg.url);
+}
+
 /**
  * Defense-in-depth: يتحقق أن URL ليس عنواناً داخلياً حتى لو سرّبته حالة سباق في إعدادات الـ DB.
  * نفس قائمة الحظر في webhookSettings.js.
