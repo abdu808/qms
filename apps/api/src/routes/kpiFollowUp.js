@@ -145,50 +145,82 @@ router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req
     let baseWhere = { year: currentYear, month: currentMonth };
     baseWhere = buildScopeFilter(req.user, baseWhere);
 
-    const [totalOverdue, byStatus, byEscalationLevel, byDepartment, totalAllTime, criticalCount] = await Promise.all([
+    // ─── الاستعلامات الأساسية (تعمل دائماً) ──────────────────────
+    const [totalOverdue, byStatus] = await Promise.all([
       prisma.kpiFollowUp.count({
         where: { ...baseWhere, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } },
       }),
       prisma.kpiFollowUp.groupBy({
-        by: ['status'], where: baseWhere, _count: true,
-      }),
-      prisma.kpiFollowUp.groupBy({
-        by: ['escalationLevel'], where: { ...baseWhere, status: 'ESCALATED' }, _count: true,
-      }),
-      prisma.kpiFollowUp.groupBy({
-        by: ['departmentId'], where: { ...baseWhere, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } }, _count: true,
-      }),
-      prisma.kpiFollowUp.count({ where: buildScopeFilter(req.user, {}) }),
-      prisma.kpiFollowUp.count({
-        where: { ...baseWhere, OR: [{ daysLate: { gte: 15 } }, { escalationLevel: 2 }] },
+        by: ['status'], where: baseWhere, _count: { _all: true },
       }),
     ]);
 
-    // إثراء departments ببيانات الاسم
-    const deptIds = byDepartment.map(d => d.departmentId).filter(Boolean);
-    const depts = deptIds.length > 0
-      ? await prisma.department.findMany({
+    // ─── الاستعلامات الإضافية (مع defensive fallback) ────────────
+    let byEscalationLevel = [];
+    let byDepartment = [];
+    let totalAllTime = 0;
+    let criticalCount = 0;
+
+    try {
+      byEscalationLevel = await prisma.kpiFollowUp.groupBy({
+        by: ['escalationLevel'],
+        where: { ...baseWhere, status: 'ESCALATED' },
+        _count: { _all: true },
+      });
+    } catch (e) { console.warn('byEscalationLevel failed:', e.message); }
+
+    try {
+      byDepartment = await prisma.kpiFollowUp.groupBy({
+        by: ['departmentId'],
+        where: { ...baseWhere, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } },
+        _count: { _all: true },
+      });
+    } catch (e) { console.warn('byDepartment failed:', e.message); }
+
+    try {
+      totalAllTime = await prisma.kpiFollowUp.count({ where: buildScopeFilter(req.user, {}) });
+    } catch (e) { console.warn('totalAllTime failed:', e.message); }
+
+    try {
+      criticalCount = await prisma.kpiFollowUp.count({
+        where: { ...baseWhere, OR: [{ daysLate: { gte: 15 } }, { escalationLevel: 2 }] },
+      });
+    } catch (e) { console.warn('criticalCount failed:', e.message); }
+
+    // ─── إثراء departments (آمن) ─────────────────────────────────
+    let deptsMap = {};
+    try {
+      const deptIds = byDepartment.map(d => d.departmentId).filter(Boolean);
+      if (deptIds.length > 0) {
+        const depts = await prisma.department.findMany({
           where: { id: { in: deptIds } },
           select: { id: true, name: true, code: true },
-        })
-      : [];
-    const deptsMap = Object.fromEntries(depts.map(d => [d.id, d]));
+        });
+        deptsMap = Object.fromEntries(depts.map(d => [d.id, d]));
+      }
+    } catch (e) { console.warn('dept enrichment failed:', e.message); }
+
+    // ─── تطبيع _count من groupBy لأي شكل ─────────────────────────
+    const normalizeCount = (arr) => arr.map(item => ({
+      ...item,
+      _count: typeof item._count === 'number' ? item._count : (item._count?._all ?? 0),
+    }));
 
     res.json({
       period: { year: currentYear, month: currentMonth },
       totalOverdue,
       totalAllTime,
       criticalCount,
-      byStatus,
-      byEscalationLevel,
-      byDepartment: byDepartment.map(d => ({
+      byStatus: normalizeCount(byStatus),
+      byEscalationLevel: normalizeCount(byEscalationLevel),
+      byDepartment: normalizeCount(byDepartment).map(d => ({
         ...d,
         department: deptsMap[d.departmentId] || null,
       })),
     });
   } catch (error) {
     console.error('GET /stats/summary error:', error);
-    res.status(500).json({ error: 'فشل تحميل الإحصائيات' });
+    res.status(500).json({ error: 'فشل تحميل الإحصائيات', details: error.message });
   }
 });
 
