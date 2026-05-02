@@ -1,0 +1,477 @@
+{
+  "version": "1.0",
+  "date": "2026-05-02",
+  "description": "Data schema and SQL scripts for KPI governance enforcement system",
+
+  "database_migrations": {
+    "new_tables": [
+      {
+        "table_name": "KpiLateEntryTracking",
+        "description": "تتبع المؤشرات المتأخرة",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "indicatorId": "String (FK→Indicator)",
+          "month": "Int (1-12)",
+          "year": "Int",
+          "expectedSubmissionDate": "DateTime",
+          "actualSubmissionDate": "DateTime?",
+          "daysLate": "Int (calculated)",
+          "ownerUserId": "String (FK→User)",
+          "dataEntryUserId": "String (FK→User)",
+          "status": "String @default('PENDING')",
+          "reminder1SentAt": "DateTime?",
+          "reminder2SentAt": "DateTime?",
+          "meetingScheduledAt": "DateTime?",
+          "capaId": "String? (FK→Capa)",
+          "resolutionNotes": "String? @db.Text",
+          "createdAt": "DateTime @default(now())",
+          "updatedAt": "DateTime @updatedAt",
+          "deletedAt": "DateTime?"
+        },
+        "prisma_model": "model KpiLateEntryTracking {\n  id                    String  @id @default(cuid())\n  indicatorId           String\n  indicator             Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)\n  month                 Int\n  year                  Int\n  expectedSubmissionDate DateTime\n  actualSubmissionDate  DateTime?\n  daysLate              Int\n  ownerUserId           String\n  owner                 User @relation(\"LateEntryOwner\", fields: [ownerUserId], references: [id])\n  dataEntryUserId       String\n  dataEntryUser         User @relation(\"LateEntryDataEntry\", fields: [dataEntryUserId], references: [id])\n  status                String @default(\"PENDING\")\n  reminder1SentAt       DateTime?\n  reminder2SentAt       DateTime?\n  meetingScheduledAt    DateTime?\n  capaId                String?\n  capa                  Capa? @relation(fields: [capaId], references: [id], onDelete: SetNull)\n  resolutionNotes       String? @db.Text\n  createdAt             DateTime @default(now())\n  updatedAt             DateTime @updatedAt\n  deletedAt             DateTime?\n  \n  @@unique([indicatorId, month, year])\n  @@index([status])\n  @@index([ownerUserId])\n  @@index([month, year])\n}"
+      },
+      {
+        "table_name": "KpiEntryApprovalLog",
+        "description": "سجل معتمدة إدخالات المؤشرات",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "kpiEntryId": "String (FK→KpiEntry) unique",
+          "indicatorId": "String (FK→Indicator)",
+          "month": "Int",
+          "year": "Int",
+          "enteredById": "String (FK→User)",
+          "enteredAt": "DateTime",
+          "submittedAt": "DateTime?",
+          "approverUserId": "String? (FK→User)",
+          "approvalStatus": "String",
+          "approvalDate": "DateTime?",
+          "rejectionReason": "String? @db.Text",
+          "revisionCount": "Int @default(0)",
+          "actualValue": "Float",
+          "targetValue": "Float?",
+          "variance": "Float?",
+          "variancePercent": "Float?",
+          "performanceStatus": "String",
+          "evidenceUrl": "String?",
+          "deviationReason": "String? @db.Text",
+          "actionNote": "String? @db.Text",
+          "notes": "String? @db.Text",
+          "createdAt": "DateTime @default(now())",
+          "updatedAt": "DateTime @updatedAt"
+        }
+      },
+      {
+        "table_name": "KpiEnforcementActionLog",
+        "description": "سجل الإجراءات الإنفاذية",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "indicatorId": "String (FK→Indicator)",
+          "month": "Int",
+          "year": "Int",
+          "actionType": "String (enum: REMINDER_1, REMINDER_2, FORMAL_MEETING, FORMAL_CAPA, DISCIPLINARY_ACTION)",
+          "actionDate": "DateTime",
+          "targetUserId": "String (FK→User)",
+          "actionByUserId": "String (FK→User, QMS Manager)",
+          "description": "String",
+          "details": "Json",
+          "status": "String @default('PENDING')",
+          "followUpDueDate": "DateTime?",
+          "followUpNotes": "String? @db.Text",
+          "createdAt": "DateTime @default(now())",
+          "updatedAt": "DateTime @updatedAt"
+        }
+      },
+      {
+        "table_name": "KpiPerformanceMonthlySummary",
+        "description": "ملخص الأداء الشهري للمؤشرات",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "departmentId": "String (FK→Department)",
+          "month": "Int",
+          "year": "Int",
+          "totalIndicators": "Int",
+          "submittedOnTime": "Int",
+          "submittedLate": "Int",
+          "notSubmitted": "Int",
+          "averagePerformance": "Float",
+          "redIndicators": "Int",
+          "yellowIndicators": "Int",
+          "greenIndicators": "Int",
+          "complianceRate": "Float",
+          "notes": "String? @db.Text",
+          "generatedByUserId": "String (FK→User)",
+          "createdAt": "DateTime @default(now())"
+        }
+      },
+      {
+        "table_name": "QmsManagerAlert",
+        "description": "إشعارات مدير الجودة",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "alertType": "String",
+          "severity": "String (INFO, WARNING, CRITICAL)",
+          "indicatorId": "String (FK→Indicator)",
+          "relatedUserId": "String? (FK→User)",
+          "month": "Int?",
+          "year": "Int?",
+          "message": "String @db.Text",
+          "actionRequired": "Boolean @default(false)",
+          "actionDueDate": "DateTime?",
+          "status": "String @default('NEW')",
+          "acknowledgedByUserId": "String? (FK→User)",
+          "acknowledgedAt": "DateTime?",
+          "resolution": "String? @db.Text",
+          "createdAt": "DateTime @default(now())",
+          "updatedAt": "DateTime @updatedAt"
+        }
+      },
+      {
+        "table_name": "CapaIndicatorLink",
+        "description": "ربط الإجراءات التصحيحية بالمؤشرات",
+        "fields": {
+          "id": "String @id @default(cuid())",
+          "capaId": "String (FK→Capa)",
+          "indicatorId": "String (FK→Indicator)",
+          "triggerType": "String",
+          "triggerDate": "DateTime",
+          "expectedClosureDate": "DateTime?",
+          "actualClosureDate": "DateTime?",
+          "effectiveness": "String?",
+          "followUpRequired": "Boolean @default(false)",
+          "notes": "String? @db.Text",
+          "createdAt": "DateTime @default(now())",
+          "updatedAt": "DateTime @updatedAt"
+        }
+      }
+    ],
+    "relation_updates": {
+      "KpiEntry": [
+        "approvedById: String? (FK→User) [existing]",
+        "approvedAt: DateTime? [existing]",
+        "Add index on (approvedById) if not exists"
+      ],
+      "KpiLateEntryTracking": [
+        "New back-relations to User",
+        "New back-relations to Indicator",
+        "New back-relation to Capa"
+      ]
+    }
+  },
+
+  "enum_values": {
+    "KpiLateEntryStatus": [
+      "PENDING",
+      "LATE_NOTICE_1",
+      "LATE_NOTICE_2",
+      "FORMAL_MEETING",
+      "FORMAL_CAPA",
+      "RESOLVED",
+      "ESCALATED"
+    ],
+    "KpiEnforcementActionType": [
+      "REMINDER_1",
+      "REMINDER_2",
+      "FORMAL_MEETING",
+      "FORMAL_CAPA",
+      "DISCIPLINARY_ACTION"
+    ],
+    "QmsAlertType": [
+      "LATE_ENTRY",
+      "RED_PERFORMANCE",
+      "MISSING_TARGET",
+      "REPEATED_DELAYS",
+      "APPROVAL_REJECTED",
+      "CRITICAL_THRESHOLD"
+    ],
+    "AlertSeverity": [
+      "INFO",
+      "WARNING",
+      "CRITICAL"
+    ],
+    "ApprovalStatus": [
+      "PENDING",
+      "APPROVED",
+      "REJECTED"
+    ],
+    "PerformanceStatus": [
+      "RED",
+      "YELLOW",
+      "GREEN"
+    ]
+  },
+
+  "sample_data": {
+    "roles_to_create": [
+      {
+        "userId": "user-qms-001",
+        "name": "محمد الجودة",
+        "email": "qms@bir-sabia.org",
+        "role": "QUALITY_MANAGER",
+        "department": "Administration",
+        "note": "مدير الجودة الرسمي"
+      }
+    ],
+    "indicator_assignments_example": {
+      "IND-2026-001": {
+        "code": "IND-2026-001",
+        "nameAr": "مؤشر رضا المستفيد",
+        "ownerId": "user-sales-001",
+        "dataEntryUserId": "user-sales-002",
+        "approverUserId": "user-sales-head",
+        "threshold_green": 95,
+        "threshold_yellow": 75,
+        "frequency": "MONTHLY",
+        "expectedSubmissionDay": 5
+      }
+    }
+  },
+
+  "scheduler_jobs": {
+    "reminder_day_5": {
+      "name": "kpi_reminder_day_5",
+      "cron": "0 8 5 * *",
+      "description": "Send first reminder for late KPI entries on day 5",
+      "action": "EmailReminderDay5",
+      "target_query": "KpiLateEntryTracking WHERE month = CURRENT_MONTH AND actualSubmissionDate IS NULL"
+    },
+    "reminder_day_10": {
+      "name": "kpi_reminder_day_10",
+      "cron": "0 9 10 * *",
+      "description": "Send second reminder + alert to QMS Manager",
+      "actions": [
+        "EmailReminderDay10",
+        "AlertQmsManager",
+        "CreateQmsAlert"
+      ]
+    },
+    "formal_meeting_day_15": {
+      "name": "kpi_formal_meeting_day_15",
+      "cron": "0 8 15 * *",
+      "description": "Schedule formal meeting for overdue KPIs",
+      "action": "ScheduleFormalMeeting"
+    },
+    "monthly_summary_report": {
+      "name": "kpi_monthly_summary",
+      "cron": "0 10 1 * *",
+      "description": "Generate monthly performance summary",
+      "action": "GenerateMonthlyReport",
+      "recipients": ["qms@bir-sabia.org", "executive@bir-sabia.org"]
+    },
+    "late_entry_tracking_update": {
+      "name": "kpi_late_entry_tracking",
+      "cron": "0 6 * * *",
+      "description": "Daily update of late entry tracking data",
+      "action": "UpdateLateEntryTracking"
+    }
+  },
+
+  "email_templates": {
+    "reminder_day_5": {
+      "name": "KPI Reminder - Day 5",
+      "subject": "تذكير: إدخال بيانات مؤشر {{indicator_code}} للشهر {{month}}/{{year}}",
+      "body_template": "reminder_day_5.html",
+      "variables": [
+        "indicator_code",
+        "indicator_name",
+        "month",
+        "year",
+        "due_date",
+        "owner_name",
+        "data_entry_user_name"
+      ]
+    },
+    "reminder_day_10": {
+      "name": "KPI Alert - Day 10",
+      "subject": "تنبيه عاجل: تأخر إدخال مؤشر {{indicator_code}}",
+      "body_template": "reminder_day_10.html",
+      "recipients": ["data_entry_email", "owner_email", "qms_manager_email"]
+    },
+    "monthly_report": {
+      "name": "Monthly KPI Performance Report",
+      "subject": "تقرير أداء المؤشرات الشهري - {{month}}/{{year}}",
+      "body_template": "monthly_report.html",
+      "attachments": ["report.pdf"]
+    }
+  },
+
+  "dashboard_widgets": {
+    "submission_status": {
+      "type": "pie_chart",
+      "title": "حالة تسليم المؤشرات",
+      "query": "SELECT submittedOnTime, submittedLate, notSubmitted FROM KpiPerformanceMonthlySummary WHERE month = CURRENT_MONTH",
+      "refresh_interval": "1h"
+    },
+    "late_submissions_list": {
+      "type": "data_table",
+      "title": "المؤشرات المتأخرة",
+      "columns": ["indicator_code", "owner_name", "days_late", "status"],
+      "sortable": true,
+      "filterable": true
+    },
+    "performance_by_department": {
+      "type": "bar_chart",
+      "title": "متوسط الأداء حسب القسم",
+      "query": "SELECT department_name, averagePerformance FROM KpiPerformanceMonthlySummary"
+    },
+    "critical_alerts": {
+      "type": "alert_panel",
+      "title": "التنبيهات الحرجة",
+      "query": "SELECT * FROM QmsManagerAlert WHERE severity = 'CRITICAL' AND status != 'CLOSED'",
+      "priority_color": "red"
+    },
+    "capa_status": {
+      "type": "summary_card",
+      "title": "حالة الإجراءات التصحيحية",
+      "metrics": [
+        "open_capa_count",
+        "overdue_capa_count",
+        "effectiveness_pending_count"
+      ]
+    }
+  },
+
+  "api_endpoints_to_create": {
+    "get_late_entries": {
+      "path": "/api/v1/kpi/late-entries",
+      "method": "GET",
+      "auth": "QMS_MANAGER",
+      "query_params": ["month", "year", "status", "department_id"],
+      "response": "KpiLateEntryTracking[]"
+    },
+    "create_enforcement_action": {
+      "path": "/api/v1/kpi/enforcement-action",
+      "method": "POST",
+      "auth": "QMS_MANAGER",
+      "body": {
+        "indicatorId": "string",
+        "month": "int",
+        "year": "int",
+        "actionType": "enum",
+        "targetUserId": "string",
+        "description": "string"
+      }
+    },
+    "get_qms_alerts": {
+      "path": "/api/v1/qms/alerts",
+      "method": "GET",
+      "auth": "QUALITY_MANAGER",
+      "query_params": ["status", "severity", "limit"],
+      "response": "QmsManagerAlert[]"
+    },
+    "acknowledge_alert": {
+      "path": "/api/v1/qms/alerts/:alertId/acknowledge",
+      "method": "PUT",
+      "auth": "QUALITY_MANAGER"
+    },
+    "generate_monthly_report": {
+      "path": "/api/v1/reports/kpi-monthly",
+      "method": "GET",
+      "auth": "QMS_MANAGER",
+      "query_params": ["month", "year", "format=pdf|json"],
+      "caching": "no-cache"
+    }
+  },
+
+  "validation_rules": {
+    "kpi_entry_submission": [
+      "IF actualValue < 60%: REQUIRE deviationReason AND actionNote AND evidenceUrl",
+      "IF actualValue < 80%: REQUIRE deviationReason",
+      "variance calculation: actualValue - targetValue",
+      "performanceStatus based on thresholds: RED < 75% | YELLOW 75-94% | GREEN >= 95%"
+    ],
+    "approval_workflow": [
+      "entryStatus: DRAFT → SUBMITTED → APPROVED | REJECTED",
+      "rejectionReason required if status = REJECTED",
+      "approverUserId != enteredById (separation of duties)",
+      "approverUserId != indicator.ownerId (separation of duties)"
+    ],
+    "indicator_completeness": [
+      "ownerId != null AND User.active = true",
+      "dataEntryUserId != null AND User.active = true",
+      "approverUserId != null AND User.active = true",
+      "AnnualTarget exists for current year",
+      "isoClause filled and matches pattern ^\\d\\.\\d(\\.\\d)?$"
+    ]
+  },
+
+  "monitoring_and_alerts": {
+    "submission_compliance": {
+      "metric": "on_time_submissions / total_submissions",
+      "target": "95%",
+      "alert_threshold": "< 85%",
+      "frequency": "daily"
+    },
+    "average_performance": {
+      "metric": "avg(actualValue) against avg(targetValue)",
+      "target": ">=90%",
+      "alert_threshold": "< 75% (RED)",
+      "frequency": "daily"
+    },
+    "approval_time": {
+      "metric": "submittedAt to approvalDate",
+      "target": "2 days",
+      "alert_threshold": "> 5 days",
+      "frequency": "weekly"
+    },
+    "capa_effectiveness": {
+      "metric": "closed_capas_effective / total_closed_capas",
+      "target": ">= 90%",
+      "alert_threshold": "< 75%",
+      "frequency": "monthly"
+    },
+    "repeated_delays": {
+      "metric": "late_count by user in 12 months",
+      "alert_threshold": ">= 3 delays",
+      "action": "Trigger disciplinary review",
+      "frequency": "monthly"
+    }
+  },
+
+  "integration_points": {
+    "existing_capa_system": {
+      "trigger": "KpiEnforcementActionLog.actionType = 'FORMAL_CAPA'",
+      "auto_create": {
+        "capaType": "'DELAYED_KPI_ENTRY' or 'POOR_PERFORMANCE'",
+        "description": "Concatenate late entry tracking details",
+        "targetCompletionDate": "30 days from trigger date",
+        "ownerUserId": "KpiLateEntryTracking.ownerUserId"
+      }
+    },
+    "existing_audit_log": {
+      "events_to_log": [
+        "Indicator created/updated (isoClause changes)",
+        "Ownership assigned",
+        "KPI entry submitted",
+        "KPI entry approved/rejected",
+        "Enforcement action taken",
+        "CAPA created/closed"
+      ]
+    },
+    "existing_notification_system": {
+      "channels": ["email", "in-app"],
+      "events": [
+        "reminder_day_5",
+        "reminder_day_10",
+        "formal_meeting_scheduled",
+        "capa_created",
+        "capa_overdue"
+      ]
+    }
+  },
+
+  "migration_script_example": {
+    "description": "Migration script to create new tables and update existing ones",
+    "file": "migration_2026_05_02_kpi_governance.sql",
+    "order": [
+      "1. Create KpiLateEntryTracking",
+      "2. Create KpiEntryApprovalLog",
+      "3. Create KpiEnforcementActionLog",
+      "4. Create KpiPerformanceMonthlySummary",
+      "5. Create QmsManagerAlert",
+      "6. Create CapaIndicatorLink",
+      "7. Add indexes",
+      "8. Add foreign key constraints",
+      "9. Verify data integrity"
+    ]
+  }
+}

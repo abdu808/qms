@@ -1,0 +1,369 @@
+{
+  "generatedAt": "2026-05-02T00:28:42.286Z",
+  "mode": "apply",
+  "note": "Creating records or uploading files to production requires explicit final approval. This script is dry-run unless --apply and --yes-i-understand-production-write are both provided.",
+  "target": "https://quality.aqiltech.sa",
+  "count": 18,
+  "items": [
+    {
+      "code": "QM-001-2026",
+      "title": "دليل نظام إدارة الجودة",
+      "source": "ISO9001/01_السياسات_والأهداف/QM-001-2026-دليل-نظام-إدارة-الجودة.docx",
+      "ext": ".docx",
+      "isoClause": "7.5",
+      "payload": {
+        "title": "QM-001-2026 - دليل نظام إدارة الجودة",
+        "category": "MANUAL",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": "2026-02-01",
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.5"
+      },
+      "upload": true,
+      "filename": "QM-001-2026-دليل-نظام-إدارة-الجودة.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QM-002-2026",
+      "title": "نطاق نظام إدارة الجودة والخدمات الرقمية",
+      "source": "ISO9001/01_السياسات_والأهداف/QM-002-2026-نطاق-نظام-إدارة-الجودة.docx",
+      "ext": ".docx",
+      "isoClause": "4.4",
+      "payload": {
+        "title": "QM-002-2026 - نطاق نظام إدارة الجودة والخدمات الرقمية",
+        "category": "POLICY",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "4.4"
+      },
+      "upload": true,
+      "filename": "QM-002-2026-نطاق-نظام-إدارة-الجودة.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QP-001-2026",
+      "title": "سياسة الجودة",
+      "source": "ISO9001/01_السياسات_والأهداف/QP-001-2026-سياسة-الجودة.docx",
+      "ext": ".docx",
+      "isoClause": "5.2",
+      "payload": {
+        "title": "QP-001-2026 - سياسة الجودة",
+        "category": "POLICY",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "5.2"
+      },
+      "upload": true,
+      "filename": "QP-001-2026-سياسة-الجودة.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QP-002-2026",
+      "title": "أهداف الجودة والمؤشرات الرقمية",
+      "source": "ISO9001/01_السياسات_والأهداف/QP-002-2026-أهداف-الجودة.docx",
+      "ext": ".docx",
+      "isoClause": "6.2",
+      "payload": {
+        "title": "QP-002-2026 - أهداف الجودة والمؤشرات الرقمية",
+        "category": "RECORD",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "6.2"
+      },
+      "upload": true,
+      "filename": "QP-002-2026-أهداف-الجودة.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QP-003-2026",
+      "title": "إدارة المخاطر والفرص",
+      "source": "ISO9001/01_السياسات_والأهداف/QP-003-2026-إدارة-المخاطر-والفرص.docx",
+      "ext": ".docx",
+      "isoClause": "6.1",
+      "payload": {
+        "title": "QP-003-2026 - إدارة المخاطر والفرص",
+        "category": "POLICY",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "6.1"
+      },
+      "upload": true,
+      "filename": "QP-003-2026-إدارة-المخاطر-والفرص.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QP-004-2026",
+      "title": "ضبط الوثائق والسجلات",
+      "source": "ISO9001/01_السياسات_والأهداف/QP-004-2026-ضبط-الوثائق-والسجلات.docx",
+      "ext": ".docx",
+      "isoClause": "7.5",
+      "payload": {
+        "title": "QP-004-2026 - ضبط الوثائق والسجلات",
+        "category": "POLICY",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.5"
+      },
+      "upload": true,
+      "filename": "QP-004-2026-ضبط-الوثائق-والسجلات.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QP-005-2026",
+      "title": "سياسة التوثيق الرشيق والأدلة المرئية",
+      "source": "ISO9001/01_السياسات_والأهداف/QP-005-2026-سياسة-التوثيق-الرشيق.docx",
+      "ext": ".docx",
+      "isoClause": "7.5, 7.1.6, 7.2, 8.1",
+      "payload": {
+        "title": "QP-005-2026 - سياسة التوثيق الرشيق والأدلة المرئية",
+        "category": "POLICY",
+        "currentVersion": "1.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.5"
+      },
+      "upload": true,
+      "filename": "QP-005-2026-سياسة-التوثيق-الرشيق.docx",
+      "version": "1.0"
+    },
+    {
+      "code": "HR-001-2026",
+      "title": "إجراء الموارد البشرية والكفاءة",
+      "source": "ISO9001/02_الإجراءات_التشغيلية/HR-001-2026-إجراء-الموارد-البشرية.docx",
+      "ext": ".docx",
+      "isoClause": "7.1.2, 7.2, 7.3, 5.1.1, 6.1",
+      "payload": {
+        "title": "HR-001-2026 - إجراء الموارد البشرية والكفاءة",
+        "category": "PROCEDURE",
+        "currentVersion": "1.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.1.2"
+      },
+      "upload": true,
+      "filename": "HR-001-2026-إجراء-الموارد-البشرية.docx",
+      "version": "1.0"
+    },
+    {
+      "code": "IT-001-2026",
+      "title": "سياسة البنية التحتية التقنية واستمرارية العمل",
+      "source": "ISO9001/02_الإجراءات_التشغيلية/IT-001-2026-سياسة-البنية-التحتية-التقنية.docx",
+      "ext": ".docx",
+      "isoClause": "7.1.3, 7.1.4, 5.1.1, 6.1",
+      "payload": {
+        "title": "IT-001-2026 - سياسة البنية التحتية التقنية واستمرارية العمل",
+        "category": "POLICY",
+        "currentVersion": "1.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.1.3"
+      },
+      "upload": true,
+      "filename": "IT-001-2026-سياسة-البنية-التحتية-التقنية.docx",
+      "version": "1.0"
+    },
+    {
+      "code": "PUR-001-2026",
+      "title": "إجراء المشتريات وتقييم الموردين",
+      "source": "ISO9001/02_الإجراءات_التشغيلية/PUR-001-2026-إجراء-المشتريات-والموردين.docx",
+      "ext": ".docx",
+      "isoClause": "8.4",
+      "payload": {
+        "title": "PUR-001-2026 - إجراء المشتريات وتقييم الموردين",
+        "category": "PROCEDURE",
+        "currentVersion": "1.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.4"
+      },
+      "upload": true,
+      "filename": "PUR-001-2026-إجراء-المشتريات-والموردين.docx",
+      "version": "1.0"
+    },
+    {
+      "code": "QS-001-2026",
+      "title": "إجراءات تقديم الخدمات والمساعدات",
+      "source": "ISO9001/02_الإجراءات_التشغيلية/QS-001-2026-إجراءات-تقديم-الخدمات.docx",
+      "ext": ".docx",
+      "isoClause": "7.5",
+      "payload": {
+        "title": "QS-001-2026 - إجراءات تقديم الخدمات والمساعدات",
+        "category": "PROCEDURE",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "7.5"
+      },
+      "upload": true,
+      "filename": "QS-001-2026-إجراءات-تقديم-الخدمات.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "QS-004-2026",
+      "title": "حماية المستفيدين والشكاوى",
+      "source": "ISO9001/02_الإجراءات_التشغيلية/QS-004-2026-حماية-المستفيدين-والشكاوى.docx",
+      "ext": ".docx",
+      "isoClause": "8.2.1",
+      "payload": {
+        "title": "QS-004-2026 - حماية المستفيدين والشكاوى",
+        "category": "PROCEDURE",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.2.1"
+      },
+      "upload": true,
+      "filename": "QS-004-2026-حماية-المستفيدين-والشكاوى.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "IA-001-2026",
+      "title": "خطة التدقيق الداخلي 2026",
+      "source": "ISO9001/04_التدقيق_والتحسين/IA-001-2026-خطة-التدقيق-الداخلي.docx",
+      "ext": ".docx",
+      "isoClause": "8.2.3",
+      "payload": {
+        "title": "IA-001-2026 - خطة التدقيق الداخلي 2026",
+        "category": "WORK_INSTRUCTION",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.2.3"
+      },
+      "upload": true,
+      "filename": "IA-001-2026-خطة-التدقيق-الداخلي.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "IA-002-2026",
+      "title": "نموذج تقرير التدقيق الداخلي الرقمي",
+      "source": "ISO9001/04_التدقيق_والتحسين/IA-002-2026-نموذج-تقرير-التدقيق-الداخلي.docx",
+      "ext": ".docx",
+      "isoClause": "8.2.3, 8.2.4",
+      "payload": {
+        "title": "IA-002-2026 - نموذج تقرير التدقيق الداخلي الرقمي",
+        "category": "FORM",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.2.3"
+      },
+      "upload": true,
+      "filename": "IA-002-2026-نموذج-تقرير-التدقيق-الداخلي.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "CA-001-2026",
+      "title": "إجراء عدم المطابقة والإجراءات التصحيحية",
+      "source": "ISO9001/04_التدقيق_والتحسين/CA-001-2026-إجراء-عدم-المطابقة-والإجراءات-التصحيحية.docx",
+      "ext": ".docx",
+      "isoClause": "8.5.2",
+      "payload": {
+        "title": "CA-001-2026 - إجراء عدم المطابقة والإجراءات التصحيحية",
+        "category": "PROCEDURE",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.5.2"
+      },
+      "upload": true,
+      "filename": "CA-001-2026-إجراء-عدم-المطابقة-والإجراءات-التصحيحية.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "CA-002-2026",
+      "title": "سجل متابعة الإجراءات التصحيحية",
+      "source": "ISO9001/04_التدقيق_والتحسين/CA-002-2026-سجل-متابعة-الإجراءات-التصحيحية.docx",
+      "ext": ".docx",
+      "isoClause": "8.5.2",
+      "payload": {
+        "title": "CA-002-2026 - سجل متابعة الإجراءات التصحيحية",
+        "category": "FORM",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "8.5.2"
+      },
+      "upload": true,
+      "filename": "CA-002-2026-سجل-متابعة-الإجراءات-التصحيحية.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "MR-001-2026",
+      "title": "أجندة مراجعة الإدارة",
+      "source": "ISO9001/03_الحوكمة_والمخاطر/MR-001-2026-أجندة-مراجعة-الإدارة.docx",
+      "ext": ".docx",
+      "isoClause": "5.2, 6.1",
+      "payload": {
+        "title": "MR-001-2026 - أجندة مراجعة الإدارة",
+        "category": "PROCEDURE",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "5.2"
+      },
+      "upload": true,
+      "filename": "MR-001-2026-أجندة-مراجعة-الإدارة.docx",
+      "version": "2.0"
+    },
+    {
+      "code": "MR-002-2026",
+      "title": "تقرير مراجعة الإدارة ومخرجاته",
+      "source": "ISO9001/03_الحوكمة_والمخاطر/MR-002-2026-تقرير-مراجعة-الإدارة.docx",
+      "ext": ".docx",
+      "isoClause": "5.1.1, 6.1",
+      "payload": {
+        "title": "MR-002-2026 - تقرير مراجعة الإدارة ومخرجاته",
+        "category": "RECORD",
+        "currentVersion": "2.0",
+        "status": "DRAFT",
+        "effectiveDate": null,
+        "reviewDate": null,
+        "retentionYears": 5,
+        "isoClause": "5.1.1"
+      },
+      "upload": true,
+      "filename": "MR-002-2026-تقرير-مراجعة-الإدارة.docx",
+      "version": "2.0"
+    }
+  ]
+}

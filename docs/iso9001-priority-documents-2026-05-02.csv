@@ -1,0 +1,23 @@
+﻿priority,code,title,folder,filename,category,documentCategory,suggestedModule,isoClause,version,publicCandidate,recommendedAction
+1,AUD-001,قائمة التحقق النهائية قبل التدقيق,09_تجهيزات_زيارة_التدقيق,AUD-001-قائمة_التحقق_النهائية_قبل_التدقيق.md,form,FORM,Document,8.6,1.0,no,Create Document record and upload version
+2,AUD-002,محضر اجتماع مراجعة الإدارة,09_تجهيزات_زيارة_التدقيق,AUD-002-محضر_مراجعة_الإدارة_جاهز_للتعبئة.md,form,FORM,Document,5.3,1.0,no,Create Document record and upload version
+3,AUD-003,تعريف الجمعية وخريطة العمليات,09_تجهيزات_زيارة_التدقيق,AUD-003-تحليل_السياق_وخريطة_العمليات.md,manual,MANUAL,Document,4.4,1.0,no,Create Document record and upload version
+4,CA-001-2026,إجراء عدم المطابقة والإجراءات التصحيحية,04_التدقيق_والتحسين,CA-001-2026-إجراء-عدم-المطابقة-والإجراءات-التصحيحية.docx,procedure,PROCEDURE,Document,8.5.2,2.0,no,Create Document record and upload version
+5,CA-002-2026,سجل متابعة الإجراءات التصحيحية,04_التدقيق_والتحسين,CA-002-2026-سجل-متابعة-الإجراءات-التصحيحية.docx,form,FORM,Document,8.5.2,2.0,no,Create Document record and upload version
+6,HR-001-2026,إجراء الموارد البشرية والكفاءة,02_الإجراءات_التشغيلية,HR-001-2026-إجراء-الموارد-البشرية.docx,procedure,PROCEDURE,Document,"7.1.2, 7.2, 7.3, 5.1.1, 6.1",1.0,no,Create Document record and upload version
+7,IA-001-2026,خطة التدقيق الداخلي 2026,04_التدقيق_والتحسين,IA-001-2026-خطة-التدقيق-الداخلي.docx,operational_plan,WORK_INSTRUCTION,Document,8.2.3,2.0,no,Create Document record and upload version
+8,IA-002-2026,نموذج تقرير التدقيق الداخلي الرقمي,04_التدقيق_والتحسين,IA-002-2026-نموذج-تقرير-التدقيق-الداخلي.docx,form,FORM,Document,"8.2.3, 8.2.4",2.0,no,Create Document record and upload version
+9,IT-001-2026,سياسة البنية التحتية التقنية واستمرارية العمل,02_الإجراءات_التشغيلية,IT-001-2026-سياسة-البنية-التحتية-التقنية.docx,policy,POLICY,QualityPolicy,"7.1.3, 7.1.4, 5.1.1, 6.1",1.0,no,Review whether to register as Document evidence or module-specific record
+10,MR-001-2026,أجندة مراجعة الإدارة,03_الحوكمة_والمخاطر,MR-001-2026-أجندة-مراجعة-الإدارة.docx,procedure,PROCEDURE,Document,"5.2, 6.1",2.0,no,Create Document record and upload version
+11,MR-002-2026,تقرير مراجعة الإدارة ومخرجاته,03_الحوكمة_والمخاطر,MR-002-2026-تقرير-مراجعة-الإدارة.docx,report,RECORD,Document,"5.1.1, 6.1",2.0,no,Create Document record and upload version
+12,PUR-001-2026,إجراء المشتريات وتقييم الموردين,02_الإجراءات_التشغيلية,PUR-001-2026-إجراء-المشتريات-والموردين.docx,procedure,PROCEDURE,Document,8.4,1.0,no,Create Document record and upload version
+13,QM-001-2026,دليل نظام إدارة الجودة,01_السياسات_والأهداف,QM-001-2026-دليل-نظام-إدارة-الجودة.docx,manual,MANUAL,Document,7.5,2.0,no,Create Document record and upload version
+14,QM-002-2026,نطاق نظام إدارة الجودة والخدمات الرقمية,01_السياسات_والأهداف,QM-002-2026-نطاق-نظام-إدارة-الجودة.docx,policy,POLICY,QualityPolicy,4.4,2.0,no,Review whether to register as Document evidence or module-specific record
+15,QP-001-2026,سياسة الجودة,01_السياسات_والأهداف,QP-001-2026-سياسة-الجودة.docx,policy,POLICY,QualityPolicy,5.2,2.0,no,Review whether to register as Document evidence or module-specific record
+16,QP-002-2026,أهداف الجودة والمؤشرات الرقمية,01_السياسات_والأهداف,QP-002-2026-أهداف-الجودة.docx,strategic_plan,RECORD,StrategicGoal,6.2,2.0,no,Review whether to register as Document evidence or module-specific record
+17,QP-003-2026,إدارة المخاطر والفرص,01_السياسات_والأهداف,QP-003-2026-إدارة-المخاطر-والفرص.docx,policy,POLICY,QualityPolicy,6.1,2.0,no,Review whether to register as Document evidence or module-specific record
+18,QP-004-2026,ضبط الوثائق والسجلات,01_السياسات_والأهداف,QP-004-2026-ضبط-الوثائق-والسجلات.docx,policy,POLICY,QualityPolicy,7.5,2.0,no,Review whether to register as Document evidence or module-specific record
+19,QP-005-2026,سياسة التوثيق الرشيق والأدلة المرئية,01_السياسات_والأهداف,QP-005-2026-سياسة-التوثيق-الرشيق.docx,policy,POLICY,QualityPolicy,"7.5, 7.1.6, 7.2, 8.1",1.0,no,Review whether to register as Document evidence or module-specific record
+20,QS-001-2026,إجراءات تقديم الخدمات والمساعدات,02_الإجراءات_التشغيلية,QS-001-2026-إجراءات-تقديم-الخدمات.docx,procedure,PROCEDURE,Document,7.5,2.0,no,Create Document record and upload version
+21,QS-004-2026,حماية المستفيدين والشكاوى,02_الإجراءات_التشغيلية,QS-004-2026-حماية-المستفيدين-والشكاوى.docx,procedure,PROCEDURE,Document,8.2.1,2.0,no,Create Document record and upload version
+22,TR-002,تقرير التدقيق الذاتي وتحليل فجوات الجودة,06_أدلة_التدريب_والنماذج_الاسترشادية,TR-002-تقرير_الفجوات_والتدقيق_الذاتي.docx,report,RECORD,Document,"7.3, 8.5, 9.2",1.0,no,Create Document record and upload version

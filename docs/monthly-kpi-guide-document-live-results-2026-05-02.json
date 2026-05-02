@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "action": "updated",
+  "document": {
+    "id": "cmoomb4j1017b4mlcdbctnazy",
+    "code": "DOC-2026-020",
+    "title": "دليل التشغيل الشهري للمؤشرات وتصحيح الانحرافات",
+    "category": "WORK_INSTRUCTION",
+    "status": "PUBLISHED",
+    "currentVersion": "1.0",
+    "department": "وحدة الاستراتيجية والتميز المؤسسي",
+    "isoClause": "9.1.1"
+  },
+  "uploadedVersion": {
+    "id": "cmoomb4nz017f4mlcow20sdvy",
+    "version": "1.0",
+    "fileSize": 10574,
+    "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  },
+  "versionsCount": 1
+}

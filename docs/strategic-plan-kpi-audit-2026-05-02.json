@@ -1,0 +1,108 @@
+{
+  "files": {
+    "strategic_plan": "ISO9001/الخطط والمشرات/الخطة_الاستراتيجية_2026_2030_المعتمدة.xlsx",
+    "kpi_catalog": "ISO9001/الخطط والمشرات/KPI_Catalog_v11_2026_2030.xlsx",
+    "annual_targets": "ISO9001/الخطط والمشرات/AnnualTargets_2026_2030.xlsx",
+    "operational_plan": "ISO9001/الخطط والمشرات/الخطة_التشغيلية_2026_بـ4_محاور.xlsx",
+    "initiatives": "ISO9001/الخطط والمشرات/المبادرات_الـ21_2026_2030.xlsx"
+  },
+  "counts": {
+    "axes": 4,
+    "strategicGoals": 8,
+    "operationalObjectives": 19,
+    "indicators": 16,
+    "annualTargets": 80,
+    "initiatives": 21
+  },
+  "weights": {
+    "axisWeightSum": 100.0,
+    "indicatorWeightSum": 100.0
+  },
+  "live": {
+    "available": true,
+    "errors": [],
+    "baseUrl": "https://quality.aqiltech.sa",
+    "counts": {
+      "plans": 1,
+      "goals": 8,
+      "objectives": 19,
+      "indicators": 16,
+      "initiatives": 22
+    },
+    "indicatorWeightTotal": 100,
+    "indicatorWeightValid": true,
+    "dashboardSummary": {
+      "totalObjectives": 19,
+      "totalActivities": 13,
+      "totalIndicators": 16,
+      "green": 0,
+      "yellow": 2,
+      "red": 44,
+      "gray": 2,
+      "criticalAlertsCount": 2,
+      "warningAlertsCount": 44,
+      "totalBudget": 8925000,
+      "totalSpent": 0,
+      "spentRatio": 0
+    },
+    "comparisons": {
+      "goals_missing_in_api": [],
+      "goals_extra_in_api": [],
+      "objectives_missing_in_api": [],
+      "objectives_extra_in_api": [],
+      "indicators_missing_in_api": [],
+      "indicators_extra_in_api": [],
+      "initiatives_missing_in_api": [
+        "INI-2026-026"
+      ],
+      "initiatives_extra_in_api": [
+        "INI-2026-032",
+        "INI-2026-033"
+      ]
+    }
+  },
+  "findings": [
+    {
+      "severity": "عال",
+      "area": "ربط المؤشرات بالأهداف التشغيلية",
+      "finding": "الخطة التشغيلية تحتوي وصف KPI نصي، ولا تحتوي كود مؤشر معتمد يربطها بكتالوج المؤشرات.",
+      "recommendation": "إضافة عمود indicatorCode لكل هدف تشغيلي أو اعتماد خريطة ربط رسمية OBJ ↔ IND.",
+      "evidence": ""
+    },
+    {
+      "severity": "عال",
+      "area": "واقعية المستهدفات",
+      "finding": "هدف الوصول إلى 13,000 أسرة يحتاج تعريفاً حاكماً لأنه يتجاوز عدد ملفات المستفيدين الفريدة المعروفة سابقاً.",
+      "recommendation": "تحديد هل المقصود أسر فريدة أم خدمات تراكمية. إن كان خدمات تراكمية فيكتب ذلك صراحة في اسم المؤشر ووحدته.",
+      "evidence": "خط الأساس السابق يشير إلى 2,375 ملف مستفيد فعلي."
+    },
+    {
+      "severity": "عال",
+      "area": "واقعية المبادرات",
+      "finding": "مبادرة كفالة 870 يتيم تحتاج إعادة ضبط أو تعريف، لأن خط الأساس السابق فرّق بين إجمالي الأيتام واحتياج الكفالة الفعلي.",
+      "recommendation": "تعديل المبادرة إلى نطاق قابل للتنفيذ مثل كفالة 200 يتيم بحلول 2027 أو اعتماد تعريف: مستفيدون متأثرون/مكفولون.",
+      "evidence": ""
+    },
+    {
+      "severity": "عال",
+      "area": "مطابقة النظام الحي",
+      "finding": "المبادرات: عناصر موجودة في الملف وغير موجودة في النظام الحي.",
+      "recommendation": "استكمال الاستيراد أو تحديث الملف المعتمد.",
+      "evidence": "INI-2026-026"
+    },
+    {
+      "severity": "متوسط",
+      "area": "المؤشرات",
+      "finding": "8 مؤشرات بلا خط أساس رقمي.",
+      "recommendation": "تعبئة خط الأساس أو توثيق سبب عدم توفره ومتى سيقاس.",
+      "evidence": "IND-2026-019, IND-2026-018, IND-2026-015, IND-2026-013, IND-2026-011, IND-2026-010, IND-2026-008, IND-2026-002"
+    },
+    {
+      "severity": "متوسط",
+      "area": "مطابقة النظام الحي",
+      "finding": "المبادرات: عناصر موجودة في النظام الحي وغير موجودة في الملف.",
+      "recommendation": "تحديد هل هي قديمة فتؤرشف، أو صحيحة فتضاف للملف.",
+      "evidence": "INI-2026-032, INI-2026-033"
+    }
+  ]
+}

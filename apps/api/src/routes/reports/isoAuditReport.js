@@ -21,7 +21,7 @@ router.get('/iso-audit', requireAction('reports', 'read'), asyncHandler(async (r
     suppliers, trainings, managementReviews, swotItems,
   ] = await Promise.all([
     prisma.qualityPolicy.findFirst({ where: { active: true }, orderBy: { effectiveDate: 'desc' } }),
-    prisma.objective.findMany({ where: activeWhere(), include: { kpiEntries: { where: { year }, select: { value: true, month: true } }, owner: { select: { name: true } } }, orderBy: { code: 'asc' } }),
+    prisma.objective.findMany({ where: activeWhere(), include: { kpiEntries: { where: { year }, select: { actualValue: true, month: true } }, owner: { select: { name: true } } }, orderBy: { code: 'asc' } }),
     prisma.risk.findMany({ where: activeWhere({ status: { not: 'CLOSED' } }), include: { owner: { select: { name: true } } }, orderBy: [{ level: 'asc' }, { code: 'asc' }] }),
     prisma.document.findMany({ where: activeWhere({ status: 'PUBLISHED' }), orderBy: { code: 'asc' } }),
     prisma.nCR.findMany({ where: activeWhere(), orderBy: { createdAt: 'desc' }, take: 50, include: { assignee: { select: { name: true } } } }),
@@ -86,7 +86,7 @@ router.get('/iso-audit', requireAction('reports', 'read'), asyncHandler(async (r
   // احسب KPI progress لكل هدف
   const objProgress = (obj) => {
     if (!obj.kpiEntries?.length) return '—';
-    const vals = obj.kpiEntries.map(e => e.value).filter(v => v != null);
+    const vals = obj.kpiEntries.map(e => e.actualValue).filter(v => v != null);
     if (!vals.length) return '—';
     const avg = vals.reduce((a, b) => a + Number(b), 0) / vals.length;
     return Math.round(avg) + (obj.unit || '');

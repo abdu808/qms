@@ -1,0 +1,285 @@
+{
+  "generatedAt": "2026-05-02T00:33:26.516Z",
+  "mode": "apply",
+  "target": "https://quality.aqiltech.sa",
+  "count": 18,
+  "results": [
+    {
+      "sourceCode": "QM-001-2026",
+      "title": "دليل نظام إدارة الجودة",
+      "documentId": "cmonlsv47006n12jqsalzw2ff",
+      "documentCode": "DOC-2026-002",
+      "initialStatus": "UNDER_REVIEW",
+      "transitions": [
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:20.915Z",
+      "effectiveDate": "2026-05-02T00:33:20.915Z"
+    },
+    {
+      "sourceCode": "QM-002-2026",
+      "title": "نطاق نظام إدارة الجودة والخدمات الرقمية",
+      "documentId": "cmonlsvnq006v12jqhnxglmgn",
+      "documentCode": "DOC-2026-003",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:21.448Z",
+      "effectiveDate": "2026-05-02T00:33:21.448Z"
+    },
+    {
+      "sourceCode": "QP-001-2026",
+      "title": "سياسة الجودة",
+      "documentId": "cmonlsvyf007312jq5nuhx07r",
+      "documentCode": "DOC-2026-004",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:21.975Z",
+      "effectiveDate": "2026-05-02T00:33:21.975Z"
+    },
+    {
+      "sourceCode": "QP-002-2026",
+      "title": "أهداف الجودة والمؤشرات الرقمية",
+      "documentId": "cmonlsw6h007b12jqn4d89rkb",
+      "documentCode": "DOC-2026-005",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:22.492Z",
+      "effectiveDate": "2026-05-02T00:33:22.492Z"
+    },
+    {
+      "sourceCode": "QP-003-2026",
+      "title": "إدارة المخاطر والفرص",
+      "documentId": "cmonlswej007j12jqgae7ks9q",
+      "documentCode": "DOC-2026-006",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:23.001Z",
+      "effectiveDate": "2026-05-02T00:33:23.001Z"
+    },
+    {
+      "sourceCode": "QP-004-2026",
+      "title": "ضبط الوثائق والسجلات",
+      "documentId": "cmonlswml007r12jqilrk2nk7",
+      "documentCode": "DOC-2026-007",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:23.518Z",
+      "effectiveDate": "2026-05-02T00:33:23.518Z"
+    },
+    {
+      "sourceCode": "QP-005-2026",
+      "title": "سياسة التوثيق الرشيق والأدلة المرئية",
+      "documentId": "cmonlswun007z12jq16zcz7hi",
+      "documentCode": "DOC-2026-008",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:24.042Z",
+      "effectiveDate": "2026-05-02T00:33:24.042Z"
+    },
+    {
+      "sourceCode": "HR-001-2026",
+      "title": "إجراء الموارد البشرية والكفاءة",
+      "documentId": "cmonlsx3f008712jqjmrlul04",
+      "documentCode": "DOC-2026-009",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:24.545Z",
+      "effectiveDate": "2026-05-02T00:33:24.545Z"
+    },
+    {
+      "sourceCode": "IT-001-2026",
+      "title": "سياسة البنية التحتية التقنية واستمرارية العمل",
+      "documentId": "cmonlsxbe008f12jqxm5anah0",
+      "documentCode": "DOC-2026-010",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:25.052Z",
+      "effectiveDate": "2026-05-02T00:33:25.052Z"
+    },
+    {
+      "sourceCode": "PUR-001-2026",
+      "title": "إجراء المشتريات وتقييم الموردين",
+      "documentId": "cmonlsxix008n12jqzafb6eqx",
+      "documentCode": "DOC-2026-011",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:25.546Z",
+      "effectiveDate": "2026-05-02T00:33:25.546Z"
+    },
+    {
+      "sourceCode": "QS-001-2026",
+      "title": "إجراءات تقديم الخدمات والمساعدات",
+      "documentId": "cmonlsxql008v12jqd7qk7tqp",
+      "documentCode": "DOC-2026-012",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:26.054Z",
+      "effectiveDate": "2026-05-02T00:33:26.054Z"
+    },
+    {
+      "sourceCode": "QS-004-2026",
+      "title": "حماية المستفيدين والشكاوى",
+      "documentId": "cmonlsxy0009312jqg9cn6f0c",
+      "documentCode": "DOC-2026-013",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:26.563Z",
+      "effectiveDate": "2026-05-02T00:33:26.563Z"
+    },
+    {
+      "sourceCode": "IA-001-2026",
+      "title": "خطة التدقيق الداخلي 2026",
+      "documentId": "cmonlsy5q009b12jqt6mg3bop",
+      "documentCode": "DOC-2026-014",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:27.074Z",
+      "effectiveDate": "2026-05-02T00:33:27.074Z"
+    },
+    {
+      "sourceCode": "IA-002-2026",
+      "title": "نموذج تقرير التدقيق الداخلي الرقمي",
+      "documentId": "cmonlsydf009j12jq8np2ci4l",
+      "documentCode": "DOC-2026-015",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:27.584Z",
+      "effectiveDate": "2026-05-02T00:33:27.584Z"
+    },
+    {
+      "sourceCode": "CA-001-2026",
+      "title": "إجراء عدم المطابقة والإجراءات التصحيحية",
+      "documentId": "cmonlsykv009r12jqryjk8eun",
+      "documentCode": "DOC-2026-016",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:28.085Z",
+      "effectiveDate": "2026-05-02T00:33:28.085Z"
+    },
+    {
+      "sourceCode": "CA-002-2026",
+      "title": "سجل متابعة الإجراءات التصحيحية",
+      "documentId": "cmonlsys5009z12jq0w10qtc5",
+      "documentCode": "DOC-2026-017",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:28.583Z",
+      "effectiveDate": "2026-05-02T00:33:28.583Z"
+    },
+    {
+      "sourceCode": "MR-001-2026",
+      "title": "أجندة مراجعة الإدارة",
+      "documentId": "cmonlsyzn00a712jqdzh0biq6",
+      "documentCode": "DOC-2026-018",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:29.107Z",
+      "effectiveDate": "2026-05-02T00:33:29.107Z"
+    },
+    {
+      "sourceCode": "MR-002-2026",
+      "title": "تقرير مراجعة الإدارة ومخرجاته",
+      "documentId": "cmonlsz7m00af12jqfyqq6v5l",
+      "documentCode": "DOC-2026-019",
+      "initialStatus": "DRAFT",
+      "transitions": [
+        "UNDER_REVIEW",
+        "APPROVED",
+        "PUBLISHED"
+      ],
+      "finalStatus": "PUBLISHED",
+      "approvedAt": "2026-05-02T00:33:29.646Z",
+      "effectiveDate": "2026-05-02T00:33:29.646Z"
+    }
+  ],
+  "verification": {
+    "importedPublished": 18,
+    "importedTotal": 18,
+    "statusCounts": {
+      "PUBLISHED": 18
+    },
+    "isoReadinessPercentage": 60
+  }
+}

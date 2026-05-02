@@ -114,6 +114,11 @@ model User {
   findingsOwned                AuditFinding[]          @relation("FindingOwner")
   findingsCreated              AuditFinding[]          @relation("FindingCreator")
 
+  // ── KPI Follow-Up back-relations ────────────────────
+  kpiFollowUpDataEntries      KpiFollowUp[]           @relation("KpiFollowUpDataEntry")
+  kpiFollowUpPerfOwned        KpiFollowUp[]           @relation("KpiFollowUpPerfOwner")
+  kpiFollowUpEscalatedByMe    KpiFollowUp[]           @relation("KpiFollowUpEscalatedBy")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -166,6 +171,9 @@ model Department {
   competenceRequirements     CompetenceRequirement[] @relation("CompDept")
   audits                     Audit[]                 @relation("AuditDept")
   auditFindings              AuditFinding[]
+
+  // ── KPI Follow-Up back-relations ────────────────────
+  kpiFollowUps               KpiFollowUp[]           @relation("DepartmentFollowUp")
 }
 
 // =====================================================
@@ -1106,6 +1114,10 @@ model KpiEntry {
   approvedAt      DateTime?
   rejectionReason String?   @db.Text
 
+  // ── KPI Follow-Up back-relations ────────────────────────
+  followUpAsPrevious KpiFollowUp[]  @relation("PreviousKpiEntry")
+  followUpAsResolved KpiFollowUp[]  @relation("ResolvedKpiEntry")
+
   @@unique([objectiveId, year, month])
   @@unique([activityId, year, month])
   @@unique([indicatorId, year, month])
@@ -1882,6 +1894,87 @@ model Indicator {
   @@index([axisId])
   @@index([ownerId])
   @@index([deletedAt])
+
+  // ── KPI Follow-Up back-relation ────────────────────────
+  kpiFollowUps      KpiFollowUp[]  @relation("IndicatorFollowUp")
+}
+
+// =====================================================
+// KPI FOLLOW-UP SYSTEM
+// Tracks overdue KPI entries and escalation workflow
+// =====================================================
+
+model KpiFollowUp {
+  // ── Identification & Audit ─────────────────────────────
+  id                String    @id @default(cuid())
+  code              String    @unique  // KFU-2026-0001
+
+  // ── KPI Reference ─────────────────────────────────────
+  indicatorId       String
+  indicator         Indicator @relation("IndicatorFollowUp", fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  // ── Period Reference ──────────────────────────────────
+  year              Int
+  month             Int       // 1-12; uniqueness enforced via @@unique
+
+  // ── Department & Personnel ─────────────────────────────
+  departmentId      String
+  department        Department @relation("DepartmentFollowUp", fields: [departmentId], references: [id])
+
+  // Who is responsible for entering the data?
+  dataEntryUserId   String
+  dataEntryUser     User      @relation("KpiFollowUpDataEntry", fields: [dataEntryUserId], references: [id])
+
+  // Who owns the performance target/objective?
+  performanceOwnerId String?
+  performanceOwner   User?     @relation("KpiFollowUpPerfOwner", fields: [performanceOwnerId], references: [id])
+
+  // ── Deadline & Calculation ────────────────────────────
+  dueDate           DateTime  // Deadline for entry submission
+  submittedAt       DateTime? // When was the entry actually submitted?
+  daysLate          Int?      // Auto-calculated: (NOW - dueDate) / 86400, NULL if on-time
+
+  // ── Previous Entry Reference ───────────────────────────
+  // Links to the last successful entry (for comparison/context)
+  previousEntryId   String?
+  previousEntry     KpiEntry? @relation("PreviousKpiEntry", fields: [previousEntryId], references: [id])
+
+  // ── Related Entry After Action ─────────────────────────
+  // Once resolved, links to the finally-submitted entry
+  resolvedEntryId   String?
+  resolvedEntry     KpiEntry? @relation("ResolvedKpiEntry", fields: [resolvedEntryId], references: [id])
+
+  // ── Status & Escalation ────────────────────────────────
+  // PENDING      → just detected, awaiting action
+  // FIRST_NOTICE → QM sent first reminder
+  // ESCALATED    → escalated to dept manager / executive director
+  // RESOLVED     → entry submitted after escalation
+  // ABORTED      → month closed without entry; requires data imputation
+  status            String    @default("PENDING")
+
+  // Escalation tracking
+  escalationLevel   Int       @default(0)  // 0: none, 1: dept manager, 2: exec director
+  escalatedAt       DateTime?
+  escalatedById     String?
+  escalatedBy       User?     @relation("KpiFollowUpEscalatedBy", fields: [escalatedById], references: [id])
+
+  // ── QMS Manager Notes ──────────────────────────────────
+  qmNotes           String?   @db.Text  // Context, intervention history, etc.
+
+  // ── Audit Trail ────────────────────────────────────────
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resolvedAt        DateTime?
+
+  // ── Constraints & Indexes ──────────────────────────────
+  @@unique([indicatorId, year, month])
+  @@index([departmentId])
+  @@index([dataEntryUserId])
+  @@index([performanceOwnerId])
+  @@index([year, month])
+  @@index([status])
+  @@index([dueDate])
+  @@index([escalationLevel])
 }
 
 // مستهدف سنوي لكل مؤشر (5+ سنوات مع ربعيات اختيارية)

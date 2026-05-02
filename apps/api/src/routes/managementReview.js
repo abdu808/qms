@@ -299,11 +299,22 @@ router.post(
       label:      'اعتماد مخرجات المراجعة الإدارية',
     });
 
-    // 5. توليد كودات المهام قبل الـ TX (nextCode يستخدم الـ prisma العام)
-    //    يُولَّد مرة واحدة — نادر التعارض؛ P2002 يُراجع كلا الجانبين للـ tx
+    // 5. توليد كودات المهام قبل الـ TX (nextCode يستخدم الـ prisma العام).
+    // nextCode يقرأ آخر كود محفوظ؛ لذلك استدعاؤه عدة مرات قبل الحفظ يُرجع نفس الكود.
+    // نولّد الكود الأول ثم نزيد اللاحقة رقمياً داخل نفس الدفعة.
     const pregenCodes = [];
-    for (let i = 0; i < allItems.length; i++) {
-      pregenCodes.push(await nextCode('followUpTask', 'FUT'));
+    if (allItems.length > 0) {
+      const firstCode = await nextCode('followUpTask', 'FUT');
+      const m = firstCode.match(/^(.*-)(\d+)$/);
+      if (!m) {
+        pregenCodes.push(firstCode);
+      } else {
+        const [, head, raw] = m;
+        const start = Number(raw);
+        for (let i = 0; i < allItems.length; i++) {
+          pregenCodes.push(`${head}${String(start + i).padStart(raw.length, '0')}`);
+        }
+      }
     }
 
     // 6. Transaction ذري: تحديث الحالة + إنشاء المهام في عملية واحدة

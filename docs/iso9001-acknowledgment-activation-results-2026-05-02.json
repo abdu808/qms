@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-05-02T00:47:22.559Z",
+  "mode": "apply",
+  "target": "https://quality.aqiltech.sa",
+  "count": 5,
+  "results": [
+    {
+      "sourceCode": "QP-001-2026",
+      "documentCode": "DOC-2026-004",
+      "ackCode": "ACK-ISO-QP-001-2026",
+      "ackDocumentId": "cmonmgt2k00e612jqrb9u814z",
+      "operation": "created",
+      "active": true,
+      "mandatory": true,
+      "audience": [
+        "ALL"
+      ],
+      "stats": {
+        "total": 10,
+        "acknowledged": 0,
+        "pending": 10,
+        "coverage": 0
+      }
+    },
+    {
+      "sourceCode": "QP-004-2026",
+      "documentCode": "DOC-2026-007",
+      "ackCode": "ACK-ISO-QP-004-2026",
+      "ackDocumentId": "cmonmgtf100eb12jq3c85n486",
+      "operation": "created",
+      "active": true,
+      "mandatory": true,
+      "audience": [
+        "ALL"
+      ],
+      "stats": {
+        "total": 10,
+        "acknowledged": 0,
+        "pending": 10,
+        "coverage": 0
+      }
+    },
+    {
+      "sourceCode": "QP-003-2026",
+      "documentCode": "DOC-2026-006",
+      "ackCode": "ACK-ISO-QP-003-2026",
+      "ackDocumentId": "cmonmgtr300eg12jqyfo9szkw",
+      "operation": "created",
+      "active": true,
+      "mandatory": true,
+      "audience": [
+        "ALL"
+      ],
+      "stats": {
+        "total": 10,
+        "acknowledged": 0,
+        "pending": 10,
+        "coverage": 0
+      }
+    },
+    {
+      "sourceCode": "QS-004-2026",
+      "documentCode": "DOC-2026-013",
+      "ackCode": "ACK-ISO-QS-004-2026",
+      "ackDocumentId": "cmonmgu3b00el12jq4ptgx8fv",
+      "operation": "created",
+      "active": true,
+      "mandatory": true,
+      "audience": [
+        "ALL"
+      ],
+      "stats": {
+        "total": 10,
+        "acknowledged": 0,
+        "pending": 10,
+        "coverage": 0
+      }
+    },
+    {
+      "sourceCode": "CA-001-2026",
+      "documentCode": "DOC-2026-016",
+      "ackCode": "ACK-ISO-CA-001-2026",
+      "ackDocumentId": "cmonmguf900eq12jqjjjdih8a",
+      "operation": "created",
+      "active": true,
+      "mandatory": true,
+      "audience": [
+        "ALL"
+      ],
+      "stats": {
+        "total": 10,
+        "acknowledged": 0,
+        "pending": 10,
+        "coverage": 0
+      }
+    }
+  ],
+  "matrix": {
+    "activeDocuments": 6,
+    "users": 10,
+    "overall": {
+      "totalCells": 60,
+      "acknowledgedCells": 2,
+      "coverage": 3
+    }
+  }
+}

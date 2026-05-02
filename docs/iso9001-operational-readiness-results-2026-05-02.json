@@ -1,0 +1,56 @@
+{
+  "generatedAt": "2026-05-02T01:01:58.713Z",
+  "mode": "apply",
+  "target": "https://quality.aqiltech.sa",
+  "before": {
+    "percentage": 84,
+    "level": "جاهز تقريباً — مراجعة نهائية 🟡",
+    "failedClauses": [
+      {
+        "clause": "9.1.2",
+        "required": "معدل حل جيد للشكاوى",
+        "evidence": "0 تم حل / 0 مفتوح"
+      },
+      {
+        "clause": "9.3",
+        "required": "مراجعة إدارية واحدة على الأقل",
+        "evidence": "0/1 مراجعة مكتملة"
+      }
+    ]
+  },
+  "results": [
+    {
+      "endpoint": "management-review",
+      "title": "مراجعة الإدارة الأولى لنظام إدارة الجودة 2026",
+      "operation": "exists",
+      "id": "cmonmz5kv00g212jqf7tbqk5a",
+      "code": "MR-2026-001"
+    },
+    {
+      "endpoint": "management-review",
+      "title": "مراجعة الإدارة الأولى لنظام إدارة الجودة 2026",
+      "operation": "completed",
+      "id": "cmonmz5kv00g212jqf7tbqk5a",
+      "code": "MR-2026-001",
+      "followUpTasksCreated": 1
+    }
+  ],
+  "after": {
+    "percentage": 95,
+    "level": "جاهز للاعتماد ✅",
+    "failedClauses": [
+      {
+        "clause": "9.1.2",
+        "required": "معدل حل جيد للشكاوى",
+        "evidence": "0 تم حل / 0 مفتوح"
+      }
+    ],
+    "stats": {
+      "strategicGoals": 17,
+      "objectives": 37,
+      "risks": 14,
+      "beneficiaries": 0,
+      "donations": 0
+    }
+  }
+}

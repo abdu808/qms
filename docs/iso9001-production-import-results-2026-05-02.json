@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-05-02T00:28:48.814Z",
+  "target": "https://quality.aqiltech.sa",
+  "results": [
+    {
+      "code": "QM-001-2026",
+      "title": "دليل نظام إدارة الجودة",
+      "documentId": "cmonlsv47006n12jqsalzw2ff",
+      "documentCode": "DOC-2026-002",
+      "uploadVersionId": "cmonlsvjm006r12jqsp1ecdwi"
+    },
+    {
+      "code": "QM-002-2026",
+      "title": "نطاق نظام إدارة الجودة والخدمات الرقمية",
+      "documentId": "cmonlsvnq006v12jqhnxglmgn",
+      "documentCode": "DOC-2026-003",
+      "uploadVersionId": "cmonlsvur006z12jq78j0xmr6"
+    },
+    {
+      "code": "QP-001-2026",
+      "title": "سياسة الجودة",
+      "documentId": "cmonlsvyf007312jq5nuhx07r",
+      "documentCode": "DOC-2026-004",
+      "uploadVersionId": "cmonlsw31007712jq8ii6lexw"
+    },
+    {
+      "code": "QP-002-2026",
+      "title": "أهداف الجودة والمؤشرات الرقمية",
+      "documentId": "cmonlsw6h007b12jqn4d89rkb",
+      "documentCode": "DOC-2026-005",
+      "uploadVersionId": "cmonlswax007f12jqpbftd27i"
+    },
+    {
+      "code": "QP-003-2026",
+      "title": "إدارة المخاطر والفرص",
+      "documentId": "cmonlswej007j12jqgae7ks9q",
+      "documentCode": "DOC-2026-006",
+      "uploadVersionId": "cmonlswiz007n12jqf2keuvcd"
+    },
+    {
+      "code": "QP-004-2026",
+      "title": "ضبط الوثائق والسجلات",
+      "documentId": "cmonlswml007r12jqilrk2nk7",
+      "documentCode": "DOC-2026-007",
+      "uploadVersionId": "cmonlswqx007v12jqf3aj7a5j"
+    },
+    {
+      "code": "QP-005-2026",
+      "title": "سياسة التوثيق الرشيق والأدلة المرئية",
+      "documentId": "cmonlswun007z12jq16zcz7hi",
+      "documentCode": "DOC-2026-008",
+      "uploadVersionId": "cmonlswzg008312jqggztxv2k"
+    },
+    {
+      "code": "HR-001-2026",
+      "title": "إجراء الموارد البشرية والكفاءة",
+      "documentId": "cmonlsx3f008712jqjmrlul04",
+      "documentCode": "DOC-2026-009",
+      "uploadVersionId": "cmonlsx7w008b12jq99cqlk2t"
+    },
+    {
+      "code": "IT-001-2026",
+      "title": "سياسة البنية التحتية التقنية واستمرارية العمل",
+      "documentId": "cmonlsxbe008f12jqxm5anah0",
+      "documentCode": "DOC-2026-010",
+      "uploadVersionId": "cmonlsxfi008j12jq4jj8jy7g"
+    },
+    {
+      "code": "PUR-001-2026",
+      "title": "إجراء المشتريات وتقييم الموردين",
+      "documentId": "cmonlsxix008n12jqzafb6eqx",
+      "documentCode": "DOC-2026-011",
+      "uploadVersionId": "cmonlsxn1008r12jqbn79ezj1"
+    },
+    {
+      "code": "QS-001-2026",
+      "title": "إجراءات تقديم الخدمات والمساعدات",
+      "documentId": "cmonlsxql008v12jqd7qk7tqp",
+      "documentCode": "DOC-2026-012",
+      "uploadVersionId": "cmonlsxug008z12jqoisndgap"
+    },
+    {
+      "code": "QS-004-2026",
+      "title": "حماية المستفيدين والشكاوى",
+      "documentId": "cmonlsxy0009312jqg9cn6f0c",
+      "documentCode": "DOC-2026-013",
+      "uploadVersionId": "cmonlsy24009712jq37pppohp"
+    },
+    {
+      "code": "IA-001-2026",
+      "title": "خطة التدقيق الداخلي 2026",
+      "documentId": "cmonlsy5q009b12jqt6mg3bop",
+      "documentCode": "DOC-2026-014",
+      "uploadVersionId": "cmonlsy9m009f12jqworkr2jj"
+    },
+    {
+      "code": "IA-002-2026",
+      "title": "نموذج تقرير التدقيق الداخلي الرقمي",
+      "documentId": "cmonlsydf009j12jq8np2ci4l",
+      "documentCode": "DOC-2026-015",
+      "uploadVersionId": "cmonlsyhc009n12jq6hfbusgy"
+    },
+    {
+      "code": "CA-001-2026",
+      "title": "إجراء عدم المطابقة والإجراءات التصحيحية",
+      "documentId": "cmonlsykv009r12jqryjk8eun",
+      "documentCode": "DOC-2026-016",
+      "uploadVersionId": "cmonlsyoo009v12jqz8g147th"
+    },
+    {
+      "code": "CA-002-2026",
+      "title": "سجل متابعة الإجراءات التصحيحية",
+      "documentId": "cmonlsys5009z12jq0w10qtc5",
+      "documentCode": "DOC-2026-017",
+      "uploadVersionId": "cmonlsyw300a312jqpmhl8c0g"
+    },
+    {
+      "code": "MR-001-2026",
+      "title": "أجندة مراجعة الإدارة",
+      "documentId": "cmonlsyzn00a712jqdzh0biq6",
+      "documentCode": "DOC-2026-018",
+      "uploadVersionId": "cmonlsz3r00ab12jqi82f0su0"
+    },
+    {
+      "code": "MR-002-2026",
+      "title": "تقرير مراجعة الإدارة ومخرجاته",
+      "documentId": "cmonlsz7m00af12jqfyqq6v5l",
+      "documentCode": "DOC-2026-019",
+      "uploadVersionId": "cmonlszbd00aj12jqprrmor5d"
+    }
+  ]
+}

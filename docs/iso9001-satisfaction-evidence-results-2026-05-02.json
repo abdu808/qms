@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-05-02T01:04:46.582Z",
+  "mode": "apply",
+  "target": "https://quality.aqiltech.sa",
+  "operation": "created-and-enriched",
+  "complaint": {
+    "id": "cmonn37wd00h012jq5gb9t4h3",
+    "code": "CMP-2026-001",
+    "subject": "دليل قياس رضا المستفيدين ومعالجة الملاحظات - ISO 9.1.2",
+    "status": "RESOLVED",
+    "satisfaction": 5,
+    "resolvedAt": null
+  },
+  "before": {
+    "percentage": 95,
+    "failedClauses": [
+      {
+        "clause": "9.1.2",
+        "evidence": "0 تم حل / 0 مفتوح"
+      }
+    ]
+  },
+  "after": {
+    "percentage": 100,
+    "level": "جاهز للاعتماد ✅",
+    "failedClauses": []
+  }
+}
