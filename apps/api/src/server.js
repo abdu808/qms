@@ -55,6 +55,7 @@ import evalTokensRoutes from './routes/evalTokens.js';
 import reportsRoutes from './routes/reports.js';
 import operationalReportsRoutes from './routes/operationalReports.js';
 import kpiRoutes from './routes/kpi.js';
+import kpiFollowUpRoutes from './routes/kpiFollowUp.js';
 import publicEvalRoutes from './routes/publicEval.js';
 import publicSurveyRoutes from './routes/publicSurvey.js';
 import publicAckRoutes from './routes/publicAck.js';
@@ -492,6 +493,7 @@ app.use('/api/eval-tokens',             evalTokensRoutes);
 app.use('/api/reports',                 reportsRoutes);
 app.use('/api/operational-reports',     operationalReportsRoutes);
 app.use('/api/kpi',                     kpiRoutes);
+app.use('/api/kpi-followups',           kpiFollowUpRoutes);
 app.use('/api/integration',             integrationRoutes);
 
 // ── Strategic Planning v2 ─────────────────────────────────────────────
