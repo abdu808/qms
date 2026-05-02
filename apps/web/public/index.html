@@ -3031,7 +3031,7 @@
                             <span class="text-[10px] px-2 py-0.5 rounded-full" :class="deliveryStatusClass(d.status)" x-text="deliveryStatusLabel(d.status)"></span>
                           </td>
                           <td class="px-3 py-2 text-xs truncate max-w-xs" x-text="d.title" :title="d.title"></td>
-                          <td class="px-3 py-2 text-center text-[10px]" x-text="new Date(d.createdAt).toLocaleString('ar-SA')"></td>
+                          <td class="px-3 py-2 text-center text-[10px]" x-text="new Date(d.requestedAt).toLocaleString('ar-SA')"></td>
                           <td class="px-3 py-2 text-center text-[10px]" x-text="d.dispatchedAt ? new Date(d.dispatchedAt).toLocaleString('ar-SA') : (d.failedAt ? new Date(d.failedAt).toLocaleString('ar-SA') : '—')"></td>
                           <td class="px-3 py-2 text-xs text-red-600 truncate max-w-xs" x-text="d.error || ''" :title="d.error"></td>
                         </tr>

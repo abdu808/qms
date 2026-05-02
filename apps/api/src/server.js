@@ -78,6 +78,7 @@ import portalAdminRoutes from './routes/portalAdmin.js';
 import metaRoutes from './routes/meta.js';
 import webhookSettingsRoutes from './routes/webhookSettings.js';
 import integrationDeliveryRoutes from './routes/integrationDelivery.js';
+import integrationCallbackRoutes from './routes/integrationCallback.js';
 import notificationTemplatesRoutes from './routes/notificationTemplates.js';
 import aiSettingsRoutes from './routes/aiSettings.js';
 import consultantRoutes from './routes/consultant.js';
@@ -434,6 +435,12 @@ app.use('/api/public',
   publicUrlEncoded,
   publicPortalRoutes,
 );
+
+// ── n8n callback — يُسجَّل قبل JWT middleware ──────────────────────
+// يستخدم X-Webhook-Secret header للمصادقة (لا يحتاج جلسة مستخدم).
+// IMPORTANT: يجب أن يبقى قبل app.use('/api', authenticate, ...)
+//            وإلا سيرفض JWT طلبات n8n الخارجية بـ 401.
+app.use('/api/integrations', integrationCallbackRoutes);
 
 // Authenticated — بعد authenticate نضمن أن طلبات mutations تحمل CSRF token صالح
 app.use('/api', authenticate, denyReadOnly, issueCsrfCookie, verifyCsrf, auditTrail());
