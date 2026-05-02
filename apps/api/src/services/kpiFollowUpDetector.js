@@ -15,8 +15,11 @@
  *   • Day 0-4   → PENDING
  *   • Day 5-9   → FIRST_NOTICE
  *   • Day 10-14 → ESCALATED Lvl 1
- *   • Day 15-19 → ESCALATED Lvl 2
- *   • Day 20+   → ABORTED
+ *   • Day 15+   → ESCALATED Lvl 2 (يبقى مرئياً حتى يُحلّ أو يُغلَق يدوياً)
+ *
+ * ملاحظة هامّة: لا يوجد ABORTED تلقائي.
+ * ABORTED قرار يدوي حصري لمدير الجودة عبر POST /:id/abort مع سبب موثَّق.
+ * هذا يضمن صدق السجل: لا تُخفى المتأخرات القديمة، ولا يُغلَق ملف بدون قرار إنساني.
  */
 
 import { prisma } from '../db.js';
@@ -26,7 +29,6 @@ const ESCALATION_THRESHOLDS = {
   FIRST_NOTICE: 5,
   ESCALATE_L1: 10,
   ESCALATE_L2: 15,
-  ABORT: 20,
 };
 
 // ─── حساب dueDate لمؤشر شهري ───────────────────────────────────
@@ -47,8 +49,8 @@ function determineStatus(daysLate) {
   if (daysLate < ESCALATION_THRESHOLDS.FIRST_NOTICE) return { status: 'PENDING',      escalationLevel: 0 };
   if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L1)  return { status: 'FIRST_NOTICE', escalationLevel: 0 };
   if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L2)  return { status: 'ESCALATED',    escalationLevel: 1 };
-  if (daysLate < ESCALATION_THRESHOLDS.ABORT)        return { status: 'ESCALATED',    escalationLevel: 2 };
-  return { status: 'ABORTED', escalationLevel: 2 };
+  // 15+ days → يبقى ESCALATED Level 2 إلى أجل غير مسمى حتى يتدخل QM (حلّ أو إغلاق يدوي)
+  return { status: 'ESCALATED', escalationLevel: 2 };
 }
 
 // ─── الفترات التي يجب فحصها ────────────────────────────────────
@@ -231,8 +233,7 @@ export async function detectAndUpdateOverdueKpis() {
             where: { id: existing.id },
             data: updated,
           });
-          if (status === 'ABORTED') stats.aborted++;
-          else stats.updated++;
+          stats.updated++;
         }
       }
     }

@@ -139,13 +139,29 @@ router.get('/', authenticate, requireFollowUpReadAccess, async (req, res) => {
 router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req, res) => {
   try {
     const now = new Date();
-    const currentYear = parseInt(req.query.year) || now.getFullYear();
-    const currentMonth = parseInt(req.query.month) || now.getMonth() + 1;
+    const { year, month, departmentId, indicatorId, escalationLevel, search } = req.query;
 
-    let baseWhere = { year: currentYear, month: currentMonth };
-    baseWhere = buildScopeFilter(req.user, baseWhere);
+    // الفلاتر المُطبَّقة على القائمة هي نفسها التي تُطبَّق على الإحصائيات
+    // (status لا يُطبَّق هنا - الإحصائيات تعرض توزيع الحالات)
+    const filterWhere = {};
+    if (year) filterWhere.year = parseInt(year);
+    if (month) filterWhere.month = parseInt(month);
+    if (departmentId) filterWhere.departmentId = departmentId;
+    if (indicatorId) filterWhere.indicatorId = indicatorId;
+    if (escalationLevel !== undefined && escalationLevel !== '') {
+      filterWhere.escalationLevel = parseInt(escalationLevel);
+    }
+    if (search) {
+      filterWhere.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { indicator: { nameAr: { contains: search, mode: 'insensitive' } } },
+        { indicator: { code: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
 
-    // ─── الاستعلامات الأساسية (تعمل دائماً) ──────────────────────
+    const baseWhere = buildScopeFilter(req.user, filterWhere);
+
+    // ─── الاستعلامات الأساسية ───────────────────────────────────
     const [totalOverdue, byStatus] = await Promise.all([
       prisma.kpiFollowUp.count({
         where: { ...baseWhere, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } },
@@ -155,7 +171,7 @@ router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req
       }),
     ]);
 
-    // ─── الاستعلامات الإضافية (مع defensive fallback) ────────────
+    // ─── الاستعلامات الإضافية ───────────────────────────────────
     let byEscalationLevel = [];
     let byDepartment = [];
     let totalAllTime = 0;
@@ -178,12 +194,19 @@ router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req
     } catch (e) { console.warn('byDepartment failed:', e.message); }
 
     try {
+      // totalAllTime يحترم scope ولكن يتجاهل filters الزمنية والظاهرية
+      // (لإعطاء صورة شاملة عن النطاق المسموح للمستخدم)
       totalAllTime = await prisma.kpiFollowUp.count({ where: buildScopeFilter(req.user, {}) });
     } catch (e) { console.warn('totalAllTime failed:', e.message); }
 
     try {
+      // criticalCount: متابعات حرجة ضمن الفلاتر (15+ يوم أو L2)
       criticalCount = await prisma.kpiFollowUp.count({
-        where: { ...baseWhere, OR: [{ daysLate: { gte: 15 } }, { escalationLevel: 2 }] },
+        where: {
+          ...baseWhere,
+          status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] },
+          OR: [{ daysLate: { gte: 15 } }, { escalationLevel: 2 }],
+        },
       });
     } catch (e) { console.warn('criticalCount failed:', e.message); }
 
@@ -200,14 +223,20 @@ router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req
       }
     } catch (e) { console.warn('dept enrichment failed:', e.message); }
 
-    // ─── تطبيع _count من groupBy لأي شكل ─────────────────────────
+    // ─── تطبيع _count ─────────────────────────────────────────────
     const normalizeCount = (arr) => arr.map(item => ({
       ...item,
       _count: typeof item._count === 'number' ? item._count : (item._count?._all ?? 0),
     }));
 
     res.json({
-      period: { year: currentYear, month: currentMonth },
+      // النطاق الزمني المطبَّق (للعرض فقط — قد يكون null إن لم يُحدَّد فلتر)
+      period: {
+        year: year ? parseInt(year) : null,
+        month: month ? parseInt(month) : null,
+      },
+      // الفلاتر المُطبَّقة (للتوضيح)
+      appliedFilters: { year, month, departmentId, indicatorId, escalationLevel, search },
       totalOverdue,
       totalAllTime,
       criticalCount,
@@ -231,10 +260,18 @@ router.get('/stats/summary', authenticate, requireFollowUpReadAccess, async (req
 router.get('/stats/trends', authenticate, requireFollowUpReadAccess, async (req, res) => {
   try {
     const now = new Date();
-    const trends = [];
-    let where = {};
-    where = buildScopeFilter(req.user, where);
+    const { departmentId, indicatorId, escalationLevel } = req.query;
 
+    // الفلاتر الظاهرية تنطبق هنا؛ السنة/الشهر لا (نعرض 12 شهر)
+    const filterWhere = {};
+    if (departmentId) filterWhere.departmentId = departmentId;
+    if (indicatorId) filterWhere.indicatorId = indicatorId;
+    if (escalationLevel !== undefined && escalationLevel !== '') {
+      filterWhere.escalationLevel = parseInt(escalationLevel);
+    }
+    const where = buildScopeFilter(req.user, filterWhere);
+
+    const trends = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const year = d.getFullYear();

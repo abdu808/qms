@@ -1196,16 +1196,25 @@ function app() {
     async loadKpiFollowUp() {
       try {
         this.kpiFollowUpLoading = true;
-        const params = new URLSearchParams();
+
+        // فلاتر القائمة الكاملة (تشمل status و sortBy)
+        const listParams = new URLSearchParams();
         Object.entries(this.kpiFollowUpFilters).forEach(([k, v]) => {
-          if (v !== '' && v !== null && v !== undefined) params.append(k, v);
+          if (v !== '' && v !== null && v !== undefined) listParams.append(k, v);
         });
-        params.append('limit', '500');
+        listParams.append('limit', '500');
+
+        // فلاتر الإحصائيات والاتجاهات (نفس الفلاتر، عدا status — لأن الإحصائيات تعرض توزيع الحالات)
+        const statsParams = new URLSearchParams();
+        Object.entries(this.kpiFollowUpFilters).forEach(([k, v]) => {
+          if (k === 'status') return;
+          if (v !== '' && v !== null && v !== undefined) statsParams.append(k, v);
+        });
 
         const [list, stats, trends] = await Promise.all([
-          this.api('GET', `/kpi-followups?${params.toString()}`),
-          this.api('GET', '/kpi-followups/stats/summary'),
-          this.api('GET', '/kpi-followups/stats/trends').catch(() => null),
+          this.api('GET', `/kpi-followups?${listParams.toString()}`),
+          this.api('GET', `/kpi-followups/stats/summary?${statsParams.toString()}`),
+          this.api('GET', `/kpi-followups/stats/trends?${statsParams.toString()}`).catch(() => null),
         ]);
         this.kpiFollowUpList   = list?.data || [];
         this.kpiFollowUpStats  = stats || null;
