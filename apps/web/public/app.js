@@ -67,6 +67,7 @@ const PERMISSIONS = {
   dashboard:        { read:_MANAGER_UP },
   exports:          { read:_QM_UP },
   kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
+  'kpi-followups':  { read:_QM_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP, escalate:_QM_UP },
   reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
 };
 
@@ -462,6 +463,7 @@ function app() {
       { id: 'operationalActivities',  label: 'الخطة التشغيلية',       icon: '📅' },
       { id: 'kpiTracking',            label: 'متابعة الأداء',        icon: '📈' },
       { id: 'myKpi',                  label: 'قراءات KPI المطلوبة مني', icon: '🎯' },
+      { id: 'kpiFollowUp',            label: 'سجل متابعة الإدخالات المتأخرة', icon: '📋' },
       { id: 'myWork',                 label: 'مهامي اليوم',          icon: '✅' },
       { id: 'dataHealth',             label: 'صحة البيانات المؤسسية', icon: '🩺' },
       { id: 'operationalReports',     label: 'التقارير التشغيلية',     icon: '🚨' },
@@ -504,7 +506,7 @@ function app() {
       { id: 'home',      title: 'الرئيسية',            icon: '🏠', iso: '',         color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
       { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','objectives','kpiTracking','myKpi','risks','changeRequests'] },
       { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
-      { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix'] },
+      { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix','kpiFollowUp'] },
       { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
       { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation', title: 'التشغيل',             icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
@@ -1121,6 +1123,7 @@ function app() {
       else if (id === 'iso-readiness') await this.loadIsoReadiness();
       else if (id === 'surveys') await this.loadSurveys();
       else if (id === 'kpiTracking') await this.kpiInit();
+      else if (id === 'kpiFollowUp') await this.loadKpiFollowUp();
       else if (id === 'myKpi') await this.loadMyKpi();
       else if (id === 'dataHealth') await this.loadDataHealth();
       else if (id === 'operationalReports') await this.loadOperationalReports();
@@ -1157,6 +1160,56 @@ function app() {
     },
     healthSeverityLabel(sev) {
       return { CRITICAL: 'حرج', HIGH: 'مرتفع', WARNING: 'تحذير', INFO: 'ملاحظة' }[sev] || sev;
+    },
+
+    // ─── KPI Follow-Up System ───────────────────────────────────────
+    kpiFollowUpList: null,
+    kpiFollowUpStats: null,
+    kpiFollowUpLoading: false,
+
+    async loadKpiFollowUp() {
+      try {
+        this.kpiFollowUpLoading = true;
+        const [list, stats] = await Promise.all([
+          this.api('GET', '/kpi-followups?limit=100'),
+          this.api('GET', '/kpi-followups/stats/summary'),
+        ]);
+        this.kpiFollowUpList = list.data;
+        this.kpiFollowUpStats = stats;
+      } catch (e) {
+        alert(e.message || 'فشل تحميل سجل المتابعة');
+        this.kpiFollowUpList = null;
+        this.kpiFollowUpStats = null;
+      } finally {
+        this.kpiFollowUpLoading = false;
+      }
+    },
+
+    async escalateKpiFollowUp(followUpId, notes) {
+      try {
+        const result = await this.api('POST', `/kpi-followups/${followUpId}/escalate`, {
+          escalationLevel: 1,
+          notes: notes,
+        });
+        await this.loadKpiFollowUp();
+        return result;
+      } catch (e) {
+        alert(e.message || 'فشل التصعيد');
+        throw e;
+      }
+    },
+
+    async resolveKpiFollowUp(followUpId, entryId) {
+      try {
+        const result = await this.api('POST', `/kpi-followups/${followUpId}/resolve`, {
+          resolvedEntryId: entryId,
+        });
+        await this.loadKpiFollowUp();
+        return result;
+      } catch (e) {
+        alert(e.message || 'فشل الحل');
+        throw e;
+      }
     },
 
     // UX-2 Wizard — moved to modules/wizard.js (window.QmsWizard)

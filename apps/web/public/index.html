@@ -1832,7 +1832,7 @@
           </div>
 
           <!-- GENERIC LIST PAGE -->
-          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','myWork','operationalReports','slaBoard','dataImport','userGuide'].includes(page)">
+          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','myWork','operationalReports','slaBoard','dataImport','userGuide','kpiFollowUp'].includes(page)">
             <div>
               <!-- Toolbar (sticky — stays visible while scrolling table) -->
               <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0">
@@ -2367,6 +2367,102 @@
                 </template>
               </div>
             </template>
+          </div>
+
+          <!-- KPI FOLLOW-UP PAGE -->
+          <div x-show="page==='kpiFollowUp'" x-cloak>
+            <div class="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+              <!-- Header -->
+              <div class="mb-8">
+                <h1 class="text-4xl font-bold text-gray-800">سجل متابعة الإدخالات المتأخرة</h1>
+                <p class="text-gray-600">إدارة المؤشرات المتأخرة والإجراءات التصحيحية</p>
+              </div>
+
+              <!-- Stats Cards -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" x-show="kpiFollowUpStats">
+                <div class="bg-white rounded-lg shadow p-6">
+                  <p class="text-gray-600 text-sm">إجمالي المتأخرات</p>
+                  <p class="text-3xl font-bold text-red-600" x-text="kpiFollowUpStats.totalOverdue || 0"></p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                  <p class="text-gray-600 text-sm">قيد الانتظار</p>
+                  <p class="text-3xl font-bold text-yellow-600" x-text="kpiFollowUpStats.byStatus?.find(s => s.status === 'PENDING')?._count || 0"></p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                  <p class="text-gray-600 text-sm">مصعّدة</p>
+                  <p class="text-3xl font-bold text-orange-600" x-text="kpiFollowUpStats.byStatus?.find(s => s.status === 'ESCALATED')?._count || 0"></p>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                  <p class="text-gray-600 text-sm">مُحلّة</p>
+                  <p class="text-3xl font-bold text-green-600" x-text="kpiFollowUpStats.byStatus?.find(s => s.status === 'RESOLVED')?._count || 0"></p>
+                </div>
+              </div>
+
+              <!-- Loading -->
+              <div x-show="kpiFollowUpLoading" class="text-center py-8">
+                <p>جاري التحميل...</p>
+              </div>
+
+              <!-- Table -->
+              <div x-show="!kpiFollowUpLoading" class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="w-full text-sm">
+                  <thead class="bg-indigo-600 text-white">
+                    <tr>
+                      <th class="px-4 py-3 text-right">الرمز</th>
+                      <th class="px-4 py-3 text-right">المؤشر</th>
+                      <th class="px-4 py-3 text-right">الإدارة</th>
+                      <th class="px-4 py-3 text-right">مدخل البيانات</th>
+                      <th class="px-4 py-3 text-right">تاريخ الاستحقاق</th>
+                      <th class="px-4 py-3 text-right">أيام التأخير</th>
+                      <th class="px-4 py-3 text-right">الحالة</th>
+                      <th class="px-4 py-3 text-right">الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="item in kpiFollowUpList" :key="item.id">
+                      <tr class="border-t hover:bg-gray-50">
+                        <td class="px-4 py-3 font-mono text-xs" x-text="item.code"></td>
+                        <td class="px-4 py-3" x-text="item.indicator?.nameAr || item.indicator?.name || '—'"></td>
+                        <td class="px-4 py-3" x-text="item.department?.name || '—'"></td>
+                        <td class="px-4 py-3 text-sm" x-text="item.dataEntryUser?.name || '—'"></td>
+                        <td class="px-4 py-3 text-sm" x-text="item.dueDate ? new Date(item.dueDate).toLocaleDateString('ar-SA') : '—'"></td>
+                        <td class="px-4 py-3 text-center">
+                          <template x-if="item.daysLate">
+                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs" x-text="item.daysLate + ' يوم'"></span>
+                          </template>
+                          <template x-if="!item.daysLate">
+                            <span class="text-green-600">في الوقت</span>
+                          </template>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span class="text-xs px-2 py-1 rounded"
+                            :class="{
+                              'bg-yellow-100 text-yellow-800': item.status === 'PENDING',
+                              'bg-orange-100 text-orange-800': item.status === 'ESCALATED',
+                              'bg-green-100 text-green-800': item.status === 'RESOLVED',
+                            }"
+                            x-text="item.status"></span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <button x-show="item.status !== 'RESOLVED'"
+                            @click="escalateKpiFollowUp(item.id, '')"
+                            class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600">
+                            تصعيد
+                          </button>
+                        </td>
+                      </tr>
+                    </template>
+                    <template x-if="!kpiFollowUpList || kpiFollowUpList.length === 0">
+                      <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                          لا توجد متابعات متأخرة
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
           <!-- MY KPI ENTRY MODAL -->
