@@ -1249,8 +1249,26 @@ function app() {
         this.kpiFollowUpDetection = true;
         const r = await this.api('POST', '/kpi-followups/run-detection', {});
         const s = r?.stats || {};
-        const msg = `✓ تم الفحص:\n• جديد: ${s.created || 0}\n• مُحدَّث: ${s.updated || 0}\n• مُحلّ: ${s.resolved || 0}\n• مُغلَق: ${s.aborted || 0}`;
-        alert(msg);
+        const lines = [
+          `✓ تم الفحص:`,
+          `• مؤشرات مفحوصة: ${s.indicatorsChecked || 0}`,
+          `• فترات مفحوصة: ${s.periodsChecked || 0}`,
+          ``,
+          `📋 النتائج:`,
+          `• جديد: ${s.created || 0}`,
+          `• مُحدَّث: ${s.updated || 0}`,
+          `• مُحلّ: ${s.resolved || 0}`,
+          `• مُغلَق: ${s.aborted || 0}`,
+        ];
+        if ((s.skippedNoDept || 0) + (s.skippedNoUser || 0) > 0) {
+          lines.push('');
+          lines.push('⚠️ مؤشرات تم تخطيها:');
+          if (s.skippedNoDept > 0) lines.push(`• بلا قسم محدد: ${s.skippedNoDept}`);
+          if (s.skippedNoUser > 0) lines.push(`• بلا مدخل بيانات: ${s.skippedNoUser}`);
+          lines.push('');
+          lines.push('💡 لتظهر هذه المؤشرات: تأكد أن لكل مؤشر مالك أو مدخل بيانات أو ربطه بهدف.');
+        }
+        alert(lines.join('\n'));
         await this.loadKpiFollowUp();
       } catch (e) {
         alert(e.message || 'فشل تشغيل الفحص');

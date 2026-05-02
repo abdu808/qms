@@ -3,133 +3,169 @@
  *
  * المحرّك الذكي لاكتشاف الإدخالات المتأخرة تلقائياً.
  *
- * يعمل يومياً:
- *   1. يفحص جميع المؤشرات الشهرية النشطة
- *   2. يحسب dueDate لكل مؤشر (نهاية الشهر + 5 أيام إمهال)
- *   3. ينشئ KpiFollowUp إذا لم يُدخل في الموعد
- *   4. يتدرّج الحالة تلقائياً حسب أيام التأخير:
- *      • Day 0-4   → PENDING
- *      • Day 5-9   → FIRST_NOTICE     (إشعار أول)
- *      • Day 10-14 → ESCALATED Lvl 1  (مدير القسم)
- *      • Day 15-19 → ESCALATED Lvl 2  (المدير التنفيذي)
- *      • Day 20+   → ABORTED          (يحتاج تدخل تحقيقي)
- *   5. يحلّ المتابعة تلقائياً عند إدخال البيانات
+ * يفحص جميع المؤشرات الشهرية النشطة، ويحاول تحديد department من 4 مصادر:
+ *   1. Indicator.objective.departmentId
+ *   2. Indicator.dataEntryUser.departmentId
+ *   3. Indicator.owner.departmentId
+ *   4. Indicator.approver.departmentId
+ *
+ * يفحص الفترات: الشهر الحالي + الشهرين السابقين.
+ *
+ * تدرّج الحالة حسب أيام التأخير:
+ *   • Day 0-4   → PENDING
+ *   • Day 5-9   → FIRST_NOTICE
+ *   • Day 10-14 → ESCALATED Lvl 1
+ *   • Day 15-19 → ESCALATED Lvl 2
+ *   • Day 20+   → ABORTED
  */
 
 import { prisma } from '../db.js';
 
-// ─── ثوابت التدرج (قابلة للضبط) ─────────────────────────────────
+// ─── ثوابت التدرج ───────────────────────────────────────────────
 const ESCALATION_THRESHOLDS = {
-  FIRST_NOTICE: 5,    // بعد 5 أيام من dueDate
-  ESCALATE_L1: 10,    // بعد 10 أيام → مدير القسم
-  ESCALATE_L2: 15,    // بعد 15 يوم → المدير التنفيذي
-  ABORT: 20,          // بعد 20 يوم → يحتاج تحقيق
+  FIRST_NOTICE: 5,
+  ESCALATE_L1: 10,
+  ESCALATE_L2: 15,
+  ABORT: 20,
 };
 
 // ─── حساب dueDate لمؤشر شهري ───────────────────────────────────
-// dueDate = آخر يوم في الشهر + 5 أيام إمهال للإدخال
+// dueDate = آخر يوم في الشهر + 5 أيام إمهال
 function calculateDueDate(year, month) {
-  // آخر يوم في الشهر
-  const lastDay = new Date(year, month, 0); // month here is 1-12, Date wants 0-11 + 1 = month+1-1
-  // + 5 أيام إمهال
+  const lastDay = new Date(year, month, 0); // month is 1-12
   lastDay.setDate(lastDay.getDate() + 5);
   return lastDay;
 }
 
-// ─── حساب أيام التأخير ─────────────────────────────────────────
-function calculateDaysLate(dueDate, referenceDate = new Date()) {
-  const ms = referenceDate.getTime() - dueDate.getTime();
+function calculateDaysLate(dueDate, ref = new Date()) {
+  const ms = ref.getTime() - dueDate.getTime();
   if (ms <= 0) return 0;
   return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
-// ─── تحديد الحالة المناسبة حسب الأيام ───────────────────────────
 function determineStatus(daysLate) {
-  if (daysLate < ESCALATION_THRESHOLDS.FIRST_NOTICE) return { status: 'PENDING', escalationLevel: 0 };
-  if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L1) return { status: 'FIRST_NOTICE', escalationLevel: 0 };
-  if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L2) return { status: 'ESCALATED', escalationLevel: 1 };
-  if (daysLate < ESCALATION_THRESHOLDS.ABORT)       return { status: 'ESCALATED', escalationLevel: 2 };
+  if (daysLate < ESCALATION_THRESHOLDS.FIRST_NOTICE) return { status: 'PENDING',      escalationLevel: 0 };
+  if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L1)  return { status: 'FIRST_NOTICE', escalationLevel: 0 };
+  if (daysLate < ESCALATION_THRESHOLDS.ESCALATE_L2)  return { status: 'ESCALATED',    escalationLevel: 1 };
+  if (daysLate < ESCALATION_THRESHOLDS.ABORT)        return { status: 'ESCALATED',    escalationLevel: 2 };
   return { status: 'ABORTED', escalationLevel: 2 };
 }
 
-// ─── يحدد الفترات الشهرية التي يجب فحصها ────────────────────────
-// يفحص الشهر الحالي + الشهر السابق (للتأكد من عدم نسيان متأخرات قديمة)
+// ─── الفترات التي يجب فحصها ────────────────────────────────────
+// الشهر الحالي + الشهرين السابقين (لتغطية المتأخرات الممتدة)
 function getPeriodsToCheck() {
   const periods = [];
   const now = new Date();
-  // الشهر السابق
-  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  periods.push({ year: prev.getFullYear(), month: prev.getMonth() + 1 });
-  // الشهر الحالي (إذا تجاوزنا dueDate)
-  periods.push({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
+  }
   return periods;
+}
+
+// ─── تحديد department للمؤشر من مصادر متعددة ───────────────────
+// المؤشرات المستقلة (بلا objective) شائعة، لذا نحاول أكثر من مصدر
+function resolveDepartmentForIndicator(indicator) {
+  // 1. من objective
+  if (indicator.objective?.departmentId) return indicator.objective.departmentId;
+  // 2. من dataEntryUser
+  if (indicator.dataEntryUser?.departmentId) return indicator.dataEntryUser.departmentId;
+  // 3. من owner
+  if (indicator.owner?.departmentId) return indicator.owner.departmentId;
+  // 4. من approver
+  if (indicator.approver?.departmentId) return indicator.approver.departmentId;
+  return null;
+}
+
+// ─── تحديد responsible user للمؤشر ──────────────────────────────
+// المسؤول عن الإدخال: dataEntryUser أو owner أو approver كـ fallback
+function resolveDataEntryUser(indicator) {
+  if (indicator.dataEntryUserId) return indicator.dataEntryUserId;
+  if (indicator.ownerId) return indicator.ownerId;
+  if (indicator.approverUserId) return indicator.approverUserId;
+  return null;
 }
 
 /**
  * المحرّك الرئيسي - يكتشف ويحدّث الإدخالات المتأخرة
- * @returns {Promise<{created: number, updated: number, resolved: number}>}
+ * @returns {Promise<{...}>}
  */
 export async function detectAndUpdateOverdueKpis() {
-  const stats = { created: 0, updated: 0, resolved: 0, aborted: 0 };
+  const stats = {
+    created: 0, updated: 0, resolved: 0, aborted: 0,
+    skippedNoDept: 0, skippedNoUser: 0, skippedFutureDue: 0,
+    indicatorsChecked: 0, periodsChecked: 0,
+  };
   const now = new Date();
   const periods = getPeriodsToCheck();
+
+  // ─── جلب جميع المؤشرات الشهرية النشطة (مرة واحدة) ──────────
+  const indicators = await prisma.indicator.findMany({
+    where: {
+      frequency: 'MONTHLY',
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      code: true,
+      nameAr: true,
+      dataEntryUserId: true,
+      ownerId: true,
+      approverUserId: true,
+      objective: { select: { departmentId: true } },
+      dataEntryUser: { select: { id: true, departmentId: true } },
+      owner: { select: { id: true, departmentId: true } },
+      approver: { select: { id: true, departmentId: true } },
+    },
+  });
+
+  stats.indicatorsChecked = indicators.length;
 
   for (const { year, month } of periods) {
     const dueDate = calculateDueDate(year, month);
 
-    // إذا لم يصل dueDate بعد، تخطّ
-    if (now < dueDate) continue;
+    // إذا لم يصل dueDate بعد، تخطّ هذا الشهر
+    if (now < dueDate) {
+      stats.skippedFutureDue++;
+      continue;
+    }
+    stats.periodsChecked++;
 
     const daysLate = calculateDaysLate(dueDate, now);
     const { status, escalationLevel } = determineStatus(daysLate);
 
-    // ─── جلب جميع المؤشرات الشهرية النشطة ──────────────────────
-    const indicators = await prisma.indicator.findMany({
-      where: {
-        frequency: 'MONTHLY',
-        // المؤشر يجب أن يكون له dataEntryUser محدد
-        dataEntryUserId: { not: null },
-        // وأن يكون نشطاً (deletedAt is null)
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        code: true,
-        nameAr: true,
-        dataEntryUserId: true,
-        ownerId: true,
-        objective: { select: { departmentId: true } },
-      },
-    });
-
     for (const indicator of indicators) {
-      // ─── تخطّي إن لم يكن للمؤشر قسم محدّد ─────────────────────
-      const departmentId = indicator.objective?.departmentId;
-      if (!departmentId) continue;
+      const departmentId = resolveDepartmentForIndicator(indicator);
+      const dataEntryUserId = resolveDataEntryUser(indicator);
 
-      // ─── فحص: هل تم إدخال البيانات لهذه الفترة؟ ─────────────────
+      // تخطّي إذا لم نتمكن من تحديد قسم
+      if (!departmentId) {
+        if (year === periods[periods.length - 1].year && month === periods[periods.length - 1].month) {
+          stats.skippedNoDept++;
+        }
+        continue;
+      }
+
+      // تخطّي إذا لم يكن هناك مسؤول إدخال
+      if (!dataEntryUserId) {
+        if (year === periods[periods.length - 1].year && month === periods[periods.length - 1].month) {
+          stats.skippedNoUser++;
+        }
+        continue;
+      }
+
+      // ─── فحص: هل تم إدخال البيانات لهذه الفترة؟ ───────────
       const entry = await prisma.kpiEntry.findFirst({
-        where: {
-          indicatorId: indicator.id,
-          year,
-          month,
-          // أي إدخال (DRAFT أو SUBMITTED أو APPROVED) يُعتبر إنجاز
-        },
+        where: { indicatorId: indicator.id, year, month },
         select: { id: true, entryStatus: true, submittedAt: true },
       });
 
-      // ─── جلب المتابعة الحالية إن وُجدت ─────────────────────────
+      // ─── جلب المتابعة الحالية إن وُجدت ────────────────────
       const existing = await prisma.kpiFollowUp.findUnique({
-        where: {
-          indicatorId_year_month: {
-            indicatorId: indicator.id,
-            year,
-            month,
-          },
-        },
+        where: { indicatorId_year_month: { indicatorId: indicator.id, year, month } },
       });
 
-      // ─── السيناريو 1: تم الإدخال + يوجد متابعة → حلّ تلقائي ──
+      // ─── السيناريو 1: تم الإدخال + يوجد متابعة → حلّ تلقائي
       if (entry && existing && existing.status !== 'RESOLVED') {
         await prisma.kpiFollowUp.update({
           where: { id: existing.id },
@@ -145,53 +181,56 @@ export async function detectAndUpdateOverdueKpis() {
         continue;
       }
 
-      // ─── السيناريو 2: تم الإدخال + لا يوجد متابعة → تخطّ ─────
+      // ─── السيناريو 2: تم الإدخال + لا يوجد متابعة → تخطّ ─
       if (entry) continue;
 
-      // ─── السيناريو 3: لم يُدخل + لا يوجد متابعة → إنشاء جديد ─
+      // ─── السيناريو 3: لم يُدخل + لا يوجد متابعة → إنشاء ─
       if (!existing) {
-        // توليد الرمز
         const count = await prisma.kpiFollowUp.count();
         const code = `KFU-${year}-${String(count + 1).padStart(4, '0')}`;
 
-        await prisma.kpiFollowUp.create({
-          data: {
-            code,
-            indicatorId: indicator.id,
-            departmentId,
-            dataEntryUserId: indicator.dataEntryUserId,
-            performanceOwnerId: indicator.ownerId,
-            year,
-            month,
-            dueDate,
-            daysLate,
-            status,
-            escalationLevel,
-            escalatedAt: escalationLevel > 0 ? new Date() : null,
-          },
-        });
-        stats.created++;
+        try {
+          await prisma.kpiFollowUp.create({
+            data: {
+              code,
+              indicatorId: indicator.id,
+              departmentId,
+              dataEntryUserId,
+              performanceOwnerId: indicator.ownerId || null,
+              year,
+              month,
+              dueDate,
+              daysLate,
+              status,
+              escalationLevel,
+              escalatedAt: escalationLevel > 0 ? new Date() : null,
+            },
+          });
+          stats.created++;
+        } catch (e) {
+          // race condition: قد يكون أُنشئ في نفس اللحظة. تجاهل.
+          if (!String(e.message).includes('Unique constraint')) {
+            console.warn(`[kpiFollowUp] create failed for ${indicator.code} ${year}/${month}:`, e.message);
+          }
+        }
       }
-      // ─── السيناريو 4: لم يُدخل + يوجد متابعة → تحديث الحالة ──
-      else if (existing.status !== 'RESOLVED' && existing.status !== 'ABORTED') {
-        const updated = {
-          daysLate,
-          status,
-          escalationLevel,
-        };
+      // ─── السيناريو 4: لم يُدخل + يوجد متابعة → تحديث ────
+      else if (!['RESOLVED', 'ABORTED'].includes(existing.status)) {
+        const updated = { daysLate, status, escalationLevel };
 
-        // تسجيل تاريخ التصعيد فقط في أول مرة
         if (escalationLevel > existing.escalationLevel && !existing.escalatedAt) {
           updated.escalatedAt = new Date();
         }
 
-        // تجنب التحديث إن لم يتغيّر شيء
-        if (existing.status !== status || existing.escalationLevel !== escalationLevel || existing.daysLate !== daysLate) {
+        if (
+          existing.status !== status ||
+          existing.escalationLevel !== escalationLevel ||
+          existing.daysLate !== daysLate
+        ) {
           await prisma.kpiFollowUp.update({
             where: { id: existing.id },
             data: updated,
           });
-
           if (status === 'ABORTED') stats.aborted++;
           else stats.updated++;
         }
@@ -204,21 +243,18 @@ export async function detectAndUpdateOverdueKpis() {
 
 /**
  * يرسل إشعارات للمسؤولين عن المتابعات المُصعّدة
- * يستخدم notifyOnce pattern (idempotent باستخدام eventKey يومي)
  */
 export async function notifyEscalatedFollowUps() {
   const today = new Date().toISOString().slice(0, 10);
   const sent = { firstNotice: 0, deptManager: 0, executive: 0 };
 
-  // ─── 1. FIRST_NOTICE → إشعار مدخل البيانات ─────────────────
+  // 1. FIRST_NOTICE → إشعار مدخل البيانات
   const firstNotices = await prisma.kpiFollowUp.findMany({
     where: { status: 'FIRST_NOTICE' },
     include: {
       indicator: { select: { code: true, nameAr: true } },
-      department: { select: { name: true } },
     },
   });
-
   for (const f of firstNotices) {
     const eventKey = `KFU_FIRST_NOTICE:${f.id}:${today}`;
     const r = await prisma.notification.createMany({
@@ -237,7 +273,7 @@ export async function notifyEscalatedFollowUps() {
     if (r.count > 0) sent.firstNotice++;
   }
 
-  // ─── 2. ESCALATED Level 1 → إشعار مدير القسم ───────────────
+  // 2. ESCALATED Level 1 → إشعار مدير القسم
   const lvl1 = await prisma.kpiFollowUp.findMany({
     where: { status: 'ESCALATED', escalationLevel: 1 },
     include: {
@@ -254,7 +290,6 @@ export async function notifyEscalatedFollowUps() {
       dataEntryUser: { select: { name: true } },
     },
   });
-
   for (const f of lvl1) {
     const managers = f.department?.users || [];
     for (const mgr of managers) {
@@ -264,7 +299,7 @@ export async function notifyEscalatedFollowUps() {
           userId: mgr.id,
           type: 'KPI_ESCALATED',
           title: `🚨 تصعيد: مؤشر ${f.indicator.code} متأخر`,
-          message: `${f.dataEntryUser?.name || 'الموظف'} لم يُدخل قراءة ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (متأخر ${f.daysLate} يوم) — تدخّل مطلوب.`,
+          message: `${f.dataEntryUser?.name || 'الموظف'} لم يُدخل ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (${f.daysLate} يوم).`,
           link: '/qms#/kpiFollowUp',
           entityType: 'KpiFollowUp',
           entityId: f.id,
@@ -276,7 +311,7 @@ export async function notifyEscalatedFollowUps() {
     }
   }
 
-  // ─── 3. ESCALATED Level 2 → إشعار QM + Super Admin ─────────
+  // 3. ESCALATED Level 2 → إشعار QM + Super Admin
   const lvl2 = await prisma.kpiFollowUp.findMany({
     where: { status: 'ESCALATED', escalationLevel: 2 },
     include: {
@@ -284,13 +319,11 @@ export async function notifyEscalatedFollowUps() {
       department: { select: { name: true } },
     },
   });
-
   if (lvl2.length > 0) {
     const execs = await prisma.user.findMany({
       where: { role: { in: ['QUALITY_MANAGER', 'SUPER_ADMIN'] }, active: true },
       select: { id: true },
     });
-
     for (const f of lvl2) {
       for (const exec of execs) {
         const eventKey = `KFU_ESC_L2:${f.id}:${exec.id}:${today}`;
@@ -299,7 +332,7 @@ export async function notifyEscalatedFollowUps() {
             userId: exec.id,
             type: 'KPI_ESCALATED_HIGH',
             title: `🆘 تصعيد حرج: ${f.indicator.code}`,
-            message: `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في إدخال ${f.indicator.nameAr} (${f.month}/${f.year}). تدخّل تنفيذي مطلوب.`,
+            message: `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في ${f.indicator.nameAr} (${f.month}/${f.year}).`,
             link: '/qms#/kpiFollowUp',
             entityType: 'KpiFollowUp',
             entityId: f.id,
@@ -316,7 +349,7 @@ export async function notifyEscalatedFollowUps() {
 }
 
 /**
- * الدالة الرئيسية - تُستدعى يومياً من scheduler
+ * الدالة الرئيسية - تُستدعى يومياً + يدوياً
  */
 export async function runDailyKpiFollowUpCheck() {
   const started = Date.now();
@@ -326,7 +359,7 @@ export async function runDailyKpiFollowUpCheck() {
     const ms = Date.now() - started;
 
     console.log(
-      `[kpiFollowUp] ✓ ${ms}ms | created=${detection.created} updated=${detection.updated} resolved=${detection.resolved} aborted=${detection.aborted} | notified=${notifications.firstNotice + notifications.deptManager + notifications.executive}`
+      `[kpiFollowUp] ✓ ${ms}ms | indicators=${detection.indicatorsChecked} periods=${detection.periodsChecked} | created=${detection.created} updated=${detection.updated} resolved=${detection.resolved} aborted=${detection.aborted} | skip(noDept=${detection.skippedNoDept}, noUser=${detection.skippedNoUser}) | notified=${notifications.firstNotice + notifications.deptManager + notifications.executive}`
     );
 
     return { ...detection, ...notifications };
