@@ -12,10 +12,10 @@ const router = express.Router();
 // MIDDLEWARE
 // ======================================
 
-// Only QM, Executive Director, and Super Admin can access follow-up routes
+// Only QM and Super Admin can access follow-up routes
 const requireQMAccess = async (req, res, next) => {
   const user = req.user;
-  const allowedRoles = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'EXECUTIVE_DIRECTOR'];
+  const allowedRoles = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
 
   if (!user || !allowedRoles.includes(user.role)) {
     return res.status(403).json({ error: 'Insufficient permissions for KPI Follow-Up access' });
