@@ -11,6 +11,7 @@ import { runBackupCycle } from '../services/backup.js';
 import { scanSla } from './sla.js';
 import { emitWebhook } from './webhookEmitter.js';
 import { generateReport as svcGenerateProgressReport } from '../services/progressReportService.js';
+import { runDailyKpiFollowUpCheck } from '../services/kpiFollowUpDetector.js';
 
 const INTERVAL_MS = 60 * 60 * 1000;   // كل ساعة
 const OVERDUE_COMPLAINT_DAYS = 14;
@@ -498,6 +499,9 @@ async function runDailyJobsIfDue() {
   try {
     await cleanupExpiredRefreshTokens();
   } catch (e) { console.warn('[scheduler] refresh-token cleanup failed:', e.message); }
+  try {
+    await runDailyKpiFollowUpCheck();
+  } catch (e) { console.warn('[scheduler] kpi follow-up check failed:', e.message); }
 }
 
 /**

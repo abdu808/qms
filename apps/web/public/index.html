@@ -2369,101 +2369,441 @@
             </template>
           </div>
 
-          <!-- KPI FOLLOW-UP PAGE -->
+          <!-- KPI FOLLOW-UP PAGE — نظام متابعة الإدخالات المتأخرة -->
           <div x-show="page==='kpiFollowUp'" x-cloak>
-            <div class="p-6 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-              <!-- Header -->
-              <div class="mb-8">
-                <h1 class="text-4xl font-bold text-gray-800">سجل متابعة الإدخالات المتأخرة</h1>
-                <p class="text-gray-600">إدارة المؤشرات المتأخرة والإجراءات التصحيحية</p>
+            <div class="p-4 md:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+
+              <!-- ═══ Header + Actions ═══ -->
+              <div class="bg-gradient-to-l from-indigo-700 to-blue-600 text-white rounded-2xl p-6 mb-6 shadow-lg">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h1 class="text-2xl md:text-3xl font-bold">📋 سجل متابعة الإدخالات المتأخرة</h1>
+                    <p class="text-indigo-100 mt-1 text-sm">إدارة المؤشرات المتأخرة والإجراءات التصحيحية · ISO 9001:2015 §9.1.3</p>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button @click="loadKpiFollowUp()" :disabled="kpiFollowUpLoading"
+                      class="bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-sm transition disabled:opacity-50"
+                      title="تحديث">
+                      <span x-show="!kpiFollowUpLoading">🔄 تحديث</span>
+                      <span x-show="kpiFollowUpLoading">…جاري</span>
+                    </button>
+                    <button @click="runKpiFollowUpDetection()" :disabled="kpiFollowUpDetection"
+                      class="bg-amber-500 hover:bg-amber-600 px-3 py-2 rounded-lg text-sm transition disabled:opacity-50">
+                      <span x-show="!kpiFollowUpDetection">🔍 فحص فوري</span>
+                      <span x-show="kpiFollowUpDetection">…يفحص</span>
+                    </button>
+                    <button @click="exportKpiFollowUp()"
+                      class="bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-lg text-sm transition">
+                      📥 تصدير CSV
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <!-- Stats Cards -->
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-gray-600 text-sm">إجمالي المتأخرات</p>
+              <!-- ═══ Stats Cards ═══ -->
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-red-200 p-4 text-center">
+                  <div class="text-2xl mb-1">🚨</div>
+                  <p class="text-gray-600 text-xs">إجمالي المتأخرات</p>
                   <p class="text-3xl font-bold text-red-600" x-text="kpiFollowUpStats?.totalOverdue || 0"></p>
+                  <p class="text-[10px] text-gray-400 mt-1">الشهر الحالي</p>
                 </div>
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-gray-600 text-sm">قيد الانتظار</p>
-                  <p class="text-3xl font-bold text-yellow-600" x-text="kpiFollowUpStats?.byStatus?.find(s => s.status === 'PENDING')?._count || 0"></p>
+                <div class="bg-white rounded-xl shadow-sm border border-yellow-200 p-4 text-center">
+                  <div class="text-2xl mb-1">⏳</div>
+                  <p class="text-gray-600 text-xs">قيد الانتظار</p>
+                  <p class="text-3xl font-bold text-yellow-600" x-text="(kpiFollowUpStats?.byStatus?.find(s => s.status === 'PENDING')?._count || 0) + (kpiFollowUpStats?.byStatus?.find(s => s.status === 'FIRST_NOTICE')?._count || 0)"></p>
                 </div>
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-gray-600 text-sm">مصعّدة</p>
+                <div class="bg-white rounded-xl shadow-sm border border-orange-200 p-4 text-center">
+                  <div class="text-2xl mb-1">🚀</div>
+                  <p class="text-gray-600 text-xs">مُصعَّدة</p>
                   <p class="text-3xl font-bold text-orange-600" x-text="kpiFollowUpStats?.byStatus?.find(s => s.status === 'ESCALATED')?._count || 0"></p>
                 </div>
-                <div class="bg-white rounded-lg shadow p-6">
-                  <p class="text-gray-600 text-sm">مُحلّة</p>
+                <div class="bg-white rounded-xl shadow-sm border border-green-200 p-4 text-center">
+                  <div class="text-2xl mb-1">✅</div>
+                  <p class="text-gray-600 text-xs">تم الحل</p>
                   <p class="text-3xl font-bold text-green-600" x-text="kpiFollowUpStats?.byStatus?.find(s => s.status === 'RESOLVED')?._count || 0"></p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-rose-200 p-4 text-center">
+                  <div class="text-2xl mb-1">🆘</div>
+                  <p class="text-gray-600 text-xs">حالات حرجة</p>
+                  <p class="text-3xl font-bold text-rose-600" x-text="kpiFollowUpStats?.criticalCount || 0"></p>
+                  <p class="text-[10px] text-gray-400 mt-1">+15 يوم تأخير</p>
                 </div>
               </div>
 
-              <!-- Loading -->
-              <div x-show="kpiFollowUpLoading" class="text-center py-8">
+              <!-- ═══ Trends Chart ═══ -->
+              <div class="bg-white rounded-xl shadow-sm p-4 mb-6" x-show="kpiFollowUpTrends && kpiFollowUpTrends.length">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="font-bold text-gray-700">📈 اتجاهات المتأخرات (آخر 12 شهر)</h3>
+                  <span class="text-xs text-gray-500">يساعدك على رصد الأنماط واتخاذ القرارات</span>
+                </div>
+                <div style="height: 220px;">
+                  <canvas id="kpiFollowUpTrendsChart"></canvas>
+                </div>
+              </div>
+
+              <!-- ═══ Filters Bar ═══ -->
+              <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm font-bold text-gray-700">🔎 الفلاتر</span>
+                  <button @click="resetKpiFollowUpFilters()" class="text-xs text-indigo-600 hover:underline mr-auto">إعادة تعيين</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">السنة</label>
+                    <input type="number" x-model.number="kpiFollowUpFilters.year" @change="applyKpiFollowUpFilters()"
+                           placeholder="2026"
+                           class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">الشهر</label>
+                    <select x-model="kpiFollowUpFilters.month" @change="applyKpiFollowUpFilters()"
+                            class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                      <option value="">الكل</option>
+                      <template x-for="m in [1,2,3,4,5,6,7,8,9,10,11,12]" :key="m">
+                        <option :value="m" x-text="m"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">الحالة</label>
+                    <select x-model="kpiFollowUpFilters.status" @change="applyKpiFollowUpFilters()"
+                            class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                      <option value="">الكل</option>
+                      <option value="PENDING">قيد الانتظار</option>
+                      <option value="FIRST_NOTICE">إشعار أول</option>
+                      <option value="ESCALATED">مُصعَّد</option>
+                      <option value="RESOLVED">تم الحل</option>
+                      <option value="ABORTED">مُغلَق</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">الإدارة</label>
+                    <select x-model="kpiFollowUpFilters.departmentId" @change="applyKpiFollowUpFilters()"
+                            class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                      <option value="">الكل</option>
+                      <template x-for="d in kpiFollowUpDepts" :key="d.id">
+                        <option :value="d.id" x-text="d.name"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">مستوى التصعيد</label>
+                    <select x-model="kpiFollowUpFilters.escalationLevel" @change="applyKpiFollowUpFilters()"
+                            class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                      <option value="">الكل</option>
+                      <option value="0">لا تصعيد</option>
+                      <option value="1">مدير القسم</option>
+                      <option value="2">الإدارة العليا</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs text-gray-600 block mb-1">بحث</label>
+                    <input type="text" x-model="kpiFollowUpFilters.search"
+                           @keydown.enter="applyKpiFollowUpFilters()"
+                           placeholder="رمز/اسم المؤشر…"
+                           class="w-full text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none">
+                  </div>
+                </div>
+              </div>
+
+              <!-- ═══ Loading ═══ -->
+              <div x-show="kpiFollowUpLoading" class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
+                <div class="text-4xl mb-3 animate-pulse">⏳</div>
                 <p>جاري التحميل...</p>
               </div>
 
-              <!-- Table -->
-              <div x-show="!kpiFollowUpLoading" class="bg-white rounded-lg shadow overflow-hidden">
+              <!-- ═══ Main Table ═══ -->
+              <div x-show="!kpiFollowUpLoading" class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                  <thead class="bg-indigo-600 text-white">
+                  <thead class="bg-gradient-to-l from-indigo-600 to-blue-600 text-white">
                     <tr>
-                      <th class="px-4 py-3 text-right">الرمز</th>
-                      <th class="px-4 py-3 text-right">المؤشر</th>
-                      <th class="px-4 py-3 text-right">الإدارة</th>
-                      <th class="px-4 py-3 text-right">مدخل البيانات</th>
-                      <th class="px-4 py-3 text-right">تاريخ الاستحقاق</th>
-                      <th class="px-4 py-3 text-right">أيام التأخير</th>
-                      <th class="px-4 py-3 text-right">الحالة</th>
-                      <th class="px-4 py-3 text-right">الإجراء</th>
+                      <th class="px-3 py-3 text-right text-xs font-semibold">الرمز</th>
+                      <th class="px-3 py-3 text-right text-xs font-semibold">المؤشر</th>
+                      <th class="px-3 py-3 text-right text-xs font-semibold">الإدارة</th>
+                      <th class="px-3 py-3 text-right text-xs font-semibold">مدخل البيانات</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">الفترة</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">تاريخ الاستحقاق</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">أيام التأخير</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">الحالة</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">التصعيد</th>
+                      <th class="px-3 py-3 text-center text-xs font-semibold">الإجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template x-for="item in kpiFollowUpList" :key="item.id">
-                      <tr class="border-t hover:bg-gray-50">
-                        <td class="px-4 py-3 font-mono text-xs" x-text="item.code"></td>
-                        <td class="px-4 py-3" x-text="item.indicator?.nameAr || item.indicator?.name || '—'"></td>
-                        <td class="px-4 py-3" x-text="item.department?.name || '—'"></td>
-                        <td class="px-4 py-3 text-sm" x-text="item.dataEntryUser?.name || '—'"></td>
-                        <td class="px-4 py-3 text-sm" x-text="item.dueDate ? new Date(item.dueDate).toLocaleDateString('ar-SA') : '—'"></td>
-                        <td class="px-4 py-3 text-center">
-                          <template x-if="item.daysLate">
-                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs" x-text="item.daysLate + ' يوم'"></span>
+                      <tr class="border-t hover:bg-indigo-50/40 transition">
+                        <td class="px-3 py-2.5 font-mono text-xs text-indigo-700" x-text="item.code"></td>
+                        <td class="px-3 py-2.5">
+                          <div class="font-medium text-gray-800" x-text="item.indicator?.nameAr || '—'"></div>
+                          <div class="text-[10px] text-gray-500 font-mono" x-text="item.indicator?.code || ''"></div>
+                        </td>
+                        <td class="px-3 py-2.5 text-xs" x-text="item.department?.name || '—'"></td>
+                        <td class="px-3 py-2.5 text-xs">
+                          <div x-text="item.dataEntryUser?.name || '—'"></div>
+                          <div class="text-[10px] text-gray-400" x-text="item.dataEntryUser?.email || ''"></div>
+                        </td>
+                        <td class="px-3 py-2.5 text-center text-xs font-mono" x-text="item.year + '/' + String(item.month).padStart(2,'0')"></td>
+                        <td class="px-3 py-2.5 text-center text-xs" x-text="item.dueDate ? new Date(item.dueDate).toLocaleDateString('ar-SA') : '—'"></td>
+                        <td class="px-3 py-2.5 text-center">
+                          <template x-if="item.daysLate && item.daysLate > 0">
+                            <span :class="item.daysLate >= 15 ? 'bg-red-100 text-red-800 ring-1 ring-red-300' : item.daysLate >= 10 ? 'bg-orange-100 text-orange-800' : item.daysLate >= 5 ? 'bg-amber-100 text-amber-800' : 'bg-yellow-100 text-yellow-800'"
+                                  class="px-2 py-0.5 rounded-full text-xs font-bold" x-text="item.daysLate + ' يوم'"></span>
                           </template>
-                          <template x-if="!item.daysLate">
-                            <span class="text-green-600">في الوقت</span>
+                          <template x-if="!item.daysLate || item.daysLate <= 0">
+                            <span class="text-green-600 text-xs">✓</span>
                           </template>
                         </td>
-                        <td class="px-4 py-3">
-                          <span class="text-xs px-2 py-1 rounded"
-                            :class="{
-                              'bg-yellow-100 text-yellow-800': item.status === 'PENDING',
-                              'bg-orange-100 text-orange-800': item.status === 'ESCALATED',
-                              'bg-green-100 text-green-800': item.status === 'RESOLVED',
-                            }"
-                            x-text="item.status"></span>
+                        <td class="px-3 py-2.5 text-center">
+                          <span class="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                                :class="kpiFollowUpStatusClass(item.status)"
+                                x-text="kpiFollowUpStatusLabel(item.status)"></span>
                         </td>
-                        <td class="px-4 py-3">
-                          <button x-show="item.status !== 'RESOLVED'"
-                            @click="escalateKpiFollowUp(item.id, '')"
-                            class="bg-orange-500 text-white px-2 py-1 rounded text-xs hover:bg-orange-600">
-                            تصعيد
-                          </button>
+                        <td class="px-3 py-2.5 text-center text-xs">
+                          <span :class="item.escalationLevel === 0 ? 'text-gray-400' : item.escalationLevel === 1 ? 'text-orange-600' : 'text-red-600 font-bold'"
+                                x-text="kpiFollowUpEscalationLabel(item.escalationLevel)"></span>
+                        </td>
+                        <td class="px-3 py-2.5 text-center">
+                          <div class="inline-flex items-center gap-1">
+                            <button @click="openKpiFollowUpDetail(item)"
+                              class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-semibold border border-blue-200"
+                              title="التفاصيل">📄</button>
+                            <button x-show="!['RESOLVED','ABORTED'].includes(item.status) && item.escalationLevel < 2"
+                              @click="openKpiFollowUpEscalate(item)"
+                              class="bg-orange-50 hover:bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-semibold border border-orange-200"
+                              title="تصعيد">🚨</button>
+                            <button x-show="!['RESOLVED','ABORTED'].includes(item.status)"
+                              @click="openKpiFollowUpResolve(item)"
+                              class="bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-semibold border border-green-200"
+                              title="حل">✓</button>
+                            <button x-show="!['RESOLVED','ABORTED'].includes(item.status)"
+                              @click="openKpiFollowUpAbort(item)"
+                              class="bg-gray-50 hover:bg-gray-100 text-gray-700 px-2 py-1 rounded text-[10px] font-semibold border border-gray-200"
+                              title="إغلاق نهائي">⊘</button>
+                          </div>
                         </td>
                       </tr>
                     </template>
                     <template x-if="!kpiFollowUpList || kpiFollowUpList.length === 0">
                       <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-                          لا توجد متابعات متأخرة
+                        <td colspan="10" class="px-4 py-12 text-center text-gray-500">
+                          <div class="text-4xl mb-2">🎉</div>
+                          <div class="font-semibold">لا توجد متابعات</div>
+                          <div class="text-xs mt-1">إما لم يبدأ الفحص بعد، أو جميع المؤشرات في الموعد</div>
+                          <button @click="runKpiFollowUpDetection()" class="mt-3 text-xs text-indigo-600 hover:underline">شغّل الفحص الآن →</button>
                         </td>
                       </tr>
                     </template>
                   </tbody>
                 </table>
+                </div>
+                <div x-show="kpiFollowUpList && kpiFollowUpList.length > 0" class="px-4 py-2 bg-gray-50 text-xs text-gray-500 border-t">
+                  إجمالي: <span class="font-bold text-gray-700" x-text="kpiFollowUpList.length"></span> متابعة
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- ═══ MODAL: تصعيد المتابعة ═══ -->
+          <template x-if="kpiFollowUpEscalateModal">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeKpiFollowUpEscalate()">
+              <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+                <div class="bg-gradient-to-l from-orange-600 to-red-600 text-white p-4 rounded-t-2xl">
+                  <div class="text-xs opacity-90" x-text="kpiFollowUpEscalateModal.followUp.code"></div>
+                  <h3 class="font-bold text-lg mt-1">🚨 تصعيد المتابعة</h3>
+                  <div class="text-xs opacity-80 mt-1" x-text="kpiFollowUpEscalateModal.followUp.indicator?.nameAr"></div>
+                </div>
+                <div class="p-5 space-y-3">
+                  <div>
+                    <label class="block text-sm font-medium mb-1">مستوى التصعيد</label>
+                    <select x-model.number="kpiFollowUpEscalateModal.level"
+                            class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-orange-400 outline-none">
+                      <option :value="1">المستوى 1 — مدير القسم</option>
+                      <option :value="2">المستوى 2 — الإدارة العليا</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">سبب التصعيد <span class="text-red-500">*</span></label>
+                    <textarea x-model="kpiFollowUpEscalateModal.notes" rows="4"
+                      placeholder="اشرح سبب التصعيد، الإجراءات السابقة، والمطلوب الآن…"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-orange-400 outline-none"></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1">ستُسجَّل هذه الملاحظة في السجل الزمني للمتابعة.</p>
+                  </div>
+                </div>
+                <div class="flex gap-2 p-4 border-t bg-gray-50 rounded-b-2xl">
+                  <button @click="submitKpiFollowUpEscalate()" :disabled="kpiFollowUpEscalateModal.busy"
+                    class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    <span x-show="!kpiFollowUpEscalateModal.busy">🚀 تأكيد التصعيد</span>
+                    <span x-show="kpiFollowUpEscalateModal.busy">…جاري</span>
+                  </button>
+                  <button @click="closeKpiFollowUpEscalate()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">إلغاء</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ MODAL: حل المتابعة ═══ -->
+          <template x-if="kpiFollowUpResolveModal">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeKpiFollowUpResolve()">
+              <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+                <div class="bg-gradient-to-l from-green-600 to-emerald-600 text-white p-4 rounded-t-2xl">
+                  <div class="text-xs opacity-90" x-text="kpiFollowUpResolveModal.followUp.code"></div>
+                  <h3 class="font-bold text-lg mt-1">✅ حل المتابعة</h3>
+                  <div class="text-xs opacity-80 mt-1" x-text="kpiFollowUpResolveModal.followUp.indicator?.nameAr"></div>
+                </div>
+                <div class="p-5 space-y-3">
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+                    💡 سيتم البحث عن إدخال KPI لهذه الفترة وربطه تلقائياً. إذا لم يوجد، يمكنك إنشاء الإدخال أولاً ثم العودة.
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">ملاحظات الحل (اختياري)</label>
+                    <textarea x-model="kpiFollowUpResolveModal.notes" rows="3"
+                      placeholder="مثال: تم الإدخال يدوياً بعد المراجعة مع المسؤول"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-green-400 outline-none"></textarea>
+                  </div>
+                </div>
+                <div class="flex gap-2 p-4 border-t bg-gray-50 rounded-b-2xl">
+                  <button @click="submitKpiFollowUpResolve()" :disabled="kpiFollowUpResolveModal.busy"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    <span x-show="!kpiFollowUpResolveModal.busy">✓ تأكيد الحل</span>
+                    <span x-show="kpiFollowUpResolveModal.busy">…جاري</span>
+                  </button>
+                  <button @click="closeKpiFollowUpResolve()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">إلغاء</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ MODAL: إغلاق نهائي ═══ -->
+          <template x-if="kpiFollowUpAbortModal">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeKpiFollowUpAbort()">
+              <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+                <div class="bg-gradient-to-l from-gray-700 to-slate-700 text-white p-4 rounded-t-2xl">
+                  <div class="text-xs opacity-90" x-text="kpiFollowUpAbortModal.followUp.code"></div>
+                  <h3 class="font-bold text-lg mt-1">⊘ إغلاق نهائي</h3>
+                  <div class="text-xs opacity-80 mt-1" x-text="kpiFollowUpAbortModal.followUp.indicator?.nameAr"></div>
+                </div>
+                <div class="p-5 space-y-3">
+                  <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                    ⚠️ هذا الإجراء يُغلق المتابعة بدون حل ويتطلب توثيق سبب رسمي. يُنصح بفتح Management Review لاحقاً.
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">السبب الرسمي <span class="text-red-500">*</span></label>
+                    <textarea x-model="kpiFollowUpAbortModal.notes" rows="4"
+                      placeholder="اشرح بالتفصيل سبب الإغلاق (10 أحرف على الأقل)…"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:border-gray-500 outline-none"></textarea>
+                  </div>
+                </div>
+                <div class="flex gap-2 p-4 border-t bg-gray-50 rounded-b-2xl">
+                  <button @click="submitKpiFollowUpAbort()" :disabled="kpiFollowUpAbortModal.busy"
+                    class="flex-1 bg-gray-700 hover:bg-gray-800 text-white font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    <span x-show="!kpiFollowUpAbortModal.busy">⊘ تأكيد الإغلاق</span>
+                    <span x-show="kpiFollowUpAbortModal.busy">…جاري</span>
+                  </button>
+                  <button @click="closeKpiFollowUpAbort()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100">إلغاء</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ MODAL: التفاصيل + Timeline ═══ -->
+          <template x-if="kpiFollowUpDetailModal">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeKpiFollowUpDetail()">
+              <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div class="bg-gradient-to-l from-indigo-700 to-blue-600 text-white p-5 rounded-t-2xl sticky top-0">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <div class="text-xs opacity-90 font-mono" x-text="kpiFollowUpDetailModal.followUp.code"></div>
+                      <h3 class="font-bold text-xl mt-1" x-text="kpiFollowUpDetailModal.followUp.indicator?.nameAr"></h3>
+                      <div class="text-xs opacity-80 mt-1">
+                        <span x-text="kpiFollowUpDetailModal.followUp.department?.name"></span> ·
+                        <span x-text="kpiFollowUpDetailModal.followUp.year + '/' + String(kpiFollowUpDetailModal.followUp.month).padStart(2,'0')"></span>
+                      </div>
+                    </div>
+                    <button @click="closeKpiFollowUpDetail()" class="text-white/70 hover:text-white text-2xl">✖</button>
+                  </div>
+                </div>
+
+                <div x-show="kpiFollowUpDetailModal.busy" class="p-12 text-center text-gray-500">⏳ جاري التحميل...</div>
+
+                <div x-show="!kpiFollowUpDetailModal.busy" class="p-5 space-y-4">
+                  <!-- Status Badges -->
+                  <div class="flex flex-wrap gap-2">
+                    <span class="text-xs px-3 py-1 rounded-full font-semibold"
+                          :class="kpiFollowUpStatusClass(kpiFollowUpDetailModal.followUp.status)"
+                          x-text="kpiFollowUpStatusLabel(kpiFollowUpDetailModal.followUp.status)"></span>
+                    <span x-show="kpiFollowUpDetailModal.followUp.escalationLevel > 0"
+                          class="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-800 font-semibold">
+                      تصعيد: <span x-text="kpiFollowUpEscalationLabel(kpiFollowUpDetailModal.followUp.escalationLevel)"></span>
+                    </span>
+                    <span x-show="kpiFollowUpDetailModal.followUp.daysLate > 0"
+                          class="text-xs px-3 py-1 rounded-full bg-red-100 text-red-800 font-semibold">
+                      <span x-text="kpiFollowUpDetailModal.followUp.daysLate"></span> يوم تأخير
+                    </span>
+                  </div>
+
+                  <!-- Info Grid -->
+                  <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">مدخل البيانات</div>
+                      <div class="font-semibold" x-text="kpiFollowUpDetailModal.followUp.dataEntryUser?.name || '—'"></div>
+                      <div class="text-xs text-gray-400" x-text="kpiFollowUpDetailModal.followUp.dataEntryUser?.email || ''"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">مالك الأداء</div>
+                      <div class="font-semibold" x-text="kpiFollowUpDetailModal.followUp.performanceOwner?.name || '—'"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">تاريخ الاستحقاق</div>
+                      <div class="font-semibold" x-text="kpiFollowUpDetailModal.followUp.dueDate ? new Date(kpiFollowUpDetailModal.followUp.dueDate).toLocaleDateString('ar-SA') : '—'"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">تاريخ الإنشاء</div>
+                      <div class="font-semibold" x-text="kpiFollowUpDetailModal.followUp.createdAt ? new Date(kpiFollowUpDetailModal.followUp.createdAt).toLocaleDateString('ar-SA') : '—'"></div>
+                    </div>
+                  </div>
+
+                  <!-- Timeline -->
+                  <div>
+                    <h4 class="font-bold text-gray-700 mb-2">📜 السجل الزمني</h4>
+                    <div class="space-y-2">
+                      <template x-for="(event, idx) in kpiFollowUpDetailModal.timeline" :key="idx">
+                        <div class="flex items-start gap-3 bg-gradient-to-l from-gray-50 to-white rounded-lg p-3 border-r-4 border-indigo-300">
+                          <div class="text-2xl" x-text="event.icon"></div>
+                          <div class="flex-1">
+                            <div class="font-semibold text-sm" x-text="event.title"></div>
+                            <div class="text-xs text-gray-600 mt-0.5" x-text="event.description"></div>
+                            <div class="text-[10px] text-gray-400 mt-1">
+                              <span x-text="new Date(event.timestamp).toLocaleString('ar-SA')"></span>
+                              <span x-show="event.actor"> · بواسطة <span x-text="event.actor"></span></span>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+
+                  <!-- QM Notes -->
+                  <div x-show="kpiFollowUpDetailModal.followUp.qmNotes">
+                    <h4 class="font-bold text-gray-700 mb-2">📝 ملاحظات إدارة الجودة</h4>
+                    <pre class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs whitespace-pre-wrap font-sans" x-text="kpiFollowUpDetailModal.followUp.qmNotes"></pre>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex gap-2 pt-3 border-t">
+                    <button x-show="!['RESOLVED','ABORTED'].includes(kpiFollowUpDetailModal.followUp.status) && kpiFollowUpDetailModal.followUp.escalationLevel < 2"
+                      @click="openKpiFollowUpEscalate(kpiFollowUpDetailModal.followUp); closeKpiFollowUpDetail()"
+                      class="flex-1 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold px-3 py-2 rounded-lg">🚨 تصعيد</button>
+                    <button x-show="!['RESOLVED','ABORTED'].includes(kpiFollowUpDetailModal.followUp.status)"
+                      @click="openKpiFollowUpResolve(kpiFollowUpDetailModal.followUp); closeKpiFollowUpDetail()"
+                      class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-3 py-2 rounded-lg">✓ حل</button>
+                    <button @click="closeKpiFollowUpDetail()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 text-sm">إغلاق</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
 
           <!-- MY KPI ENTRY MODAL -->
           <template x-if="myKpiForm">

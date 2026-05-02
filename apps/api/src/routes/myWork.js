@@ -485,6 +485,50 @@ router.get('/', asyncHandler(async (req, res) => {
     }
   }
 
+  // ═══ KPI Follow-Up alerts — متابعات الإدخالات المتأخرة ═══
+  // EMPLOYEE: متابعاته كمدخل بيانات
+  // DEPT_MANAGER: متابعات قسمه (مُصعَّدة L1)
+  // QUALITY/EXEC: جميع المتابعات النشطة
+  try {
+    let kfuWhere = { status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } };
+    let kfuLink = '/qms#/kpiFollowUp';
+    let kfuTitle = '';
+
+    if (role === 'EMPLOYEE') {
+      kfuWhere.dataEntryUserId = userId;
+      kfuTitle = 'مؤشر متأخر بانتظار إدخالك';
+    } else if (role === 'DEPT_MANAGER') {
+      const me = await prisma.user.findUnique({ where: { id: userId }, select: { departmentId: true } });
+      if (me?.departmentId) {
+        kfuWhere.departmentId = me.departmentId;
+        kfuWhere.escalationLevel = { gte: 1 };
+        kfuTitle = 'متابعة مُصعَّدة لقسمك تتطلب تدخلاً';
+      } else {
+        kfuWhere = null;
+      }
+    } else if (privileged) {
+      kfuWhere.escalationLevel = { gte: 1 };
+      kfuTitle = 'متابعة مُصعَّدة بانتظار قرار الجودة';
+    } else {
+      kfuWhere = null;
+    }
+
+    if (kfuWhere) {
+      const kfuCount = await prisma.kpiFollowUp.count({ where: kfuWhere });
+      if (kfuCount > 0) {
+        alerts.push({
+          type: 'kpi_followup',
+          severity: kfuCount >= 5 ? 'critical' : 'warning',
+          count: kfuCount,
+          title: `${kfuCount} ${kfuTitle}`,
+          action: { page: 'kpiFollowUp', label: 'فتح السجل' },
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[myWork] kpi-followup alert failed:', e.message);
+  }
+
   res.json({
     ok: true,
     viewMode,

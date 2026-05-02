@@ -67,7 +67,7 @@ const PERMISSIONS = {
   dashboard:        { read:_MANAGER_UP },
   exports:          { read:_QM_UP },
   kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
-  'kpi-followups':  { read:_QM_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP, escalate:_QM_UP },
+  'kpi-followups':  { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, delete:_QM_UP, escalate:_QM_UP },
   reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
 };
 
@@ -534,7 +534,7 @@ function app() {
           'swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives',
-          'fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','risks',
+          'fundingSources','fundingPlans','operationalActivities','objectives','kpiTracking','myKpi','kpiFollowUp','risks',
           'changeRequests',
           'documents','training','competence','performanceReviews','communication',
           'beneficiaries','donations','programs','suppliers',
@@ -548,7 +548,7 @@ function app() {
           'swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','strategicGoals','initiatives',
-          'operationalActivities','objectives','kpiTracking','myKpi','risks',
+          'operationalActivities','objectives','kpiTracking','myKpi','kpiFollowUp','risks',
           'fundingSources','fundingPlans',
           'changeRequests',
           'documents','training','competence','performanceReviews','communication',
@@ -1162,54 +1162,286 @@ function app() {
       return { CRITICAL: 'حرج', HIGH: 'مرتفع', WARNING: 'تحذير', INFO: 'ملاحظة' }[sev] || sev;
     },
 
-    // ─── KPI Follow-Up System ───────────────────────────────────────
-    kpiFollowUpList: null,
-    kpiFollowUpStats: null,
-    kpiFollowUpLoading: false,
+    // ════════════════════════════════════════════════════════════════
+    // KPI FOLLOW-UP SYSTEM — نظام متابعة الإدخالات المتأخرة الشامل
+    // ════════════════════════════════════════════════════════════════
 
+    // ─── State ──────────────────────────────────────────────────────
+    kpiFollowUpList: [],
+    kpiFollowUpStats: null,
+    kpiFollowUpTrends: null,
+    kpiFollowUpLoading: false,
+    kpiFollowUpDetection: false,
+
+    // الفلاتر
+    kpiFollowUpFilters: {
+      year: '',
+      month: '',
+      status: '',
+      departmentId: '',
+      escalationLevel: '',
+      search: '',
+    },
+
+    // Modals
+    kpiFollowUpEscalateModal: null,   // { followUp, level, notes, busy }
+    kpiFollowUpResolveModal:  null,   // { followUp, notes, busy }
+    kpiFollowUpAbortModal:    null,   // { followUp, notes, busy }
+    kpiFollowUpDetailModal:   null,   // { followUp, timeline, busy }
+
+    // مساعدة: لائحة الأقسام (تُحمَّل مرة واحدة)
+    kpiFollowUpDepts: [],
+
+    // ─── Loading ────────────────────────────────────────────────────
     async loadKpiFollowUp() {
       try {
         this.kpiFollowUpLoading = true;
-        const [list, stats] = await Promise.all([
-          this.api('GET', '/kpi-followups?limit=100'),
+        const params = new URLSearchParams();
+        Object.entries(this.kpiFollowUpFilters).forEach(([k, v]) => {
+          if (v !== '' && v !== null && v !== undefined) params.append(k, v);
+        });
+        params.append('limit', '500');
+
+        const [list, stats, trends] = await Promise.all([
+          this.api('GET', `/kpi-followups?${params.toString()}`),
           this.api('GET', '/kpi-followups/stats/summary'),
+          this.api('GET', '/kpi-followups/stats/trends').catch(() => null),
         ]);
-        this.kpiFollowUpList = list.data;
-        this.kpiFollowUpStats = stats;
+        this.kpiFollowUpList   = list?.data || [];
+        this.kpiFollowUpStats  = stats || null;
+        this.kpiFollowUpTrends = trends?.trends || null;
+
+        // تحميل الأقسام إن لم تكن محمّلة
+        if (!this.kpiFollowUpDepts.length) {
+          try {
+            const r = await this.api('GET', '/departments');
+            this.kpiFollowUpDepts = r?.data || r || [];
+          } catch {}
+        }
+
+        // رسم الـ trends chart بعد تحديث الـ DOM
+        this.$nextTick?.(() => this.renderKpiFollowUpChart());
       } catch (e) {
-        alert(e.message || 'فشل تحميل سجل المتابعة');
-        this.kpiFollowUpList = null;
+        this.toast?.(e.message || 'فشل تحميل سجل المتابعة', 'error') || alert(e.message);
+        this.kpiFollowUpList = [];
         this.kpiFollowUpStats = null;
       } finally {
         this.kpiFollowUpLoading = false;
       }
     },
 
-    async escalateKpiFollowUp(followUpId, notes) {
+    // ─── إعادة تحميل عند تغيير الفلتر ───────────────────────────────
+    async applyKpiFollowUpFilters() {
+      await this.loadKpiFollowUp();
+    },
+
+    resetKpiFollowUpFilters() {
+      this.kpiFollowUpFilters = {
+        year: '', month: '', status: '', departmentId: '', escalationLevel: '', search: '',
+      };
+      this.loadKpiFollowUp();
+    },
+
+    // ─── تشغيل الفحص يدوياً ─────────────────────────────────────────
+    async runKpiFollowUpDetection() {
+      if (!confirm('سيتم فحص جميع المؤشرات الشهرية وتحديث المتأخرات. هل تريد المتابعة؟')) return;
       try {
-        const result = await this.api('POST', `/kpi-followups/${followUpId}/escalate`, {
-          escalationLevel: 1,
-          notes: notes,
-        });
+        this.kpiFollowUpDetection = true;
+        const r = await this.api('POST', '/kpi-followups/run-detection', {});
+        const s = r?.stats || {};
+        const msg = `✓ تم الفحص:\n• جديد: ${s.created || 0}\n• مُحدَّث: ${s.updated || 0}\n• مُحلّ: ${s.resolved || 0}\n• مُغلَق: ${s.aborted || 0}`;
+        alert(msg);
         await this.loadKpiFollowUp();
-        return result;
       } catch (e) {
-        alert(e.message || 'فشل التصعيد');
-        throw e;
+        alert(e.message || 'فشل تشغيل الفحص');
+      } finally {
+        this.kpiFollowUpDetection = false;
       }
     },
 
-    async resolveKpiFollowUp(followUpId, entryId) {
+    // ─── تصدير CSV ──────────────────────────────────────────────────
+    async exportKpiFollowUp() {
       try {
-        const result = await this.api('POST', `/kpi-followups/${followUpId}/resolve`, {
-          resolvedEntryId: entryId,
+        const params = new URLSearchParams();
+        Object.entries(this.kpiFollowUpFilters).forEach(([k, v]) => {
+          if (v !== '' && v !== null && v !== undefined) params.append(k, v);
         });
+        const url = `/api/kpi-followups/export/csv?${params.toString()}`;
+        // نفتح الرابط مع التوكن في header — لا يمكن مع <a download>
+        // نحمّل الملف عبر fetch ونحفظه
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${this.token}` },
+        });
+        if (!res.ok) throw new Error('فشل التصدير');
+        const blob = await res.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `kpi-followups-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } catch (e) {
+        alert(e.message || 'فشل التصدير');
+      }
+    },
+
+    // ─── Modal: التصعيد ─────────────────────────────────────────────
+    openKpiFollowUpEscalate(followUp) {
+      const nextLevel = (followUp.escalationLevel || 0) >= 2 ? 2 : (followUp.escalationLevel || 0) + 1;
+      this.kpiFollowUpEscalateModal = {
+        followUp,
+        level: nextLevel,
+        notes: '',
+        busy: false,
+      };
+    },
+    closeKpiFollowUpEscalate() { this.kpiFollowUpEscalateModal = null; },
+
+    async submitKpiFollowUpEscalate() {
+      const m = this.kpiFollowUpEscalateModal;
+      if (!m) return;
+      if (!m.notes || m.notes.trim().length < 5) {
+        alert('يرجى كتابة سبب التصعيد (5 أحرف على الأقل)');
+        return;
+      }
+      try {
+        m.busy = true;
+        await this.api('POST', `/kpi-followups/${m.followUp.id}/escalate`, {
+          escalationLevel: m.level,
+          notes: m.notes.trim(),
+        });
+        this.closeKpiFollowUpEscalate();
         await this.loadKpiFollowUp();
-        return result;
+        this.toast?.('تم التصعيد بنجاح', 'success');
+      } catch (e) {
+        alert(e.message || 'فشل التصعيد');
+      } finally {
+        if (this.kpiFollowUpEscalateModal) this.kpiFollowUpEscalateModal.busy = false;
+      }
+    },
+
+    // ─── Modal: الحل ────────────────────────────────────────────────
+    openKpiFollowUpResolve(followUp) {
+      this.kpiFollowUpResolveModal = { followUp, notes: '', busy: false };
+    },
+    closeKpiFollowUpResolve() { this.kpiFollowUpResolveModal = null; },
+
+    async submitKpiFollowUpResolve() {
+      const m = this.kpiFollowUpResolveModal;
+      if (!m) return;
+      try {
+        m.busy = true;
+        await this.api('POST', `/kpi-followups/${m.followUp.id}/resolve`, {
+          notes: m.notes?.trim() || '',
+        });
+        this.closeKpiFollowUpResolve();
+        await this.loadKpiFollowUp();
+        this.toast?.('تم الحل بنجاح', 'success');
       } catch (e) {
         alert(e.message || 'فشل الحل');
-        throw e;
+      } finally {
+        if (this.kpiFollowUpResolveModal) this.kpiFollowUpResolveModal.busy = false;
       }
+    },
+
+    // ─── Modal: الإغلاق النهائي ─────────────────────────────────────
+    openKpiFollowUpAbort(followUp) {
+      this.kpiFollowUpAbortModal = { followUp, notes: '', busy: false };
+    },
+    closeKpiFollowUpAbort() { this.kpiFollowUpAbortModal = null; },
+
+    async submitKpiFollowUpAbort() {
+      const m = this.kpiFollowUpAbortModal;
+      if (!m) return;
+      if (!m.notes || m.notes.trim().length < 10) {
+        alert('الإغلاق النهائي يتطلب سبب مفصّل (10 أحرف على الأقل)');
+        return;
+      }
+      try {
+        m.busy = true;
+        await this.api('POST', `/kpi-followups/${m.followUp.id}/abort`, {
+          notes: m.notes.trim(),
+        });
+        this.closeKpiFollowUpAbort();
+        await this.loadKpiFollowUp();
+        this.toast?.('تم الإغلاق', 'success');
+      } catch (e) {
+        alert(e.message || 'فشل الإغلاق');
+      } finally {
+        if (this.kpiFollowUpAbortModal) this.kpiFollowUpAbortModal.busy = false;
+      }
+    },
+
+    // ─── Modal: التفاصيل + Timeline ─────────────────────────────────
+    async openKpiFollowUpDetail(followUp) {
+      this.kpiFollowUpDetailModal = { followUp, timeline: null, busy: true };
+      try {
+        const [full, tl] = await Promise.all([
+          this.api('GET', `/kpi-followups/${followUp.id}`),
+          this.api('GET', `/kpi-followups/${followUp.id}/timeline`),
+        ]);
+        this.kpiFollowUpDetailModal = { followUp: full, timeline: tl?.events || [], busy: false };
+      } catch (e) {
+        alert(e.message || 'فشل تحميل التفاصيل');
+        this.kpiFollowUpDetailModal = null;
+      }
+    },
+    closeKpiFollowUpDetail() { this.kpiFollowUpDetailModal = null; },
+
+    // ─── Helpers — UI ────────────────────────────────────────────────
+    kpiFollowUpStatusLabel(s) {
+      return ({
+        PENDING:      'قيد الانتظار',
+        FIRST_NOTICE: 'إشعار أول',
+        ESCALATED:    'مُصعَّد',
+        RESOLVED:     'تم الحل',
+        ABORTED:      'مُغلَق',
+      })[s] || s;
+    },
+    kpiFollowUpStatusClass(s) {
+      return ({
+        PENDING:      'bg-yellow-100 text-yellow-800',
+        FIRST_NOTICE: 'bg-amber-100 text-amber-800',
+        ESCALATED:    'bg-orange-100 text-orange-800',
+        RESOLVED:     'bg-green-100 text-green-800',
+        ABORTED:      'bg-gray-200 text-gray-700',
+      })[s] || 'bg-gray-100 text-gray-700';
+    },
+    kpiFollowUpEscalationLabel(level) {
+      return ({ 0: 'لا يوجد', 1: 'مدير القسم', 2: 'الإدارة العليا' })[level] || '—';
+    },
+
+    // ─── Trends Chart ───────────────────────────────────────────────
+    _kpiFollowUpChart: null,
+    renderKpiFollowUpChart() {
+      if (typeof Chart === 'undefined') return;
+      const el = document.getElementById('kpiFollowUpTrendsChart');
+      if (!el || !this.kpiFollowUpTrends?.length) return;
+
+      if (this._kpiFollowUpChart) {
+        try { this._kpiFollowUpChart.destroy(); } catch {}
+      }
+      const t = this.kpiFollowUpTrends;
+      this._kpiFollowUpChart = new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: t.map(x => x.label),
+          datasets: [
+            { label: 'محلولة', data: t.map(x => x.resolved), backgroundColor: '#10b981', stack: 's1' },
+            { label: 'قيد الانتظار', data: t.map(x => x.pending), backgroundColor: '#fbbf24', stack: 's1' },
+            { label: 'مُصعَّدة', data: t.map(x => x.escalated), backgroundColor: '#f97316', stack: 's1' },
+            { label: 'مُغلقة', data: t.map(x => x.aborted), backgroundColor: '#6b7280', stack: 's1' },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+          },
+        },
+      });
     },
 
     // UX-2 Wizard — moved to modules/wizard.js (window.QmsWizard)
