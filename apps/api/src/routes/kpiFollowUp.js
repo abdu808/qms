@@ -64,7 +64,7 @@ router.get(
         prisma.kpiFollowUp.findMany({
           where,
           include: {
-            indicator: { select: { id: true, code: true, nameAr: true, name: true } },
+            indicator: { select: { id: true, code: true, nameAr: true, nameEn: true } },
             department: { select: { id: true, code: true, name: true } },
             dataEntryUser: { select: { id: true, name: true, email: true } },
             performanceOwner: { select: { id: true, name: true, email: true } },
