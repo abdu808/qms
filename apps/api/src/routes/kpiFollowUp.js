@@ -96,43 +96,6 @@ router.get(
 );
 
 /**
- * GET /api/kpi-followups/:id
- * Get a specific follow-up record
- */
-router.get(
-  '/:id',
-  authenticate,
-  requireQMAccess,
-  async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      const followUp = await prisma.kpiFollowUp.findUnique({
-        where: { id },
-        include: {
-          indicator: true,
-          department: true,
-          dataEntryUser: true,
-          performanceOwner: true,
-          previousEntry: true,
-          resolvedEntry: true,
-          escalatedBy: true,
-        },
-      });
-
-      if (!followUp) {
-        return res.status(404).json({ error: 'Follow-up record not found' });
-      }
-
-      res.json(followUp);
-    } catch (error) {
-      console.error('GET /kpi-followups/:id error:', error);
-      res.status(500).json({ error: 'Failed to fetch follow-up record' });
-    }
-  }
-);
-
-/**
  * GET /api/kpi-followups/stats/summary
  * Get dashboard statistics
  */
@@ -185,6 +148,43 @@ router.get(
     } catch (error) {
       console.error('GET /stats/summary error:', error);
       res.status(500).json({ error: 'Failed to fetch statistics' });
+    }
+  }
+);
+
+/**
+ * GET /api/kpi-followups/:id
+ * Get a specific follow-up record
+ */
+router.get(
+  '/:id',
+  authenticate,
+  requireQMAccess,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const followUp = await prisma.kpiFollowUp.findUnique({
+        where: { id },
+        include: {
+          indicator: true,
+          department: true,
+          dataEntryUser: true,
+          performanceOwner: true,
+          previousEntry: true,
+          resolvedEntry: true,
+          escalatedBy: true,
+        },
+      });
+
+      if (!followUp) {
+        return res.status(404).json({ error: 'Follow-up record not found' });
+      }
+
+      res.json(followUp);
+    } catch (error) {
+      console.error('GET /kpi-followups/:id error:', error);
+      res.status(500).json({ error: 'Failed to fetch follow-up record' });
     }
   }
 );
