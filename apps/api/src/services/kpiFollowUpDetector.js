@@ -23,7 +23,7 @@
  */
 
 import { prisma } from '../db.js';
-import { dispatchIntegrationEvent } from './integrationDelivery.js';
+import { sendNotification } from './notificationDispatcher.js';
 
 // ─── ثوابت التدرج ───────────────────────────────────────────────
 const ESCALATION_THRESHOLDS = {
@@ -87,32 +87,6 @@ function resolveDataEntryUser(indicator) {
   if (indicator.ownerId) return indicator.ownerId;
   if (indicator.approverUserId) return indicator.approverUserId;
   return null;
-}
-
-async function dispatchKpiFollowUpReminder({ event, eventKey, followUp, recipient, title, message }) {
-  if (!recipient?.id) return;
-  await dispatchIntegrationEvent({
-    event,
-    eventKey: `${eventKey}:N8N`,
-    title,
-    message,
-    recipient,
-    entityType: 'KpiFollowUp',
-    entityId: followUp.id,
-    link: '/qms#/kpiFollowUp',
-    data: {
-      followUpId: followUp.id,
-      followUpCode: followUp.code,
-      indicatorCode: followUp.indicator?.code || null,
-      indicatorName: followUp.indicator?.nameAr || null,
-      departmentName: followUp.department?.name || null,
-      year: followUp.year,
-      month: followUp.month,
-      daysLate: followUp.daysLate,
-      status: followUp.status,
-      escalationLevel: followUp.escalationLevel,
-    },
-  });
 }
 
 /**
@@ -269,14 +243,33 @@ export async function detectAndUpdateOverdueKpis() {
   return stats;
 }
 
+// ─── بناء متغيرات الـ template من سجل المتابعة ─────────────────
+function buildVarsForFollowUp(f, recipient = {}) {
+  return {
+    employeeName:   f.dataEntryUser?.name || '',
+    managerName:    recipient?.name || '',
+    indicatorCode:  f.indicator?.code || '',
+    indicatorName:  f.indicator?.nameAr || '',
+    departmentName: f.department?.name || '',
+    month:          f.month,
+    year:           f.year,
+    daysLate:       f.daysLate ?? 0,
+    dueDate:        f.dueDate ? new Date(f.dueDate).toISOString().slice(0, 10) : '',
+    link:           '/qms#/kpiFollowUp',
+    followUpCode:   f.code || '',
+  };
+}
+
 /**
  * يرسل إشعارات للمسؤولين عن المتابعات المُصعّدة
+ * يستخدم القوالب القابلة للتعديل (NotificationTemplate) عبر sendNotification
+ * — القوالب: KPI_FIRST_NOTICE, KPI_ESCALATED_L1, KPI_ESCALATED_L2
  */
 export async function notifyEscalatedFollowUps() {
   const today = new Date().toISOString().slice(0, 10);
   const sent = { firstNotice: 0, deptManager: 0, executive: 0 };
 
-  // 1. FIRST_NOTICE → إشعار مدخل البيانات
+  // ─── 1. FIRST_NOTICE → إشعار مدخل البيانات ──────────────────
   const firstNotices = await prisma.kpiFollowUp.findMany({
     where: { status: 'FIRST_NOTICE' },
     include: {
@@ -286,36 +279,22 @@ export async function notifyEscalatedFollowUps() {
     },
   });
   for (const f of firstNotices) {
-    const eventKey = `KFU_FIRST_NOTICE:${f.id}:${today}`;
-    const externalTitle = `مؤشر متأخر: ${f.indicator.code}`;
-    const externalMessage = `لم تدخل قراءة ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (متأخر ${f.daysLate} يوم).`;
-    const r = await prisma.notification.createMany({
-      data: [{
-        userId: f.dataEntryUserId,
-        type: 'KPI_OVERDUE',
-        title: `⏰ مؤشر متأخر: ${f.indicator.code}`,
-        message: `لم تُدخل قراءة ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (متأخر ${f.daysLate} يوم).`,
-        link: '/qms#/kpiFollowUp',
-        entityType: 'KpiFollowUp',
-        entityId: f.id,
-        eventKey,
-      }],
-      skipDuplicates: true,
+    const dedupeKey = `KFU_FIRST_NOTICE:${f.id}:${today}`;
+    const r = await sendNotification({
+      eventKey: 'KPI_FIRST_NOTICE',
+      dedupeKey,
+      recipient: f.dataEntryUser,
+      variables: buildVarsForFollowUp(f, f.dataEntryUser),
+      entityType: 'KpiFollowUp',
+      entityId: f.id,
+      link: '/qms#/kpiFollowUp',
+      fallbackTitle: `⏰ مؤشر متأخر: ${f.indicator.code}`,
+      fallbackMessage: `لم تُدخل قراءة ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (متأخر ${f.daysLate} يوم).`,
     });
-    if (r.count > 0) {
-      sent.firstNotice++;
-      await dispatchKpiFollowUpReminder({
-        event: 'KPI_FOLLOWUP_FIRST_NOTICE',
-        eventKey,
-        followUp: f,
-        recipient: f.dataEntryUser,
-        title: externalTitle,
-        message: externalMessage,
-      });
-    }
+    if (r.inApp || r.dispatched) sent.firstNotice++;
   }
 
-  // 2. ESCALATED Level 1 → إشعار مدير القسم
+  // ─── 2. ESCALATED Level 1 → مدير القسم ──────────────────────
   const lvl1 = await prisma.kpiFollowUp.findMany({
     where: { status: 'ESCALATED', escalationLevel: 1 },
     include: {
@@ -335,42 +314,29 @@ export async function notifyEscalatedFollowUps() {
   for (const f of lvl1) {
     const managers = f.department?.users || [];
     for (const mgr of managers) {
-      const eventKey = `KFU_ESC_L1:${f.id}:${mgr.id}:${today}`;
-      const externalTitle = `تصعيد: مؤشر ${f.indicator.code} متأخر`;
-      const externalMessage = `${f.dataEntryUser?.name || 'الموظف'} لم يدخل ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (${f.daysLate} يوم).`;
-      const r = await prisma.notification.createMany({
-        data: [{
-          userId: mgr.id,
-          type: 'KPI_ESCALATED',
-          title: `🚨 تصعيد: مؤشر ${f.indicator.code} متأخر`,
-          message: `${f.dataEntryUser?.name || 'الموظف'} لم يُدخل ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (${f.daysLate} يوم).`,
-          link: '/qms#/kpiFollowUp',
-          entityType: 'KpiFollowUp',
-          entityId: f.id,
-          eventKey,
-        }],
-        skipDuplicates: true,
+      const dedupeKey = `KFU_ESC_L1:${f.id}:${mgr.id}:${today}`;
+      const r = await sendNotification({
+        eventKey: 'KPI_ESCALATED_L1',
+        dedupeKey,
+        recipient: mgr,
+        variables: buildVarsForFollowUp(f, mgr),
+        entityType: 'KpiFollowUp',
+        entityId: f.id,
+        link: '/qms#/kpiFollowUp',
+        fallbackTitle: `🚨 تصعيد: مؤشر ${f.indicator.code} متأخر`,
+        fallbackMessage: `${f.dataEntryUser?.name || 'الموظف'} لم يُدخل ${f.indicator.nameAr} لشهر ${f.month}/${f.year} (${f.daysLate} يوم).`,
       });
-      if (r.count > 0) {
-        sent.deptManager++;
-        await dispatchKpiFollowUpReminder({
-          event: 'KPI_FOLLOWUP_ESCALATED_L1',
-          eventKey,
-          followUp: f,
-          recipient: mgr,
-          title: externalTitle,
-          message: externalMessage,
-        });
-      }
+      if (r.inApp || r.dispatched) sent.deptManager++;
     }
   }
 
-  // 3. ESCALATED Level 2 → إشعار QM + Super Admin
+  // ─── 3. ESCALATED Level 2 → QM + Super Admin ────────────────
   const lvl2 = await prisma.kpiFollowUp.findMany({
     where: { status: 'ESCALATED', escalationLevel: 2 },
     include: {
       indicator: { select: { code: true, nameAr: true } },
       department: { select: { name: true } },
+      dataEntryUser: { select: { name: true } },
     },
   });
   if (lvl2.length > 0) {
@@ -380,33 +346,19 @@ export async function notifyEscalatedFollowUps() {
     });
     for (const f of lvl2) {
       for (const exec of execs) {
-        const eventKey = `KFU_ESC_L2:${f.id}:${exec.id}:${today}`;
-        const externalTitle = `تصعيد حرج: ${f.indicator.code}`;
-        const externalMessage = `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في ${f.indicator.nameAr} (${f.month}/${f.year}).`;
-        const r = await prisma.notification.createMany({
-          data: [{
-            userId: exec.id,
-            type: 'KPI_ESCALATED_HIGH',
-            title: `🆘 تصعيد حرج: ${f.indicator.code}`,
-            message: `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في ${f.indicator.nameAr} (${f.month}/${f.year}).`,
-            link: '/qms#/kpiFollowUp',
-            entityType: 'KpiFollowUp',
-            entityId: f.id,
-            eventKey,
-          }],
-          skipDuplicates: true,
+        const dedupeKey = `KFU_ESC_L2:${f.id}:${exec.id}:${today}`;
+        const r = await sendNotification({
+          eventKey: 'KPI_ESCALATED_L2',
+          dedupeKey,
+          recipient: exec,
+          variables: buildVarsForFollowUp(f, exec),
+          entityType: 'KpiFollowUp',
+          entityId: f.id,
+          link: '/qms#/kpiFollowUp',
+          fallbackTitle: `🆘 تصعيد حرج: ${f.indicator.code}`,
+          fallbackMessage: `قسم ${f.department?.name || ''} متأخر ${f.daysLate} يوم في ${f.indicator.nameAr} (${f.month}/${f.year}).`,
         });
-        if (r.count > 0) {
-          sent.executive++;
-          await dispatchKpiFollowUpReminder({
-            event: 'KPI_FOLLOWUP_ESCALATED_L2',
-            eventKey,
-            followUp: f,
-            recipient: exec,
-            title: externalTitle,
-            message: externalMessage,
-          });
-        }
+        if (r.inApp || r.dispatched) sent.executive++;
       }
     }
   }

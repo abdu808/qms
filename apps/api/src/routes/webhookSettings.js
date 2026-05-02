@@ -24,15 +24,73 @@ const maskSecret = (s) => {
 
 router.get('/', authorize(SA), asyncHandler(async (_req, res) => {
   const rows = await prisma.setting.findMany({
-    where: { key: { in: ['n8n_webhook_url', 'n8n_webhook_secret', 'n8n_webhook_enabled'] } },
+    where: {
+      key: {
+        in: [
+          'n8n_webhook_url',
+          'n8n_webhook_secret',
+          'n8n_webhook_enabled',
+          'n8n_last_test_at',
+          'n8n_last_test_result',
+        ],
+      },
+    },
   });
   const m = Object.fromEntries(rows.map(r => [r.key, r.value]));
+
+  // إحصائيات حالة الإرسال من سجل IntegrationDelivery
+  const [lastSuccess, lastFailure, totals] = await Promise.all([
+    prisma.integrationDelivery.findFirst({
+      where: { status: { in: ['DISPATCHED', 'DELIVERED'] } },
+      orderBy: { dispatchedAt: 'desc' },
+      select: { dispatchedAt: true, deliveredAt: true, event: true },
+    }),
+    prisma.integrationDelivery.findFirst({
+      where: { status: 'FAILED' },
+      orderBy: { failedAt: 'desc' },
+      select: { failedAt: true, error: true, event: true },
+    }),
+    prisma.integrationDelivery.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    }),
+  ]);
+
+  // حساب حالة الاتصال
+  const enabled = m.n8n_webhook_enabled === 'true';
+  const hasUrl = !!m.n8n_webhook_url;
+  let connectionStatus = 'DISABLED';
+  if (enabled && hasUrl) {
+    const lastTest = m.n8n_last_test_result;
+    if (lastTest === 'success') connectionStatus = 'CONNECTED';
+    else if (lastTest === 'failed') connectionStatus = 'TEST_FAILED';
+    else connectionStatus = 'NOT_TESTED';
+  } else if (!hasUrl) {
+    connectionStatus = 'NO_URL';
+  }
+
   res.json({
     ok: true,
     item: {
       url:     m.n8n_webhook_url    || '',
       secret:  maskSecret(m.n8n_webhook_secret),
-      enabled: m.n8n_webhook_enabled === 'true',
+      enabled,
+      // معلومات الحالة المُحسَّنة
+      connectionStatus, // CONNECTED | DISABLED | TEST_FAILED | NOT_TESTED | NO_URL
+      lastTest: {
+        at: m.n8n_last_test_at || null,
+        result: m.n8n_last_test_result || null, // 'success' | 'failed' | null
+      },
+      lastSuccess: lastSuccess ? {
+        at: lastSuccess.dispatchedAt || lastSuccess.deliveredAt,
+        event: lastSuccess.event,
+      } : null,
+      lastFailure: lastFailure ? {
+        at: lastFailure.failedAt,
+        event: lastFailure.event,
+        error: lastFailure.error,
+      } : null,
+      stats: Object.fromEntries(totals.map(t => [t.status, t._count?._all || t._count || 0])),
     },
   });
 }));
@@ -94,15 +152,37 @@ router.put('/', authorize(SA), asyncHandler(async (req, res) => {
 }));
 
 router.post('/test', authorize(SA), asyncHandler(async (req, res) => {
+  const now = new Date().toISOString();
+  let outcome;
   try {
     const result = await emitWebhookStrict('QMS_TEST_CONNECTION', {
       message: 'اختبار الاتصال من نظام إدارة الجودة',
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     });
-    res.json({ ok: result.ok, status: result.status, message: result.ok ? 'تم الاتصال بنجاح ✓' : `استجاب n8n بـ status ${result.status}` });
+    outcome = {
+      ok: result.ok,
+      status: result.status,
+      message: result.ok ? 'تم الاتصال بنجاح ✓' : `استجاب n8n بـ status ${result.status}`,
+    };
   } catch (e) {
-    res.json({ ok: false, status: 0, message: `فشل الاتصال: ${e.message}` });
+    outcome = { ok: false, status: 0, message: `فشل الاتصال: ${e.message}` };
   }
+
+  // حفظ نتيجة آخر اختبار في الإعدادات
+  await Promise.all([
+    prisma.setting.upsert({
+      where: { key: 'n8n_last_test_at' },
+      create: { key: 'n8n_last_test_at', value: now },
+      update: { value: now },
+    }),
+    prisma.setting.upsert({
+      where: { key: 'n8n_last_test_result' },
+      create: { key: 'n8n_last_test_result', value: outcome.ok ? 'success' : 'failed' },
+      update: { value: outcome.ok ? 'success' : 'failed' },
+    }),
+  ]);
+
+  res.json(outcome);
 }));
 
 export default router;

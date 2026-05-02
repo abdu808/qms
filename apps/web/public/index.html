@@ -1832,7 +1832,7 @@
           </div>
 
           <!-- GENERIC LIST PAGE -->
-          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','myWork','operationalReports','slaBoard','dataImport','userGuide','kpiFollowUp'].includes(page)">
+          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','myWork','operationalReports','slaBoard','dataImport','userGuide','kpiFollowUp','integrationsSettings'].includes(page)">
             <div>
               <!-- Toolbar (sticky — stays visible while scrolling table) -->
               <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0">
@@ -2807,6 +2807,378 @@
                       title="فتح إجراء تصحيحي مرتبط">🛠️ فتح CAPA</button>
                     <button @click="closeKpiFollowUpDetail()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 text-sm">إغلاق</button>
                   </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ INTEGRATIONS & NOTIFICATIONS SETTINGS PAGE ═══ -->
+          <div x-show="page==='integrationsSettings'" x-cloak>
+            <div class="p-4 md:p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+
+              <!-- Header -->
+              <div class="bg-gradient-to-l from-slate-700 to-slate-900 text-white rounded-2xl p-6 mb-6 shadow-lg">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h1 class="text-2xl md:text-3xl font-bold">🔗 التكاملات والتنبيهات الخارجية</h1>
+                    <p class="text-slate-300 mt-1 text-sm">إعدادات n8n وقوالب الرسائل وسجل الإرسال</p>
+                  </div>
+                  <button @click="loadIntegrationsSettings()" :disabled="integrationsLoading"
+                    class="bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg text-sm transition disabled:opacity-50">
+                    <span x-show="!integrationsLoading">🔄 تحديث</span>
+                    <span x-show="integrationsLoading">…جاري</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tabs -->
+              <div class="bg-white rounded-xl shadow-sm mb-4 p-1 inline-flex gap-1">
+                <button @click="integrationsTab='providers'" :class="integrationsTab==='providers' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">⚙️ المزودات</button>
+                <button @click="integrationsTab='templates'" :class="integrationsTab==='templates' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">✉️ قوالب التنبيهات</button>
+                <button @click="integrationsTab='log'" :class="integrationsTab==='log' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">📜 سجل الإرسال</button>
+              </div>
+
+              <!-- ═══ TAB 1: مزودات التكامل ═══ -->
+              <div x-show="integrationsTab==='providers'" class="space-y-4">
+
+                <!-- n8n Card (المزود الرئيسي الحالي) -->
+                <div class="bg-white rounded-xl shadow-sm p-5 border-2 border-blue-200">
+                  <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div class="flex items-start gap-3">
+                      <div class="text-4xl">🔌</div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <h3 class="font-bold text-gray-800 text-lg">n8n Webhook</h3>
+                          <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold">مفعّل</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">المزود الرئيسي للإرسال الخارجي. يتلقى الأحداث ويوجّهها إلى WhatsApp/SMS/Email.</p>
+                      </div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold border"
+                      :class="integrationStatusClass(integrationN8n?.connectionStatus)"
+                      x-text="integrationStatusLabel(integrationN8n?.connectionStatus)"></span>
+                  </div>
+
+                  <!-- Status grid -->
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">رابط n8n</div>
+                      <div class="font-mono text-xs truncate" x-text="integrationN8n?.url || '—'" :title="integrationN8n?.url"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">آخر اختبار</div>
+                      <div class="text-xs">
+                        <span x-show="integrationN8n?.lastTest?.at" x-text="integrationN8n?.lastTest?.at ? new Date(integrationN8n.lastTest.at).toLocaleString('ar-SA') : '—'"></span>
+                        <span x-show="!integrationN8n?.lastTest?.at" class="text-gray-400">لم يُختبَر</span>
+                      </div>
+                      <div class="text-[10px]"
+                           :class="integrationN8n?.lastTest?.result === 'success' ? 'text-green-600' : 'text-red-600'"
+                           x-text="integrationN8n?.lastTest?.result === 'success' ? '✓ نجح' : (integrationN8n?.lastTest?.result === 'failed' ? '✗ فشل' : '')"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">آخر إرسال ناجح</div>
+                      <div class="text-xs" x-text="integrationN8n?.lastSuccess?.at ? new Date(integrationN8n.lastSuccess.at).toLocaleString('ar-SA') : 'لا يوجد'"></div>
+                      <div class="text-[10px] text-gray-400" x-text="integrationN8n?.lastSuccess?.event || ''"></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                      <div class="text-xs text-gray-500">آخر فشل</div>
+                      <div class="text-xs text-red-600" x-text="integrationN8n?.lastFailure?.at ? new Date(integrationN8n.lastFailure.at).toLocaleString('ar-SA') : 'لا يوجد'"></div>
+                      <div class="text-[10px] text-red-500 truncate" x-text="integrationN8n?.lastFailure?.error || ''" :title="integrationN8n?.lastFailure?.error"></div>
+                    </div>
+                  </div>
+
+                  <!-- Stats summary -->
+                  <div x-show="integrationN8n?.stats && Object.keys(integrationN8n.stats || {}).length > 0" class="mt-3 flex flex-wrap gap-2 text-xs">
+                    <template x-for="(count, status) in (integrationN8n?.stats || {})" :key="status">
+                      <span class="px-2 py-1 rounded-full" :class="deliveryStatusClass(status)">
+                        <span x-text="deliveryStatusLabel(status)"></span>: <span class="font-bold" x-text="count"></span>
+                      </span>
+                    </template>
+                  </div>
+
+                  <div class="mt-4 flex gap-2">
+                    <button @click="openN8nProviderForm()"
+                      class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
+                      ⚙️ تعديل الإعدادات
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Future Providers (مُعطَّلة - عرض فقط) -->
+                <div class="bg-white rounded-xl shadow-sm p-5">
+                  <h3 class="font-bold text-gray-700 mb-3">🚧 مزودات قادمة</h3>
+                  <p class="text-xs text-gray-500 mb-4">حالياً يتم الإرسال عبر n8n الذي يربط بأي مزود خارجي. هذه القائمة للتوسعة المستقبلية المباشرة.</p>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <template x-for="p in integrationProvidersFuture" :key="p.id">
+                      <div class="border rounded-lg p-4 bg-gray-50 opacity-60">
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-2">
+                            <span class="text-2xl" x-text="p.icon"></span>
+                            <div>
+                              <div class="font-semibold text-sm" x-text="p.name"></div>
+                              <div class="text-[10px] text-gray-500" x-text="p.desc"></div>
+                            </div>
+                          </div>
+                          <span class="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">قادم لاحقاً</span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ═══ TAB 2: قوالب التنبيهات ═══ -->
+              <div x-show="integrationsTab==='templates'" class="space-y-3">
+                <div class="bg-white rounded-xl shadow-sm p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-gray-700">قوالب الرسائل القابلة للتعديل</h3>
+                    <span class="text-xs text-gray-500" x-text="(notificationTemplates?.length || 0) + ' قالب'"></span>
+                  </div>
+                  <p class="text-xs text-gray-500 mb-3">عدّل نص الرسائل المُرسَلة للموظفين والمدراء بدون تعديل الكود. المتغيرات بالصيغة <code class="bg-gray-100 px-1">{{employeeName}}</code></p>
+                </div>
+
+                <div class="space-y-2">
+                  <template x-for="t in notificationTemplates" :key="t.id">
+                    <div class="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition">
+                      <div class="flex items-start justify-between gap-3 flex-wrap">
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-gray-800" x-text="t.name"></span>
+                            <span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded" x-text="t.eventKey"></span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full"
+                              :class="t.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'"
+                              x-text="t.enabled ? 'مفعّل' : 'مُعطَّل'"></span>
+                          </div>
+                          <div class="text-xs text-gray-500 mt-1" x-text="t.description"></div>
+                          <div class="text-xs text-gray-700 mt-2 truncate" :title="t.subject">
+                            <span class="text-gray-500">العنوان:</span> <span x-text="t.subject"></span>
+                          </div>
+                          <div class="flex gap-1 mt-2">
+                            <template x-for="ch in t.channels.split(',').map(s => s.trim())" :key="ch">
+                              <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded" x-text="ch"></span>
+                            </template>
+                          </div>
+                        </div>
+                        <button @click="openTemplateEditor(t.eventKey)"
+                          class="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-semibold px-3 py-1.5 rounded-lg border border-blue-200">
+                          ✏️ تعديل
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+                  <div x-show="!notificationTemplates?.length" class="bg-white rounded-xl p-8 text-center text-gray-500">
+                    لا توجد قوالب — قد تحتاج إلى تشغيل migrate seed.
+                  </div>
+                </div>
+              </div>
+
+              <!-- ═══ TAB 3: سجل الإرسال ═══ -->
+              <div x-show="integrationsTab==='log'" class="space-y-3">
+                <!-- Stats -->
+                <div x-show="deliveryLogStats" class="bg-white rounded-xl shadow-sm p-4">
+                  <div class="text-xs text-gray-500 mb-2">آخر 30 يوم — إجمالي: <span class="font-bold text-gray-700" x-text="deliveryLogStats?.recentTotal || 0"></span></div>
+                  <div class="flex flex-wrap gap-2">
+                    <template x-for="s in (deliveryLogStats?.byStatus || [])" :key="s.status">
+                      <span class="text-xs px-3 py-1 rounded-full" :class="deliveryStatusClass(s.status)">
+                        <span x-text="deliveryStatusLabel(s.status)"></span>: <span class="font-bold" x-text="s._count"></span>
+                      </span>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="bg-white rounded-xl shadow-sm p-3 flex flex-wrap items-center gap-2">
+                  <select x-model="deliveryLogFilter.status" @change="refreshDeliveryLog()" class="text-sm border rounded-lg px-2 py-1.5">
+                    <option value="">كل الحالات</option>
+                    <option value="PENDING">قيد الانتظار</option>
+                    <option value="DISPATCHED">أُرسلت</option>
+                    <option value="DELIVERED">وُصلت</option>
+                    <option value="FAILED">فشلت</option>
+                    <option value="SKIPPED">تم تخطيها</option>
+                  </select>
+                  <input type="text" x-model="deliveryLogFilter.event" @keydown.enter="refreshDeliveryLog()"
+                    placeholder="بحث بنوع الحدث (KPI_FIRST_NOTICE)..."
+                    class="text-sm border rounded-lg px-2 py-1.5 flex-1 min-w-[200px]">
+                  <button @click="refreshDeliveryLog()" class="bg-gray-700 hover:bg-gray-800 text-white text-sm px-3 py-1.5 rounded-lg">🔍 تطبيق</button>
+                </div>
+
+                <!-- Log table -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="bg-gray-100 text-gray-700">
+                      <tr>
+                        <th class="px-3 py-2 text-right text-xs">الحدث</th>
+                        <th class="px-3 py-2 text-right text-xs">المستلم</th>
+                        <th class="px-3 py-2 text-right text-xs">القناة</th>
+                        <th class="px-3 py-2 text-center text-xs">الحالة</th>
+                        <th class="px-3 py-2 text-right text-xs">العنوان</th>
+                        <th class="px-3 py-2 text-center text-xs">الإنشاء</th>
+                        <th class="px-3 py-2 text-center text-xs">الإرسال</th>
+                        <th class="px-3 py-2 text-right text-xs">الخطأ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template x-for="d in deliveryLogItems" :key="d.id">
+                        <tr class="border-t hover:bg-gray-50/50">
+                          <td class="px-3 py-2 text-xs font-mono" x-text="d.event"></td>
+                          <td class="px-3 py-2 text-xs">
+                            <div x-text="d.recipientName || '—'"></div>
+                            <div class="text-[10px] text-gray-500" x-text="d.recipientPhone || d.recipientEmail || ''"></div>
+                          </td>
+                          <td class="px-3 py-2 text-center text-xs" x-text="d.channel"></td>
+                          <td class="px-3 py-2 text-center">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full" :class="deliveryStatusClass(d.status)" x-text="deliveryStatusLabel(d.status)"></span>
+                          </td>
+                          <td class="px-3 py-2 text-xs truncate max-w-xs" x-text="d.title" :title="d.title"></td>
+                          <td class="px-3 py-2 text-center text-[10px]" x-text="new Date(d.createdAt).toLocaleString('ar-SA')"></td>
+                          <td class="px-3 py-2 text-center text-[10px]" x-text="d.dispatchedAt ? new Date(d.dispatchedAt).toLocaleString('ar-SA') : (d.failedAt ? new Date(d.failedAt).toLocaleString('ar-SA') : '—')"></td>
+                          <td class="px-3 py-2 text-xs text-red-600 truncate max-w-xs" x-text="d.error || ''" :title="d.error"></td>
+                        </tr>
+                      </template>
+                      <template x-if="!deliveryLogItems?.length">
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500 text-sm">لا توجد سجلات إرسال — التكامل لم يُستخدم بعد أو تم تعطيله.</td></tr>
+                      </template>
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ MODAL: n8n Provider Form ═══ -->
+          <template x-if="integrationN8nForm">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeN8nProviderForm()">
+              <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+                <div class="bg-gradient-to-l from-blue-700 to-indigo-700 text-white p-4 rounded-t-2xl">
+                  <h3 class="font-bold text-lg">⚙️ إعدادات n8n Webhook</h3>
+                  <p class="text-xs opacity-90 mt-1">يستلم n8n الأحداث ويوجّهها إلى WhatsApp/SMS/Email حسب التكوين الداخلي.</p>
+                </div>
+                <div class="p-5 space-y-4">
+                  <div x-show="integrationN8nForm.error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700" x-text="integrationN8nForm.error"></div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">رابط Webhook</label>
+                    <input type="url" x-model="integrationN8nForm.url" placeholder="https://n8n.example.com/webhook/qms"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none" dir="ltr">
+                    <p class="text-[10px] text-gray-500 mt-1">يجب أن يكون https في الإنتاج. لا يُقبل عنوان داخلي (SSRF blocked).</p>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">المفتاح السري (HMAC)</label>
+                    <input type="password" x-model="integrationN8nForm.secret" :placeholder="integrationN8n?.secret || 'اتركه فارغاً لعدم التغيير'"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none" dir="ltr">
+                    <p class="text-[10px] text-gray-500 mt-1">يُستخدم للتحقق من التواقيع في الـ callback. يُحفظ مشفّراً (AES-256-GCM).</p>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" x-model="integrationN8nForm.enabled" class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                    <span class="text-sm font-medium" x-text="integrationN8nForm.enabled ? 'مفعّل ✓' : 'معطَّل'"></span>
+                  </div>
+
+                  <div x-show="integrationN8nForm.testResult" class="rounded-lg p-3 text-sm"
+                    :class="integrationN8nForm.testResult?.ok ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'">
+                    <span x-text="integrationN8nForm.testResult?.message"></span>
+                  </div>
+                </div>
+                <div class="flex gap-2 p-4 border-t bg-gray-50 rounded-b-2xl">
+                  <button @click="testN8nConnection()" :disabled="integrationN8nForm.busy || !integrationN8nForm.url"
+                    class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    🔌 اختبار الاتصال
+                  </button>
+                  <button @click="saveN8nProvider()" :disabled="integrationN8nForm.busy"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    <span x-show="!integrationN8nForm.busy">💾 حفظ</span>
+                    <span x-show="integrationN8nForm.busy">…جاري</span>
+                  </button>
+                  <button @click="closeN8nProviderForm()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 text-sm">إلغاء</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ═══ MODAL: Template Editor ═══ -->
+          <template x-if="notificationTemplateModal">
+            <div class="fixed inset-0 bg-black/60 z-[500] flex items-center justify-center p-4" @keydown.escape.window="closeTemplateEditor()">
+              <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div class="bg-gradient-to-l from-emerald-700 to-teal-700 text-white p-4 rounded-t-2xl sticky top-0 z-10">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <h3 class="font-bold text-lg">✏️ تعديل قالب الرسالة</h3>
+                      <p class="text-xs opacity-90 mt-1 font-mono" x-text="notificationTemplateModal.tpl.eventKey"></p>
+                    </div>
+                    <button @click="closeTemplateEditor()" class="text-white/70 hover:text-white text-2xl">✖</button>
+                  </div>
+                </div>
+                <div class="p-5 space-y-4">
+                  <div x-show="notificationTemplateModal.error" class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700" x-text="notificationTemplateModal.error"></div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">اسم القالب</label>
+                    <input type="text" x-model="notificationTemplateModal.tpl.name" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 outline-none">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">الوصف</label>
+                    <input type="text" x-model="notificationTemplateModal.tpl.description" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 outline-none">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">العنوان <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="notificationTemplateModal.tpl.subject" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 outline-none">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">المتن <span class="text-red-500">*</span></label>
+                    <textarea x-model="notificationTemplateModal.tpl.body" rows="8" class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-emerald-400 outline-none font-mono leading-relaxed"></textarea>
+                    <div class="text-[10px] text-gray-500 mt-1">المتغيرات المتاحة: <code class="bg-gray-100 px-1">{{employeeName}}</code> <code class="bg-gray-100 px-1">{{indicatorCode}}</code> <code class="bg-gray-100 px-1">{{indicatorName}}</code> <code class="bg-gray-100 px-1">{{departmentName}}</code> <code class="bg-gray-100 px-1">{{month}}</code> <code class="bg-gray-100 px-1">{{year}}</code> <code class="bg-gray-100 px-1">{{daysLate}}</code> <code class="bg-gray-100 px-1">{{dueDate}}</code> <code class="bg-gray-100 px-1">{{link}}</code> <code class="bg-gray-100 px-1">{{managerName}}</code> <code class="bg-gray-100 px-1">{{followUpCode}}</code></div>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium mb-1">القنوات</label>
+                    <div class="flex flex-wrap gap-2">
+                      <template x-for="ch in ['IN_APP','WHATSAPP','SMS','EMAIL']" :key="ch">
+                        <button type="button" @click="toggleTemplateChannel(ch)"
+                          :class="isTemplateChannel(ch) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-600 border-gray-300'"
+                          class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
+                          <span x-text="ch"></span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-3 pt-2 border-t">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" x-model="notificationTemplateModal.tpl.enabled" class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                    <span class="text-sm font-medium" x-text="notificationTemplateModal.tpl.enabled ? 'القالب مفعّل ✓' : 'القالب مُعطَّل (لن تُرسل تنبيهات)'"></span>
+                  </div>
+
+                  <!-- Preview -->
+                  <div x-show="notificationTemplateModal.preview" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 class="text-sm font-bold text-blue-800 mb-2">👁️ معاينة بقيم مثال</h4>
+                    <div class="text-xs">
+                      <div class="font-bold mb-1" x-text="notificationTemplateModal.preview?.rendered?.subject"></div>
+                      <pre class="whitespace-pre-wrap font-sans text-gray-700" x-text="notificationTemplateModal.preview?.rendered?.body"></pre>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex gap-2 p-4 border-t bg-gray-50 rounded-b-2xl sticky bottom-0">
+                  <button @click="previewTemplate()" :disabled="notificationTemplateModal.busy"
+                    class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm font-semibold px-4 py-2 rounded-lg">
+                    👁️ معاينة
+                  </button>
+                  <button @click="saveTemplate()" :disabled="notificationTemplateModal.busy"
+                    class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                    <span x-show="!notificationTemplateModal.busy">💾 حفظ القالب</span>
+                    <span x-show="notificationTemplateModal.busy">…جاري</span>
+                  </button>
+                  <button @click="closeTemplateEditor()" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 text-sm">إلغاء</button>
                 </div>
               </div>
             </div>

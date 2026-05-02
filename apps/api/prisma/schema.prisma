@@ -119,6 +119,9 @@ model User {
   kpiFollowUpPerfOwned        KpiFollowUp[]           @relation("KpiFollowUpPerfOwner")
   kpiFollowUpEscalatedByMe    KpiFollowUp[]           @relation("KpiFollowUpEscalatedBy")
 
+  // ── Notification Templates back-relation ────────────
+  notificationTemplatesEdited NotificationTemplate[]  @relation("NotificationTemplateEditor")
+
   @@index([email])
   @@index([departmentId])
 }
@@ -2497,4 +2500,40 @@ model AuditFinding {
   @@index([type])
   @@index([ownerId])
   @@index([deletedAt])
+}
+
+// =====================================================
+// NOTIFICATION TEMPLATES
+// قوالب الرسائل المُرسَلة عبر التكاملات الخارجية
+// قابلة للتعديل من واجهة المشرف بدون تعديل الكود
+// =====================================================
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  // معرّف منطقي ثابت — يُستخدم في الكود (مثل: KPI_FIRST_NOTICE)
+  // لا يُغيَّر بعد الإنشاء (يربط القالب بحدث محدد)
+  eventKey    String   @unique
+  // اسم القالب بالعربي للعرض
+  name        String
+  // وصف موجز لمتى يُرسل هذا القالب
+  description String?  @db.Text
+  // العنوان (يدعم متغيرات {{var}})
+  subject     String
+  // متن الرسالة (يدعم متغيرات {{var}})
+  body        String   @db.Text
+  // قنوات الإرسال المسموحة لهذا القالب (CSV: IN_APP,WHATSAPP,SMS,EMAIL)
+  channels    String   @default("IN_APP,WHATSAPP")
+  // هل القالب مفعّل؟ إن كان معطّلاً، لا تُرسل التنبيهات لهذا الحدث
+  enabled     Boolean  @default(true)
+  // فئة (KPI | NCR | COMPLAINT | DOC_REVIEW | …) — لتجميع القوالب
+  category    String   @default("KPI")
+  // قائمة المتغيرات المتاحة كمرجع للمحرّر (CSV)
+  variables   String?  @db.Text
+  // last edited
+  updatedById String?
+  updatedBy   User?    @relation("NotificationTemplateEditor", fields: [updatedById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([enabled])
 }
