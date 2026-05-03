@@ -50,6 +50,7 @@ tmp/
 ISO9001/
 apps/api/_analysis/
 apps/api/ingest-inbox/
+outputs/
 
 seed-data.b64
 
