@@ -988,7 +988,7 @@ function app() {
             }).catch(() => {});
           }
           // Audit improvement #1: استخدم homePageForRole بدلاً من dashboard ثابت
-          this.goto(this.homePageForRole());
+          await this.gotoInitialOrHome();
           if (!this.isReadOnly() && !localStorage.getItem('qms_wizard_done')) {
             setTimeout(() => this.showWizard(), 800);
           }
@@ -1014,7 +1014,7 @@ function app() {
           this.startAlertsPolling();
           this.loadStateMachines();
         }
-        this.goto(this.homePageForRole());
+        await this.gotoInitialOrHome();
       } catch (e) {
         this.loginError = e.message || 'فشل تسجيل الدخول';
       } finally { this.loading = false; }
@@ -1037,7 +1037,7 @@ function app() {
           this.loadStateMachines();
         }
         this.toast('تم تغيير كلمة المرور بنجاح ✅', 'success');
-        this.goto(this.homePageForRole());
+        await this.gotoInitialOrHome();
       } catch (e) {
         f.error = e.message || 'فشل تغيير كلمة المرور';
       } finally { f.loading = false; }
@@ -1109,7 +1109,72 @@ function app() {
     },
 
     // ------ navigation ------
+    normalizePageId(id) {
+      const key = String(id || '').trim();
+      const aliases = {
+        myAcks: 'myAcknowledgments',
+        acknowledgments: 'myAcknowledgments',
+        kpiEntries: 'myKpi',
+        kpiEntry: 'myKpi',
+        kpiFollowups: 'kpiFollowUp',
+        kpiFollowUps: 'kpiFollowUp',
+        'kpi-followups': 'kpiFollowUp',
+        'kpi-followup': 'kpiFollowUp',
+        progressReport: 'progressReports',
+        'progress-reports': 'progressReports',
+        isoReadiness: 'iso-readiness',
+      };
+      return aliases[key] || key;
+    },
+
+    pageEntityType(page) {
+      return ({
+        complaints: 'complaint',
+        ncr: 'ncr',
+        objectives: 'objective',
+        documents: 'document',
+        risks: 'risk',
+        suppliers: 'supplier',
+        indicators: 'indicator',
+        initiatives: 'initiative',
+        capa: 'capa',
+      })[this.normalizePageId(page)] || null;
+    },
+
+    parseQmsLink(link) {
+      if (!link) return null;
+      const raw = String(link);
+      const m = raw.match(/#\/([^?&#]+)(?:\?([^#]*))?/);
+      if (!m) return { page: this.normalizePageId(raw), id: null };
+      const params = new URLSearchParams(m[2] || '');
+      return {
+        page: this.normalizePageId(m[1]),
+        id: params.get('id') || params.get('entityId') || null,
+      };
+    },
+
+    initialPageFromHash() {
+      const parsed = this.parseQmsLink(window.location.hash || '');
+      return parsed?.page || null;
+    },
+
+    async gotoInitialOrHome() {
+      const parsed = this.parseQmsLink(window.location.hash || '');
+      if (parsed?.page) {
+        await this.goToResource(parsed.page, parsed.id);
+        return;
+      }
+      await this.goto(this.homePageForRole());
+    },
+
+    async goToLink(link) {
+      const parsed = this.parseQmsLink(link);
+      if (!parsed?.page) return;
+      await this.goToResource(parsed.page, parsed.id);
+    },
+
     async goto(id) {
+      id = this.normalizePageId(id);
       this.page = id;
       this.search = '';
       this.filterStatus = '';
@@ -1770,13 +1835,15 @@ function app() {
     // ─── Inbox mode — استُخرجت إلى modules/inbox.js ──
     // (_inboxBusy, inboxBusy, _inboxCall, inboxSubmit, inboxReview,
     //  inboxApprove, inboxReject, canInbox) — تُدمج عبر ...window.QmsInbox
-    goToResource(page, id) {
-      this.page = page;
+    async goToResource(page, id) {
+      const target = this.normalizePageId(page);
       this.quickFilter = '';
       this.filterStatus = '';
-      this.$nextTick?.(() => {
-        if (typeof this.loadList === 'function') this.loadList();
-      });
+      await this.goto(target);
+      if (id && typeof this.openDetail === 'function') {
+        const entityType = this.pageEntityType(target);
+        if (entityType) await this.openDetail(entityType, id);
+      }
     },
     toggleQuickFilter(key) {
       this.quickFilter = this.quickFilter === key ? '' : key;

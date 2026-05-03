@@ -33,8 +33,11 @@
     goToAlert(a) {
       this.liveAlertsOpen = false;
       if (!a?.actionUrl) return;
-      const m = a.actionUrl.match(/#\/([\w-]+)/);
-      if (m) this.goto(m[1]);
+      if (typeof this.goToLink === 'function') this.goToLink(a.actionUrl);
+      else {
+        const m = a.actionUrl.match(/#\/([\w-]+)/);
+        if (m) this.goto(m[1]);
+      }
     },
     alertSeverityClass(sev) {
       if (sev === 'danger') return 'bg-red-50 border-red-300 text-red-800';

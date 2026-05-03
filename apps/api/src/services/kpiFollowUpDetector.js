@@ -273,7 +273,7 @@ function buildVarsForIndicatorReminder(indicator, period, dueDate, recipient = {
     month:          period.month,
     year:           period.year,
     dueDate:        dueDate ? new Date(dueDate).toISOString().slice(0, 10) : '',
-    link:           '/qms#/kpiEntries',
+    link:           '/qms#/myKpi',
   };
 }
 
@@ -328,7 +328,7 @@ export async function sendKpiPreDeadlineReminders() {
       variables: buildVarsForIndicatorReminder(indicator, period, dueDate, recipient),
       entityType: 'Indicator',
       entityId: indicator.id,
-      link: '/qms#/kpiEntries',
+      link: '/qms#/myKpi',
       fallbackTitle: `تذكير قبل الإغلاق الشهري: ${indicator.code}`,
       fallbackMessage: `يرجى إدخال قراءة مؤشر ${indicator.nameAr} لفترة ${period.month}/${period.year} قبل ${dueDate.toISOString().slice(0, 10)}.`,
       payloadExtra: { period, daysUntilDue },

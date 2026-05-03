@@ -403,7 +403,7 @@ router.get('/', asyncHandler(async (req, res) => {
       severity: 'info',
       count: pendingAcks.length,
       title: `${pendingAcks.length} إقرار بانتظار توقيعك`,
-      action: { page: 'myAcks', label: 'فتح الإقرارات' },
+      action: { page: 'myAcknowledgments', label: 'فتح الإقرارات' },
     });
   }
   if (myDrafts.total > 0) {
