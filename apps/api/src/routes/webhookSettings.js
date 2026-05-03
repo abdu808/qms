@@ -30,6 +30,7 @@ router.get('/', authorize(SA), asyncHandler(async (_req, res) => {
           'n8n_webhook_url',
           'n8n_webhook_secret',
           'n8n_webhook_enabled',
+          'n8n_allowed_hosts',
           'n8n_last_test_at',
           'n8n_last_test_result',
         ],
@@ -75,6 +76,7 @@ router.get('/', authorize(SA), asyncHandler(async (_req, res) => {
       url:     m.n8n_webhook_url    || '',
       secret:  maskSecret(m.n8n_webhook_secret),
       enabled,
+      allowedHosts: m.n8n_allowed_hosts || '',
       // معلومات الحالة المُحسَّنة
       connectionStatus, // CONNECTED | DISABLED | TEST_FAILED | NOT_TESTED | NO_URL
       lastTest: {
@@ -101,7 +103,27 @@ router.get('/', authorize(SA), asyncHandler(async (_req, res) => {
  * - ليس loopback/RFC1918/link-local/metadata endpoint (منع SSRF)
  * - يتطابق مع WEBHOOK_ALLOWED_HOSTS إن وُجد (قائمة بيضاء اختيارية)
  */
-function validateWebhookUrl(rawUrl) {
+function parseAllowedHosts(value) {
+  return String(value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+async function getEffectiveAllowedHosts(overrideValue) {
+  const envHosts = parseAllowedHosts(process.env.WEBHOOK_ALLOWED_HOSTS || '');
+  let dbValue = overrideValue;
+
+  if (dbValue === undefined) {
+    const row = await prisma.setting.findUnique({ where: { key: 'n8n_allowed_hosts' } });
+    dbValue = row?.value || '';
+  }
+
+  const dbHosts = parseAllowedHosts(dbValue);
+  return Array.from(new Set([...envHosts, ...dbHosts]));
+}
+
+async function validateWebhookUrl(rawUrl, allowedHostsOverride) {
   let u;
   try { u = new URL(rawUrl); } catch { throw BadRequest('url غير صالح'); }
   if (!/^https?:$/.test(u.protocol)) throw BadRequest('البروتوكول يجب أن يكون http أو https');
@@ -121,8 +143,7 @@ function validateWebhookUrl(rawUrl) {
     throw BadRequest('عنوان شبكي داخلي غير مسموح (منع SSRF)');
   }
   // قائمة بيضاء اختيارية من env
-  const allowList = (process.env.WEBHOOK_ALLOWED_HOSTS || '')
-    .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  const allowList = await getEffectiveAllowedHosts(allowedHostsOverride);
   if (allowList.length && !allowList.includes(host)) {
     throw BadRequest(`الوجهة ${host} خارج القائمة البيضاء`);
   }
@@ -130,9 +151,10 @@ function validateWebhookUrl(rawUrl) {
 }
 
 router.put('/', authorize(SA), asyncHandler(async (req, res) => {
-  const { url, secret, enabled } = req.body;
+  const { url, secret, enabled, allowedHosts } = req.body;
   if (url !== undefined && typeof url !== 'string') throw BadRequest('url يجب أن يكون نصاً');
-  if (url) validateWebhookUrl(url);
+  if (allowedHosts !== undefined && typeof allowedHosts !== 'string') throw BadRequest('allowedHosts must be a string');
+  if (url) await validateWebhookUrl(url, allowedHosts);
 
   const upsert = async (key, value) => {
     if (value === undefined) return;
@@ -145,6 +167,7 @@ router.put('/', authorize(SA), asyncHandler(async (req, res) => {
     // نُشفِّر السر قبل التخزين (AES-256-GCM) — صيغة "v1:iv:tag:ct"
     secret !== undefined && !secret.startsWith('****') ? upsert('n8n_webhook_secret', encrypt(secret)) : Promise.resolve(),
     enabled !== undefined ? upsert('n8n_webhook_enabled', String(!!enabled)) : Promise.resolve(),
+    allowedHosts !== undefined ? upsert('n8n_allowed_hosts', allowedHosts) : Promise.resolve(),
   ]);
 
   invalidateWebhookCache();

@@ -1547,6 +1547,7 @@ function app() {
     openN8nProviderForm() {
       this.integrationN8nForm = {
         url: this.integrationN8n?.url || '',
+        allowedHosts: this.integrationN8n?.allowedHosts || '',
         secret: '', // فارغ = لا تغيير
         enabled: !!this.integrationN8n?.enabled,
         busy: false, error: '', testResult: null,
@@ -1559,7 +1560,7 @@ function app() {
       if (!f) return;
       try {
         f.busy = true; f.error = '';
-        const payload = { url: f.url, enabled: f.enabled };
+        const payload = { url: f.url, allowedHosts: f.allowedHosts, enabled: f.enabled };
         if (f.secret && !f.secret.startsWith('****')) payload.secret = f.secret;
         await this.api('PUT', '/webhook-settings', payload);
         await this.loadIntegrationsSettings();

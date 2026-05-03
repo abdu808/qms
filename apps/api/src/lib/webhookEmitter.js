@@ -15,14 +15,19 @@ async function getConfig() {
   if (_cfg && Date.now() - _cfgAt < 300_000) return _cfg;
   try {
     const rows = await prisma.setting.findMany({
-      where: { key: { in: ['n8n_webhook_url', 'n8n_webhook_secret', 'n8n_webhook_enabled'] } },
+      where: { key: { in: ['n8n_webhook_url', 'n8n_webhook_secret', 'n8n_webhook_enabled', 'n8n_allowed_hosts'] } },
     });
     const m = Object.fromEntries(rows.map(r => [r.key, r.value]));
     // السر مُخزَّن مُشفَّراً (AES-256-GCM) — فك التشفير هنا؛ الصيغ القديمة غير المُشفَّرة تُترك كما هي
     const rawSecret = m.n8n_webhook_secret || '';
     const secret = rawSecret.startsWith('v1:') ? decrypt(rawSecret) : rawSecret;
-    _cfg = { url: m.n8n_webhook_url || '', secret, enabled: m.n8n_webhook_enabled === 'true' };
-  } catch { _cfg = { url: '', secret: '', enabled: false }; }
+    _cfg = {
+      url: m.n8n_webhook_url || '',
+      secret,
+      enabled: m.n8n_webhook_enabled === 'true',
+      allowedHosts: m.n8n_allowed_hosts || '',
+    };
+  } catch { _cfg = { url: '', secret: '', enabled: false, allowedHosts: '' }; }
   _cfgAt = Date.now();
   return _cfg;
 }
@@ -38,7 +43,14 @@ export async function isWebhookDeliveryEnabled() {
  * Defense-in-depth: يتحقق أن URL ليس عنواناً داخلياً حتى لو سرّبته حالة سباق في إعدادات الـ DB.
  * نفس قائمة الحظر في webhookSettings.js.
  */
-function isSafeOutboundUrl(rawUrl) {
+function parseAllowedHosts(value) {
+  return String(value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isSafeOutboundUrl(rawUrl, cfg = {}) {
   try {
     const u = new URL(rawUrl);
     if (!/^https?:$/.test(u.protocol)) return false;
@@ -50,7 +62,12 @@ function isSafeOutboundUrl(rawUrl) {
       /^169\.254\./,
       /^fc00:/i, /^fd00:/i, /^fe80:/i,
     ];
-    return !blocked.some(re => re.test(host));
+    if (blocked.some(re => re.test(host))) return false;
+    const allowList = Array.from(new Set([
+      ...parseAllowedHosts(process.env.WEBHOOK_ALLOWED_HOSTS || ''),
+      ...parseAllowedHosts(cfg.allowedHosts || ''),
+    ]));
+    return !allowList.length || allowList.includes(host);
   } catch { return false; }
 }
 
@@ -82,7 +99,7 @@ export async function emitWebhook(event, data) {
   try {
     const cfg = await getConfig();
     if (!cfg.enabled || !cfg.url) return;
-    if (!isSafeOutboundUrl(cfg.url)) {
+    if (!isSafeOutboundUrl(cfg.url, cfg)) {
       console.warn(`[webhook] blocked unsafe url: ${cfg.url}`);
       return;
     }
@@ -97,7 +114,7 @@ export async function emitWebhook(event, data) {
 export async function emitWebhookStrict(event, data) {
   const cfg = await getConfig();
   if (!cfg.url) throw new Error('webhook URL غير مُعيَّن');
-  if (!isSafeOutboundUrl(cfg.url)) throw new Error('عنوان غير آمن (SSRF protection)');
+  if (!isSafeOutboundUrl(cfg.url, cfg)) throw new Error('webhook URL غير آمن أو خارج القائمة البيضاء');
   const { body, headers } = buildRequest(event, data, cfg);
   const res = await fetchWithTimeout(cfg.url, { method: 'POST', headers, body }, TIMEOUT_MS);
   return { status: res.status, ok: res.ok };

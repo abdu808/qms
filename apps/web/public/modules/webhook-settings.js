@@ -7,7 +7,7 @@
   window.QmsWebhookSettings = {
     webhookCfg: {
       open: false,
-      url: '', secret: '', enabled: false,
+      url: '', allowedHosts: '', secret: '', enabled: false,
       saving: false, testing: false,
       testResult: null, // { ok, status, message }
       error: '',
@@ -19,6 +19,7 @@
       try {
         const r = await this.api('GET', '/webhook-settings');
         w.url     = r.item.url;
+        w.allowedHosts = r.item.allowedHosts || '';
         w.secret  = r.item.secret;
         w.enabled = r.item.enabled;
       } catch (e) { w.error = e.message; }
@@ -28,7 +29,7 @@
       const w = this.webhookCfg;
       w.saving = true; w.error = '';
       try {
-        await this.api('PUT', '/webhook-settings', { url: w.url, secret: w.secret, enabled: w.enabled });
+        await this.api('PUT', '/webhook-settings', { url: w.url, allowedHosts: w.allowedHosts, secret: w.secret, enabled: w.enabled });
         this.toast?.('تم حفظ إعدادات الـ webhook ✓');
       } catch (e) { w.error = e.message; this.toast?.(e.message, 'error'); }
       finally { w.saving = false; }

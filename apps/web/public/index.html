@@ -3066,6 +3066,13 @@
                   </div>
 
                   <div>
+                    <label class="block text-sm font-medium mb-1">القائمة البيضاء للوجهات</label>
+                    <input type="text" x-model="integrationN8nForm.allowedHosts" placeholder="n8n.aqiltech.sa"
+                      class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none" dir="ltr">
+                    <p class="text-[10px] text-gray-500 mt-1">اكتب الدومينات المسموحة مفصولة بفاصلة، مثل: n8n.aqiltech.sa</p>
+                  </div>
+
+                  <div>
                     <label class="block text-sm font-medium mb-1">السر المشترك (X-Webhook-Secret)</label>
                     <input type="password" x-model="integrationN8nForm.secret" :placeholder="integrationN8n?.secret || 'اتركه فارغاً لعدم التغيير'"
                       class="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-400 outline-none" dir="ltr">
@@ -7283,6 +7290,13 @@
           <input x-model="webhookCfg.url" type="url" placeholder="https://n8n.example.com/webhook/qms"
                  class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">القائمة البيضاء للوجهات</label>
+          <input x-model="webhookCfg.allowedHosts" type="text" placeholder="n8n.aqiltech.sa"
+                 class="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
+          <p class="text-xs text-gray-400 mt-1">دومينات مسموحة مفصولة بفاصلة.</p>
+        </div>
+
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">السر المشترك (X-Webhook-Secret)</label>
           <input x-model="webhookCfg.secret" type="password" placeholder="اتركه فارغاً لعدم التغيير"
