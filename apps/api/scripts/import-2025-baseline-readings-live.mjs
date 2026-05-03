@@ -118,18 +118,29 @@ async function main() {
       month: MONTH,
       actualValue: row.actualValue,
       evidenceUrl: row.source,
-      note: `خط أساس 2025 - قراءة إقفال السنة. المصدر: ${row.source}. ${row.note}`,
+      note: `Baseline 2025 closing reading. Source: ${row.source}. ${row.note}`,
     };
     const written = await request('/kpi/entries', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
     const entryId = written.entry?.id || written.item?.id;
+    const entryStatus = written.entry?.entryStatus || written.item?.entryStatus || null;
     let approved = null;
-    if (entryId) {
+    let approveSkipped = false;
+    if (entryId && entryStatus !== 'APPROVED') {
       approved = await request(`/kpi/entries/${entryId}/approve`, { method: 'POST', body: JSON.stringify({}) });
+    } else if (entryStatus === 'APPROVED') {
+      approveSkipped = true;
     }
-    results.push({ code: row.code, indicatorId: row.indicatorId, actualValue: row.actualValue, entryId, approved: Boolean(approved?.item) });
+    results.push({
+      code: row.code,
+      indicatorId: row.indicatorId,
+      actualValue: row.actualValue,
+      entryId,
+      entryStatus,
+      approved: Boolean(approved?.item) || approveSkipped,
+    });
   }
 
   const verifyPayload = await request(`/kpi/entries?year=${YEAR}&month=${MONTH}`);
@@ -144,7 +155,7 @@ async function main() {
     mode: 'apply',
     written: results.length,
     verifiedEntriesForPeriod: verifyEntries.length,
-    verifiedCodes,
+    verifiedCodes: verifyCodes,
     results,
   }, null, 2));
 }
