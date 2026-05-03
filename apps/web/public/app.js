@@ -763,18 +763,60 @@ function app() {
         else this.openPalette();
       }
     },
-    // مجموعات مرئية في الوضع الموجَّه — home + acks + planning (للجميع لأن myKpi يومي).
-    // أدوار الجودة/الإدارة تزيد evaluation (شكاوى/مراجعات) و improvement (NCR).
-    GUIDED_GROUP_IDS: ['home', 'acks', 'planning', 'help'],
+    guidedMenuGroupsForRole() {
+      const role = this.user?.role || 'EMPLOYEE';
+      const groups = {
+        EMPLOYEE: [
+          { id: 'guided-today', title: 'عملي اليومي', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'myAcknowledgments'] },
+          { id: 'guided-quality', title: 'بلاغات الجودة', icon: '🛠️', iso: '', color: 'amber', items: ['complaints', 'ncr'] },
+          { id: 'guided-docs', title: 'المعرفة والوثائق', icon: '📄', iso: '', color: 'teal', items: ['qualityPolicy', 'ackDocuments', 'documents', 'training', 'competence'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+        ],
+        DEPT_MANAGER: [
+          { id: 'guided-today', title: 'ما يحتاج قرارك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'myKpi', 'kpiFollowUp'] },
+          { id: 'guided-followup', title: 'المتابعة السريعة', icon: '📋', iso: '', color: 'sky', items: ['dataHealth', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-quality', title: 'الجودة والمخاطر', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'risks', 'capa', 'surveys', 'audits'] },
+          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicGoals', 'objectives', 'kpiTracking', 'operationalActivities', 'initiatives'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+        ],
+        COMMITTEE_MEMBER: [
+          { id: 'guided-today', title: 'المراجعة والقرارات', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'managementReview', 'dashboard', 'kpiFollowUp'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'dataHealth', 'progressReports', 'operationalReports'] },
+          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'audits', 'surveys'] },
+          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicGoals', 'objectives', 'kpiTracking', 'initiatives'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+        ],
+        QUALITY_MANAGER: [
+          { id: 'guided-today', title: 'مركز قيادة الجودة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
+          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'strategicGoals', 'objectives', 'indicators', 'myKpi'] },
+          { id: 'guided-admin', title: 'إعدادات تشغيلية', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+        ],
+        SUPER_ADMIN: [
+          { id: 'guided-today', title: 'مركز قيادة النظام', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
+          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'strategicGoals', 'objectives', 'indicators', 'myKpi'] },
+          { id: 'guided-admin', title: 'الإدارة والإعدادات', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments', 'audit-log'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+        ],
+      };
+      const allowed = this._menuItemsForRole(role);
+      const allowedSet = allowed === 'ALL_ITEMS' ? null : new Set(allowed || []);
+      return (groups[role] || groups.EMPLOYEE)
+        .map(g => ({
+          ...g,
+          items: g.items.filter(id => !allowedSet || allowedSet.has(id)),
+        }))
+        .filter(g => g.items.length > 0);
+    },
+
     visibleMenuGroups() {
       if (this.isReadOnly()) return this.menuGroupsForRole();
-      if (this.isAdvanced()) return this.menuGroups;
-      const allowed = new Set(this.GUIDED_GROUP_IDS);
-      if (['QUALITY_MANAGER', 'SUPER_ADMIN', 'DEPT_MANAGER', 'COMMITTEE_MEMBER'].includes(this.user?.role)) {
-        allowed.add('evaluation');
-        allowed.add('improvement');
-      }
-      return this.menuGroups.filter(g => allowed.has(g.id));
+      if (this.isAdvanced()) return this.menuGroupsForRole();
+      return this.guidedMenuGroupsForRole();
     },
 
     // ─── Quick Actions حسب الدور — moved to modules/quick-actions.js (window.QmsQuickActions)
@@ -807,7 +849,9 @@ function app() {
     // helper: filter items inside a group (by search)
     groupVisibleItems(group) {
       const q = (this.sidebarSearch || '').trim();
-      const ids = group.items.filter(id => !this.favorites.includes(id)); // المفضلة تظهر منفصلة
+      const ids = this.isAdvanced()
+        ? group.items.filter(id => !this.favorites.includes(id))
+        : group.items;
       if (!q) return ids;
       return ids.filter(id => {
         const it = this.getMenuItem(id);
@@ -815,6 +859,7 @@ function app() {
       });
     },
     favoriteItems() {
+      if (!this.isAdvanced()) return [];
       const q = (this.sidebarSearch || '').trim();
       let ids = this.favorites.slice();
       if (q) ids = ids.filter(id => { const it = this.getMenuItem(id); return it && it.label.includes(q); });
