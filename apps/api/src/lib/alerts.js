@@ -287,7 +287,7 @@ async function unapprovedSupplierEvals() {
     message: `${count} تقييم مورد بدرجة دون 60 — يحتاج قراراً بالإبقاء/الاستبعاد`,
     count, items,
     iso: '8.4.2',
-    actionUrl: '/qms#/supplierEvals?filter=low',
+    actionUrl: '/qms#/suppliers?filter=lowRated',
   };
 }
 

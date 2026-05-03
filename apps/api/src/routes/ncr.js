@@ -26,6 +26,14 @@ const crud = crudRouter({
       status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] },
       dueDate: { lt: new Date() },
     }),
+    stuck: () => {
+      const cutoff = new Date(Date.now() - 30 * 86400000);
+      return {
+        status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] },
+        createdAt: { lte: cutoff },
+        OR: [{ correctiveAction: null }, { correctiveAction: '' }],
+      };
+    },
     mine: (req) => ({ assigneeId: req.user.sub }),
     pendingMine: (req) => ({
       assigneeId: req.user.sub,

@@ -64,6 +64,17 @@ const crud = crudRouter({
   allowedSortFields: ['createdAt', 'score', 'status'],
   allowedFilters: ['status', 'level', 'departmentId', 'ownerId', 'workflowState'],
   schemas: { create: riskCreateSchema, update: riskUpdateSchema },
+  smartFilters: {
+    critical: () => ({ level: 'حرج', status: { notIn: ['CLOSED', 'ACCEPTED'] } }),
+    stale: () => {
+      const cutoff = new Date(Date.now() - 90 * 86400000);
+      return {
+        status: { notIn: ['CLOSED', 'ACCEPTED'] },
+        level: { in: ['حرج', 'مرتفع'] },
+        updatedAt: { lt: cutoff },
+      };
+    },
+  },
   // Field-Level Security: الموظف ينشئ المخاطرة لكنه لا يعدّل الحقول الحاكمة لاحقاً
   lockedFieldsForRole: {
     EMPLOYEE: ['title','description','type','source','probability','impact','strategicGoalId'],

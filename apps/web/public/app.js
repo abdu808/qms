@@ -1123,6 +1123,8 @@ function app() {
         progressReport: 'progressReports',
         'progress-reports': 'progressReports',
         isoReadiness: 'iso-readiness',
+        supplierEvals: 'suppliers',
+        'supplier-evals': 'suppliers',
       };
       return aliases[key] || key;
     },
@@ -1137,19 +1139,41 @@ function app() {
         suppliers: 'supplier',
         indicators: 'indicator',
         initiatives: 'initiative',
+        operationalActivities: 'operationalActivity',
+        beneficiaries: 'beneficiary',
+        surveys: 'survey',
+        users: 'user',
         capa: 'capa',
       })[this.normalizePageId(page)] || null;
+    },
+
+    normalizeLinkFilter(page, filter) {
+      const target = this.normalizePageId(page);
+      const key = String(filter || '').trim();
+      if (!key) return '';
+      const aliases = {
+        documents: { dueForReview: 'expiring' },
+        suppliers: { low: 'lowRated' },
+        supplierEvals: { low: 'lowRated' },
+        risks: { critical: 'critical', stale: 'stale' },
+        ncr: { stuck: 'stuck', overdue: 'overdue' },
+        complaints: { overdue: 'overdue' },
+      };
+      return aliases[target]?.[key] || key;
     },
 
     parseQmsLink(link) {
       if (!link) return null;
       const raw = String(link);
       const m = raw.match(/#\/([^?&#]+)(?:\?([^#]*))?/);
-      if (!m) return { page: this.normalizePageId(raw), id: null };
+      if (!m) return { page: this.normalizePageId(raw), id: null, params: {} };
       const params = new URLSearchParams(m[2] || '');
+      const page = this.normalizePageId(m[1]);
       return {
-        page: this.normalizePageId(m[1]),
+        page,
         id: params.get('id') || params.get('entityId') || null,
+        params: Object.fromEntries(params.entries()),
+        filter: this.normalizeLinkFilter(page, params.get('filter') || params.get('quick')),
       };
     },
 
@@ -1170,7 +1194,7 @@ function app() {
     async goToLink(link) {
       const parsed = this.parseQmsLink(link);
       if (!parsed?.page) return;
-      await this.goToResource(parsed.page, parsed.id);
+      await this.goToResource(parsed.page, parsed.id, parsed);
     },
 
     async goto(id) {
@@ -1835,11 +1859,24 @@ function app() {
     // ─── Inbox mode — استُخرجت إلى modules/inbox.js ──
     // (_inboxBusy, inboxBusy, _inboxCall, inboxSubmit, inboxReview,
     //  inboxApprove, inboxReject, canInbox) — تُدمج عبر ...window.QmsInbox
-    async goToResource(page, id) {
+    async goToResource(page, id, options = {}) {
       const target = this.normalizePageId(page);
+      const quick = this.normalizeLinkFilter(target, options.filter || options.quick || options?.params?.filter || options?.params?.quick);
       this.quickFilter = '';
       this.filterStatus = '';
       await this.goto(target);
+      if (quick && this.currentModule) {
+        this.quickFilter = quick;
+        await this.loadList(1);
+      }
+      if (target === 'progressReports' && id && typeof this.progOpenReportDetail === 'function') {
+        await this.progOpenReportDetail(id);
+        return;
+      }
+      if (target === 'kpiFollowUp' && id && typeof this.openKpiFollowUpDetail === 'function') {
+        await this.openKpiFollowUpDetail({ id });
+        return;
+      }
       if (id && typeof this.openDetail === 'function') {
         const entityType = this.pageEntityType(target);
         if (entityType) await this.openDetail(entityType, id);

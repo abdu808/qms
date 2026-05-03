@@ -17,6 +17,10 @@
         document: 'documents', risk: 'risks', supplier: 'suppliers',
         // v2 strategic planning entities
         indicator: 'indicators', initiative: 'initiatives',
+        operationalActivity: 'operational-activities',
+        beneficiary: 'beneficiaries',
+        survey: 'surveys',
+        user: 'users',
         capa: 'capa', 'follow-up-task': 'follow-up-tasks',
         'audit-finding': 'audit-findings',
       };
@@ -24,6 +28,8 @@
         complaint: 'Complaint', ncr: 'NCR', objective: 'Objective',
         document: 'Document', risk: 'Risk', supplier: 'Supplier',
         indicator: 'Indicator', initiative: 'Initiative', capa: 'Capa',
+        operationalActivity: 'OperationalActivity', beneficiary: 'Beneficiary',
+        survey: 'Survey', user: 'User',
       };
       const endpoint = endpointMap[entityType];
       if (!endpoint) return;
@@ -86,6 +92,8 @@
         complaint: 'complaints', ncr: 'ncr', objective: 'objectives',
         document: 'documents', risk: 'risks', supplier: 'suppliers',
         indicator: 'indicators', initiative: 'initiatives', capa: 'capa',
+        operationalActivity: 'operationalActivities', beneficiary: 'beneficiaries',
+        survey: 'surveys', user: 'users',
       };
       const targetPage = pageMap[d.entityType];
       const item = d.item;
