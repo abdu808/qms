@@ -1,4 +1,4 @@
-﻿CREATE TABLE "IntegrationDelivery" (
+CREATE TABLE "IntegrationDelivery" (
     "id" TEXT NOT NULL,
     "event" TEXT NOT NULL,
     "eventKey" TEXT NOT NULL,
