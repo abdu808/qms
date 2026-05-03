@@ -37,23 +37,42 @@ const RAG_MESSAGES = {
  * computeKpiFeedback — ردّ فوري على إدخال قراءة (expected/actual/ratio/rag).
  * Silent-fail: يُرجع null إذا لم يعثر على السجل الأب أو فشل الحساب.
  */
-export async function computeKpiFeedback({ objectiveId, activityId, year, month }) {
+export async function computeKpiFeedback({ objectiveId, activityId, indicatorId, year, month }) {
   try {
-    const kpiRec = objectiveId
-      ? await globalPrisma.objective.findUnique({ where: { id: objectiveId } })
-      : await globalPrisma.operationalActivity.findUnique({ where: { id: activityId } });
+    let kpiRec;
+    let targetValue;
+    let whereEntries;
+
+    if (objectiveId) {
+      kpiRec = await globalPrisma.objective.findUnique({ where: { id: objectiveId } });
+      targetValue = kpiRec?.target;
+      whereEntries = { objectiveId, year };
+    } else if (activityId) {
+      kpiRec = await globalPrisma.operationalActivity.findUnique({ where: { id: activityId } });
+      targetValue = kpiRec?.targetValue;
+      whereEntries = { activityId, year };
+    } else if (indicatorId) {
+      kpiRec = await globalPrisma.indicator.findUnique({
+        where: { id: indicatorId },
+        include: { annualTargets: { where: { year }, take: 1 } },
+      });
+      targetValue = kpiRec?.annualTargets?.[0]?.targetValue;
+      whereEntries = { indicatorId, year };
+    }
+
     if (!kpiRec) return null;
+    if (!targetValue || targetValue <= 0) return null;
 
     const allEntries = await globalPrisma.kpiEntry.findMany({
-      where:   objectiveId ? { objectiveId, year } : { activityId, year },
+      where:   whereEntries,
       orderBy: [{ month: 'asc' }],
     });
     const kpi = {
       kpiType:     kpiRec.kpiType,
       seasonality: kpiRec.seasonality,
       direction:   kpiRec.direction,
-      targetValue: objectiveId ? kpiRec.target : kpiRec.targetValue,
-      unit:        objectiveId ? kpiRec.unit   : kpiRec.targetUnit,
+      targetValue,
+      unit:        objectiveId ? kpiRec.unit : activityId ? kpiRec.targetUnit : kpiRec.unit,
     };
     const ev = evaluateKpi(kpi, allEntries, year, month);
     return {
@@ -135,14 +154,13 @@ export async function upsertKpiEntry({
 
   const where = objectiveId
     ? { objectiveId_year_month: { objectiveId, year, month } }
-    : { activityId_year_month:  { activityId,  year, month } };
+    : activityId
+      ? { activityId_year_month: { activityId, year, month } }
+      : { indicatorId_year_month: { indicatorId, year, month } };
 
   const data = {
     objectiveId:  objectiveId  || null,
     activityId:   activityId   || null,
-    // DATA-001: explicitly null out indicatorId on objectiveId/activityId paths so that
-    // UPDATE never preserves a stale indicatorId from a contaminated record.
-    // (indicatorId path will be handled separately in Strategic Planning v2 Phase 4.)
     indicatorId:  indicatorId  || null,
     year, month,
     actualValue: Number(actualValue),
@@ -160,12 +178,12 @@ export async function upsertKpiEntry({
   let rollup = null;
   if (!skipRollup) {
     try {
-      rollup = await recomputeAfterEntry({ objectiveId, activityId, year }, tx);
+      rollup = await recomputeAfterEntry({ objectiveId, activityId, indicatorId, year }, tx);
     } catch (err) {
       console.error('[kpi] rollup failed:', err?.message || err);
     }
   }
 
-  const feedback = await computeKpiFeedback({ objectiveId, activityId, year, month });
+  const feedback = await computeKpiFeedback({ objectiveId, activityId, indicatorId, year, month });
   return { entry, feedback, rollup, locked: lock.locked };
 }
