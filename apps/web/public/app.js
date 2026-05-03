@@ -612,6 +612,18 @@ function app() {
         .filter(g => g.items.length > 0);
     },
 
+    pageAllowedForRole(id) {
+      const pageId = this.normalizePageId(id);
+      if (!pageId) return false;
+      const role = this.user?.role || 'EMPLOYEE';
+      if (this.isReadOnly()) {
+        return this.menuGroupsForRole().some(g => g.items.includes(pageId));
+      }
+      const allowed = this._menuItemsForRole(role);
+      if (allowed === 'ALL_ITEMS') return true;
+      return (allowed || []).includes(pageId);
+    },
+
     // الصفحة الرئيسية بعد الدخول — حسب الدور (Audit improvement #1)
     // كل دور يدخل على شاشة مرتبطة بمهامه، لا على لوحة مزدحمة عامة.
     homePageForRole() {
@@ -619,10 +631,10 @@ function app() {
       switch (role) {
         case 'GUEST_AUDITOR':    return 'auditorDashboard'; // لوحة قراءة محدودة
         case 'EMPLOYEE':         return 'myWork';           // مهامي اليوم
-        case 'DEPT_MANAGER':     return 'dashboard';        // لوحة القسم (تعرض scope إدارته)
-        case 'QUALITY_MANAGER':  return 'dashboard';        // لوحة مراقب الجودة
-        case 'COMMITTEE_MEMBER': return 'managementReview'; // لوحة المراجعة
-        case 'SUPER_ADMIN':      return 'dashboard';        // لوحة النظام
+        case 'DEPT_MANAGER':     return 'myWork';           // مركز قرارات القسم
+        case 'QUALITY_MANAGER':  return 'myWork';           // مركز قيادة الجودة
+        case 'COMMITTEE_MEMBER': return 'myWork';           // ملخص القرارات والمراجعة
+        case 'SUPER_ADMIN':      return 'myWork';           // مركز قيادة النظام
         default:                 return 'myWork';
       }
     },
@@ -679,7 +691,7 @@ function app() {
     paletteItems() {
       const items = [];
       // الصفحات — من الـ menu الكامل (يعتمد على permissions كما في can(resource,action))
-      (this.menu || []).forEach(m => {
+      (this.menu || []).filter(m => this.pageAllowedForRole(m.id)).forEach(m => {
         items.push({
           kind: 'page', id: m.id, label: m.label, icon: m.icon,
           hint: 'صفحة',
@@ -1244,6 +1256,13 @@ function app() {
 
     async goto(id) {
       id = this.normalizePageId(id);
+      if (!this.pageAllowedForRole(id)) {
+        const fallback = this.homePageForRole();
+        if (id !== fallback) {
+          this.toast?.('\u0647\u0630\u0647 \u0627\u0644\u0635\u0641\u062d\u0629 \u062e\u0627\u0631\u062c \u0646\u0637\u0627\u0642 \u0635\u0644\u0627\u062d\u064a\u062a\u0643 \u0623\u0648 \u062f\u0648\u0631\u0643 \u0627\u0644\u062d\u0627\u0644\u064a', 'info');
+          id = fallback;
+        }
+      }
       this.page = id;
       this.search = '';
       this.filterStatus = '';
