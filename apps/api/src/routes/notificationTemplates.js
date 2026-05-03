@@ -131,6 +131,13 @@ router.post('/:key/preview', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncH
     dueDate: '2026-05-05',
     link: 'https://quality.aqiltech.sa/qms#/kpiFollowUp',
     followUpCode: 'KFU-2026-0023',
+    totalOverdue: '18',
+    pendingCount: '2',
+    firstNoticeCount: '5',
+    escalatedL1Count: '4',
+    escalatedL2Count: '7',
+    oldestDaysLate: '24',
+    departmentSummary: 'إدارة الخدمة المجتمعية: 7\nإدارة الدعم المؤسسي: 4\nالإدارة المالية: 3',
     ...req.body,
   };
 

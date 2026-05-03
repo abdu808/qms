@@ -66,6 +66,11 @@ function getPeriodsToCheck() {
   return periods;
 }
 
+function getPreviousMonthPeriod(ref = new Date()) {
+  const d = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
 // ─── تحديد department للمؤشر من مصادر متعددة ───────────────────
 // المؤشرات المستقلة (بلا objective) شائعة، لذا نحاول أكثر من مصدر
 function resolveDepartmentForIndicator(indicator) {
@@ -260,6 +265,150 @@ function buildVarsForFollowUp(f, recipient = {}) {
   };
 }
 
+function buildVarsForIndicatorReminder(indicator, period, dueDate, recipient = {}) {
+  return {
+    employeeName:   recipient?.name || '',
+    indicatorCode:  indicator?.code || '',
+    indicatorName:  indicator?.nameAr || '',
+    month:          period.month,
+    year:           period.year,
+    dueDate:        dueDate ? new Date(dueDate).toISOString().slice(0, 10) : '',
+    link:           '/qms#/kpiEntries',
+  };
+}
+
+export async function sendKpiPreDeadlineReminders() {
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const period = getPreviousMonthPeriod(now);
+  const dueDate = calculateDueDate(period.year, period.month);
+  const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+
+  if (daysUntilDue < 0 || daysUntilDue > 3) return { sent: 0, skippedWindow: true };
+
+  const indicators = await prisma.indicator.findMany({
+    where: { frequency: 'MONTHLY', deletedAt: null },
+    select: {
+      id: true,
+      code: true,
+      nameAr: true,
+      dataEntryUserId: true,
+      ownerId: true,
+      approverUserId: true,
+      dataEntryUser: { select: { id: true, name: true, email: true, phone: true, role: true, active: true } },
+      owner: { select: { id: true, name: true, email: true, phone: true, role: true, active: true } },
+      approver: { select: { id: true, name: true, email: true, phone: true, role: true, active: true } },
+    },
+  });
+  if (!indicators.length) return { sent: 0, checked: 0 };
+
+  const entries = await prisma.kpiEntry.findMany({
+    where: {
+      year: period.year,
+      month: period.month,
+      indicatorId: { in: indicators.map(i => i.id) },
+    },
+    select: { indicatorId: true },
+  });
+  const entered = new Set(entries.map(e => e.indicatorId));
+  let sent = 0;
+
+  for (const indicator of indicators) {
+    if (entered.has(indicator.id)) continue;
+    const recipient =
+      indicator.dataEntryUser ||
+      indicator.owner ||
+      indicator.approver;
+    if (!recipient?.id || recipient.active === false) continue;
+
+    const r = await sendNotification({
+      eventKey: 'KPI_PRE_DEADLINE',
+      dedupeKey: `KPI_PRE_DEADLINE:${indicator.id}:${period.year}:${period.month}:${today}`,
+      recipient,
+      variables: buildVarsForIndicatorReminder(indicator, period, dueDate, recipient),
+      entityType: 'Indicator',
+      entityId: indicator.id,
+      link: '/qms#/kpiEntries',
+      fallbackTitle: `تذكير قبل الإغلاق الشهري: ${indicator.code}`,
+      fallbackMessage: `يرجى إدخال قراءة مؤشر ${indicator.nameAr} لفترة ${period.month}/${period.year} قبل ${dueDate.toISOString().slice(0, 10)}.`,
+      payloadExtra: { period, daysUntilDue },
+    });
+    if (r.inApp || r.dispatched) sent++;
+  }
+
+  return { sent, checked: indicators.length, period, daysUntilDue };
+}
+
+export async function sendKpiQualityManagerDailySummary() {
+  const today = new Date().toISOString().slice(0, 10);
+  const items = await prisma.kpiFollowUp.findMany({
+    where: { status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } },
+    include: {
+      department: { select: { name: true } },
+    },
+  });
+  if (!items.length) return { sent: 0, total: 0 };
+
+  const counts = {
+    pending: 0,
+    firstNotice: 0,
+    escalatedL1: 0,
+    escalatedL2: 0,
+  };
+  const byDept = new Map();
+  let oldestDaysLate = 0;
+
+  for (const item of items) {
+    if (item.status === 'PENDING') counts.pending++;
+    if (item.status === 'FIRST_NOTICE') counts.firstNotice++;
+    if (item.status === 'ESCALATED' && item.escalationLevel === 1) counts.escalatedL1++;
+    if (item.status === 'ESCALATED' && item.escalationLevel >= 2) counts.escalatedL2++;
+    oldestDaysLate = Math.max(oldestDaysLate, item.daysLate || 0);
+    const dept = item.department?.name || 'بدون قسم';
+    byDept.set(dept, (byDept.get(dept) || 0) + 1);
+  }
+
+  const departmentSummary = Array.from(byDept.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, count]) => `${name}: ${count}`)
+    .join('\n');
+
+  const recipients = await prisma.user.findMany({
+    where: { role: { in: ['QUALITY_MANAGER', 'SUPER_ADMIN'] }, active: true },
+    select: { id: true, name: true, email: true, phone: true, role: true },
+  });
+
+  let sent = 0;
+  for (const recipient of recipients) {
+    const r = await sendNotification({
+      eventKey: 'KPI_QM_DAILY_SUMMARY',
+      dedupeKey: `KPI_QM_DAILY_SUMMARY:${recipient.id}:${today}`,
+      recipient,
+      variables: {
+        managerName: recipient.name || '',
+        totalOverdue: items.length,
+        pendingCount: counts.pending,
+        firstNoticeCount: counts.firstNotice,
+        escalatedL1Count: counts.escalatedL1,
+        escalatedL2Count: counts.escalatedL2,
+        oldestDaysLate,
+        departmentSummary,
+        link: '/qms#/kpiFollowUp',
+      },
+      entityType: 'KpiFollowUp',
+      entityId: null,
+      link: '/qms#/kpiFollowUp',
+      fallbackTitle: `ملخص متابعات المؤشرات المتأخرة (${items.length})`,
+      fallbackMessage: `يوجد ${items.length} متابعة مؤشر نشطة. التصعيد مستوى 2: ${counts.escalatedL2}.`,
+      payloadExtra: { counts, oldestDaysLate, departmentSummary },
+    });
+    if (r.inApp || r.dispatched) sent++;
+  }
+
+  return { sent, total: items.length, counts, oldestDaysLate };
+}
+
 /**
  * يرسل إشعارات للمسؤولين عن المتابعات المُصعّدة
  * يستخدم القوالب القابلة للتعديل (NotificationTemplate) عبر sendNotification
@@ -372,15 +521,17 @@ export async function notifyEscalatedFollowUps() {
 export async function runDailyKpiFollowUpCheck() {
   const started = Date.now();
   try {
+    const preDeadline = await sendKpiPreDeadlineReminders();
     const detection = await detectAndUpdateOverdueKpis();
     const notifications = await notifyEscalatedFollowUps();
+    const qmSummary = await sendKpiQualityManagerDailySummary();
     const ms = Date.now() - started;
 
     console.log(
-      `[kpiFollowUp] ✓ ${ms}ms | indicators=${detection.indicatorsChecked} periods=${detection.periodsChecked} | created=${detection.created} updated=${detection.updated} resolved=${detection.resolved} aborted=${detection.aborted} | skip(noDept=${detection.skippedNoDept}, noUser=${detection.skippedNoUser}) | notified=${notifications.firstNotice + notifications.deptManager + notifications.executive}`
+      `[kpiFollowUp] ✓ ${ms}ms | indicators=${detection.indicatorsChecked} periods=${detection.periodsChecked} | created=${detection.created} updated=${detection.updated} resolved=${detection.resolved} aborted=${detection.aborted} | skip(noDept=${detection.skippedNoDept}, noUser=${detection.skippedNoUser}) | preDeadline=${preDeadline.sent || 0} notified=${notifications.firstNotice + notifications.deptManager + notifications.executive} qmSummary=${qmSummary.sent || 0}`
     );
 
-    return { ...detection, ...notifications };
+    return { ...detection, ...notifications, preDeadline, qmSummary };
   } catch (e) {
     console.error('[kpiFollowUp] check failed:', e);
     throw e;
