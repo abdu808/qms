@@ -1,4 +1,4 @@
-﻿-- Link operational activities to supporting/independent indicators.
+-- Link operational activities to supporting/independent indicators.
 -- This keeps the formal hierarchy light while allowing procedural activities
 -- to declare which KPI they serve.
 
