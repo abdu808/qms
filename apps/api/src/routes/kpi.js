@@ -343,7 +343,10 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
       prisma.indicator.findMany({
         where: {
           deletedAt: null,
-          ownerId: userId,
+          OR: [
+            { dataEntryUserId: userId },
+            { ownerId: userId },
+          ],
         },
         include: {
           annualTargets: { where: { year }, take: 1 },

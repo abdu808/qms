@@ -22,6 +22,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { activeWhere } from '../lib/dataHelpers.js';
 import { computeComplaintSla } from '../lib/sla.js';
 import { needsReview as beneficiaryNeedsReview } from '../lib/beneficiaryAssessment.js';
+import { isDueMonth } from '../lib/kpiFrequency.js';
 
 const router = Router();
 
@@ -47,16 +48,24 @@ router.get('/', asyncHandler(async (req, res) => {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
   try {
-    const ownedObjectives = await prisma.objective.findMany({
-      where: activeWhere({ ownerId: userId, status: { notIn: ['CANCELLED', 'ACHIEVED'] } }),
+    const ownedIndicators = await prisma.indicator.findMany({
+      where: activeWhere({
+        OR: [
+          { dataEntryUserId: userId },
+          { ownerId: userId },
+        ],
+      }),
       select: {
         id: true,
+        frequency: true,
+        seasonality: true,
         kpiEntries: { where: { year, month }, select: { id: true } },
       },
     });
-    const entered = ownedObjectives.filter(o => o.kpiEntries.length > 0).length;
-    const pending = ownedObjectives.length - entered;
-    kpiSummary = { total: ownedObjectives.length, pending, entered, month, year };
+    const dueIndicators = ownedIndicators.filter(i => isDueMonth(i.frequency, month, i.seasonality));
+    const entered = dueIndicators.filter(i => i.kpiEntries.length > 0).length;
+    const pending = dueIndicators.length - entered;
+    kpiSummary = { total: dueIndicators.length, pending, entered, month, year };
   } catch { kpiSummary = null; }
 
   // ═══ 2) NCR — مسندة لي + (privileged) بانتظار مراجعة/اعتماد ═══
@@ -195,7 +204,7 @@ router.get('/', asyncHandler(async (req, res) => {
         });
         const teamIds = teamUsers.map(u => u.id);
 
-        const [dNcr, dComp, dObjectives] = await Promise.all([
+        const [dNcr, dComp, dIndicators] = await Promise.all([
           prisma.nCR.findMany({
             where: activeWhere({ assigneeId: { in: teamIds }, status: { in: NCR_OPEN } }),
             select: { id: true, code: true, title: true, severity: true, status: true, dueDate: true, assigneeId: true },
@@ -207,17 +216,25 @@ router.get('/', asyncHandler(async (req, res) => {
                       receivedAt: true, assigneeId: true, resolvedAt: true, updatedAt: true, createdAt: true },
             take: 30,
           }),
-          prisma.objective.findMany({
-            where: activeWhere({ ownerId: { in: teamIds }, status: { notIn: ['CANCELLED', 'ACHIEVED'] } }),
+          prisma.indicator.findMany({
+            where: activeWhere({
+              OR: [
+                { dataEntryUserId: { in: teamIds } },
+                { ownerId: { in: teamIds } },
+                { approverUserId: { in: teamIds } },
+              ],
+            }),
             select: {
-              id: true, code: true, title: true, ownerId: true,
+              id: true, code: true, nameAr: true, ownerId: true, dataEntryUserId: true,
+              frequency: true, seasonality: true,
               kpiEntries: { where: { year, month }, select: { id: true } },
             },
           }),
         ]);
-        const kpiPending = dObjectives
-          .filter(o => o.kpiEntries.length === 0)
-          .map(o => ({ id: o.id, code: o.code, title: o.title, ownerId: o.ownerId }));
+        const kpiPending = dIndicators
+          .filter(i => isDueMonth(i.frequency, month, i.seasonality))
+          .filter(i => i.kpiEntries.length === 0)
+          .map(i => ({ id: i.id, code: i.code, title: i.nameAr, ownerId: i.ownerId, dataEntryUserId: i.dataEntryUserId }));
         const compWithSla = dComp.map(c => ({ ...c, sla: computeComplaintSla(c) }));
 
         deptBlock = {

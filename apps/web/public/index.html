@@ -5085,7 +5085,7 @@
                           <div class="text-3xl mb-1">📈</div>
                           <div class="font-medium text-gray-700">لا توجد قراءات بعد</div>
                           <div class="text-xs text-gray-500 mb-2">أضف قياسات KPI الشهرية لرؤية الانحرافات</div>
-                          <button @click="page='myKpi'" class="bg-violet-600 hover:bg-violet-700 text-white rounded px-3 py-1 text-xs">إدخال قراءة ←</button>
+                          <button @click="goToResource('myKpi')" class="bg-violet-600 hover:bg-violet-700 text-white rounded px-3 py-1 text-xs">إدخال قراءة ←</button>
                         </td>
                       </tr>
                     </tbody>
@@ -7225,7 +7225,7 @@
                 <li class="py-1.5 flex items-center justify-between gap-2">
                   <span class="font-mono text-xs text-amber-600" x-text="obj.code"></span>
                   <span class="flex-1 truncate text-amber-900" x-text="obj.title"></span>
-                  <button @click="goToResource('objectives'); closeDeptDashboard()" class="text-xs text-blue-600 hover:underline">فتح ←</button>
+                  <button @click="goToResource('kpiTracking'); closeDeptDashboard()" class="text-xs text-blue-600 hover:underline">فتح ←</button>
                 </li>
               </template>
             </ul>
