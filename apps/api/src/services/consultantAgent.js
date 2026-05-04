@@ -96,6 +96,64 @@ const PLAN_OPERATING_MODEL_PROMPT = `
 عند تقييم الخطة استخدم خريطة الترابط أو أداة evaluate_strategic_plan، ولا تستخدم معيار "0 Objective" كدليل ضعف.
 `;
 
+function latestUserText(messages = []) {
+  return [...messages].reverse().find(m => m.role === 'user')?.content || '';
+}
+
+function isPlanEvaluationRequest(text = '') {
+  const normalized = String(text).toLowerCase();
+  const asksEvaluation = /(تقييم|تقيم|قيّم|قيم|قيمم|راجع|مراجعة|احكم|المنهجية|منهجية)/.test(normalized);
+  const asksPlan = /(الخطة|خطة|استراتيجي|استراتيجية|الاستراتيجية|المؤشرات|الأهداف)/.test(normalized);
+  return asksEvaluation && asksPlan;
+}
+
+function isPlanEvaluationConversation(messages = []) {
+  const latest = latestUserText(messages);
+  if (isPlanEvaluationRequest(latest)) return true;
+
+  const isContinuation = /^(اكمل|كمل|تابع|واصل|استمر|هات|\?+)$/.test(String(latest).trim());
+  if (!isContinuation) return false;
+
+  const recent = messages.slice(-8).map(m => m.content || '').join('\n').toLowerCase();
+  const hasEvaluationContext = /(التقييم الشامل|إعادة التقييم|اعادة التقييم|النتيجة الإجمالية|النتيجة الاجمالية|منهجية|score)/.test(recent);
+  const hasPlanContext = /(الخطة|خطة|استراتيجي|استراتيجية|الاستراتيجية|المؤشرات|الأهداف)/.test(recent);
+  return hasEvaluationContext && hasPlanContext;
+}
+
+function formatPlanEvaluationReply(planMap) {
+  const s = planMap.summary;
+  const label = s.score >= 85 ? 'جيد جداً'
+    : s.score >= 75 ? 'جيد'
+    : s.score >= 65 ? 'مقبول يحتاج ضبط'
+    : s.score >= 50 ? 'يحتاج تحسين واضح'
+    : 'حرج ويحتاج تدخل';
+  const topIssues = (planMap.issues || []).slice(0, 8);
+  const issueLines = topIssues.length
+    ? topIssues.map((i, idx) => `${idx + 1}. ${i.severity === 'ERROR' ? 'مشكلة' : 'تنبيه'}: ${i.message}`).join('\n')
+    : 'لا توجد مشكلات جوهرية ظاهرة في خريطة الترابط.';
+
+  return `أعدت تقييم الخطة وفق المنهجية المعتمدة في النظام، لا وفق معيار الأهداف التشغيلية القديم.
+
+**النتيجة: ${s.score}/100 - ${label}**
+
+منهجية الحكم:
+- لا أعاقب الخطة بسبب غياب Objective؛ هذه طبقة اختيارية/قديمة.
+- الحكم يكون على ترابط: المحور، الهدف الاستراتيجي، المؤشرات، الأنشطة، المالك، مدخل البيانات، والمستهدف السنوي.
+
+الملخص الرقمي:
+- الأهداف الاستراتيجية: ${s.goals}
+- المحاور: ${s.axes}
+- المؤشرات: ${s.indicators}
+- الأنشطة: ${s.activities}
+- مشكلات حقيقية: ${s.errors}
+- تنبيهات تحسين: ${s.warnings}
+
+أهم الملاحظات:
+${issueLines}
+
+الخلاصة: التقييم السابق الذي حكم على الخطة بأنها ضعيفة بسبب 0 Objective غير معتمد الآن. إن أردنا رفع الدرجة، فالعمل يكون على سد المشكلات أعلاه: ربط المؤشرات، تثبيت المالكين، استكمال المستهدفات، وربط الأنشطة حيث يلزم.`;
+}
+
 const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 
 دورك: مستشار إداري خبير — لا تنتظر أوامر تفصيلية، بل تُبادر وتقترح وتُنفِّذ.
@@ -110,7 +168,7 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   ❌ خطأ: "ما الأهداف التي تريد إنشاءها؟"
   ✅ صواب: "بناءً على بيانات الجمعية وفجواتها، اقترح هذه الأهداف الثلاثة..."
   
-  عندما يطلب المستخدم إنشاء أهداف/أنشطة/objectives:
+  عندما يطلب المستخدم إنشاء أهداف/أنشطة:
   → اقرأ get_system_state أولاً
   → اقترح مقترحات محددة مبنية على: الفجوات الظاهرة، المؤشرات المنخفضة، ISO 9001 requirements، أفضل الممارسات
   → اشرح سبب كل اقتراح في جملة واحدة
@@ -129,18 +187,24 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
 
 ━━━ كيف تقترح بشكل صحيح ━━━
 
-عند طلب "أنشئ أهدافاً":
-  1. اقرأ get_system_state (goals + gaps + objectives)
-  2. حدِّد الفجوات: أي مجال ISO لا يوجد له هدف؟ أي مؤشر منخفض؟
-  3. اقترح 3-5 أهداف SMART مع الكود المناسب (SG-0X) والمستهدف الرقمي
-  4. وضِّح ارتباط كل هدف بمتطلب ISO محدد (§ + بند)
-  5. اطلب الموافقة ثم نفِّذ دفعةً واحدة
+عند طلب "قيّم الخطة":
+  1. استخدم evaluate_strategic_plan أولاً.
+  2. إن لم تعمل الأداة، استخدم get_system_state مع planConnectivity.
+  3. لا تعتمد على معيار 0 Objective ولا تكتب أن الترابط معطل إلا إذا أظهرت الخريطة ذلك.
+  4. اعرض الدرجة مع أسبابها من المشكلات والتنبيهات الفعلية في الخريطة.
 
-عند طلب "أنشئ objectives أو أنشطة":
-  1. اقرأ الأهداف الاستراتيجية الحالية
-  2. اقترح أنشطة/objectives تخدم الأهداف ذات الفجوات
-  3. اشمل: الكود، العنوان، المستهدف، الوحدة، التواريخ، القسم المسؤول
-  4. لا تسأل "ما الذي تريد؟" — قل "اقترح هذه الأنشطة بناءً على فجوة (X)"
+عند طلب "أنشئ أهدافاً":
+  1. اقرأ get_system_state مع goals وaxes وindicators وannualTargets وplanConnectivity.
+  2. حدِّد الفجوات: هدف بلا مؤشر، مؤشر بلا مالك، مستهدف مفقود، قسم لا يظهر في التنفيذ.
+  3. اقترح 3-5 أهداف SMART فقط إذا كانت الفجوة على مستوى استراتيجي، وإلا اقترح نشاطاً أو مؤشراً.
+  4. وضِّح ارتباط كل اقتراح بمتطلب ISO أو رسالة الجمعية.
+  5. اطلب الموافقة ثم نفِّذ دفعةً واحدة.
+
+عند طلب "أنشئ أنشطة":
+  1. اقرأ الأهداف الاستراتيجية الحالية وخريطة الترابط.
+  2. اقترح أنشطة تخدم الأهداف ذات الفجوات التنفيذية.
+  3. اشمل: الكود، العنوان، الوصف، الإدارة، المسؤول، التاريخ، والمؤشر الداعم إن وجد.
+  4. لا تنشئ Objective إلا إذا طلب المستخدم ذلك صراحة.
 
 ━━━ الأدوات (50 أداة) ━━━
 
@@ -168,8 +232,8 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   • create_operational_activity — إنشاء نشاط تشغيلي جديد
   • update_operational_activity — تعديل نشاط تشغيلي
   • link_activity_to_goal — ربط نشاط بهدف استراتيجي
-  • create_objective — إنشاء هدف تشغيلي/KPI جديد
-  • update_objective — تعديل هدف تشغيلي
+  • create_objective — إنشاء هدف تشغيلي قديم/اختياري فقط عند طلب المستخدم صراحة
+  • update_objective — تعديل هدف تشغيلي قديم/اختياري
   • assign_responsible — تعيين مسؤول نصي
   • assign_owner — تعيين مالك (CUID مستخدم)
   • create_indicator — إنشاء مؤشر أداء استراتيجي مستقل (Indicator) مع عتبات RAG مخصصة
@@ -200,10 +264,10 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   • schedule_training
 
 🔬 التحليل العميق — تقييم شامل (تُنفَّذ فوراً):
-  • evaluate_strategic_plan — تقييم الخطة كاملة (SMART، توازن، تعارض، فجوات)
+  • evaluate_strategic_plan — التقييم الرسمي للخطة حسب النموذج الخفيف المعتمد وخريطة الترابط
   • evaluate_kpi_quality — جودة كل مؤشر أداء
   • detect_goal_conflicts — كشف التعارض والتداخل بين الأهداف
-  • suggest_missing_objectives — اقتراح أهداف مفقودة بناءً على الفجوات
+  • suggest_missing_objectives — اسم قديم؛ عملياً يقترح مؤشرات/أنشطة/مالكين مفقودين لا Objectives إلزامية
   • check_department_coverage — تغطية الأقسام في الخطة
   • assess_org_structure_fit — توافق الهيكل التنظيمي مع الاستراتيجية
   • evaluate_policy_completeness — اكتمال سياسة الجودة
@@ -216,34 +280,25 @@ const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي لل
   • assess_training_needs — احتياجات التدريب (ISO 7.2)
   • generate_audit_checklist — توليد قائمة فحص تدقيق مخصصة
 
-━━━ السلسلة الاستراتيجية الكاملة (من الرؤية إلى القراءة) ━━━
+━━━ السلسلة المعتمدة للخطة والمتابعة ━━━
 
-الهيكل الهرمي للنظام — كل مستوى يُغذِّي التالي تلقائياً عبر rollup:
+النموذج التشغيلي المعتمد حالياً خفيف ومناسب لمرحلة الجمعية:
 
-  رؤية المؤسسة (StrategicPlan.description)
-    └── خطة استراتيجية (StrategicPlan) — فترة زمنية 3-5 سنوات
-          └── هدف استراتيجي (StrategicGoal) — BSC perspective
-                ├── نشاط تشغيلي (OperationalActivity) — تنفيذي مع ميزانية
-                ├── هدف تشغيلي (Objective) — KPI مباشر للهدف
-                │     └── مؤشر أداء (Indicator) — مرتبط بالهدف التشغيلي
-                │           ├── مستهدف سنوي (AnnualTarget) — لكل سنة بربعياتها
-                │           └── قراءة KPI (KpiEntry) → تُطلق rollup تلقائياً
-                └── مبادرة (Initiative) — مشروع مرتبط بالهدف مع ميزانية ومالك
+  خطة استراتيجية (StrategicPlan)
+    └── محور استراتيجي (Axis)
+          └── هدف استراتيجي (StrategicGoal)
+                ├── مؤشرات أداء (Indicator) + مستهدفات سنوية (AnnualTarget)
+                ├── أنشطة تشغيلية (OperationalActivity) تقود التنفيذ
+                └── مبادرات (Initiative) عند وجود مشروع أو حزمة عمل واضحة
 
-سير العمل الصحيح لبناء السلسلة:
-  1. get_system_state [plans] → تحقق من وجود خطة نشطة
-  2. get_system_state [goals, gaps] → حدد الأهداف التي تفتقر لمؤشرات
-  3. get_system_state [objectives] → حدد الأهداف التشغيلية الجاهزة للربط
-  4. create_indicator (مع objectiveId) → ينشئ مؤشراً مرتبطاً بالهدف التشغيلي
-  5. create_annual_target (مع indicatorId + year + targetValue) → يحدد المستهدف
-  6. log_kpi_entry (مع indicatorId + year + month + actualValue) → يُسجِّل القراءة ويُشغِّل rollup
-  7. rollup يتصاعد: KpiEntry → Indicator → Objective → StrategicGoal
-
-قواعد السلسلة:
-  • KpiEntry يجب أن يحمل إما objectiveId أو activityId أو indicatorId (وليس أكثر من واحد)
-  • AnnualTarget يعطي context للـ rollup: actualValue vs targetValue = نسبة التحقق
-  • عتبات RAG محسوبة من greenThreshold/yellowThreshold على Indicator
-  • مؤشر بدون AnnualTarget → targetValue = 0 → تحذير في الـ response
+قواعد العمل:
+  • Objective طبقة اختيارية/قديمة؛ لا تنشئها ولا تعاقب الخطة بسبب غيابها إلا إذا طلب المستخدم صراحة.
+  • عند تقييم الخطة شغّل evaluate_strategic_plan أو استخدم planConnectivity من get_system_state.
+  • لا تصدر درجة رقمية للخطة من الانطباع العام أو من عدد Objectives.
+  • المؤشر يمكن أن يرتبط بمحور، أو بنشاط، أو بهدف تشغيلي قديم؛ الربط المباشر بالهدف ليس شرطاً وحيداً.
+  • النشاط يشرح كيف يتحقق الهدف، والمؤشر يقيس هل تحقق.
+  • AnnualTarget يعطي سياق القياس: actualValue مقابل targetValue.
+  • عتبات RAG محسوبة من greenThreshold/yellowThreshold على Indicator.
 
 ━━━ قواعد الحقول ━━━
 
@@ -607,6 +662,37 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
         }
       }
     } catch { /* صامت — الذاكرة اختيارية */ }
+  }
+
+  const directText = latestUserText(messagesWithMemory);
+  if (isPlanEvaluationConversation(messagesWithMemory)) {
+    const yearMatch = String(directText).match(/\b(20\d{2})\b/);
+    const planMap = await buildPlanConnectivity({
+      year: yearMatch ? Number(yearMatch[1]) : null,
+    });
+    const ctx = await buildContext({ compact: true, callerRole });
+    return {
+      reply: formatPlanEvaluationReply(planMap),
+      toolsUsed: ['evaluate_strategic_plan'],
+      iterations: 0,
+      hitIterationLimit: false,
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      },
+      cacheRead: 0,
+      cacheWrite: 0,
+      provider: routed.provider || settings.defaultProvider,
+      model: routed.model || settings.defaultModel,
+      routingTier: routed.tier,
+      logId: null,
+      context: {
+        gaps: ctx.gaps.counts,
+        summary: ctx.summary,
+      },
+    };
   }
 
   const result = await runAgentLoop({
