@@ -10,12 +10,12 @@
     kpi: {
       year: new Date().getFullYear(),
       month: new Date().getMonth() + 1,
-      view: 'dashboard', // dashboard | matrix | entry | detail | alerts
+      view: 'entry', // entry | dashboard | matrix | detail | alerts
       dashboard: null,
       matrix: null,
       alerts: [],
       detail: null,
-      entryForm: { kind: 'objective', id: '', actualValue: '', spent: '', note: '', evidenceUrl: '', deviationReason: '', actionNote: '' },
+      entryForm: { kind: 'indicator', id: '', actualValue: '', spent: '', note: '', evidenceUrl: '', deviationReason: '', actionNote: '' },
       objectivesList: [],
       activitiesList: [],
       indicatorsList: [],

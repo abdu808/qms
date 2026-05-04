@@ -4991,14 +4991,14 @@
                   <template x-for="y in (kpi.availableYears && kpi.availableYears.length ? kpi.availableYears : [new Date().getFullYear()])" :key="y"><option :value="y" x-text="y"></option></template>
                 </select>
                 <label class="text-sm text-gray-600 mr-2">الشهر:</label>
-                <select x-model.number="kpi.month" @change="kpi.view==='dashboard'?kpiLoadDashboard():kpi.view==='matrix'?kpiLoadMatrix():kpi.view==='alerts'?kpiLoadAlerts():null" class="border rounded-lg px-2 py-1 text-sm">
+                <select x-model.number="kpi.month" @change="kpi.view==='dashboard'?kpiLoadDashboard():kpi.view==='matrix'?kpiLoadMatrix():kpi.view==='alerts'?kpiLoadAlerts():kpi.view==='entry'?kpiLoadEntryOptions():null" class="border rounded-lg px-2 py-1 text-sm">
                   <template x-for="m in 12" :key="m"><option :value="m" x-text="kpiMonthName(m)"></option></template>
                 </select>
               </div>
               <div class="flex gap-1 border rounded-lg p-1 bg-slate-50">
-                <button @click="kpi.view='dashboard';kpiLoadDashboard()" :class="kpi.view==='dashboard'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">📊 اللوحة</button>
-                <button @click="kpi.view='matrix';kpiLoadMatrix()" :class="kpi.view==='matrix'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">🗂️ المصفوفة</button>
-                <button @click="kpi.view='entry';kpiLoadEntryOptions();kpi.entryForm={kind:'objective',id:'',actualValue:'',spent:'',note:'',evidenceUrl:''}" :class="kpi.view==='entry'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">✏️ الإدخال</button>
+                <button @click="kpi.view='entry';kpiLoadEntryOptions();kpi.entryForm={kind:'indicator',id:'',actualValue:'',spent:'',note:'',evidenceUrl:'',deviationReason:'',actionNote:''}" :class="kpi.view==='entry'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">✏️ إدخال الشهر</button>
+                <button @click="kpi.view='dashboard';kpiLoadDashboard()" :class="kpi.view==='dashboard'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">📊 لوحة الشهر</button>
+                <button x-show="['SUPER_ADMIN','QUALITY_MANAGER','COMMITTEE_MEMBER'].includes(user?.role)" @click="kpi.view='matrix';kpiLoadMatrix()" :class="kpi.view==='matrix'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">🗂️ المصفوفة السنوية</button>
                 <button @click="kpi.view='alerts';kpiLoadAlerts()" :class="kpi.view==='alerts'?'bg-white shadow-sm':'text-gray-500'" class="px-3 py-1 rounded-md text-sm">🚨 التنبيهات</button>
               </div>
             </div>
@@ -5212,8 +5212,7 @@
                 <div>
                   <label class="block text-sm font-medium mb-1">النوع</label>
                   <div class="flex gap-2">
-                    <button @click="kpi.entryForm.kind='objective';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='objective'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">🎯 مؤشر استراتيجي</button>
-                    <button @click="kpi.entryForm.kind='indicator';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='indicator'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">📊 مؤشر مستقل</button>
+                    <button @click="kpi.entryForm.kind='indicator';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='indicator'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">📊 مؤشر</button>
                     <button @click="kpi.entryForm.kind='activity';kpi.entryForm.id=''" :class="kpi.entryForm.kind==='activity'?'bg-indigo-600 text-white':'bg-slate-100'" class="px-4 py-2 rounded-lg text-sm flex-1">⚙️ نشاط تشغيلي</button>
                   </div>
                 </div>
