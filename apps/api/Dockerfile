@@ -32,8 +32,10 @@ RUN apk add --no-cache \
 COPY apps/api/package*.json ./
 COPY apps/api/prisma ./prisma/
 
-# Use npm ci for reproducible, faster production installs.
-RUN npm ci --omit=dev --no-audit --no-fund --no-update-notifier
+# Keep npm install here for compatibility with the production Docker build.
+# npm ci succeeds locally, but Coolify's injected build environment can fail it
+# before showing the underlying npm error.
+RUN npm install --omit=dev --no-audit --no-fund
 
 COPY apps/api/ ./
 
