@@ -116,6 +116,7 @@ function readRows(workbook) {
     const title = cleanText(row.getCell(5).value);
     const decision = cleanText(row.getCell(15).value);
     if (!no || !axis || !title || decision.includes('يحذف') || decision.includes('يؤجل')) continue;
+    if (title.includes('موقع الجمعية')) continue;
     const frequency = normalizeFrequency(row.getCell(14).value);
     const target2026Raw = cleanText(row.getCell(12).value);
     const target2027Raw = cleanText(row.getCell(13).value);
