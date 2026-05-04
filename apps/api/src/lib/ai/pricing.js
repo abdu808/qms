@@ -33,9 +33,9 @@ export const PRICING = {
   'gemini-1.5-pro':            { in: 1.25,  out: 5.00  },
 };
 
-// الافتراضي — Sonnet دائماً (التحليل والمتابعة يتطلبان جودة عالية)
+// الافتراضي — Haiku دائماً. Sonnet يُستخدم فقط للطلبات العميقة أو عند اختياره يدوياً.
 export const DEFAULT_MODELS = {
-  anthropic: 'claude-sonnet-4-5',
+  anthropic: 'claude-haiku-4-5',
   openai:    'gpt-4o-mini',    // محفوظ للمستقبل
   google:    'gemini-2.5-flash', // محفوظ للمستقبل
 };

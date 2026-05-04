@@ -21,7 +21,7 @@
  *   }
  */
 import { getAiSettings } from './settings.js';
-import { computeCost } from './pricing.js';
+import { computeCost, estimateCost, estimateTokens } from './pricing.js';
 import { logUsage, assertBudget, rateUsage } from './usage.js';
 export { rateUsage } from './usage.js';
 import { redactMessages, redactPii } from './pii.js';
@@ -83,9 +83,15 @@ export async function aiComplete(params = {}) {
     piiRedacted = piiRedacted || r1.count > 0;
   }
 
-  // ميزانية (قبل الاستدعاء)
+  // ميزانية (قبل الاستدعاء) — بتقدير تقريبي يحسب النظام + الرسائل + سقف المخرجات.
   if (settings.monthlyBudgetUsd > 0) {
-    await assertBudget(settings.monthlyBudgetUsd, 0);
+    const textForEstimate = [
+      system || '',
+      ...(messages || []).map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content || '')),
+    ].join('\n');
+    const estimatedInput = estimateTokens(textForEstimate);
+    const estimatedOutput = Number(params.maxTokens || 1200);
+    await assertBudget(settings.monthlyBudgetUsd, estimateCost(model, estimatedInput, estimatedOutput));
   }
 
   // timeout عبر AbortController

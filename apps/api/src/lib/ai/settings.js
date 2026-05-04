@@ -4,7 +4,7 @@
  * Keys المُستخدَمة:
  *   ai_enabled                      — "true" | "false"
  *   ai_default_provider             — "anthropic" (الوحيد المُفعَّل)
- *   ai_default_model                — اسم الموديل (افتراضي: claude-sonnet-4-5)
+ *   ai_default_model                — اسم الموديل (افتراضي: claude-haiku-4-5)
  *   ai_anthropic_api_key            — مُشفَّر (v1:...)
  *   ai_openai_api_key               — محفوظ للمستقبل (غير مُستخدَم)
  *   ai_google_api_key               — محفوظ للمستقبل (غير مُستخدَم)
@@ -31,12 +31,12 @@ const KEYS = [
 
 /** كتالوج الميزات — يُعرَّف في الكود، التعيينات تُحفَظ في DB */
 export const FEATURE_CATALOG = [
-  { id: 'consultant',         label: 'المستشار الذكي (محادثة)',   icon: '💬', defaultModel: 'claude-sonnet-4-5' },
-  { id: 'file_processor',     label: 'تحليل الملفات',              icon: '📄', defaultModel: 'claude-opus-4-5'  },
+  { id: 'consultant',         label: 'المستشار الذكي (محادثة)',   icon: '💬', defaultModel: 'claude-haiku-4-5' },
+  { id: 'file_processor',     label: 'تحليل الملفات',              icon: '📄', defaultModel: 'claude-sonnet-4-5'  },
   { id: 'weekly_report',      label: 'التقرير الأسبوعي',           icon: '📊', defaultModel: 'claude-haiku-4-5' },
-  { id: 'investigator',       label: 'المحقق الشهري',              icon: '🔍', defaultModel: 'claude-sonnet-4-5' },
-  { id: 'investigator-cross', label: 'التحليل المقارن',            icon: '📈', defaultModel: 'claude-sonnet-4-5' },
-  { id: 'playground',         label: 'الملعب التجريبي',            icon: '🧪', defaultModel: 'claude-sonnet-4-5' },
+  { id: 'investigator',       label: 'المحقق الشهري',              icon: '🔍', defaultModel: 'claude-haiku-4-5' },
+  { id: 'investigator-cross', label: 'التحليل المقارن',            icon: '📈', defaultModel: 'claude-haiku-4-5' },
+  { id: 'playground',         label: 'الملعب التجريبي',            icon: '🧪', defaultModel: 'claude-haiku-4-5' },
 ];
 
 // cache قصير لتخفيف ضغط DB (30 ثانية)
@@ -71,7 +71,7 @@ export async function getAiSettings() {
       enabled:          m.ai_enabled === 'true',
       defaultProvider:  'anthropic',    // Anthropic فقط
       defaultModel:     m.ai_default_model || DEFAULT_MODELS.anthropic,
-      monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 30),
+      monthlyBudgetUsd: Number(m.ai_monthly_budget_usd || 20),
       piiRedaction:     m.ai_pii_redaction || 'optional',
       logRequests:      m.ai_log_requests !== 'false',
       featureModels,
@@ -95,7 +95,7 @@ export async function getAiSettings() {
       enabled: false,
       defaultProvider: 'anthropic',
       defaultModel: DEFAULT_MODELS.anthropic,
-      monthlyBudgetUsd: 30,
+      monthlyBudgetUsd: 20,
       piiRedaction: 'optional',
       logRequests: true,
       featureModels: fallbackFeatureModels,

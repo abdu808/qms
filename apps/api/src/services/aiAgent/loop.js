@@ -18,8 +18,8 @@
 import { aiComplete } from '../../lib/ai/index.js';
 import { getToolsForRole, READ_ONLY_TOOLS, ALWAYS_REVIEW_TOOLS, executeTool } from './tools.js';
 
-const MAX_ITERATIONS          = 14;  // كافٍ لإتمام خطة كاملة (قراءة + اقتراح + إنشاء + ربط + تقرير)
-const MAX_TOOL_CALLS_PER_ITER = 25;  // AI يحتاج سعة لمعالجة ملفات بها إدارات/مؤشرات متعددة دفعةً واحدة
+const MAX_ITERATIONS          = 5;   // وضع اقتصادي: يمنع المحادثة الواحدة من التحول إلى جلسة طويلة مكلفة
+const MAX_TOOL_CALLS_PER_ITER = 8;   // يكفي للتشخيص والتنفيذ المرحلي، ويمنع انفجار نتائج الأدوات
 const LOOP_TIMEOUT_MS         = 82_000; // 82 ثانية — هامش آمن تحت 100 ثانية لـ Cloudflare
 
 // أدوات الحذف — تتطلب موافقة المسؤول دائماً بغض النظر عن الوضع أو الدور
@@ -353,7 +353,13 @@ export async function applyPendingActions(pendingActions, callerUser, actingUser
 function buildHistory(messages) {
   return messages
     .filter(m => m.role !== 'system')
-    .map(m => ({ role: m.role, content: m.content }));
+    .slice(-8)
+    .map(m => ({
+      role: m.role,
+      content: typeof m.content === 'string'
+        ? m.content.slice(0, 2500)
+        : m.content,
+    }));
 }
 
 /**

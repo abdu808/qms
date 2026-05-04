@@ -266,8 +266,8 @@ router.post('/complete', authorize(...USER_ROLES), asyncHandler(async (req, res)
         messages: [{ role: 'user', content: prompt }],
         feature: 'playground',
         provider, model, piiRedact,
-        userId: req.user?.id,
-        maxTokens: 1500,
+        userId: req.user?.sub || req.user?.id,
+        maxTokens: 800,
       }),
       timeout,
     ]);

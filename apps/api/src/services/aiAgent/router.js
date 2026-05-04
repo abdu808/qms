@@ -1,18 +1,18 @@
 /**
  * aiAgent/router.js — موجِّه النموذج الذكي (v2)
  *
- * ثلاثة مستويات بدل واحد:
+ * ثلاثة مستويات اقتصادية:
  *
  *  QUICK    → claude-haiku-4-5   (أسئلة بسيطة / عرض بيانات)        ~$0.001
- *  STANDARD → claude-sonnet-4-5  (اقتراح / إنشاء / تحديث)           ~$0.01
- *  DEEP     → claude-opus-4-5    (تقييم شامل / مراجعة إدارية / خطة) ~$0.075
+ *  STANDARD → claude-haiku-4-5   (اقتراح يومي / متابعة)             منخفض التكلفة
+ *  DEEP     → claude-sonnet-4-5  (تقييم شامل / مراجعة إدارية / خطة) عند الحاجة فقط
  *
- * التوفير المتوقع: 50-70% من تكلفة الـ AI الشهرية.
+ * Opus لا يُستخدم تلقائياً. يمكن اختياره يدوياً فقط من الواجهة.
  */
 
-export const DEFAULT_MODEL    = 'claude-sonnet-4-5';
+export const DEFAULT_MODEL    = 'claude-haiku-4-5';
 export const QUICK_MODEL      = 'claude-haiku-4-5';
-export const DEEP_MODEL       = 'claude-opus-4-5';
+export const DEEP_MODEL       = 'claude-sonnet-4-5';
 export const DEFAULT_PROVIDER = 'anthropic';
 
 // ── أنماط DEEP — تحليل معمّق يستحق Opus ────────────────────────────────────

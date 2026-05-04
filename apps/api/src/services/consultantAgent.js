@@ -68,8 +68,8 @@ async function getAiAgentUserId() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ملف المعرفة يُضاف إلى نهاية الـ system prompt عند البناء
-const buildSystemPrompt = (role = 'QUALITY_MANAGER') => {
-  const knowledgeSection = _orgKnowledge
+const buildSystemPrompt = (role = 'QUALITY_MANAGER', { includeKnowledge = false } = {}) => {
+  const knowledgeSection = includeKnowledge && _orgKnowledge
     ? `\n\n━━━ قاعدة المعرفة المؤسسية ━━━\n${_orgKnowledge}`
     : '';
   const roleSection = role === 'SUPER_ADMIN' ? SUPER_ADMIN_PROMPT_SECTION : '';
@@ -368,9 +368,8 @@ function analyzeGaps({ goals, activities, objectives }) {
 //  compressHistory — تلخيص السياق التلقائي عند طول المحادثة
 // ─────────────────────────────────────────────────────────────────────────────
 
-const COMPRESS_THRESHOLD = 16; // يبدأ التلخيص بعد 16 رسالة (user+assistant)
-const COMPRESS_KEEP      = 6;  // يحتفظ بآخر 6 رسائل كما هي
-const COMPRESS_BATCH     = 10; // يلخص أقدم 10 رسائل دفعة واحدة
+const COMPRESS_THRESHOLD = 8; // يبدأ التلخيص مبكراً لتقليل تكلفة الشات الطويل
+const COMPRESS_KEEP      = 4; // يحتفظ بآخر 4 رسائل كما هي فقط
 
 /**
  * يضغط السياق تلقائياً عندما تطول المحادثة.
@@ -383,13 +382,13 @@ export async function compressHistory(messages) {
     return { messages, compressed: false, summaryTokens: 0 };
   }
 
-  const toSummarize = dialogue.slice(0, COMPRESS_BATCH);
-  const toKeep      = dialogue.slice(COMPRESS_BATCH);
+  const toSummarize = dialogue.slice(0, Math.max(0, dialogue.length - COMPRESS_KEEP));
+  const toKeep      = dialogue.slice(-COMPRESS_KEEP);
 
   const convText = toSummarize.map(m => {
     const speaker = m.role === 'user' ? 'المستخدم' : 'المستشار';
     const content = typeof m.content === 'string'
-      ? m.content.slice(0, 600)
+      ? m.content.slice(0, 350)
       : '[محتوى معقد]';
     return `${speaker}: ${content}`;
   }).join('\n\n');
@@ -398,14 +397,14 @@ export async function compressHistory(messages) {
     const r = await aiComplete({
       system: [
         'أنت مساعد يلخص محادثات نظام إدارة الجودة.',
-        'لخّص المحادثة التالية في 4-6 جمل عربية موجزة.',
+        'لخّص المحادثة التالية في 3-4 جمل عربية موجزة.',
         'ركّز على: الأسئلة المطروحة، القرارات المتخذة، الإجراءات المنفذة، والنقاط المفتوحة.',
         'لا تضف تعليقاً، فقط الملخص.',
       ].join(' '),
       messages: [{ role: 'user', content: `المحادثة:\n\n${convText}` }],
       feature:   'context_compression',
       model:     'claude-haiku-4-5', // الأرخص — التلخيص مهمة بسيطة
-      maxTokens: 400,
+      maxTokens: 250,
     });
 
     const summaryMsg = {
@@ -422,7 +421,7 @@ export async function compressHistory(messages) {
   } catch (e) {
     // لا نكسر المحادثة — نعود للرسائل الأحدث فقط إن فشل التلخيص
     console.warn('[compressHistory] فشل التلخيص — نستخدم الرسائل الأحدث فقط:', e.message);
-    return { messages: toKeep, compressed: false, summaryTokens: 0 };
+    return { messages: dialogue.slice(-6), compressed: false, summaryTokens: 0 };
   }
 }
 
@@ -549,7 +548,10 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
 آخر ما أنجزه المستشار: ${lastAIReply.content.slice(0, 800)}${lastAIReply.content.length > 800 ? '...' : ''}
 [نهاية الذاكرة — المحادثة الجديدة تبدأ الآن]`,
           };
-          messagesWithMemory = [memoryBlock, ...compressedMessages];
+          // لا نحقن الذاكرة إلا كملخص صغير جداً حتى لا تتحول كل رسالة إلى إعادة
+          // إرسال جلسة سابقة كاملة. هذا كان أحد أسباب ارتفاع التكلفة.
+          memoryBlock.content = memoryBlock.content.slice(0, 450);
+          messagesWithMemory = [memoryBlock, ...compressedMessages.slice(-4)];
           console.log(`[chat] حُقنت ذاكرة الجلسة السابقة (${dateStr})`);
         }
       }
@@ -557,7 +559,7 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
   }
 
   const result = await runAgentLoop({
-    systemPrompt: buildSystemPrompt(callerRole),
+    systemPrompt: buildSystemPrompt(callerRole, { includeKnowledge: routed.tier === 'DEEP' }),
     messages: messagesWithMemory,
     actingUserId,
     callerUserId,
@@ -565,7 +567,7 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
     callerUser: effectiveCaller, // ⚠️ لفحص الصلاحيات داخل executeTool
     mode,
     feature:     'consultant',
-    maxTokens:   8192,
+    maxTokens:   routed.tier === 'DEEP' ? 3200 : 1600,
     provider:    routed.provider,
     model:       routed.model,
     routingTier: routed.tier,
