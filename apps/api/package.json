@@ -21,6 +21,8 @@
     "plan2025:polish:apply": "node scripts/polish-plan-2025-2027.mjs --apply",
     "plan2025:govern:dry-run": "node scripts/govern-plan-kpis-2025-2027.mjs --dry-run",
     "plan2025:govern:apply": "node scripts/govern-plan-kpis-2025-2027.mjs --apply",
+    "plan2025:link-activities:dry-run": "node scripts/link-activities-to-indicators-2025-2027.mjs --dry-run",
+    "plan2025:link-activities:apply": "node scripts/link-activities-to-indicators-2025-2027.mjs --apply",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.js",

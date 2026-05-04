@@ -1060,6 +1060,8 @@ model OperationalActivity {
   notes        String?
   strategicGoalId String?
   strategicGoal   StrategicGoal? @relation(fields: [strategicGoalId], references: [id])
+  indicatorId      String?
+  indicator        Indicator? @relation("ActivityLinkedIndicator", fields: [indicatorId], references: [id], onDelete: SetNull)
   // ── KPI tracking classification ──────────────────────
   kpiType         String    @default("CUMULATIVE") // CUMULATIVE | PERIODIC | SNAPSHOT | BINARY
   targetValue     Float?                            // القيمة الرقمية للمستهدف
@@ -1079,6 +1081,7 @@ model OperationalActivity {
   @@index([status])
   @@index([year])
   @@index([strategicGoalId])
+  @@index([indicatorId])
   @@index([ownerId])
   @@index([deptId])
   @@index([deletedAt])
@@ -1925,6 +1928,7 @@ model Indicator {
   annualTargets    AnnualTarget[]
   kpiEntries       KpiEntry[]
   processIndicators ProcessIndicator[]
+  operationalActivities OperationalActivity[] @relation("ActivityLinkedIndicator")
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt

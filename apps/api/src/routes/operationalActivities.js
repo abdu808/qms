@@ -18,7 +18,7 @@ export default crudRouter({
   codePrefix: 'ACT',
   searchFields: ['title', 'description', 'responsible', 'department', 'perspective'],
   allowedSortFields: ['createdAt', 'status', 'progress', 'year', 'startDate', 'endDate'],
-  allowedFilters: ['status', 'year', 'strategicGoalId', 'ownerId', 'deptId'],
+  allowedFilters: ['status', 'year', 'strategicGoalId', 'indicatorId', 'ownerId', 'deptId'],
   include: {
     owner: { select: { id: true, name: true, jobTitle: true } },
     dept:  { select: { id: true, name: true, code: true } },
@@ -30,6 +30,7 @@ export default crudRouter({
         axis: { select: { id: true, code: true, nameAr: true } },
       },
     },
+    indicator: { select: { id: true, code: true, nameAr: true, unit: true, frequency: true } },
   },
   // RBAC: مسؤول القسم → نشاطات قسمه | الموظف → ما كُلِّف به أو قسمه
   scopeFilter: (req) => {
@@ -40,8 +41,8 @@ export default crudRouter({
   },
   // Field-Level Security: تعديل البيانات الحاكمة محصور بالـ QM (يتم عبر Change Request)
   lockedFieldsForRole: {
-    DEPT_MANAGER: ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction'],
-    EMPLOYEE:     ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','targetValue','targetUnit','kpiType','seasonality','direction','ownerId','deptId'],
+    DEPT_MANAGER: ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','indicatorId','targetValue','targetUnit','kpiType','seasonality','direction'],
+    EMPLOYEE:     ['title','description','perspective','year','startDate','endDate','budget','strategicGoalId','indicatorId','targetValue','targetUnit','kpiType','seasonality','direction','ownerId','deptId'],
   },
   // Plan Freeze enforcement
   enforceFreezeFor: async (id, prisma) => {
