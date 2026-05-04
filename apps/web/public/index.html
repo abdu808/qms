@@ -5146,7 +5146,7 @@
                   </template>
                 </div>
                 <div class="text-[11px] text-gray-500" x-show="kpi.matrix">
-                  معروض: <span class="font-bold" x-text="(kpi.matrix?.objectives?.length || 0) + (kpi.matrix?.activities?.length || 0)"></span>
+                  معروض: <span class="font-bold" x-text="(kpi.matrix?.objectives?.length || 0) + (kpi.matrix?.activities?.length || 0) + (kpi.matrix?.indicators?.length || 0)"></span>
                   من <span x-text="kpi.matrix?.counts?.total ?? 0"></span>
                 </div>
               </div>
@@ -5158,7 +5158,7 @@
                   <span class="text-red-600">⏰</span>
                   <span class="text-red-800">
                     <span class="font-bold" x-text="kpi.matrix?.counts?.missing ?? 0"></span>
-                    قراءة غير مُدخلة لهذا الشهر
+                    قراءة مستحقة غير مُدخلة لهذه الفترة
                   </span>
                 </div>
                 <button @click="kpiToggleQuick('missing')"
@@ -5178,23 +5178,23 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="row in [...(kpi.matrix?.objectives||[]), ...(kpi.matrix?.activities||[])]" :key="row.id">
+                  <template x-for="row in [...(kpi.matrix?.objectives||[]), ...(kpi.matrix?.activities||[]), ...(kpi.matrix?.indicators||[])]" :key="row.kind + '-' + row.id">
                     <tr class="border-t hover:bg-slate-50" :class="kpiRowBg(row.rag)">
                       <td class="px-2 py-1.5 sticky right-0 bg-white border-l" :class="kpiRowBorder(row.rag)">
                         <div class="font-medium truncate flex items-center gap-1.5" :title="row.title">
                           <span x-text="row.title"></span>
                           <span x-show="kpiIsLate(row)" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] bg-red-100 text-red-700 font-bold whitespace-nowrap" title="لم تُدخل قراءة الشهر السابق بعد">⏰ متأخر</span>
                         </div>
-                        <div class="text-[10px] text-gray-400" x-text="(row.code||'') + ' · ' + row.kpiType"></div>
+                        <div class="text-[10px] text-gray-400" x-text="(row.code||'') + ' · ' + row.kpiType + (row.frequencyLabel ? ' · ' + row.frequencyLabel : '')"></div>
                       </td>
                       <template x-for="cell in row.months" :key="cell.month">
                         <td class="px-1 py-1 text-center">
                           <button type="button"
-                               @click="kpiQuickEntryFromCell(row, cell.month)"
-                               class="w-full h-7 rounded flex items-center justify-center text-[10px] font-bold text-white transition hover:ring-2 hover:ring-indigo-400 hover:scale-105"
-                               :class="kpiRagColor(cell.status)"
-                               :title="(cell.actualValue!=null ? ('فعلي: ' + cell.actualValue) : 'لا توجد بيانات') + ' — اضغط للإدخال السريع'"
-                               x-text="cell.actualValue!=null ? kpiFmt(cell.actualValue) : '·'"></button>
+                               @click="cell.due === false ? null : kpiQuickEntryFromCell(row, cell.month)"
+                               class="w-full h-7 rounded flex items-center justify-center text-[10px] font-bold transition"
+                               :class="cell.due === false ? 'cursor-not-allowed text-slate-300 bg-slate-100 border border-slate-200' : 'text-white hover:ring-2 hover:ring-indigo-400 hover:scale-105 ' + kpiRagColor(cell.status)"
+                               :title="cell.due === false ? 'غير مستحق في هذا الشهر حسب تردد القياس' : ((cell.actualValue!=null ? ('فعلي: ' + cell.actualValue) : 'لا توجد بيانات') + ' — اضغط للإدخال السريع')"
+                               x-text="cell.due === false ? '—' : (cell.actualValue!=null ? kpiFmt(cell.actualValue) : '·')"></button>
                         </td>
                       </template>
                       <td class="px-2 py-1 text-center font-bold" :class="row.ratio>=0.95?'text-emerald-600':row.ratio>=0.75?'text-amber-500':'text-red-600'" x-text="row.ratio!=null ? Math.round(row.ratio*100)+'%':'—'"></td>
@@ -8513,7 +8513,7 @@
   </div>
 </div>
 
-<script src="/modules/kpi-common.js?v=2026-04-28a"></script>
+<script src="/modules/kpi-common.js?v=2026-05-04a"></script>
 <script src="/modules/i18n.js?v=2026-04-19g"></script>
 <script src="/modules/inbox.js?v=2026-04-19g"></script>
 <script src="/modules/kpi-quickentry.js?v=2026-04-28a"></script>
@@ -8537,7 +8537,7 @@
 <script src="/modules/ack-documents.js?v=2026-04-21c"></script>
 <script src="/modules/policy-ack.js?v=2026-04-21c"></script>
 <script src="/modules/my-kpi.js?v=2026-04-28a"></script>
-<script src="/modules/kpi-tracking.js?v=2026-04-28c"></script>
+<script src="/modules/kpi-tracking.js?v=2026-05-04a"></script>
 <script src="/modules/quick-actions.js?v=2026-04-21c"></script>
 <script src="/modules/webhook-settings.js?v=2026-04-21d"></script>
 <script src="/modules/ai-settings.js?v=2026-04-24b"></script>

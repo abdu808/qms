@@ -1893,7 +1893,7 @@ model Indicator {
   formula          String?   @db.Text
   unit             String?             // % / عدد / ريال / يوم / ساعة
   direction        String    @default("HIGHER_BETTER")  // HIGHER_BETTER | LOWER_BETTER
-  frequency        String    @default("MONTHLY")        // MONTHLY | QUARTERLY | ANNUALLY
+  frequency        String    @default("MONTHLY")        // MONTHLY | QUARTERLY | SEMI_ANNUAL | ANNUALLY | SEASONAL
   kpiType          String    @default("SNAPSHOT")       // CUMULATIVE | PERIODIC | SNAPSHOT | BINARY
   seasonality      String    @default("UNIFORM")        // UNIFORM | SCHOOL_START | QUARTERLY | ...
   indicatorType    String    @default("LAGGING")        // LEADING | LAGGING

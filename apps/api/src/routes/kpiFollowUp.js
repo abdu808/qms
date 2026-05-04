@@ -751,7 +751,7 @@ router.get('/reports/iso-compliance', authenticate, requireFollowUpReadAccess, a
       avgDaysLateAgg,
       capasOpened,
     ] = await Promise.all([
-      prisma.indicator.count({ where: { frequency: 'MONTHLY', deletedAt: null } }),
+      prisma.indicator.count({ where: { deletedAt: null } }),
       prisma.kpiFollowUp.count({ where }),
       prisma.kpiFollowUp.count({ where: { ...where, status: 'RESOLVED' } }),
       prisma.kpiFollowUp.count({ where: { ...where, status: 'ESCALATED' } }),

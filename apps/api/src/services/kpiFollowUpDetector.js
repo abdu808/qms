@@ -24,6 +24,11 @@
 
 import { prisma } from '../db.js';
 import { sendNotification } from './notificationDispatcher.js';
+import {
+  calculateKpiDueDate,
+  getDuePeriodsToCheck,
+  isDueMonth,
+} from '../lib/kpiFrequency.js';
 
 // ─── ثوابت التدرج ───────────────────────────────────────────────
 const ESCALATION_THRESHOLDS = {
@@ -32,12 +37,10 @@ const ESCALATION_THRESHOLDS = {
   ESCALATE_L2: 15,
 };
 
-// ─── حساب dueDate لمؤشر شهري ───────────────────────────────────
-// dueDate = آخر يوم في الشهر + 5 أيام إمهال
+// ─── حساب dueDate لفترة قياس ───────────────────────────────────
+// dueDate = آخر يوم في شهر الفترة + 5 أيام إمهال
 function calculateDueDate(year, month) {
-  const lastDay = new Date(year, month, 0); // month is 1-12
-  lastDay.setDate(lastDay.getDate() + 5);
-  return lastDay;
+  return calculateKpiDueDate(year, month);
 }
 
 function calculateDaysLate(dueDate, ref = new Date()) {
@@ -55,20 +58,9 @@ function determineStatus(daysLate) {
 }
 
 // ─── الفترات التي يجب فحصها ────────────────────────────────────
-// الشهر الحالي + الشهرين السابقين (لتغطية المتأخرات الممتدة)
+// الشهر الحالي + الشهرين السابقين. التردد نفسه يحدد هل المؤشر مستحق في تلك الفترة.
 function getPeriodsToCheck() {
-  const periods = [];
-  const now = new Date();
-  for (let i = 2; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    periods.push({ year: d.getFullYear(), month: d.getMonth() + 1 });
-  }
-  return periods;
-}
-
-function getPreviousMonthPeriod(ref = new Date()) {
-  const d = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
-  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  return getDuePeriodsToCheck({ lookbackMonths: 2 });
 }
 
 // ─── تحديد department للمؤشر من مصادر متعددة ───────────────────
@@ -107,16 +99,18 @@ export async function detectAndUpdateOverdueKpis() {
   const now = new Date();
   const periods = getPeriodsToCheck();
 
-  // ─── جلب جميع المؤشرات الشهرية النشطة (مرة واحدة) ──────────
+  // ─── جلب جميع المؤشرات النشطة (مرة واحدة) ──────────
+  // لا نفلتر على MONTHLY هنا؛ التردد يُحترم داخل الحلقة.
   const indicators = await prisma.indicator.findMany({
     where: {
-      frequency: 'MONTHLY',
       deletedAt: null,
     },
     select: {
       id: true,
       code: true,
       nameAr: true,
+      frequency: true,
+      seasonality: true,
       dataEntryUserId: true,
       ownerId: true,
       approverUserId: true,
@@ -143,6 +137,8 @@ export async function detectAndUpdateOverdueKpis() {
     const { status, escalationLevel } = determineStatus(daysLate);
 
     for (const indicator of indicators) {
+      if (!isDueMonth(indicator.frequency, month, indicator.seasonality)) continue;
+
       const departmentId = resolveDepartmentForIndicator(indicator);
       const dataEntryUserId = resolveDataEntryUser(indicator);
 
@@ -280,18 +276,24 @@ function buildVarsForIndicatorReminder(indicator, period, dueDate, recipient = {
 export async function sendKpiPreDeadlineReminders() {
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date();
-  const period = getPreviousMonthPeriod(now);
-  const dueDate = calculateDueDate(period.year, period.month);
-  const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+  const periods = getDuePeriodsToCheck({ ref: now, lookbackMonths: 1 })
+    .map(period => {
+      const dueDate = calculateDueDate(period.year, period.month);
+      const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / 86400000);
+      return { ...period, dueDate, daysUntilDue };
+    })
+    .filter(p => p.daysUntilDue >= 0 && p.daysUntilDue <= 3);
 
-  if (daysUntilDue < 0 || daysUntilDue > 3) return { sent: 0, skippedWindow: true };
+  if (!periods.length) return { sent: 0, skippedWindow: true };
 
   const indicators = await prisma.indicator.findMany({
-    where: { frequency: 'MONTHLY', deletedAt: null },
+    where: { deletedAt: null },
     select: {
       id: true,
       code: true,
       nameAr: true,
+      frequency: true,
+      seasonality: true,
       dataEntryUserId: true,
       ownerId: true,
       approverUserId: true,
@@ -302,41 +304,49 @@ export async function sendKpiPreDeadlineReminders() {
   });
   if (!indicators.length) return { sent: 0, checked: 0 };
 
-  const entries = await prisma.kpiEntry.findMany({
-    where: {
-      year: period.year,
-      month: period.month,
-      indicatorId: { in: indicators.map(i => i.id) },
-    },
-    select: { indicatorId: true },
-  });
-  const entered = new Set(entries.map(e => e.indicatorId));
   let sent = 0;
+  let checked = 0;
 
-  for (const indicator of indicators) {
-    if (entered.has(indicator.id)) continue;
-    const recipient =
-      indicator.dataEntryUser ||
-      indicator.owner ||
-      indicator.approver;
-    if (!recipient?.id || recipient.active === false) continue;
+  for (const period of periods) {
+    const dueIndicators = indicators.filter(i => isDueMonth(i.frequency, period.month, i.seasonality));
+    checked += dueIndicators.length;
+    if (!dueIndicators.length) continue;
 
-    const r = await sendNotification({
-      eventKey: 'KPI_PRE_DEADLINE',
-      dedupeKey: `KPI_PRE_DEADLINE:${indicator.id}:${period.year}:${period.month}:${today}`,
-      recipient,
-      variables: buildVarsForIndicatorReminder(indicator, period, dueDate, recipient),
-      entityType: 'Indicator',
-      entityId: indicator.id,
-      link: '/qms#/myKpi',
-      fallbackTitle: `تذكير قبل الإغلاق الشهري: ${indicator.code}`,
-      fallbackMessage: `يرجى إدخال قراءة مؤشر ${indicator.nameAr} لفترة ${period.month}/${period.year} قبل ${dueDate.toISOString().slice(0, 10)}.`,
-      payloadExtra: { period, daysUntilDue },
+    const entries = await prisma.kpiEntry.findMany({
+      where: {
+        year: period.year,
+        month: period.month,
+        indicatorId: { in: dueIndicators.map(i => i.id) },
+      },
+      select: { indicatorId: true },
     });
-    if (r.inApp || r.dispatched) sent++;
+    const entered = new Set(entries.map(e => e.indicatorId));
+
+    for (const indicator of dueIndicators) {
+      if (entered.has(indicator.id)) continue;
+      const recipient =
+        indicator.dataEntryUser ||
+        indicator.owner ||
+        indicator.approver;
+      if (!recipient?.id || recipient.active === false) continue;
+
+      const r = await sendNotification({
+        eventKey: 'KPI_PRE_DEADLINE',
+        dedupeKey: `KPI_PRE_DEADLINE:${indicator.id}:${period.year}:${period.month}:${today}`,
+        recipient,
+        variables: buildVarsForIndicatorReminder(indicator, period, period.dueDate, recipient),
+        entityType: 'Indicator',
+        entityId: indicator.id,
+        link: '/qms#/myKpi',
+        fallbackTitle: `تذكير قبل استحقاق قراءة: ${indicator.code}`,
+        fallbackMessage: `يرجى إدخال قراءة مؤشر ${indicator.nameAr} لفترة ${period.month}/${period.year} قبل ${period.dueDate.toISOString().slice(0, 10)}.`,
+        payloadExtra: { period: { year: period.year, month: period.month }, daysUntilDue: period.daysUntilDue },
+      });
+      if (r.inApp || r.dispatched) sent++;
+    }
   }
 
-  return { sent, checked: indicators.length, period, daysUntilDue };
+  return { sent, checked, periods: periods.map(({ year, month, daysUntilDue }) => ({ year, month, daysUntilDue })) };
 }
 
 export async function sendKpiQualityManagerDailySummary() {

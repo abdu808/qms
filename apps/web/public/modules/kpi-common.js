@@ -28,6 +28,7 @@
       return r === 'GREEN'  ? 'bg-emerald-500'
            : r === 'YELLOW' ? 'bg-amber-500'
            : r === 'RED'    ? 'bg-red-500'
+           : r === 'NOT_DUE'? 'bg-slate-100 text-slate-300 border border-slate-200'
                             : 'bg-slate-300';
     },
     kpiRowBorder(r) {
@@ -40,7 +41,16 @@
       return r === 'RED' ? 'bg-red-50/40' : '';
     },
     kpiRagLabel(r) {
-      return { GREEN: 'متحقق', YELLOW: 'قيد التحقق', RED: 'متأخر', GRAY: 'لا بيانات' }[r] || r;
+      return { GREEN: 'متحقق', YELLOW: 'قيد التحقق', RED: 'متأخر', GRAY: 'لا بيانات', NOT_DUE: 'غير مستحق' }[r] || r;
+    },
+    kpiFrequencyLabel(f) {
+      return {
+        MONTHLY: 'شهري',
+        QUARTERLY: 'ربعي',
+        SEMI_ANNUAL: 'نصف سنوي',
+        ANNUALLY: 'سنوي',
+        SEASONAL: 'حسب الموسم',
+      }[f || 'MONTHLY'] || 'شهري';
     },
     kpiMonthName(m) {
       return ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][m-1] || '';

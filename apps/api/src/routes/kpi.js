@@ -22,6 +22,7 @@ import { upsertKpiEntry, isPeriodLocked } from '../services/kpi.js';
 import { validateKpiEntryFKs } from '../lib/kpiEntry-integrity.js';
 import { recomputeAfterEntry, recomputeIndicator } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
+import { frequencyLabel, isDueMonth } from '../lib/kpiFrequency.js';
 
 const validateKpiEntry = runSchema(kpiCreateSchema);
 
@@ -62,9 +63,20 @@ async function canAccessKpiEntry(user, entry, action) {
     } else if (entry.indicatorId) {
       const ind = await prisma.indicator.findUnique({
         where: { id: entry.indicatorId },
-        select: { objective: { select: { departmentId: true } } },
+        select: {
+          objective: { select: { departmentId: true } },
+          owner: { select: { departmentId: true } },
+          dataEntryUser: { select: { departmentId: true } },
+          approver: { select: { departmentId: true } },
+        },
       });
-      parentDeptId = ind?.objective?.departmentId || null;
+      const parentDeptIds = [
+        ind?.objective?.departmentId,
+        ind?.owner?.departmentId,
+        ind?.dataEntryUser?.departmentId,
+        ind?.approver?.departmentId,
+      ].filter(Boolean);
+      return parentDeptIds.includes(user.departmentId);
     } else if (entry.activityId) {
       const a = await prisma.operationalActivity.findUnique({
         where: { id: entry.activityId }, select: { deptId: true },
@@ -92,6 +104,9 @@ async function kpiEntryScopeWhere(user) {
         { objective: { departmentId: user.departmentId } },
         { activity:  { deptId: user.departmentId } },
         { indicator: { objective: { departmentId: user.departmentId } } },
+        { indicator: { owner: { departmentId: user.departmentId } } },
+        { indicator: { dataEntryUser: { departmentId: user.departmentId } } },
+        { indicator: { approver: { departmentId: user.departmentId } } },
       ],
     };
   }
@@ -367,6 +382,9 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
       const thisMonthEntry = kind === 'indicator'
         ? rec.kpiEntries.find(e => e.month === month)
         : rec.kpiEntries.find(e => e.month === month);
+      const dueThisMonth = kind === 'indicator'
+        ? isDueMonth(rec.frequency, month, rec.seasonality)
+        : true;
       const ev = evaluateKpi(kpi, rec.kpiEntries, year, month);
       return {
         // Indicator يستخدم nameAr، Objective و Activity يستخدمان title
@@ -374,6 +392,9 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         perspective: rec.strategicGoal?.perspective || rec.perspective || '—',
         goalTitle: rec.strategicGoal?.title,
         kpiType: rec.kpiType, targetValue: kpi.targetValue, unit: kpi.unit,
+        frequency: rec.frequency,
+        frequencyLabel: kind === 'indicator' ? frequencyLabel(rec.frequency) : 'شهري',
+        dueThisMonth,
         currentProgress: Number(rec.progress ?? 0),
         thisMonth: thisMonthEntry
           ? { actualValue: thisMonthEntry.actualValue, spent: thisMonthEntry.spent, enteredAt: thisMonthEntry.enteredAt, note: thisMonthEntry.note, evidenceUrl: thisMonthEntry.evidenceUrl, id: thisMonthEntry.id }
@@ -385,7 +406,9 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
 
     const objItems = objectives.map(o => buildItem(o, 'objective'));
     const actItems = activities.map(a => buildItem(a, 'activity'));
-    const indItems = indicators.map(i => buildItem(i, 'indicator'));
+    const indItems = indicators
+      .filter(i => isDueMonth(i.frequency, month, i.seasonality))
+      .map(i => buildItem(i, 'indicator'));
     const all = [...objItems, ...actItems, ...indItems];
 
     const pending = all.filter(x => !x.entered);
@@ -595,6 +618,8 @@ async function getIndicatorsWithEntries(year) {
       departmentId: ind.objective?.departmentId ?? null,
       greenThreshold:  ind.greenThreshold,
       yellowThreshold: ind.yellowThreshold,
+      frequency:       ind.frequency,
+      frequencyLabel:  frequencyLabel(ind.frequency),
       entries: ind.kpiEntries,
     };
   });
@@ -635,8 +660,8 @@ export const KPI_SMART_FILTERS = {
   ahead:   (k) => k.ratio != null && k.ratio >= 1.0,
 
   // قراءات الشهر الحالي
-  missing: (k, _req, ctx) => !k.entries.some(e => e.month === ctx.month),
-  entered: (k, _req, ctx) =>  k.entries.some(e => e.month === ctx.month),
+  missing: (k, _req, ctx) => k.dueThisMonth !== false && !k.entries.some(e => e.month === ctx.month),
+  entered: (k, _req, ctx) =>  k.dueThisMonth !== false && k.entries.some(e => e.month === ctx.month),
 
   // تنبيهات
   criticalAlerts: (k) =>
@@ -684,17 +709,22 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
     const build = (list, kind) => list.map(k => {
       const ev = evaluateKpi(k, k.entries, year, month);
       const monthCells = Array.from({ length: 12 }, (_, i) => {
+        const due = kind === 'indicator' ? isDueMonth(k.frequency, i + 1, k.seasonality) : true;
         const e = k.entries.find(x => x.month === i + 1);
-        if (!e) return { month: i+1, actualValue: null, status: 'GRAY' };
+        if (!due) return { month: i+1, actualValue: null, status: 'NOT_DUE', due: false };
+        if (!e) return { month: i+1, actualValue: null, status: 'GRAY', due: true };
         const exp = expectedByMonth(k, i+1);
         const act = actualByMonth(k, k.entries, i+1);
         const r = achievementRatio(k, act, exp);
-        return { month: i+1, actualValue: e.actualValue, spent: e.spent, status: ragStatus(r) };
+        return { month: i+1, actualValue: e.actualValue, spent: e.spent, status: ragStatus(r), due: true };
       });
+      const dueThisMonth = kind === 'indicator' ? isDueMonth(k.frequency, month, k.seasonality) : true;
       return {
         kind, id: k.id, code: k.code, title: k.title,
         perspective: k.perspective, kpiType: k.kpiType,
         targetValue: k.targetValue, unit: k.unit,
+        frequency: k.frequency, frequencyLabel: k.frequencyLabel,
+        dueThisMonth,
         ownerId: k.ownerId, departmentId: k.departmentId,
         responsible: k.responsible,
         greenThreshold: k.greenThreshold, yellowThreshold: k.yellowThreshold,
@@ -746,7 +776,11 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
       ...effectiveObjectives.map(o=>({...o,kind:'objective'})),
       ...activities.map(a=>({...a,kind:'activity'})),
       ...indicators.map(i=>({...i,kind:'indicator'})),
-    ].map(k => ({ ...k, evaluation: evaluateKpi(k, k.entries, year, month) }));
+    ].map(k => ({
+      ...k,
+      dueThisMonth: k.kind === 'indicator' ? isDueMonth(k.frequency, month, k.seasonality) : true,
+      evaluation: evaluateKpi(k, k.entries, year, month),
+    }));
 
     // تجميع حسب المحور
     const byPerspective = {};
@@ -766,7 +800,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
 
     // Top variances (أسوأ 10 مؤشرات)
     const topVariances = [...all]
-      .filter(k => k.evaluation.ratio != null)
+      .filter(k => k.dueThisMonth !== false && k.evaluation.ratio != null)
       .sort((a,b) => a.evaluation.ratio - b.evaluation.ratio)
       .slice(0, 10)
       .map(k => ({
@@ -801,6 +835,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
         totalObjectives: effectiveObjectives.length,
         totalActivities: activities.length,
         totalIndicators: indicators.length,
+        dueThisMonth: all.filter(k => k.dueThisMonth !== false).length,
         green: all.filter(k=>k.evaluation.rag==='GREEN').length,
         yellow: all.filter(k=>k.evaluation.rag==='YELLOW').length,
         red: all.filter(k=>k.evaluation.rag==='RED').length,
@@ -832,6 +867,7 @@ router.get('/alerts', requireAction('kpi', 'read'), async (req, res, next) => {
     ];
     const alerts = [];
     for (const k of all) {
+      if (k.kind === 'indicator' && !isDueMonth(k.frequency, month, k.seasonality)) continue;
       const list = detectAlerts(k, k.entries, year, month);
       for (const a of list) {
         alerts.push({ ...a, kind: k.kind, id: k.id, code: k.code, title: k.title, perspective: k.perspective });
@@ -907,12 +943,27 @@ router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'rea
     // سلسلة زمنية: متوقع/فعلي شهرياً
     const series = Array.from({ length: 12 }, (_, i) => {
       const m = i + 1;
+      const due = kind === 'indicator' ? isDueMonth(rec.frequency, m, rec.seasonality) : true;
       const entry = entries.find(e => e.month === m);
+      if (!due) {
+        return {
+          month: m,
+          due: false,
+          expected: null,
+          actual: null,
+          cumulativeActual: null,
+          spent: null,
+          status: 'NOT_DUE',
+          evidenceUrl: null,
+          note: null,
+        };
+      }
       const exp = expectedByMonth(kpi, m);
       const act = actualByMonth(kpi, entries, m);
       const r = achievementRatio(kpi, act, exp);
       return {
         month: m,
+        due: true,
         expected: exp,
         actual: entry ? Number(entry.actualValue) : null,
         cumulativeActual: act,

@@ -139,8 +139,34 @@
           .filter(a => !a.year || a.year === this.kpi.year)
           .map(a => ({ id: a.id, code: a.code, title: a.title, kpiType: a.kpiType, targetValue: a.targetValue, unit: a.targetUnit }));
         this.kpi.indicatorsList = (inds.items || [])
-          .map(i => ({ id: i.id, code: i.code, nameAr: i.nameAr, unit: i.unit, kpiType: i.kpiType }));
+          .map(i => ({
+            id: i.id,
+            code: i.code,
+            nameAr: i.nameAr,
+            unit: i.unit,
+            kpiType: i.kpiType,
+            frequency: i.frequency || 'MONTHLY',
+            frequencyLabel: i.frequencyLabel || this.kpiFrequencyLabel?.(i.frequency || 'MONTHLY') || 'شهري',
+            dueThisMonth: this.kpiIsIndicatorDueMonth(i, this.kpi.month),
+          }));
       } catch (e) { console.error('kpiLoadEntryOptions error:', e); }
+    },
+
+    kpiIsIndicatorDueMonth(indicator, month) {
+      const f = indicator?.frequency || 'MONTHLY';
+      const m = Number(month);
+      if (f === 'MONTHLY') return true;
+      if (f === 'QUARTERLY') return [3, 6, 9, 12].includes(m);
+      if (f === 'SEMI_ANNUAL') return [6, 12].includes(m);
+      if (f === 'ANNUALLY') return m === 12;
+      if (f === 'SEASONAL') {
+        const s = String(indicator?.seasonality || '').toUpperCase();
+        if (s === 'SCHOOL_START') return [1, 9].includes(m);
+        if (s === 'EID_SEASONAL') return [3, 4].includes(m);
+        if (s === 'RAMADAN_RELIEF') return [2, 3].includes(m);
+        return m === 12;
+      }
+      return true;
     },
 
     async kpiSaveEntry() {
@@ -228,6 +254,7 @@
       const m = curMonth - 1;
       if (m < 1) return false;
       const cell = row.months.find(c => c.month === m);
+      if (cell?.due === false) return false;
       return !!cell && cell.actualValue == null;
     },
     // قائمة الاختيار الحالية حسب نوع الإدخال (بديل عن x-if+x-for المتداخل داخل select)
@@ -240,9 +267,11 @@
         }));
       }
       if (f.kind === 'indicator') {
-        return (this.kpi.indicatorsList || []).map(i => ({
+        return (this.kpi.indicatorsList || [])
+          .filter(i => this.kpiIsIndicatorDueMonth(i, this.kpi.month))
+          .map(i => ({
           id: i.id,
-          label: (i.code || '') + ' — ' + i.nameAr + ' (' + (i.unit || '') + ')',
+          label: (i.code || '') + ' — ' + i.nameAr + ' (' + (i.unit || '') + ') · ' + (i.frequencyLabel || this.kpiFrequencyLabel?.(i.frequency) || 'شهري'),
         }));
       }
       return (this.kpi.activitiesList || []).map(a => ({
