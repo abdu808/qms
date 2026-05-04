@@ -2013,7 +2013,6 @@
                                   title="توليد نصوص جاهزة لكل حقل من حقول مدخلات المراجعة (KPIs, NCRs, شكاوى، مخاطر...)">
                             📥 توليد المدخلات
                           </button>
-                          <!-- TODO: aggregator endpoint /api/integration/management-review-snapshot to be built -->
                           <button x-show="page==='managementReview'"
                                   @click="openReviewSnapshot(item)"
                                   class="text-fuchsia-700 hover:underline text-xs ml-2"
@@ -4515,7 +4514,7 @@
                 <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 text-sm flex items-start gap-2">
                   <span class="flex-shrink-0">💡</span>
                   <div class="text-amber-700">يعكس هذا التقرير جاهزية البيانات المُدخلة فقط — الاعتماد الفعلي يتطلب تنفيذاً ميدانياً ومراجعة جهة مانحة.
-                    <a @click.prevent="goToResource('userGuide')" href="#" class="underline text-amber-900 font-medium mr-1">دليل الاستخدام ←</a>
+                    <button type="button" @click="goToResource('userGuide')" class="underline text-amber-900 font-medium mr-1">دليل الاستخدام ←</button>
                   </div>
                 </div>
               </div>
@@ -6936,7 +6935,7 @@
 
       <div class="bg-gray-50 border-t px-6 py-3 text-xs text-gray-500 flex items-center justify-between gap-4">
         <span>💡 كل رابط شخصي — يُسجِّل الإقرار باسم صاحبه. استخدم "📱" لإرسال واتساب.</span>
-        <a @click.prevent="goToResource('userGuide')" href="#" class="text-blue-600 hover:underline whitespace-nowrap">دليل الاستخدام ←</a>
+        <button type="button" @click="goToResource('userGuide')" class="text-blue-600 hover:underline whitespace-nowrap">دليل الاستخدام ←</button>
       </div>
     </div>
   </div>

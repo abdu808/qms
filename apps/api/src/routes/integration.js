@@ -308,7 +308,7 @@ router.get('/management-review-snapshot', requireAction('management-review', 're
   ]);
   const perfStats = {
     total: perfReviews.length,
-    completed: perfReviews.filter(p => p.status === 'COMPLETED' || p.status === 'CLOSED').length,
+    completed: perfReviews.filter(p => p.status === 'FINALIZED').length,
     avgRating: perfReviews.filter(p => p.overallRating).length
       ? perfReviews.reduce((s, p) => s + (p.overallRating || 0), 0) / perfReviews.filter(p => p.overallRating).length
       : null,

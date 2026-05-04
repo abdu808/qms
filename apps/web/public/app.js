@@ -371,11 +371,10 @@ function app() {
         const qs = new URLSearchParams();
         if (this.reviewSnapshot.planId) qs.set('planId', this.reviewSnapshot.planId);
         if (this.reviewSnapshot.year)   qs.set('year', this.reviewSnapshot.year);
-        // TODO: backend endpoint to be built
         const r = await this.api('GET', `/integration/management-review-snapshot?${qs.toString()}`);
         this.reviewSnapshot.data = r;
       } catch (e) {
-        this.reviewSnapshot.error = e.message || 'تعذّر تحميل اللوحة (قد يكون الـ endpoint قيد البناء)';
+        this.reviewSnapshot.error = e.message || 'تعذّر تحميل لوحة المراجعة الذكية';
       } finally {
         this.reviewSnapshot.loading = false;
       }
