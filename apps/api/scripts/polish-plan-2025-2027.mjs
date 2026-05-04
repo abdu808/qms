@@ -12,6 +12,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
 
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes('--apply');
@@ -41,6 +42,7 @@ const NAME_RULES = [
     unit: '%',
     direction: 'HIGHER_BETTER',
     kpiType: 'SNAPSHOT',
+    target2026: 100,
     target2027: 100,
   },
   {
@@ -119,6 +121,24 @@ const NAME_RULES = [
     direction: 'HIGHER_BETTER',
     kpiType: 'SNAPSHOT',
   },
+  {
+    match: 'نسبة اكتمال تطوير السياسات والإجراءات',
+    unit: '%',
+    direction: 'HIGHER_BETTER',
+    kpiType: 'SNAPSHOT',
+    target2026: 100,
+    target2027: 100,
+    notesAppend: 'مستهدف الصفر لعام 2027 غير قابل للقياس بعد تحقق الاعتماد، ويستبدل بالمحافظة على 100%.',
+  },
+  {
+    match: 'إصدار تقرير الحوكمة السنوي',
+    unit: 'عدد',
+    direction: 'HIGHER_BETTER',
+    kpiType: 'CUMULATIVE',
+    target2026: 1,
+    target2027: 1,
+    notesAppend: 'مؤشر سنوي: الصفر يعني عدم استحقاق غير مناسب لمؤشر إصدار تقرير حوكمة.',
+  },
 ];
 
 const ACTIVITY_RULES = [
@@ -191,6 +211,25 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+async function listActivities() {
+  return prisma.$queryRaw`
+    SELECT id, code, title, notes, "targetValue", "targetUnit", "kpiType", direction
+    FROM "OperationalActivity"
+    WHERE "deletedAt" IS NULL
+    ORDER BY code ASC
+  `;
+}
+
+async function updateActivity(tx, activityId, data) {
+  if (!APPLY) return;
+  if (Object.hasOwn(data, 'title')) await tx.$executeRaw`UPDATE "OperationalActivity" SET title = ${data.title}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+  if (Object.hasOwn(data, 'targetValue')) await tx.$executeRaw`UPDATE "OperationalActivity" SET "targetValue" = ${data.targetValue}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+  if (Object.hasOwn(data, 'targetUnit')) await tx.$executeRaw`UPDATE "OperationalActivity" SET "targetUnit" = ${data.targetUnit}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+  if (Object.hasOwn(data, 'kpiType')) await tx.$executeRaw`UPDATE "OperationalActivity" SET "kpiType" = ${data.kpiType}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+  if (Object.hasOwn(data, 'direction')) await tx.$executeRaw`UPDATE "OperationalActivity" SET direction = ${data.direction}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+  if (Object.hasOwn(data, 'notes')) await tx.$executeRaw`UPDATE "OperationalActivity" SET notes = ${data.notes}, "updatedAt" = NOW() WHERE id = ${activityId}`;
+}
+
 async function writeReport(report) {
   await fs.mkdir(OUT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -247,10 +286,7 @@ async function main() {
       include: { annualTargets: { orderBy: { year: 'asc' } }, axis: true },
       orderBy: { code: 'asc' },
     }),
-    prisma.operationalActivity.findMany({
-      where: { deletedAt: null },
-      orderBy: { code: 'asc' },
-    }),
+    listActivities(),
   ]);
 
   const changes = [];
@@ -302,10 +338,7 @@ async function main() {
         if (rule.delete) {
           changes.push({ type: 'activity.delete', activity: activity.code, title: activity.title, reason: rule.reason });
           if (APPLY) {
-            await tx.operationalActivity.update({
-              where: { id: activity.id },
-              data: { deletedAt: new Date(), notes: appendNote(activity.notes, rule.reason) },
-            });
+            await tx.$executeRaw`UPDATE "OperationalActivity" SET "deletedAt" = NOW(), notes = ${appendNote(activity.notes, rule.reason)}, "updatedAt" = NOW() WHERE id = ${activity.id}`;
           }
           continue;
         }
@@ -317,7 +350,7 @@ async function main() {
         if (rule.notesAppend) data.notes = appendNote(activity.notes, rule.notesAppend);
         if (Object.keys(data).length) {
           changes.push({ type: 'activity.update', activity: activity.code, title: activity.title, data });
-          if (APPLY) await tx.operationalActivity.update({ where: { id: activity.id }, data });
+          await updateActivity(tx, activity.id, data);
         }
       }
     }

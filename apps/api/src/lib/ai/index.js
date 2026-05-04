@@ -38,6 +38,8 @@ const PROVIDERS = {
 };
 
 const DEFAULT_TIMEOUT_MS = 60_000;
+const MANUAL_ONLY_PROVIDERS = new Set(['openai', 'google']);
+const MANUAL_PROVIDER_FEATURES = new Set(['playground']);
 
 /**
  * الاستدعاء الرئيسي
@@ -57,6 +59,18 @@ export async function aiComplete(params = {}) {
   // feature model override: إذا لم يُحدَّد موديل صريح، استخدم تعيين الميزة
   const featureModel = settings.featureModels?.[params.feature];
   const model = params.model || featureModel || settings.defaultModel;
+  if (MANUAL_ONLY_PROVIDERS.has(provider) && !MANUAL_PROVIDER_FEATURES.has(params.feature)) {
+    const err = new Error('OpenAI/Gemini متاحان للاختبار اليدوي فقط. تشغيل المستشار والأدوات يستخدم Anthropic.');
+    err.code = 'AI_PROVIDER_MANUAL_ONLY';
+    err.status = 400;
+    throw err;
+  }
+  if (!MANUAL_PROVIDER_FEATURES.has(params.feature) && !String(model || '').startsWith('claude-')) {
+    const err = new Error('موديلات التشغيل يجب أن تكون Claude فقط. OpenAI/Gemini للاختبار اليدوي فقط.');
+    err.code = 'AI_MODEL_OPERATIONAL_ONLY';
+    err.status = 400;
+    throw err;
+  }
   const providerImpl = PROVIDERS[provider];
   if (!providerImpl) {
     throw new Error(`مزود AI غير مدعوم: ${provider}`);

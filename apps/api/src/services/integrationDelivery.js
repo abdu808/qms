@@ -26,6 +26,14 @@ function safeJson(value) {
   }
 }
 
+const DELIVERY_STATUS_PREVIOUS = {
+  PENDING:    ['PENDING'],
+  DISPATCHED: ['PENDING', 'DISPATCHED'],
+  DELIVERED:  ['PENDING', 'DISPATCHED', 'DELIVERED'],
+  FAILED:     ['PENDING', 'DISPATCHED', 'FAILED'],
+  SKIPPED:    ['PENDING', 'SKIPPED'],
+};
+
 export async function dispatchIntegrationEvent({
   event,
   eventKey,
@@ -150,13 +158,19 @@ export async function markIntegrationDeliveryStatus({
 }) {
   const where = deliveryId ? { id: deliveryId } : { eventKey };
   const finalStatus = String(status || '').toUpperCase();
-  if (!['PENDING', 'DISPATCHED', 'DELIVERED', 'FAILED', 'SKIPPED'].includes(finalStatus)) {
-    throw new Error('Invalid delivery status');
+  const allowedPrevious = DELIVERY_STATUS_PREVIOUS[finalStatus];
+  if (!allowedPrevious) {
+    const err = new Error('Invalid delivery status');
+    err.status = 400;
+    throw err;
   }
 
   const now = new Date();
-  return prisma.integrationDelivery.update({
-    where,
+  const result = await prisma.integrationDelivery.updateMany({
+    where: {
+      ...where,
+      status: { in: allowedPrevious },
+    },
     data: {
       status: finalStatus,
       channel: channel || undefined,
@@ -169,4 +183,22 @@ export async function markIntegrationDeliveryStatus({
       failedAt: finalStatus === 'FAILED' ? now : undefined,
     },
   });
+
+  const delivery = await prisma.integrationDelivery.findUnique({
+    where,
+    select: { id: true, status: true },
+  });
+
+  if (!delivery) {
+    const err = new Error('Integration delivery not found');
+    err.status = 404;
+    throw err;
+  }
+  if (result.count === 0) {
+    const err = new Error(`Invalid delivery status transition: ${delivery.status} -> ${finalStatus}`);
+    err.status = 409;
+    throw err;
+  }
+
+  return delivery;
 }

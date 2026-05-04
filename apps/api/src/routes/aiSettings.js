@@ -30,6 +30,7 @@ const USER_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
 
 // Anthropic هو المزود التشغيلي. OpenAI/Gemini احتياطي يدوي للاختبار والـ Playground.
 const VALID_PROVIDERS = ['anthropic', 'openai', 'google'];
+const VALID_DEFAULT_PROVIDERS = ['anthropic'];
 const VALID_REDACTION = ['always', 'never', 'optional'];
 
 /**
@@ -67,8 +68,8 @@ router.put('/', authorize(...ADMIN_ROLES), asyncHandler(async (req, res) => {
   }
 
   if (b.defaultProvider !== undefined) {
-    if (!VALID_PROVIDERS.includes(b.defaultProvider)) {
-      throw BadRequest(`مزود غير صالح. القيم المسموحة: ${VALID_PROVIDERS.join(', ')}`);
+    if (!VALID_DEFAULT_PROVIDERS.includes(b.defaultProvider)) {
+      throw BadRequest('مزود التشغيل غير صالح. OpenAI/Gemini للاختبار اليدوي فقط.');
     }
     await setSetting('ai_default_provider', b.defaultProvider);
   }

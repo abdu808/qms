@@ -10,6 +10,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
 
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes('--apply');
@@ -86,6 +87,57 @@ function quarterlyTargets(target, frequency, kpiType) {
   return { q1Target: v, q2Target: v, q3Target: v, q4Target: v };
 }
 
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+function correctedTargetValue(ind, target) {
+  const n = ind.nameAr;
+  if (target.targetValue !== 0) return target.targetValue;
+  if (n.includes('ISO 9001')) return 1;
+  if (n.includes('توثيق الأدلة التنظيمية')) return 100;
+  if (n.includes('السياسات والإجراءات')) return 100;
+  if (n.includes('تقرير الحوكمة')) return 1;
+  return target.targetValue;
+}
+
+function stagedTargets(ind, target) {
+  const corrected = correctedTargetValue(ind, target);
+  if (ind.nameAr.includes('ISO 9001')) {
+    return { targetValue: corrected, q1Target: null, q2Target: null, q3Target: corrected, q4Target: corrected };
+  }
+  if (ind.nameAr.includes('تقرير الحوكمة')) {
+    return { targetValue: corrected, q1Target: null, q2Target: null, q3Target: null, q4Target: corrected };
+  }
+  const base = quarterlyTargets(corrected, ind.frequency, ind.kpiType);
+  const v = Number(corrected);
+  const baseline = Number(ind.baseline);
+  const canStageSnapshot = (
+    ind.baseline != null
+    && Number.isFinite(v)
+    && Number.isFinite(baseline)
+    && ind.kpiType === 'SNAPSHOT'
+    && ['MONTHLY', 'QUARTERLY'].includes(ind.frequency)
+  );
+  if (!canStageSnapshot) return { targetValue: corrected, ...base };
+
+  const step = (v - baseline) / 4;
+  return {
+    targetValue: corrected,
+    q1Target: round2(baseline + step),
+    q2Target: round2(baseline + step * 2),
+    q3Target: round2(baseline + step * 3),
+    q4Target: v,
+  };
+}
+
+function appendGovernanceNote(existing, addition) {
+  const text = String(existing || '').trim();
+  if (!addition) return text || null;
+  if (text.includes(addition)) return text;
+  return text ? `${text} | ${addition}` : addition;
+}
+
 async function writeReport(report) {
   await fs.mkdir(OUT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -109,14 +161,15 @@ async function main() {
         definition: rule.definition,
         formula: rule.formula,
         dataSource: rule.dataSource,
-        notes: rule.notes,
+        notes: appendGovernanceNote(ind.notes, rule.notes),
       };
       changes.push({ type: 'indicator.governance', code: ind.code, name: ind.nameAr });
       if (APPLY) await tx.indicator.update({ where: { id: ind.id }, data });
 
       for (const target of ind.annualTargets) {
-        const q = quarterlyTargets(target.targetValue, ind.frequency, ind.kpiType);
-        changes.push({ type: 'annualTarget.quarters', code: ind.code, year: target.year, ...q });
+        const q = stagedTargets(ind, target);
+        const changeType = q.targetValue !== target.targetValue ? 'annualTarget.targetAndQuarters' : 'annualTarget.quarters';
+        changes.push({ type: changeType, code: ind.code, year: target.year, fromTarget: target.targetValue, ...q });
         if (APPLY) {
           await tx.annualTarget.update({
             where: { id: target.id },

@@ -32,7 +32,7 @@ async function getWebhookSecret() {
 }
 
 async function requireWebhookAuth(req, res, next) {
-  const provided = req.headers['x-webhook-secret'] || req.query.secret;
+  const provided = req.headers['x-webhook-secret'];
   const expected = await getWebhookSecret();
 
   if (!expected) {
@@ -74,7 +74,7 @@ router.post('/callback/delivery-status', requireWebhookAuth, asyncHandler(async 
     });
     res.json({ ok: true, delivery: { id: updated.id, status: updated.status } });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    res.status(e.status || 500).json({ ok: false, error: e.message });
   }
 }));
 

@@ -124,12 +124,20 @@ const apiRoutes = extractApiRoutes();
 
 const unknownGuidedPages = [];
 const guidedOutsideRoleMenu = [];
+const duplicateGuidedPages = [];
+const operationalObjectivesVisible = [];
 
 for (const [role, items] of guided.entries()) {
   const allowed = roleMatrix.get(role);
+  const seen = new Set();
   for (const item of items) {
     if (!knownPages.has(item)) unknownGuidedPages.push({ role, item });
     if (allowed !== 'ALL_ITEMS' && !allowed?.includes(item)) guidedOutsideRoleMenu.push({ role, item });
+    if (seen.has(item)) duplicateGuidedPages.push({ role, item });
+    seen.add(item);
+    if (item === 'objectives' && ['EMPLOYEE', 'DEPT_MANAGER', 'COMMITTEE_MEMBER', 'QUALITY_MANAGER'].includes(role)) {
+      operationalObjectivesVisible.push({ role, item });
+    }
   }
 }
 
@@ -141,10 +149,15 @@ for (const [moduleId, endpoint] of endpoints.entries()) {
 }
 
 const result = {
-  ok: unknownGuidedPages.length === 0 && guidedOutsideRoleMenu.length === 0,
+  ok: unknownGuidedPages.length === 0
+    && guidedOutsideRoleMenu.length === 0
+    && duplicateGuidedPages.length === 0
+    && operationalObjectivesVisible.length === 0,
   guidedGroupsChecked: Object.fromEntries(guided),
   unknownGuidedPages,
   guidedOutsideRoleMenu,
+  duplicateGuidedPages,
+  operationalObjectivesVisible,
   endpointWarnings,
 };
 

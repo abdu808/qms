@@ -788,7 +788,7 @@ function app() {
           { id: 'guided-today', title: 'ما يحتاج قرارك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'kpiFollowUp'] },
           { id: 'guided-followup', title: 'المتابعة السريعة', icon: '📋', iso: '', color: 'sky', items: ['progressReports', 'kpiTracking', 'operationalReports', 'slaBoard'] },
           { id: 'guided-quality', title: 'الجودة والمخاطر', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'risks', 'capa'] },
-          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['kpiTracking', 'operationalActivities', 'initiatives', 'strategicGoals'] },
+          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['operationalActivities', 'initiatives', 'strategicGoals'] },
           { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
         ],
         COMMITTEE_MEMBER: [

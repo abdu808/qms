@@ -64,7 +64,8 @@ export async function getAiSettings() {
     // دمج الافتراضيات مع المحفوظ
     const featureModels = {};
     for (const f of FEATURE_CATALOG) {
-      featureModels[f.id] = rawFeatureModels[f.id] || f.defaultModel;
+      const saved = String(rawFeatureModels[f.id] || '').trim();
+      featureModels[f.id] = saved.startsWith('claude-') ? saved : f.defaultModel;
     }
 
     _cache = {
@@ -126,6 +127,9 @@ export async function setFeatureModels(assignments) {
     const name = String(val).trim();
     if (!KNOWN_MODELS.has(name)) {
       throw new Error(`اسم الموديل غير معروف: "${name}" — تحقق من الكتالوج المدعوم في pricing.js`);
+    }
+    if (!name.startsWith('claude-')) {
+      throw new Error('توجيه ميزات AI التشغيلية يدعم موديلات Claude فقط. OpenAI/Gemini للاختبار اليدوي فقط.');
     }
     safe[f.id] = name;
   }
