@@ -23,6 +23,23 @@ const DEFAULT_FILE = path.join(
   'matrix_albir_v2_final_for_system.xlsx',
 );
 const DEFAULT_OUT = path.join(repoRoot, 'outputs', 'plan-reset');
+const OWNER_TO_DEPT_CODE = new Map([
+  ['قسم الكفالات', 'KAF'],
+  ['قسم الخدمة المجتمعية', 'SOC'],
+  ['قسم المساعدات العينية / المستودع', 'WH'],
+  ['قسم التمكين', 'EMP'],
+  ['إدارة تنمية الموارد', 'RES'],
+  ['وحدة الاستثمار', 'INV'],
+  ['إدارة المالية', 'FIN'],
+  ['وحدة التميز المؤسسي', 'QM'],
+  ['المدير التنفيذي', 'ADM'],
+  ['إدارة التحول التقني', 'IT'],
+  ['إدارة الموارد البشرية', 'HR'],
+  ['إدارة الاتصال والشراكات', 'COM'],
+  ['إدارة تنمية الموارد / إدارة المالية', 'RES'],
+  ['وحدة التطوع', 'COM'],
+  ['إدارة الاتصال', 'COM'],
+]);
 
 function argValue(name, fallback) {
   const flag = `--${name}=`;
@@ -156,7 +173,7 @@ async function loadDbSnapshot() {
     }),
     prisma.operationalActivity.findMany({ where: { deletedAt: null }, select: { id: true, code: true, title: true, year: true } }),
     prisma.annualTarget.findMany({ select: { id: true, indicatorId: true, year: true, targetValue: true } }),
-    prisma.department.findMany({ select: { id: true, name: true } }),
+    prisma.department.findMany({ select: { id: true, code: true, name: true } }),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true, email: true, departmentId: true } }),
   ]);
   return { plans, axes, goals, indicators, activities, annualTargets, departments, users };
@@ -169,9 +186,12 @@ function matchByName(existing, titleField, plannedName) {
 
 function ownerResolution(rows, db) {
   const deptByKey = new Map(db.departments.map(d => [normalizeKey(d.name), d]));
+  const deptByCode = new Map(db.departments.map(d => [d.code, d]));
   const uniqueOwners = uniqueBy(rows.map(r => r.ownerText).filter(Boolean), x => normalizeKey(x));
   return uniqueOwners.map(owner => {
-    const direct = deptByKey.get(normalizeKey(owner));
+    const mappedCode = OWNER_TO_DEPT_CODE.get(owner);
+    const mapped = mappedCode ? deptByCode.get(mappedCode) : null;
+    const direct = mapped || deptByKey.get(normalizeKey(owner));
     const fuzzy = direct || db.departments.find(d => normalizeKey(owner).includes(normalizeKey(d.name)) || normalizeKey(d.name).includes(normalizeKey(owner)));
     return { owner, departmentMatch: fuzzy?.name || null, status: fuzzy ? 'matched_department' : 'needs_mapping' };
   });
