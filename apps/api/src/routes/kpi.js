@@ -582,6 +582,7 @@ async function getIndicatorsWithEntries(year) {
       // المحور (perspective) يأتي من axis.nameAr وليس حقل perspective (غير موجود في Indicator)
       perspective: ind.axis?.nameAr || '—',
       axisId:      ind.axisId,
+      objectiveId: ind.objectiveId,
       axisWeight:  ind.axis?.weight,
       weight:      ind.weight,
       kpiType:     ind.kpiType,
@@ -597,6 +598,15 @@ async function getIndicatorsWithEntries(year) {
       entries: ind.kpiEntries,
     };
   });
+}
+
+function filterObjectivesNotMeasuredByIndicators(objectives, indicators) {
+  const measuredObjectiveIds = new Set(
+    indicators
+      .map(indicator => indicator.objectiveId)
+      .filter(Boolean),
+  );
+  return objectives.filter(objective => !measuredObjectiveIds.has(objective.id));
 }
 
 // ── Smart filter chips للمؤشرات (quick=mine,red,behind...) ────────
@@ -670,6 +680,7 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
     const [objectives, activities, indicators] = await Promise.all([
       getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
+    const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const build = (list, kind) => list.map(k => {
       const ev = evaluateKpi(k, k.entries, year, month);
       const monthCells = Array.from({ length: 12 }, (_, i) => {
@@ -691,7 +702,7 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
         ...ev, months: monthCells,
       };
     });
-    const allObjectives  = build(objectives,  'objective');
+    const allObjectives  = build(effectiveObjectives,  'objective');
     const allActivities  = build(activities,  'activity');
     const allIndicators  = build(indicators,  'indicator');
     const all = [...allObjectives, ...allActivities, ...allIndicators];
@@ -730,8 +741,9 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
     const [objectives, activities, indicators] = await Promise.all([
       getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
+    const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const all = [
-      ...objectives.map(o=>({...o,kind:'objective'})),
+      ...effectiveObjectives.map(o=>({...o,kind:'objective'})),
       ...activities.map(a=>({...a,kind:'activity'})),
       ...indicators.map(i=>({...i,kind:'indicator'})),
     ].map(k => ({ ...k, evaluation: evaluateKpi(k, k.entries, year, month) }));
@@ -786,7 +798,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
       year, month,
       perspectives: Object.values(byPerspective),
       summary: {
-        totalObjectives: objectives.length,
+        totalObjectives: effectiveObjectives.length,
         totalActivities: activities.length,
         totalIndicators: indicators.length,
         green: all.filter(k=>k.evaluation.rag==='GREEN').length,
@@ -812,8 +824,9 @@ router.get('/alerts', requireAction('kpi', 'read'), async (req, res, next) => {
     const [objectives, activities, indicators] = await Promise.all([
       getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
     ]);
+    const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const all = [
-      ...objectives.map(o=>({...o,kind:'objective'})),
+      ...effectiveObjectives.map(o=>({...o,kind:'objective'})),
       ...activities.map(a=>({...a,kind:'activity'})),
       ...indicators.map(i=>({...i,kind:'indicator'})),
     ];
