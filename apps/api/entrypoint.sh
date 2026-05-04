@@ -89,12 +89,24 @@ recover_failed_migration() {
   fi
 }
 
+recover_failed_migration_as_rolled_back() {
+  MIGRATION_NAME="$1"
+  FAILED_NAMES="$2"
+
+  if echo "$FAILED_NAMES" | grep -qx "$MIGRATION_NAME"; then
+    echo "[$(ts)] [deploy] failed migration detected: $MIGRATION_NAME"
+    echo "[$(ts)] [deploy] marking $MIGRATION_NAME as rolled back so prisma can rerun its idempotent SQL"
+    npx prisma migrate resolve --rolled-back "$MIGRATION_NAME"
+  fi
+}
+
 FAILED_MIGRATIONS="$(failed_migrations || true)"
 if [ -n "$FAILED_MIGRATIONS" ]; then
   echo "[$(ts)] [deploy] Prisma failed migrations found:"
   echo "$FAILED_MIGRATIONS"
   recover_failed_migration "20260502220000_add_kpi_followup" "KpiFollowUp" "$FAILED_MIGRATIONS"
   recover_failed_migration "20260503001000_add_integration_delivery" "IntegrationDelivery" "$FAILED_MIGRATIONS"
+  recover_failed_migration_as_rolled_back "20260504042000_add_activity_indicator_link" "$FAILED_MIGRATIONS"
 fi
 
 npx prisma migrate deploy
