@@ -50,6 +50,7 @@ import {
   detectCrossContradictions as svcDetectCross,
 } from '../progressReportService.js';
 import { can } from '../../lib/permissions.js';
+import { buildPlanConnectivity } from '../../lib/planConnectivity.js';
 
 // ═════════════════════════════════════════════════════════════════════
 //  TOOL PERMISSIONS — كل أداة تُحوَّل إلى (resource, action) من المصفوفة
@@ -2692,6 +2693,36 @@ export async function executeTool(name, input, ctx) {
     // ══ أدوات التحليل العميق (v3) ═════════════════════════════════════════════
 
     case 'evaluate_strategic_plan': {
+      const planMap = await buildPlanConnectivity({ year: input.year });
+      const errorCount = planMap.summary.errors;
+      const warningCount = planMap.summary.warnings;
+      const planStrengths = [];
+      if (planMap.summary.goals > 0) planStrengths.push(`الخطة تحتوي ${planMap.summary.goals} هدفاً استراتيجياً ضمن ${planMap.summary.axes} محاور.`);
+      if (planMap.summary.indicators > 0) planStrengths.push(`مكتبة المؤشرات تحتوي ${planMap.summary.indicators} مؤشراً قابلاً للمتابعة.`);
+      if (planMap.summary.activities > 0) planStrengths.push(`يوجد ${planMap.summary.activities} نشاطاً تنفيذياً داعماً للخطة.`);
+      return {
+        ok: true,
+        data: {
+          score: planMap.summary.score,
+          label: planMap.summary.score >= 85 ? '🟢 جيد جداً' : planMap.summary.score >= 70 ? '🟡 مقبول ويحتاج ضبط' : planMap.summary.score >= 50 ? '🟠 يحتاج تحسين' : '🔴 حرج',
+          operatingModel: planMap.operatingModel,
+          summary: planMap.summary,
+          goals: planMap.goals.map(g => ({
+            code: g.code,
+            title: g.title,
+            axis: g.axis?.nameAr || null,
+            indicators: g.indicators.length,
+            supportingAxisIndicators: g.supportingAxisIndicators.length,
+            activities: g.activities.length,
+            initiatives: g.initiatives.length,
+            departments: g.departments.map(d => d.name),
+            issues: g.issues.filter(i => i.severity !== 'INFO'),
+          })),
+          issues: planMap.issues.slice(0, 40),
+          strengths: planStrengths,
+        },
+        summary: `📋 تقييم الخطة وفق النموذج المعتمد: ${planMap.summary.score}/100 — ${errorCount} مشكلة حقيقية، ${warningCount} تنبيه. طبقة Objective اختيارية وليست معيار فشل.`,
+      };
       const now = new Date();
       const [goals, objectives, activities, risks] = await Promise.all([
         prisma.strategicGoal.findMany({
@@ -2939,6 +2970,39 @@ export async function executeTool(name, input, ctx) {
     }
 
     case 'suggest_missing_objectives': {
+      const planMap = await buildPlanConnectivity({ year: input.year });
+      const planSuggestions = [];
+      for (const goal of planMap.goals) {
+        if (goal.indicators.length === 0 && goal.supportingAxisIndicators.length === 0) {
+          planSuggestions.push({
+            priority: 'HIGH',
+            area: 'مؤشرات الهدف',
+            goal: goal.code,
+            msg: `${goal.code} "${goal.title}" — أضف مؤشراً مباشراً أو اربط نشاطاً بمؤشر داعم. لا يلزم إنشاء Objective إذا كان المؤشر واضحاً.`,
+          });
+        }
+        if (goal.activities.length === 0) {
+          planSuggestions.push({
+            priority: 'MEDIUM',
+            area: 'أنشطة داعمة',
+            goal: goal.code,
+            msg: `${goal.code} — أضف نشاطاً تنفيذياً خفيفاً يوضح كيف سيتحرك الفريق لتحقيق الهدف.`,
+          });
+        }
+      }
+      for (const issue of planMap.issues.filter(i => i.area === 'مالك المؤشر' || i.area === 'مالك البيانات' || i.area === 'المستهدفات')) {
+        planSuggestions.push({ priority: 'HIGH', area: issue.area, msg: issue.message, ref: issue.ref });
+      }
+      planSuggestions.sort((a, b) => ({ HIGH: 0, MEDIUM: 1, LOW: 2 }[a.priority] - { HIGH: 0, MEDIUM: 1, LOW: 2 }[b.priority]));
+      return {
+        ok: true,
+        data: {
+          total: planSuggestions.length,
+          operatingModel: planMap.operatingModel,
+          suggestions: planSuggestions,
+        },
+        summary: `💡 ${planSuggestions.length} توصية لتحسين الربط — التركيز على مؤشر/نشاط/مالك بيانات، وليس إنشاء Objective إلزامي.`,
+      };
       const [goals, objectives, departments] = await Promise.all([
         prisma.strategicGoal.findMany({ where: { deletedAt: null }, include: { activities: { where: { deletedAt: null } } } }),
         prisma.objective.findMany({ where: { deletedAt: null }, select: { strategicGoalId: true, departmentId: true } }),
@@ -3073,6 +3137,23 @@ export async function executeTool(name, input, ctx) {
     }
 
     case 'check_department_coverage': {
+      const planMap = await buildPlanConnectivity({ year: input.year });
+      const warnings = planMap.issues.filter(i => i.area === 'تغطية الأقسام');
+      const departmentsWithRole = new Set();
+      for (const goal of planMap.goals) {
+        for (const dept of goal.departments || []) departmentsWithRole.add(dept.id);
+      }
+      return {
+        ok: true,
+        data: {
+          total: planMap.summary.departments,
+          covered: departmentsWithRole.size,
+          missing: warnings.length,
+          warnings,
+          note: 'التغطية هنا تعني ظهور القسم كمالك بيانات أو مالك أداء أو منفذ نشاط؛ غياب القسم تنبيه لا يعني فشل الخطة تلقائياً.',
+        },
+        summary: `🏢 تغطية الأقسام: ${departmentsWithRole.size} قسم له دور ظاهر / ${warnings.length} قسم يحتاج مراجعة دور من أصل ${planMap.summary.departments}.`,
+      };
       const [departments, objectives, activities] = await Promise.all([
         prisma.department.findMany({ select: { id: true, name: true, code: true } }),
         prisma.objective.findMany({ where: { deletedAt: null }, select: { departmentId: true } }),

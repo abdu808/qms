@@ -16,6 +16,7 @@ const customPages = new Set([
   'acknowledgmentsMatrix',
   'audit-log',
   'annualTargets',
+  'planMap',
   'iso-readiness',
   'dataHealth',
   'kpiTracking',

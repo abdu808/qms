@@ -6,6 +6,7 @@ import { requireAction } from '../lib/permissions.js';
 import { authorize } from '../middleware/auth.js';
 import { activeWhere } from '../lib/dataHelpers.js';
 import { NotFound } from '../utils/errors.js';
+import { buildPlanConnectivity } from '../lib/planConnectivity.js';
 
 const base = crudRouter({
   resource: 'strategic-goals',
@@ -13,11 +14,12 @@ const base = crudRouter({
   codePrefix: 'STR',
   searchFields: ['title', 'perspective', 'kpi', 'legacyInitiatives', 'responsible'],
   allowedSortFields: ['createdAt', 'status', 'progress', 'startYear', 'endYear'],
-  // إرجاع اسم المحور + أعداد الأهداف التشغيلية والمبادرات (لعرض البيانات الحقيقية في الجدول)
+  // إرجاع اسم المحور + أعداد الأنشطة والمبادرات (النموذج المعتمد: هدف -> مؤشرات/أنشطة)
   include: {
     axis:   { select: { id: true, nameAr: true, code: true, color: true } },
     _count: {
       select: {
+        activities: { where: { deletedAt: null } },
         objectives: { where: { deletedAt: null } },
         initiatives: { where: { deletedAt: null } },
       },
@@ -35,6 +37,33 @@ const base = crudRouter({
 });
 
 const router = Router();
+
+/**
+ * GET /api/strategic-goals/plan-map
+ * Lightweight plan connectivity map:
+ * Axis -> StrategicGoal -> Indicators + OperationalActivities -> KPI entries.
+ * Objective remains optional/legacy and is not treated as a required layer.
+ */
+router.get('/plan-map', requireAction('strategic-goals', 'read'), asyncHandler(async (req, res) => {
+  const year = req.query.year ? Number(req.query.year) : null;
+  const map = await buildPlanConnectivity({ year });
+  res.json(map);
+}));
+
+/**
+ * GET /api/strategic-goals/plan-health
+ * Compact health summary for AI/tools and dashboards.
+ */
+router.get('/plan-health', requireAction('strategic-goals', 'read'), asyncHandler(async (req, res) => {
+  const year = req.query.year ? Number(req.query.year) : null;
+  const map = await buildPlanConnectivity({ year });
+  res.json({
+    ok: true,
+    operatingModel: map.operatingModel,
+    summary: map.summary,
+    issues: map.issues,
+  });
+}));
 
 /**
  * GET /api/strategic-goals/:id/summary

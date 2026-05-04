@@ -1834,8 +1834,111 @@
 
           </div>
 
+          <!-- PLAN CONNECTIVITY MAP -->
+          <template x-if="page === 'planMap'">
+            <div class="space-y-4 px-4 md:px-0">
+              <div class="bg-white rounded-2xl border shadow-sm p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h2 class="text-xl font-extrabold text-gray-800">🧭 خريطة ترابط الخطة</h2>
+                    <p class="text-sm text-gray-500 mt-1">المحور ← الهدف الاستراتيجي ← المؤشرات والأنشطة ← قراءات الأداء</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <select x-model="filterYear" @change="loadPlanMap()" class="border rounded-xl px-3 py-2 bg-white text-sm">
+                      <template x-for="y in planYears" :key="y">
+                        <option :value="y" x-text="y"></option>
+                      </template>
+                    </select>
+                    <button @click="loadPlanMap()" class="bg-brand-600 hover:bg-brand-700 text-white rounded-xl px-4 py-2 text-sm font-semibold">تحديث</button>
+                  </div>
+                </div>
+
+                <div x-show="planMapLoading" class="text-center text-gray-500 py-10">جاري تحميل الخريطة...</div>
+                <div x-show="planMapError" class="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-sm" x-text="planMapError"></div>
+
+                <div x-show="planMap" class="grid md:grid-cols-6 gap-3">
+                  <div class="rounded-xl border p-3 bg-slate-50">
+                    <div class="text-xs text-gray-500">درجة الصحة</div>
+                    <div class="text-2xl font-extrabold" :class="(planMap?.summary?.score||0) >= 80 ? 'text-emerald-700' : (planMap?.summary?.score||0) >= 60 ? 'text-amber-600' : 'text-red-600'" x-text="(planMap?.summary?.score||0) + '%'"></div>
+                  </div>
+                  <div class="rounded-xl border p-3"><div class="text-xs text-gray-500">الأهداف</div><div class="text-2xl font-bold" x-text="planMap?.summary?.goals || 0"></div></div>
+                  <div class="rounded-xl border p-3"><div class="text-xs text-gray-500">المؤشرات</div><div class="text-2xl font-bold" x-text="planMap?.summary?.indicators || 0"></div></div>
+                  <div class="rounded-xl border p-3"><div class="text-xs text-gray-500">الأنشطة</div><div class="text-2xl font-bold" x-text="planMap?.summary?.activities || 0"></div></div>
+                  <div class="rounded-xl border p-3 bg-red-50"><div class="text-xs text-red-600">مشكلات</div><div class="text-2xl font-bold text-red-700" x-text="planMap?.summary?.errors || 0"></div></div>
+                  <div class="rounded-xl border p-3 bg-amber-50"><div class="text-xs text-amber-600">تنبيهات</div><div class="text-2xl font-bold text-amber-700" x-text="planMap?.summary?.warnings || 0"></div></div>
+                </div>
+              </div>
+
+              <div x-show="planMap?.issues?.length" class="bg-white rounded-2xl border shadow-sm p-5">
+                <h3 class="font-bold text-gray-800 mb-3">أهم الملاحظات</h3>
+                <div class="grid md:grid-cols-2 gap-2">
+                  <template x-for="issue in (planMap?.issues || []).slice(0, 12)" :key="issue.area + issue.ref + issue.message">
+                    <div class="border rounded-xl px-3 py-2 text-sm" :class="planIssueClass(issue.severity)">
+                      <span class="font-bold" x-text="planIssueLabel(issue.severity)"></span>
+                      <span class="mx-1">•</span>
+                      <span x-text="issue.message"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <template x-for="goal in (planMap?.goals || [])" :key="goal.id">
+                  <div class="bg-white rounded-2xl border shadow-sm p-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div class="text-xs text-gray-400 font-mono" x-text="goal.code"></div>
+                        <h3 class="font-extrabold text-gray-800" x-text="goal.title"></h3>
+                        <div class="text-xs text-gray-500 mt-1">
+                          <span x-text="goal.axis?.nameAr || 'بلا محور'"></span>
+                          <span class="mx-1">•</span>
+                          <span x-text="goal.owner?.name || goal.responsible || 'بلا مالك واضح'"></span>
+                        </div>
+                      </div>
+                      <div class="flex gap-2 flex-wrap text-xs">
+                        <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100" x-text="'مؤشرات: ' + goal.indicators.length"></span>
+                        <span class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100" x-text="'أنشطة: ' + goal.activities.length"></span>
+                        <span class="px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100" x-text="'مبادرات: ' + goal.initiatives.length"></span>
+                      </div>
+                    </div>
+
+                    <div class="grid lg:grid-cols-3 gap-3 mt-4">
+                      <div class="rounded-xl border bg-gray-50 p-3">
+                        <div class="font-bold text-sm text-gray-700 mb-2">المؤشرات المباشرة</div>
+                        <div x-show="!goal.indicators.length" class="text-xs text-gray-400">لا يوجد مؤشر مباشر مثبت</div>
+                        <template x-for="ind in goal.indicators" :key="ind.id">
+                          <div class="text-xs py-1 border-b last:border-0">
+                            <span class="font-mono text-blue-700" x-text="ind.code"></span>
+                            <span x-text="' — ' + ind.nameAr"></span>
+                          </div>
+                        </template>
+                      </div>
+                      <div class="rounded-xl border bg-gray-50 p-3">
+                        <div class="font-bold text-sm text-gray-700 mb-2">الأنشطة</div>
+                        <div x-show="!goal.activities.length" class="text-xs text-gray-400">لا توجد أنشطة مرتبطة</div>
+                        <template x-for="act in goal.activities.slice(0, 6)" :key="act.id">
+                          <div class="text-xs py-1 border-b last:border-0">
+                            <span class="font-mono text-emerald-700" x-text="act.code"></span>
+                            <span x-text="' — ' + act.title"></span>
+                          </div>
+                        </template>
+                      </div>
+                      <div class="rounded-xl border bg-gray-50 p-3">
+                        <div class="font-bold text-sm text-gray-700 mb-2">تنبيهات الهدف</div>
+                        <div x-show="!goal.issues.filter(i => i.severity !== 'INFO').length" class="text-xs text-emerald-700">الربط مقبول</div>
+                        <template x-for="issue in goal.issues.filter(i => i.severity !== 'INFO')" :key="issue.message">
+                          <div class="text-xs rounded-lg border px-2 py-1 mb-1" :class="planIssueClass(issue.severity)" x-text="issue.message"></div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
           <!-- GENERIC LIST PAGE -->
-          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','myWork','operationalReports','slaBoard','dataImport','userGuide','kpiFollowUp','integrationsSettings'].includes(page)">
+          <template x-if="!['dashboard','audit-log','iso-readiness','surveys','myAcknowledgments','acknowledgmentsMatrix','kpiTracking','reportBuilder','consultant','progressReports','aiSettings','portalAdmin','auditorDashboard','myKpi','dataHealth','planMap','myWork','operationalReports','slaBoard','dataImport','userGuide','kpiFollowUp','integrationsSettings'].includes(page)">
             <div>
               <!-- Toolbar (sticky — stays visible while scrolling table) -->
               <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0">

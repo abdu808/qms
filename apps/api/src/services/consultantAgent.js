@@ -22,6 +22,7 @@ import { executeTool }  from './aiAgent/tools.js';
 import { getAiSettings } from '../lib/ai/settings.js';
 import { routeRequest } from './aiAgent/router.js';
 import { aiComplete } from '../lib/ai/index.js';
+import { buildPlanConnectivity } from '../lib/planConnectivity.js';
 
 // ── تحميل ملف المعرفة المؤسسية (مرة واحدة عند الإقلاع) ────────────────────────
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -73,8 +74,27 @@ const buildSystemPrompt = (role = 'QUALITY_MANAGER', { includeKnowledge = false 
     ? `\n\n━━━ قاعدة المعرفة المؤسسية ━━━\n${_orgKnowledge}`
     : '';
   const roleSection = role === 'SUPER_ADMIN' ? SUPER_ADMIN_PROMPT_SECTION : '';
-  return BASE_SYSTEM_PROMPT + roleSection + knowledgeSection;
+  return BASE_SYSTEM_PROMPT + PLAN_OPERATING_MODEL_PROMPT + roleSection + knowledgeSection;
 };
+
+const PLAN_OPERATING_MODEL_PROMPT = `
+
+━━━ نموذج الخطة المعتمد في جمعية البر بصبيا ━━━
+
+النظام لا يعتمد طبقة الأهداف التشغيلية (Objective) كشرط إلزامي للحكم على صحة الخطة.
+النموذج الرسمي الخفيف هو:
+  المحور الاستراتيجي → الهدف الاستراتيجي → المؤشرات والأنشطة → قراءات الأداء والمتابعة.
+
+قواعد التقييم:
+  • عدم وجود Objective ليس مشكلة بذاته، ولا يخفض تقييم الخطة.
+  • الهدف بلا مؤشر مباشر أو داعم = مشكلة حقيقية.
+  • الهدف بلا نشاط = تنبيه تنفيذ، وليس فشلاً إذا كان الهدف يقاس بمؤشرات واضحة.
+  • المؤشر بلا مالك أداء أو مالك بيانات أو مستهدف سنوي = مشكلة حقيقية.
+  • القسم غير الظاهر في الخطة = تنبيه تغطية، وليس حكماً كارثياً إلا إذا كان القسم يملك دوراً تنفيذياً مطلوباً.
+  • محاور الجمعية المخصصة مقبولة إذا غطت عملياً الأثر الاجتماعي، المال والاستدامة، التميز/العمليات، ورأس المال البشري والشراكات.
+
+عند تقييم الخطة استخدم خريطة الترابط أو أداة evaluate_strategic_plan، ولا تستخدم معيار "0 Objective" كدليل ضعف.
+`;
 
 const BASE_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي للجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 
@@ -279,7 +299,7 @@ const SUPER_ADMIN_PROMPT_SECTION = `
 export async function buildContext({ compact = false, callerRole = null } = {}) {
   const isQmUp      = callerRole === 'QUALITY_MANAGER' || callerRole === 'SUPER_ADMIN';
   const isManagerUp = isQmUp || callerRole === 'DEPT_MANAGER' || callerRole === 'COMMITTEE_MEMBER';
-  const [goals, activities, objectives, kpiEntries, users, departments, activePolicy, docsCount] =
+  const [goals, activities, objectives, kpiEntries, users, departments, activePolicy, docsCount, planConnectivity] =
     await Promise.all([
       prisma.strategicGoal.findMany({
         where: { deletedAt: null }, orderBy: { code: 'asc' },
@@ -301,9 +321,10 @@ export async function buildContext({ compact = false, callerRole = null } = {}) 
       prisma.department.findMany({ select: { id: true, name: true, code: true } }),
       prisma.qualityPolicy.findFirst({ where: { active: true }, select: { id: true, title: true, version: true } }),
       prisma.document.count({ where: { deletedAt: null } }),
+      buildPlanConnectivity(),
     ]);
 
-  const gaps = analyzeGaps({ goals, activities, objectives });
+  const gaps = analyzeGaps({ goals, activities, objectives, planConnectivity });
 
   // SECURITY: users قائمة PII. departments قائمة هيكلية للمنظمة.
   // عند تمرير callerRole، نُرجع فقط ما يحق لهذا الدور رؤيته. للتوافق العكسي
@@ -316,6 +337,11 @@ export async function buildContext({ compact = false, callerRole = null } = {}) 
       strategicGoals: goals.length,
       operationalActivities: activities.length,
       objectives: objectives.length,
+      objectiveLayer: 'اختيارية/قديمة وليست شرطاً للحكم على الخطة',
+      planHealthScore: planConnectivity.summary.score,
+      planHealthErrors: planConnectivity.summary.errors,
+      planHealthWarnings: planConnectivity.summary.warnings,
+      indicators: planConnectivity.summary.indicators,
       kpiEntries,
       users: exposeUsers ? users.length : null,
       departments: exposeDepartments ? departments.length : null,
@@ -323,6 +349,12 @@ export async function buildContext({ compact = false, callerRole = null } = {}) 
       activePolicy: activePolicy ? `${activePolicy.title} (v${activePolicy.version})` : null,
     },
     gaps,
+    planConnectivity: {
+      operatingModel: planConnectivity.operatingModel,
+      summary: planConnectivity.summary,
+      issues: planConnectivity.issues.slice(0, compact ? 12 : 40),
+      goals: compact ? [] : planConnectivity.goals,
+    },
     goals:       compact ? goals.map(g => ({ id: g.id, code: g.code, title: g.title })) : goals,
     activities:  compact ? activities.map(a => ({ id: a.id, code: a.code, title: a.title })) : activities,
     objectives,
@@ -333,33 +365,45 @@ export async function buildContext({ compact = false, callerRole = null } = {}) 
   };
 }
 
-function analyzeGaps({ goals, activities, objectives }) {
+function analyzeGaps({ goals, activities, objectives, planConnectivity }) {
   const goalsNoTarget      = goals.filter(g => !g.target?.trim());
   const goalsNoResponsible = goals.filter(g => !g.responsible);
-  const goalsNoActivities  = goals.filter(g => !g.activities?.length);
+  const goalsNoActivities  = planConnectivity?.goals?.filter(g => !g.activities?.length) || goals.filter(g => !g.activities?.length);
+  const goalsNoIndicators  = planConnectivity?.goals?.filter(g => !g.indicators?.length && !g.supportingAxisIndicators?.length) || [];
   const actsNoGoal         = activities.filter(a => !a.strategicGoalId);
   const actsNoResponsible  = activities.filter(a => !a.responsible);
   const actsNoTarget       = activities.filter(a => a.targetValue == null);
   const objsNoOwner        = objectives.filter(o => !o.ownerId);
+  const planIssues         = planConnectivity?.issues || [];
+  const planErrors         = planIssues.filter(i => i.severity === 'ERROR');
+  const planWarnings       = planIssues.filter(i => i.severity === 'WARNING');
 
   const toItem = (x) => ({ id: x.id, code: x.code, title: x.title });
 
   return {
+    operatingModel:           planConnectivity?.operatingModel || null,
+    planHealth:               planConnectivity?.summary || null,
     goalsWithoutTarget:        goalsNoTarget.map(toItem),
     goalsWithoutResponsible:   goalsNoResponsible.map(toItem),
     goalsWithoutActivities:    goalsNoActivities.map(toItem),
+    goalsWithoutIndicators:    goalsNoIndicators.map(toItem),
     activitiesNotLinkedToGoal: actsNoGoal.map(toItem),
     activitiesWithoutResponsible: actsNoResponsible.map(toItem),
     activitiesWithoutTarget:   actsNoTarget.map(toItem),
-    objectivesWithoutOwner:    objsNoOwner.map(o => ({ id: o.id, code: o.code, title: o.title })),
+    legacyObjectivesWithoutOwner: objsNoOwner.map(o => ({ id: o.id, code: o.code, title: o.title })),
+    planErrors,
+    planWarnings,
     counts: {
       goalsWithoutTarget:        goalsNoTarget.length,
       goalsWithoutResponsible:   goalsNoResponsible.length,
       goalsWithoutActivities:    goalsNoActivities.length,
+      goalsWithoutIndicators:    goalsNoIndicators.length,
       activitiesNotLinkedToGoal: actsNoGoal.length,
       activitiesWithoutResponsible: actsNoResponsible.length,
       activitiesWithoutTarget:   actsNoTarget.length,
-      objectivesWithoutOwner:    objsNoOwner.length,
+      legacyObjectivesWithoutOwner: objsNoOwner.length,
+      planErrors:                planErrors.length,
+      planWarnings:              planWarnings.length,
     },
   };
 }
