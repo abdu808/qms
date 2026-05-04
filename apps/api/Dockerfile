@@ -33,9 +33,13 @@ COPY apps/api/package*.json ./
 COPY apps/api/prisma ./prisma/
 
 # Use the lockfile for deterministic production installs in Coolify.
-RUN npm ci --omit=dev --no-audit --no-fund
+# Keep lifecycle scripts out of npm ci so Prisma generation is a visible,
+# separate Docker layer instead of a hidden postinstall failure.
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --engine-strict=false
 
 COPY apps/api/ ./
+
+RUN npm exec -- prisma generate
 
 # ── Stage 3: الإنتاج — صورة نحيفة ───────────────────────────────────────────
 FROM node:20-alpine
