@@ -1,5 +1,16 @@
 import { crudRouter } from '../utils/crudFactory.js';
 import { recomputeStrategicGoal } from '../services/rollup.js';
+import { prisma } from '../db.js';
+
+async function syncPerspectiveFromGoal(data) {
+  if (!data.strategicGoalId) return data;
+  const goal = await prisma.strategicGoal.findFirst({
+    where: { id: data.strategicGoalId, deletedAt: null },
+    select: { axis: { select: { nameAr: true } } },
+  });
+  data.perspective = goal?.axis?.nameAr || data.perspective || null;
+  return data;
+}
 
 export default crudRouter({
   resource: 'operational-activities',
@@ -11,7 +22,14 @@ export default crudRouter({
   include: {
     owner: { select: { id: true, name: true, jobTitle: true } },
     dept:  { select: { id: true, name: true, code: true } },
-    strategicGoal: { select: { id: true, code: true, title: true } },
+    strategicGoal: {
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        axis: { select: { id: true, code: true, nameAr: true } },
+      },
+    },
   },
   // RBAC: مسؤول القسم → نشاطات قسمه | الموظف → ما كُلِّف به أو قسمه
   scopeFilter: (req) => {
@@ -33,6 +51,8 @@ export default crudRouter({
     return a?.strategicGoal?.planId || null;
   },
   transactionFields: ['progress','spent','status','notes'],
+  beforeCreate: syncPerspectiveFromGoal,
+  beforeUpdate: syncPerspectiveFromGoal,
   // ROLLUP-001: cascade مشروط → StrategicGoal.progress فقط عند تغيّر حقل مؤثر.
   // الحقول المُشغِّلة: progress وspent وstrategicGoalId.
   // spent لا يدخل في recomputeStrategicGoal مباشرةً لكنه يُشير إلى نشاط مالي

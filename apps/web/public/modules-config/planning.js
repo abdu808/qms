@@ -165,7 +165,8 @@ window.QMS_MODULES_PLANNING = {
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'title', label: 'النشاط' },
-      { key: 'perspective', label: 'المحور' },
+      { key: 'strategicGoal.axis.nameAr', label: 'المحور' },
+      { key: 'strategicGoal.title', label: 'الهدف الاستراتيجي' },
       { key: 'dept.name', label: 'الإدارة' },
       { key: 'owner.name', label: 'المسؤول' },
       { key: 'budget', label: 'الميزانية' },
@@ -175,13 +176,7 @@ window.QMS_MODULES_PLANNING = {
     fields: [
       { key: 'title', label: 'عنوان النشاط', required: true },
       { key: 'description', label: 'الوصف', type: 'textarea' },
-      { key: 'perspective', label: 'المحور الاستراتيجي', type: 'select', options: [
-        { v: 'مالي واستدامي', l: 'مالي واستدامي' },
-        { v: 'المستفيدون والمجتمع', l: 'المستفيدون والمجتمع' },
-        { v: 'العمليات الداخلية', l: 'العمليات الداخلية' },
-        { v: 'التعلم والنمو', l: 'التعلم والنمو' },
-        { v: 'الحوكمة والامتثال', l: 'الحوكمة والامتثال' },
-      ]},
+      { key: 'strategicGoalId', label: 'الهدف الاستراتيجي المرتبط', type: 'relation', relation: 'strategicGoals', hint: 'المحور يُستمد تلقائياً من الهدف الاستراتيجي المرتبط، ولا يُختار يدوياً.' },
       { key: 'deptId', label: 'الإدارة المنفذة', type: 'relation', relation: 'departments' },
       { key: 'ownerId', label: 'المسؤول', type: 'relation', relation: 'users' },
       { key: 'year', label: 'السنة', type: 'number' },
@@ -194,7 +189,6 @@ window.QMS_MODULES_PLANNING = {
         { v: 'PLANNED', l: 'مخطط' }, { v: 'IN_PROGRESS', l: 'قيد التنفيذ' },
         { v: 'COMPLETED', l: 'مكتمل' }, { v: 'DELAYED', l: 'متأخر' }, { v: 'CANCELLED', l: 'ملغى' },
       ]},
-      { key: 'strategicGoalId', label: 'الهدف الاستراتيجي المرتبط', type: 'relation', relation: 'strategicGoals' },
       { key: 'notes', label: 'ملاحظات', type: 'textarea' },
     ],
   },
