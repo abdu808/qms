@@ -16,7 +16,12 @@ const base = crudRouter({
   // إرجاع اسم المحور + أعداد الأهداف التشغيلية والمبادرات (لعرض البيانات الحقيقية في الجدول)
   include: {
     axis:   { select: { id: true, nameAr: true, code: true, color: true } },
-    _count: { select: { objectives: true, initiatives: true } },
+    _count: {
+      select: {
+        objectives: { where: { deletedAt: null } },
+        initiatives: { where: { deletedAt: null } },
+      },
+    },
   },
   // Plan Freeze: once the parent strategic plan is frozen, master fields on the goal
   // are locked. transactionFields below remain editable (operational follow-up).
@@ -39,8 +44,8 @@ router.get('/:id/summary', requireAction('strategic-goals', 'read'), asyncHandle
   const goal = await prisma.strategicGoal.findFirst({
     where: activeWhere({ id: req.params.id }),
     include: {
-      activities: true,
-      objectives: true,
+      activities: { where: { deletedAt: null } },
+      objectives: { where: { deletedAt: null } },
       risks: true,
     },
   });
