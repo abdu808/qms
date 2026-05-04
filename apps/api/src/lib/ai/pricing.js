@@ -51,6 +51,16 @@ export const MODEL_CATALOG = [
   { provider: 'google',    model: 'gemini-2.5-pro',    label: 'Gemini 2.5 Pro',    tier: 'standard', good: 'Deeper reasoning and long-context review ($1.25/1M input)' },
 ];
 
+export function providerForModel(model) {
+  const found = MODEL_CATALOG.find(m => m.model === model);
+  if (found) return found.provider;
+  const name = String(model || '');
+  if (name.startsWith('claude-')) return 'anthropic';
+  if (name.startsWith('gpt-') || name.startsWith('o1-')) return 'openai';
+  if (name.startsWith('gemini-')) return 'google';
+  return null;
+}
+
 /**
  * يحسب التكلفة بالدولار
  * @returns رقم دولار (مثال: 0.000435)

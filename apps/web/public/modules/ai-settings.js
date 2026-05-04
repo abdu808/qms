@@ -62,6 +62,7 @@
       featureModels: {
         catalog:        [],   // [{id, label, icon, defaultModel, assignedModel}]
         usageByFeature: [],   // [{feature, model, requests, costUSD, satisfaction}]
+        taskPrompts:    [],   // short prompts used by routine features
         saving:  false,
         loading: false,
       },
@@ -302,15 +303,19 @@
       const c = this.aiCfg.featureModels;
       c.loading = true;
       try {
-        const [r, u] = await Promise.allSettled([
+        const [r, u, prompts] = await Promise.allSettled([
           this.api('GET', '/ai-settings/feature-models'),
           this.api('GET', '/ai-settings/usage/by-feature'),
+          this.api('GET', '/ai-settings/task-prompts'),
         ]);
         if (r.status === 'fulfilled' && r.value.ok) {
           c.catalog = r.value.catalog || [];
         }
         if (u.status === 'fulfilled' && u.value.ok) {
           c.usageByFeature = u.value.data || [];
+        }
+        if (prompts.status === 'fulfilled' && prompts.value.ok) {
+          c.taskPrompts = prompts.value.items || [];
         }
       } catch { /* silent */ }
       finally { c.loading = false; }

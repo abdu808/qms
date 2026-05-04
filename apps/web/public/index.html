@@ -1306,7 +1306,7 @@
             <div class="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 class="text-xl font-bold text-gray-800">🧠 إعداد الذكاء الاصطناعي</h2>
-                <p class="text-sm text-gray-500 mt-1">Claude للتشغيل والأدوات · OpenAI/Gemini احتياط يدوي للاختبار فقط</p>
+                <p class="text-sm text-gray-500 mt-1">القواعد تقود الروتين، وكل مهمة تختار الموديل الأنسب: اقتصادي للتذكيرات، وأقوى للتحليل والتقارير</p>
               </div>
             </div>
             <div class="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
@@ -7537,7 +7537,7 @@
           </div>
 
           <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-800">
-            وضع الاقتصاد مفعل تلقائياً: المستشار وأدوات التنفيذ تستخدم Claude فقط. OpenAI/Gemini متاحان كاحتياط يدوي في تبويب التجربة، ولا يدخلان في التنفيذ التلقائي.
+            وضع الاقتصاد مفعل تلقائياً: القواعد تنجز أغلب الروتين، وتوجيه الميزات يحدد الموديل الأرخص المناسب لكل مهمة. إذا لم يوجد مفتاح للمزود المختار يسقط النظام تلقائياً على المزود المتاح بدلاً من تعطيل المتابعة.
           </div>
 
           <!-- ── توجيه الموديلات الذكي: مخفي حالياً لأن السيرفر يعتمد سياسة اقتصادية ثابتة ── -->
@@ -7666,6 +7666,7 @@
                         <span x-show="f.assignedModel !== f.defaultModel"
                               class="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-medium">مُخصَّص ✓</span>
                       </div>
+                      <p x-show="f.description" class="text-[11px] text-gray-500 mb-2" x-text="f.description"></p>
 
                       <!-- إحصاء الشهر -->
                       <div x-data="{ stat: featureUsageStat(f.id) }" class="flex items-center gap-3 text-[10px] text-gray-500 mb-2">
@@ -7685,17 +7686,8 @@
                     <div class="flex-shrink-0 w-52">
                       <select x-model="f.assignedModel"
                               class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-violet-400 bg-white">
-                        <!-- الموديلات الحية (إذا جُلبت) -->
-                        <template x-if="(aiCfg.liveModels.anthropic||[]).length > 0">
-                          <template x-for="m in aiCfg.liveModels.anthropic" :key="m.id">
-                            <option :value="m.id" x-text="m.name || m.id"></option>
-                          </template>
-                        </template>
-                        <!-- fallback: الكتالوج الثابت -->
-                        <template x-if="!(aiCfg.liveModels.anthropic||[]).length">
-                          <template x-for="m in aiCfg.models.filter(m=>m.provider==='anthropic')" :key="m.model">
-                            <option :value="m.model" x-text="m.label"></option>
-                          </template>
+                        <template x-for="m in aiCfg.models" :key="m.provider + ':' + m.model">
+                          <option :value="m.model" x-text="(m.provider === 'anthropic' ? 'Claude · ' : m.provider === 'openai' ? 'GPT · ' : 'Gemini · ') + (m.label || m.model)"></option>
                         </template>
                       </select>
                       <!-- تلميح: الموديل الافتراضي -->
@@ -7719,6 +7711,21 @@
             <button @click="saveFeatureModels()" :disabled="aiCfg.featureModels.saving"
                     class="px-5 py-2 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold disabled:opacity-50"
                     x-text="aiCfg.featureModels.saving ? 'جارٍ الحفظ…' : 'حفظ التعيينات'"></button>
+          </div>
+
+          <div x-show="aiCfg.featureModels.taskPrompts.length" class="mt-4 border-t pt-4">
+            <div class="text-xs font-semibold text-gray-600 mb-2">قوالب التوجيه القصيرة للروتين</div>
+            <div class="grid md:grid-cols-2 gap-2">
+              <template x-for="p in aiCfg.featureModels.taskPrompts" :key="p.id">
+                <details class="border rounded-lg bg-gray-50 px-3 py-2 text-xs">
+                  <summary class="cursor-pointer font-semibold text-gray-700">
+                    <span x-text="p.title"></span>
+                    <span class="text-gray-400 font-normal" x-text="' · ' + p.maxTokens + ' tokens'"></span>
+                  </summary>
+                  <pre class="mt-2 whitespace-pre-wrap text-[11px] text-gray-500 leading-relaxed" x-text="p.system"></pre>
+                </details>
+              </template>
+            </div>
           </div>
         </div>
 
@@ -7837,7 +7844,7 @@
                 <option value="openai">OpenAI — احتياط يدوي</option>
                 <option value="google">Gemini — احتياط يدوي</option>
               </select>
-              <p class="text-[10px] text-gray-400 mt-1">OpenAI/Gemini هنا للتجربة اليدوية فقط، ولا يستخدمان أدوات النظام التنفيذية.</p>
+              <p class="text-[10px] text-gray-400 mt-1">يمكن استخدام أي مزود محفوظ المفتاح للتجربة اليدوية أو لتوجيه مهام النظام من تبويب الميزات.</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">الموديل (اختياري)</label>

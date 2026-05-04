@@ -20,6 +20,7 @@ import {
   computeCost,
 } from '../lib/ai/index.js';
 import { FEATURE_CATALOG, setFeatureModels } from '../lib/ai/settings.js';
+import { listTaskPrompts } from '../lib/ai/taskPrompts.js';
 import { rateUsage, getUsageByFeature } from '../lib/ai/usage.js';
 import { maskKey, isMasked } from '../lib/ai/crypto.js';
 import { prisma } from '../db.js';
@@ -303,6 +304,14 @@ router.get('/feature-models', authorize(...USER_ROLES), asyncHandler(async (_req
     assignedModel: s.featureModels[f.id] || f.defaultModel,
   }));
   res.json({ ok: true, catalog, assignments: s.featureModels });
+}));
+
+/**
+ * GET /api/ai-settings/task-prompts
+ * قوالب التوجيه القصيرة التي تستخدمها المهام التشغيلية.
+ */
+router.get('/task-prompts', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
+  res.json({ ok: true, items: listTaskPrompts() });
 }));
 
 /**

@@ -21,10 +21,11 @@
  *   }
  */
 import { getAiSettings } from './settings.js';
-import { computeCost, estimateCost, estimateTokens } from './pricing.js';
+import { DEFAULT_MODELS, computeCost, estimateCost, estimateTokens, providerForModel } from './pricing.js';
 import { logUsage, assertBudget, rateUsage } from './usage.js';
 export { rateUsage } from './usage.js';
 import { redactMessages, redactPii } from './pii.js';
+import { getTaskMaxTokens, getTaskPrompt } from './taskPrompts.js';
 import * as anthropicProvider from './providers/anthropic.js';
 import * as openaiProvider from './providers/openai.js';
 import * as googleProvider from './providers/google.js';
@@ -38,8 +39,7 @@ const PROVIDERS = {
 };
 
 const DEFAULT_TIMEOUT_MS = 60_000;
-const MANUAL_ONLY_PROVIDERS = new Set(['openai', 'google']);
-const MANUAL_PROVIDER_FEATURES = new Set(['playground']);
+const PROVIDER_FALLBACK_ORDER = ['anthropic', 'openai', 'google'];
 
 /**
  * الاستدعاء الرئيسي
@@ -54,23 +54,20 @@ export async function aiComplete(params = {}) {
     throw err;
   }
 
-  // اختيار المزود والموديل
-  const provider = params.provider || settings.defaultProvider;
-  // feature model override: إذا لم يُحدَّد موديل صريح، استخدم تعيين الميزة
+  // اختيار المزود والموديل:
+  // - إذا حدّد المستخدم provider/model صراحة نحترمه.
+  // - إذا كان الموديل آتياً من تعيين ميزة، نستنتج المزود من اسم الموديل.
+  // - إذا لم يوجد مفتاح للمزود المختار في تشغيل دوري، نسقط على أول مزود مفعّل بدلاً من تعطيل الروتين.
   const featureModel = settings.featureModels?.[params.feature];
-  const model = params.model || featureModel || settings.defaultModel;
-  if (MANUAL_ONLY_PROVIDERS.has(provider) && !MANUAL_PROVIDER_FEATURES.has(params.feature)) {
-    const err = new Error('OpenAI/Gemini متاحان للاختبار اليدوي فقط. تشغيل المستشار والأدوات يستخدم Anthropic.');
-    err.code = 'AI_PROVIDER_MANUAL_ONLY';
-    err.status = 400;
-    throw err;
-  }
-  if (!MANUAL_PROVIDER_FEATURES.has(params.feature) && !String(model || '').startsWith('claude-')) {
-    const err = new Error('موديلات التشغيل يجب أن تكون Claude فقط. OpenAI/Gemini للاختبار اليدوي فقط.');
-    err.code = 'AI_MODEL_OPERATIONAL_ONLY';
-    err.status = 400;
-    throw err;
-  }
+  const requestedModel = params.model || featureModel || settings.defaultModel;
+  const requestedProvider = params.provider || providerForModel(requestedModel) || settings.defaultProvider;
+  const explicitProviderOrModel = !!(params.provider || params.model);
+  const { provider, model, fallbackReason } = chooseProviderModel({
+    requestedProvider,
+    requestedModel,
+    settings,
+    explicitProviderOrModel,
+  });
   const providerImpl = PROVIDERS[provider];
   if (!providerImpl) {
     throw new Error(`مزود AI غير مدعوم: ${provider}`);
@@ -88,7 +85,7 @@ export async function aiComplete(params = {}) {
   // PII redaction
   let piiRedacted = false;
   let messages = params.messages || [];
-  let system   = params.system;
+  let system   = params.system || getTaskPrompt(params.feature);
   const shouldRedact = shouldApplyRedaction(settings.piiRedaction, params.piiRedact);
   if (shouldRedact) {
     const r1 = redactMessages(messages);
@@ -108,7 +105,7 @@ export async function aiComplete(params = {}) {
       ...(messages || []).map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content || '')),
     ].join('\n');
     const estimatedInput = estimateTokens(textForEstimate);
-    const estimatedOutput = Number(params.maxTokens || 1200);
+    const estimatedOutput = Number(params.maxTokens || getTaskMaxTokens(params.feature, 1200));
     await assertBudget(settings.monthlyBudgetUsd, estimateCost(model, estimatedInput, estimatedOutput));
   }
 
@@ -127,7 +124,7 @@ export async function aiComplete(params = {}) {
     result = await providerImpl.complete({
       apiKey, model,
       system, messages,
-      maxTokens:   params.maxTokens,
+      maxTokens:   params.maxTokens || getTaskMaxTokens(params.feature, undefined),
       temperature: params.temperature,
       jsonSchema:  params.jsonSchema,
       tools:       params.tools,
@@ -174,7 +171,31 @@ export async function aiComplete(params = {}) {
     provider, model, durationMs,
     piiRedacted,
     logId,
+    fallbackReason,
   };
+}
+
+function chooseProviderModel({ requestedProvider, requestedModel, settings, explicitProviderOrModel }) {
+  if (settings.keys?.[requestedProvider]) {
+    return { provider: requestedProvider, model: requestedModel, fallbackReason: null };
+  }
+
+  if (explicitProviderOrModel) {
+    return { provider: requestedProvider, model: requestedModel, fallbackReason: null };
+  }
+
+  for (const provider of PROVIDER_FALLBACK_ORDER) {
+    if (!settings.keys?.[provider]) continue;
+    return {
+      provider,
+      model: settings.defaultProvider === provider
+        ? settings.defaultModel
+        : DEFAULT_MODELS[provider],
+      fallbackReason: `missing-api-key:${requestedProvider}`,
+    };
+  }
+
+  return { provider: requestedProvider, model: requestedModel, fallbackReason: null };
 }
 
 /** هل نُطبِّق PII redaction حسب الإعداد العام + طلب الميزة؟ */

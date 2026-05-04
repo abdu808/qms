@@ -31,12 +31,17 @@ const KEYS = [
 
 /** كتالوج الميزات — يُعرَّف في الكود، التعيينات تُحفَظ في DB */
 export const FEATURE_CATALOG = [
-  { id: 'consultant',         label: 'المستشار الذكي (محادثة)',   icon: '💬', defaultModel: 'claude-haiku-4-5' },
-  { id: 'file_processor',     label: 'تحليل الملفات',              icon: '📄', defaultModel: 'claude-sonnet-4-5'  },
-  { id: 'weekly_report',      label: 'التقرير الأسبوعي',           icon: '📊', defaultModel: 'claude-haiku-4-5' },
-  { id: 'investigator',       label: 'المحقق الشهري',              icon: '🔍', defaultModel: 'claude-haiku-4-5' },
-  { id: 'investigator-cross', label: 'التحليل المقارن',            icon: '📈', defaultModel: 'claude-haiku-4-5' },
-  { id: 'playground',         label: 'الملعب التجريبي',            icon: '🧪', defaultModel: 'claude-haiku-4-5' },
+  { id: 'routine_reminder',     label: 'تذكيرات الروتين والقراءات',    icon: '⏰', defaultModel: 'gpt-4o-mini', description: 'صياغة رسائل قصيرة بعد أن تحدد القواعد الحالة والمالك.' },
+  { id: 'routine_summary',      label: 'ملخص المتابعة الأسبوعي',       icon: '📌', defaultModel: 'gpt-4o-mini', description: 'تلخيص المتأخرات والمطلوب هذا الأسبوع بعبارات إدارية قصيرة.' },
+  { id: 'deviation_analysis',   label: 'تحليل انحراف المؤشرات',        icon: '📉', defaultModel: 'gemini-2.5-flash', description: 'تحليل مؤشر منخفض واقتراح إجراء عملي بدون تعديل الخطة المعتمدة.' },
+  { id: 'monthly_report',       label: 'تقرير الأداء الشهري',          icon: '📊', defaultModel: 'claude-haiku-4-5', description: 'صياغة تقرير شهري للإدارة من بيانات الأداء والأنشطة.' },
+  { id: 'iso_readiness_review', label: 'مراجعة جاهزية ISO',            icon: '✅', defaultModel: 'claude-haiku-4-5', description: 'تلخيص متطلبات الجودة والوثائق وCAPA والمراجعات الدورية.' },
+  { id: 'consultant',           label: 'موجه الأداء والجودة (محادثة)', icon: '💬', defaultModel: 'claude-haiku-4-5', description: 'النقاشات والاستشارات داخل الشات الحالي.' },
+  { id: 'file_processor',       label: 'تحليل الملفات',                icon: '📄', defaultModel: 'claude-sonnet-4-5', description: 'استخراج وتحليل الملفات الكبيرة أو الحساسة.' },
+  { id: 'weekly_report',        label: 'التقرير الأسبوعي القديم',       icon: '📈', defaultModel: 'gpt-4o-mini', description: 'توافق خلفي مع أتمتة التقرير الأسبوعي.' },
+  { id: 'investigator',         label: 'المحقق الشهري',                icon: '🔍', defaultModel: 'claude-haiku-4-5', description: 'فحص شهري أعمق عند الحاجة.' },
+  { id: 'investigator-cross',   label: 'التحليل المقارن',              icon: '📈', defaultModel: 'claude-haiku-4-5', description: 'تحليل مقارن بين الأقسام والفترات.' },
+  { id: 'playground',           label: 'الملعب التجريبي',              icon: '🧪', defaultModel: 'claude-haiku-4-5', description: 'اختبار يدوي لأي مزود أو موديل.' },
 ];
 
 // cache قصير لتخفيف ضغط DB (30 ثانية)
@@ -65,7 +70,7 @@ export async function getAiSettings() {
     const featureModels = {};
     for (const f of FEATURE_CATALOG) {
       const saved = String(rawFeatureModels[f.id] || '').trim();
-      featureModels[f.id] = saved.startsWith('claude-') ? saved : f.defaultModel;
+      featureModels[f.id] = PRICING[saved] ? saved : f.defaultModel;
     }
 
     _cache = {
@@ -127,9 +132,6 @@ export async function setFeatureModels(assignments) {
     const name = String(val).trim();
     if (!KNOWN_MODELS.has(name)) {
       throw new Error(`اسم الموديل غير معروف: "${name}" — تحقق من الكتالوج المدعوم في pricing.js`);
-    }
-    if (!name.startsWith('claude-')) {
-      throw new Error('توجيه ميزات AI التشغيلية يدعم موديلات Claude فقط. OpenAI/Gemini للاختبار اليدوي فقط.');
     }
     safe[f.id] = name;
   }
