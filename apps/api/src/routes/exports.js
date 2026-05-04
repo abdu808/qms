@@ -20,7 +20,7 @@ const fmt = (v, type) => {
 
 const CONFIGS = {
   objectives: {
-    label: 'الأهداف والمؤشرات',
+    label: 'الأهداف التشغيلية',
     fetch: () => prisma.objective.findMany({ where: activeWhere(), take: EXPORT_MAX_ROWS, orderBy: { createdAt: 'desc' } }),
     cols: [
       { key: 'code', label: 'الرمز' },
