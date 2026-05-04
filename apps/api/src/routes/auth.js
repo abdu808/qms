@@ -138,7 +138,11 @@ router.post('/login', loginIpLimiter, loginLimiter, asyncHandler(async (req, res
 
   const payload = { sub: user.id, email: user.email, role: user.role, name: user.name, departmentId: user.departmentId || null };
   const token = jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
-  const refreshToken = jwt.sign({ sub: user.id }, config.jwt.refreshSecret, { expiresIn: config.jwt.refreshExpiresIn });
+  const refreshToken = jwt.sign(
+    { sub: user.id, jti: crypto.randomUUID() },
+    config.jwt.refreshSecret,
+    { expiresIn: config.jwt.refreshExpiresIn },
+  );
 
   await prisma.refreshToken.create({
     data: {
@@ -190,7 +194,7 @@ router.post('/refresh', refreshLimiter, asyncHandler(async (req, res) => {
 
   // Token Rotation: أبطل القديم وأنشئ جديداً في transaction واحدة
   const newRefreshToken = jwt.sign(
-    { sub: user.id },
+    { sub: user.id, jti: crypto.randomUUID() },
     config.jwt.refreshSecret,
     { expiresIn: config.jwt.refreshExpiresIn },
   );
