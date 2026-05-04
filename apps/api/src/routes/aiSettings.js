@@ -28,7 +28,8 @@ const router = Router();
 const ADMIN_ROLES = ['SUPER_ADMIN'];
 const USER_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
 
-const VALID_PROVIDERS = ['anthropic']; // Anthropic فقط — openai/google محفوظة في DB للمستقبل
+// Anthropic هو المزود التشغيلي. OpenAI/Gemini احتياطي يدوي للاختبار والـ Playground.
+const VALID_PROVIDERS = ['anthropic', 'openai', 'google'];
 const VALID_REDACTION = ['always', 'never', 'optional'];
 
 /**
@@ -47,6 +48,8 @@ router.get('/', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
       logRequests: s.logRequests,
       keys: {
         anthropic: s.hasKeys.anthropic ? maskKey(s.keys.anthropic) : '',
+        openai:    s.hasKeys.openai    ? maskKey(s.keys.openai)    : '',
+        google:    s.hasKeys.google    ? maskKey(s.keys.google)    : '',
       },
       hasKeys: s.hasKeys,
     },

@@ -472,6 +472,13 @@ const QUICK_SYSTEM_PROMPT = `أنت "المستشار الاستراتيجي ل�
 رد بشكل ودود ومختصر. إذا احتاج الطلب تحليلاً أو تنفيذاً، أخبر المستخدم أنك ستحتاج لقراءة بيانات النظام وعليه إرسال طلبه بشكل أوضح.`;
 
 export async function chat({ messages, callerUserId, callerRole, callerUser, mode = 'auto', modelOverride, providerOverride, onProgress }) {
+  if (providerOverride && providerOverride !== 'anthropic') {
+    const err = new Error('المستشار وأدوات التنفيذ يعملان حالياً على Claude فقط. استخدم OpenAI/Gemini من Playground كاحتياط يدوي.');
+    err.code = 'AI_PROVIDER_MANUAL_ONLY';
+    err.status = 400;
+    throw err;
+  }
+
   const agentUserId  = await getAiAgentUserId();
   const actingUserId = agentUserId || callerUserId;
   // SECURITY: نضمن أن callerUser يحمل sub/role/departmentId ليُفحص ضد المصفوفة.

@@ -164,7 +164,7 @@
       // احتياط: الكتالوج الثابت
       try {
         const mj = await this.api('GET', '/ai-settings/models');
-        if (mj?.ok) this.consult.modelOptions = mj.items || [];
+        if (mj?.ok) this.consult.modelOptions = (mj.items || []).filter(m => m.provider === 'anthropic');
       } catch {}
     },
 

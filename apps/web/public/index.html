@@ -1306,7 +1306,7 @@
             <div class="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h2 class="text-xl font-bold text-gray-800">🧠 إعداد الذكاء الاصطناعي</h2>
-                <p class="text-sm text-gray-500 mt-1">Claude فقط حالياً — مضبوط على الوضع الاقتصادي لتقليل التوكنات والتكلفة</p>
+                <p class="text-sm text-gray-500 mt-1">Claude للتشغيل والأدوات · OpenAI/Gemini احتياط يدوي للاختبار فقط</p>
               </div>
             </div>
             <div class="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
@@ -1541,7 +1541,7 @@
                   <div class="flex items-center justify-between">
                     <div>
                       <div class="font-semibold text-violet-800 text-sm">🧠 الذكاء الاصطناعي</div>
-                      <div class="text-xs text-violet-600 mt-0.5">Claude فقط حالياً — المستشار مضبوط على اقتصاد التوكنات</div>
+                      <div class="text-xs text-violet-600 mt-0.5">Claude للتشغيل · OpenAI/Gemini احتياط يدوي عبر Playground</div>
                     </div>
                     <button @click="openAiSettings()"
                             class="bg-violet-700 hover:bg-violet-800 text-white text-sm px-4 py-2 rounded-lg font-medium transition">
@@ -7434,7 +7434,7 @@
           </div>
 
           <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-800">
-            وضع الاقتصاد مفعل تلقائياً: Haiku للمحادثة اليومية، Sonnet للتحليل العميق فقط، ولا يستخدم Opus تلقائياً.
+            وضع الاقتصاد مفعل تلقائياً: المستشار وأدوات التنفيذ تستخدم Claude فقط. OpenAI/Gemini متاحان كاحتياط يدوي في تبويب التجربة، ولا يدخلان في التنفيذ التلقائي.
           </div>
 
           <!-- ── توجيه الموديلات الذكي: مخفي حالياً لأن السيرفر يعتمد سياسة اقتصادية ثابتة ── -->
@@ -7499,7 +7499,7 @@
             🔐 المفاتيح مُشفَّرة بـ AES-256-GCM في قاعدة البيانات ولا تُعرض كاملة بعد الحفظ. يمكنك إدخال مفتاح جديد لاستبدال القديم.
           </div>
 
-          <template x-for="provider in ['anthropic']" :key="provider">
+          <template x-for="provider in ['anthropic', 'openai', 'google']" :key="provider">
             <div class="border rounded-lg p-4 space-y-2">
               <div class="flex items-center justify-between">
                 <div>
@@ -7731,7 +7731,10 @@
               <select x-model="aiCfg.playground.provider" class="w-full border rounded-lg px-3 py-2 text-sm">
                 <option value="">الافتراضي</option>
                 <option value="anthropic">Anthropic</option>
+                <option value="openai">OpenAI — احتياط يدوي</option>
+                <option value="google">Gemini — احتياط يدوي</option>
               </select>
+              <p class="text-[10px] text-gray-400 mt-1">OpenAI/Gemini هنا للتجربة اليدوية فقط، ولا يستخدمان أدوات النظام التنفيذية.</p>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-600 mb-1">الموديل (اختياري)</label>
@@ -8257,7 +8260,7 @@
         <li>"ما الفجوات التي قد يلاحظها المدقق الخارجي؟"</li>
         <li>"ساعدني في صياغة خطة تحسين لقسم الشكاوى"</li>
       </ul>
-      <div class="bg-blue-50 border-r-4 border-blue-500 px-3 py-1.5 text-xs text-blue-800 rounded">يحتاج مسؤول النظام إعداد مفتاح API من Anthropic فقط من قسم إعدادات AI.</div>
+      <div class="bg-blue-50 border-r-4 border-blue-500 px-3 py-1.5 text-xs text-blue-800 rounded">يحتاج مسؤول النظام إعداد مفتاح Anthropic للتشغيل. ويمكن إضافة OpenAI/Gemini كاحتياط يدوي من إعدادات AI.</div>
     </div>
   </div>
 
