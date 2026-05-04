@@ -32,10 +32,10 @@ RUN apk add --no-cache \
 COPY apps/api/package*.json ./
 COPY apps/api/prisma ./prisma/
 
-# Use the lockfile for deterministic production installs in Coolify.
-# Keep lifecycle scripts out of npm ci so Prisma generation is a visible,
-# separate Docker layer instead of a hidden postinstall failure.
-RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund --engine-strict=false
+# Coolify/Alpine has been unreliable with npm ci on this dependency graph.
+# Install production dependencies without lifecycle scripts, then generate
+# Prisma explicitly in a separate layer.
+RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund --engine-strict=false --legacy-peer-deps
 
 COPY apps/api/ ./
 
