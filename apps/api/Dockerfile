@@ -32,8 +32,13 @@ RUN apk add --no-cache \
 COPY apps/api/package*.json ./
 COPY apps/api/prisma ./prisma/
 
-# postinstall يُشغِّل prisma generate
-RUN npm install --omit=dev --no-audit --no-fund
+# Use npm ci for reproducible, faster production installs.
+# The heartbeat keeps Coolify/BuildKit from treating a long native dependency
+# install as stalled when npm is quiet for several minutes.
+RUN (while true; do echo "[npm-ci] installing production dependencies..."; sleep 30; done) & \
+    hb="$!" && \
+    trap 'kill "$hb" 2>/dev/null || true' EXIT && \
+    npm ci --omit=dev --no-audit --no-fund --no-update-notifier
 
 COPY apps/api/ ./
 
