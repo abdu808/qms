@@ -6821,7 +6821,7 @@
                     <!-- SELECT ────────────────────── -->
                     <template x-if="f.type==='select'">
                       <div class="relative">
-                        <select x-model="modal.data[f.key]"
+                        <select x-model="modal.data[f.key]" @change="applyFieldTemplate(f)"
                           :disabled="modal.mode==='edit' && isFieldLocked(currentResource, f.key)"
                           :class="modal.mode==='edit' && isFieldLocked(currentResource, f.key)
                             ? 'w-full appearance-none border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed'

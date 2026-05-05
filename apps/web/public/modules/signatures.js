@@ -49,6 +49,42 @@
       return all.filter(o => keep.has(o.v));
     },
 
+    applyFieldTemplate(f) {
+      if (!f?.applyTemplate || !this.modal?.data) return;
+      const selected = this.modal.data[f.key];
+      const option = (f.options || []).find(o => o.v === selected);
+      const template = option?.template;
+      if (!template || typeof template !== 'object') return;
+
+      const entries = Object.entries(template);
+      const hasExisting = entries.some(([key]) => {
+        const value = this.modal.data[key];
+        return value !== undefined && value !== null && String(value).trim() !== '';
+      });
+      if (hasExisting && !confirm('سيتم تعبئة القالب فوق بعض الحقول الموجودة. هل تريد المتابعة؟')) return;
+
+      const today = new Date();
+      const dateOnly = (d) => d.toISOString().slice(0, 10);
+      const plusDays = (days) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + days);
+        return dateOnly(d);
+      };
+      const resolve = (value) => {
+        if (typeof value !== 'string') return value;
+        return value
+          .replaceAll('{{year}}', String(today.getFullYear()))
+          .replaceAll('{{today}}', dateOnly(today))
+          .replaceAll('{{plus30}}', plusDays(30))
+          .replaceAll('{{plus90}}', plusDays(90));
+      };
+
+      for (const [key, value] of entries) {
+        this.modal.data[key] = resolve(value);
+      }
+      this.toast?.('تم تعبئة القالب، راجع الحقول وعدّل ما يلزم', 'success');
+    },
+
     // ─── Digital signature capture ──────────────────────────────
     openSignatureModal({ entityType, entityId, purpose, label, onDone }) {
       this.sigModal = {
