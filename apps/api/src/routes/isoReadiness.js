@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { requireAction } from '../lib/permissions.js';
@@ -7,6 +7,21 @@ const router = Router();
 
 const scoreItem = (ok, weight = 1) => (ok ? weight : 0);
 const currentYear = () => Number(new Date().getFullYear());
+const sourceChecklistName = 'قائمة التحقق لنظام إدارة الجودة ISO 9001:2015';
+
+function requirementStatus(ok, partial = false, notApplicable = false) {
+  if (notApplicable) return 'NOT_APPLICABLE';
+  if (ok) return 'IMPLEMENTED';
+  if (partial) return 'NEEDS_REVIEW';
+  return 'MISSING';
+}
+
+function statusSummary(items) {
+  return items.reduce((acc, item) => {
+    acc[item.status] = (acc[item.status] || 0) + 1;
+    return acc;
+  }, {});
+}
 
 /**
  * GET /api/iso-readiness
@@ -267,6 +282,157 @@ router.get('/', requireAction('iso-readiness', 'read'), asyncHandler(async (req,
       correctiveActions: { ncrOpen, ncrClosed, capaOpen, capaClosed },
       feedback: { surveysActive, surveyResponses, complaintsResolved, complaintsOpen },
     },
+  });
+}));
+
+/**
+ * GET /api/iso-readiness/requirements
+ * Turns the external ISO checklist into a live requirements register.
+ * Each requirement points to the best matching system screen and evidence.
+ */
+router.get('/requirements', requireAction('iso-readiness', 'read'), asyncHandler(async (req, res) => {
+  const year = Number(req.query.year || currentYear());
+
+  const [
+    swotCount,
+    ipCount,
+    processCount,
+    policyActive,
+    strategicCount,
+    indicatorCount,
+    annualTargetsCount,
+    riskCount,
+    riskTreated,
+    trainingCount,
+    competenceCount,
+    commCount,
+    docs,
+    ackDocsActive,
+    suppliersTotal,
+    supplierEvalCount,
+    ncrCount,
+    capaCount,
+    capaClosed,
+    complaintCount,
+    surveysActive,
+    surveyResponses,
+    auditPlanned,
+    auditCompleted,
+    reviewCount,
+    reviewCompleted,
+    operationalActivities,
+  ] = await Promise.all([
+    prisma.swotItem.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.interestedParty.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.process.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.qualityPolicy.count({ where: { active: true, deletedAt: null } }),
+    prisma.strategicGoal.count({ where: { deletedAt: null } }),
+    prisma.indicator.count({ where: { deletedAt: null } }),
+    prisma.annualTarget.count({ where: { year } }),
+    prisma.risk.count({ where: { deletedAt: null } }),
+    prisma.risk.count({ where: { deletedAt: null, treatment: { not: null } } }),
+    prisma.training.count({ where: { deletedAt: null } }),
+    prisma.competenceRequirement.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.communicationPlan.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+    prisma.document.findMany({
+      where: { deletedAt: null },
+      select: { id: true, code: true, title: true, status: true, isoClause: true, currentVersion: true },
+      orderBy: [{ status: 'desc' }, { code: 'asc' }],
+      take: 250,
+    }),
+    prisma.ackDocument.count({ where: { active: true, deletedAt: null } }),
+    prisma.supplier.count({ where: { deletedAt: null } }),
+    prisma.supplierEval.count({ where: { deletedAt: null } }),
+    prisma.nCR.count({ where: { deletedAt: null } }),
+    prisma.capa.count({ where: { deletedAt: null } }),
+    prisma.capa.count({ where: { deletedAt: null, status: { in: ['CLOSED', 'VERIFIED', 'EFFECTIVE'] } } }),
+    prisma.complaint.count({ where: { deletedAt: null } }),
+    prisma.survey.count({ where: { active: true, deletedAt: null } }),
+    prisma.surveyResponse.count(),
+    prisma.audit.count({ where: { status: 'PLANNED', deletedAt: null } }),
+    prisma.audit.count({ where: { status: 'COMPLETED', deletedAt: null } }),
+    prisma.managementReview.count({ where: { deletedAt: null } }),
+    prisma.managementReview.count({ where: { status: 'COMPLETED', deletedAt: null } }),
+    prisma.operationalActivity.count({ where: { deletedAt: null } }),
+  ]);
+
+  const docMatches = (clause, hints = []) => {
+    const normalizedHints = hints.map(h => String(h).toLowerCase());
+    return docs
+      .filter(d => {
+        const haystack = `${d.code || ''} ${d.title || ''} ${d.isoClause || ''}`.toLowerCase();
+        return (clause && String(d.isoClause || '').startsWith(clause)) ||
+          normalizedHints.some(h => haystack.includes(h));
+      })
+      .slice(0, 3);
+  };
+
+  const buildRequirement = (item) => ({
+    ...item,
+    sourceChecklist: sourceChecklistName,
+    evidenceDocuments: docMatches(item.clause, item.documentHints || []),
+  });
+
+  const requirements = [
+    buildRequirement({ id: 'ISO-REQ-001', group: 'السياق', clause: '4.1', title: 'سجل تحليل سياق المنظمة SWOT', requiredEvidence: 'تحليل داخلي وخارجي معتمد ومراجع دورياً.', systemPage: 'swot', systemLabel: 'سياق المنظمة', status: requirementStatus(swotCount >= 4, swotCount > 0), evidence: `${swotCount} بند سياق نشط`, documentHints: ['SWOT', 'سياق'] }),
+    buildRequirement({ id: 'ISO-REQ-002', group: 'السياق', clause: '4.2', title: 'قائمة الأطراف المعنية واحتياجاتها', requiredEvidence: 'أصحاب علاقة، احتياجات، توقعات، وآلية متابعة.', systemPage: 'interestedParties', systemLabel: 'الأطراف ذات العلاقة', status: requirementStatus(ipCount >= 4, ipCount > 0), evidence: `${ipCount} طرف معني نشط`, documentHints: ['الأطراف', 'معنية'] }),
+    buildRequirement({ id: 'ISO-REQ-003', group: 'السياق', clause: '4.3', title: 'نطاق نظام إدارة الجودة Scope', requiredEvidence: 'حدود النظام والاستثناءات ومجال التطبيق.', systemPage: 'qualityScope', systemLabel: 'نطاق نظام الجودة', status: requirementStatus(docMatches('4.3', ['نطاق', 'ISO-DOC-002']).length > 0), evidence: 'صفحة نطاق نظام الجودة + وثيقة ISO-DOC-002', documentHints: ['نطاق', 'ISO-DOC-002'] }),
+    buildRequirement({ id: 'ISO-REQ-004', group: 'السياق', clause: '4.4', title: 'خريطة تدفق العمليات Flowchart', requiredEvidence: 'عمليات رئيسية وداعمة بمدخلات ومخرجات وملاك.', systemPage: 'processes', systemLabel: 'خريطة العمليات', status: requirementStatus(processCount >= 5, processCount > 0), evidence: `${processCount} عملية موثقة`, documentHints: ['العمليات', 'خريطة'] }),
+    buildRequirement({ id: 'ISO-REQ-005', group: 'القيادة', clause: '5.3', title: 'هيكل تنظيمي إداري', requiredEvidence: 'هيكل ومسؤوليات وصلاحيات واضحة.', systemPage: 'departments', systemLabel: 'الإدارات والهيكل', status: requirementStatus(docs.some(d => /هيكل|تنظيمي/.test(d.title || ''))), evidence: 'يرتبط بالهيكل والوظائف داخل النظام', documentHints: ['هيكل', 'تنظيمي'] }),
+    buildRequirement({ id: 'ISO-REQ-006', group: 'القيادة', clause: '5.2', title: 'سياسة نظام إدارة الجودة', requiredEvidence: 'سياسة معتمدة ومبلغة وقابلة للإقرار.', systemPage: 'qualityPolicy', systemLabel: 'سياسة الجودة', status: requirementStatus(policyActive > 0), evidence: policyActive ? 'سياسة جودة نشطة' : 'لا توجد سياسة نشطة', documentHints: ['سياسة الجودة'] }),
+    buildRequirement({ id: 'ISO-REQ-007', group: 'القيادة', clause: '5.3', title: 'نموذج الوصف الوظيفي', requiredEvidence: 'مهام وصلاحيات وكفاءات لكل وظيفة حرجة.', systemPage: 'competence', systemLabel: 'مصفوفة الكفاءات', status: requirementStatus(competenceCount >= 3, competenceCount > 0), evidence: `${competenceCount} متطلب كفاءة نشط`, documentHints: ['الوصف الوظيفي', 'الكفاءة'] }),
+
+    buildRequirement({ id: 'ISO-REQ-008', group: 'التخطيط', clause: '6.1', title: 'سجل تقييم المخاطر والفرص Risk Matrix', requiredEvidence: 'احتمالية، أثر، مستوى، مالك، ومعالجة.', systemPage: 'risks', systemLabel: 'المخاطر والفرص', status: requirementStatus(riskCount >= 5, riskCount > 0), evidence: `${riskCount} خطر/فرصة`, documentHints: ['المخاطر', 'Risk'] }),
+    buildRequirement({ id: 'ISO-REQ-009', group: 'التخطيط', clause: '6.1', title: 'خطة إجراءات معالجة المخاطر والفرص', requiredEvidence: 'إجراءات، مسؤول، موعد، ومتابعة فعالية.', systemPage: 'risks', systemLabel: 'المخاطر والفرص', status: requirementStatus(riskTreated >= 3, riskTreated > 0), evidence: `${riskTreated} خطر/فرصة لها معالجة`, documentHints: ['معالجة المخاطر'] }),
+    buildRequirement({ id: 'ISO-REQ-010', group: 'التخطيط', clause: '6.2', title: 'أهداف الجودة', requiredEvidence: 'أهداف قابلة للقياس مرتبطة بالسياسة والخطة.', systemPage: 'indicators', systemLabel: 'مكتبة المؤشرات', status: requirementStatus(indicatorCount >= 10 && strategicCount >= 3, indicatorCount > 0), evidence: `${strategicCount} هدف، ${indicatorCount} مؤشر`, documentHints: ['أهداف الجودة'] }),
+    buildRequirement({ id: 'ISO-REQ-011', group: 'التخطيط', clause: '6.2', title: 'خطة تحقيق أهداف الجودة', requiredEvidence: 'من سيفعل؟ ماذا؟ متى؟ وبأي موارد؟', systemPage: 'operationalActivities', systemLabel: 'الخطة التشغيلية', status: requirementStatus(operationalActivities >= 10 && annualTargetsCount >= 10, operationalActivities > 0 || annualTargetsCount > 0), evidence: `${operationalActivities} نشاط، ${annualTargetsCount} مستهدف ${year}`, documentHints: ['تحقيق أهداف الجودة', 'الخطة'] }),
+    buildRequirement({ id: 'ISO-REQ-012', group: 'التخطيط', clause: '6.2', title: 'سجل متابعة وتقييم تحقيق الأهداف', requiredEvidence: 'قراءات دورية وانحرافات وإجراءات متابعة.', systemPage: 'kpiTracking', systemLabel: 'متابعة الأداء', status: requirementStatus(annualTargetsCount >= 10, annualTargetsCount > 0), evidence: `${annualTargetsCount} مستهدف سنوي`, documentHints: ['متابعة الأهداف'] }),
+
+    buildRequirement({ id: 'ISO-REQ-013', group: 'الدعم', clause: '7.2', title: 'خطة التدريب السنوية', requiredEvidence: 'خطة تدريب مبنية على الاحتياج والكفاءة.', systemPage: 'training', systemLabel: 'التدريب', status: requirementStatus(trainingCount >= 1, false), evidence: `${trainingCount} سجل تدريب`, documentHints: ['التدريب'] }),
+    buildRequirement({ id: 'ISO-REQ-014', group: 'الدعم', clause: '7.2', title: 'سجل تقييم فعالية التدريب', requiredEvidence: 'قياس أثر التدريب على الأداء أو المعرفة.', systemPage: 'training', systemLabel: 'التدريب', status: requirementStatus(trainingCount >= 1, false), evidence: `${trainingCount} سجل تدريب`, documentHints: ['فعالية التدريب'] }),
+    buildRequirement({ id: 'ISO-REQ-015', group: 'الدعم', clause: '7.4', title: 'خطة التواصل الداخلي والخارجي', requiredEvidence: 'الجمهور، الرسالة، القناة، التكرار، المسؤول.', systemPage: 'communication', systemLabel: 'خطة الاتصال', status: requirementStatus(commCount >= 3, commCount > 0), evidence: `${commCount} خطة اتصال نشطة`, documentHints: ['التواصل', 'الاتصال'] }),
+    buildRequirement({ id: 'ISO-REQ-016', group: 'الدعم', clause: '7.5', title: 'القائمة الرئيسية للوثائق الحالية', requiredEvidence: 'سجل وثائق محكوم بالإصدار والحالة والمراجعة.', systemPage: 'documents', systemLabel: 'الوثائق والسجلات', status: requirementStatus(docs.length >= 10, docs.length > 0), evidence: `${docs.length} وثيقة/سجل`, documentHints: ['القائمة الرئيسية', 'الوثائق'] }),
+    buildRequirement({ id: 'ISO-REQ-017', group: 'الدعم', clause: '7.5', title: 'نموذج استلام والتدريب على الوثائق', requiredEvidence: 'إقرار قراءة/استلام للوثائق المهمة.', systemPage: 'ackDocuments', systemLabel: 'السياسات والمواثيق', status: requirementStatus(ackDocsActive >= 1, false), evidence: `${ackDocsActive} وثيقة إقرار نشطة`, documentHints: ['استلام', 'إقرار'] }),
+    buildRequirement({ id: 'ISO-REQ-018', group: 'الدعم', clause: '7.1.5', title: 'خطة المعايرة السنوية', requiredEvidence: 'تطبق إذا وجدت أجهزة قياس تؤثر على جودة الخدمة.', systemPage: 'documents', systemLabel: 'الوثائق والسجلات', status: 'NOT_APPLICABLE', evidence: 'غير منطبق حالياً ما لم توجد أجهزة قياس/معايرة مؤثرة', documentHints: ['المعايرة'] }),
+
+    buildRequirement({ id: 'ISO-REQ-019', group: 'التشغيل', clause: '8.2', title: 'سجل متطلبات العملاء/المستفيدين ومراجعتها', requiredEvidence: 'تحديد احتياجات المستفيدين ومراجعتها قبل تقديم الخدمة.', systemPage: 'beneficiaries', systemLabel: 'المستفيدون', status: requirementStatus(true), evidence: 'تدار عبر ملفات المستفيدين وطلبات الخدمة/رافد كمصدر بيانات', documentHints: ['المستفيدين', 'متطلبات العملاء'] }),
+    buildRequirement({ id: 'ISO-REQ-020', group: 'التشغيل', clause: '8.5', title: 'سجل تتبع الخدمة', requiredEvidence: 'قابلية تتبع تنفيذ الخدمة أو الصرف أو الطلب.', systemPage: 'operationalActivities', systemLabel: 'الخطة التشغيلية', status: requirementStatus(operationalActivities > 0, false), evidence: `${operationalActivities} نشاط تشغيلي قابل للمتابعة`, documentHints: ['تتبع الخدمة'] }),
+    buildRequirement({ id: 'ISO-REQ-021', group: 'التشغيل', clause: '8.4', title: 'سجل متابعة وتقييم الموردين', requiredEvidence: 'موردون ومتابعة وتقييم واعتماد.', systemPage: 'suppliers', systemLabel: 'الموردون', status: requirementStatus(suppliersTotal > 0 && supplierEvalCount > 0, suppliersTotal > 0), evidence: `${suppliersTotal} مورد، ${supplierEvalCount} تقييم`, documentHints: ['الموردين'] }),
+    buildRequirement({ id: 'ISO-REQ-022', group: 'التشغيل', clause: '8.6', title: 'سجل فحص واستلام المواد/الخدمات الموردة', requiredEvidence: 'فحص قبول الخدمة/المادة قبل استخدامها أو صرفها.', systemPage: 'suppliers', systemLabel: 'الموردون', status: requirementStatus(supplierEvalCount > 0, suppliersTotal > 0), evidence: 'يرتبط بتقييم المورد وسجلات الاستلام عند توفرها', documentHints: ['فحص', 'استلام'] }),
+    buildRequirement({ id: 'ISO-REQ-023', group: 'التشغيل', clause: '8.7', title: 'سجل حالات عدم المطابقة', requiredEvidence: 'رصد عدم المطابقة ومعالجتها ومنع استخدامها.', systemPage: 'ncr', systemLabel: 'عدم المطابقة', status: requirementStatus(ncrCount > 0, false), evidence: `${ncrCount} حالة عدم مطابقة`, documentHints: ['عدم المطابقة'] }),
+
+    buildRequirement({ id: 'ISO-REQ-024', group: 'تقييم الأداء', clause: '9.1', title: 'سجل مؤشرات الأداء الرئيسية', requiredEvidence: 'مؤشرات وقراءات وتحليل انحراف.', systemPage: 'kpiTracking', systemLabel: 'متابعة الأداء', status: requirementStatus(indicatorCount >= 10 && annualTargetsCount >= 10, indicatorCount > 0), evidence: `${indicatorCount} مؤشر، ${annualTargetsCount} مستهدف`, documentHints: ['مؤشرات الأداء'] }),
+    buildRequirement({ id: 'ISO-REQ-025', group: 'تقييم الأداء', clause: '9.1.2', title: 'سجل رضا المستفيدين/تقرير الشكاوى', requiredEvidence: 'استبيانات أو شكاوى وتحليل نتائج.', systemPage: 'surveys', systemLabel: 'استبيانات الرضا', status: requirementStatus(surveyResponses > 0 || complaintCount > 0, surveysActive > 0 || complaintCount > 0), evidence: `${surveysActive} استبيان، ${surveyResponses} رد، ${complaintCount} شكوى`, documentHints: ['رضا', 'الشكاوى'] }),
+    buildRequirement({ id: 'ISO-REQ-026', group: 'تقييم الأداء', clause: '9.2', title: 'الخطة السنوية للمراجعة الداخلية', requiredEvidence: 'خطة تدقيق سنوية بنطاق ومعايير ومواعيد.', systemPage: 'audits', systemLabel: 'التدقيق الداخلي', status: requirementStatus(auditPlanned > 0 || auditCompleted > 0, false), evidence: `مخطط: ${auditPlanned}، مكتمل: ${auditCompleted}`, documentHints: ['التدقيق', 'المراجعة الداخلية'] }),
+    buildRequirement({ id: 'ISO-REQ-027', group: 'تقييم الأداء', clause: '9.2', title: 'تقرير المراجعات الداخلية', requiredEvidence: 'تقرير تدقيق ونتائج وملاحظات.', systemPage: 'audits', systemLabel: 'التدقيق الداخلي', status: requirementStatus(auditCompleted > 0, auditPlanned > 0), evidence: `${auditCompleted} تدقيق مكتمل`, documentHints: ['تقرير التدقيق'] }),
+    buildRequirement({ id: 'ISO-REQ-028', group: 'تقييم الأداء', clause: '9.3', title: 'أجندة/محضر اجتماع مراجعة الإدارة', requiredEvidence: 'مدخلات ومخرجات وقرارات متابعة.', systemPage: 'managementReview', systemLabel: 'مراجعة الإدارة', status: requirementStatus(reviewCompleted > 0, reviewCount > 0), evidence: `${reviewCompleted}/${reviewCount} مراجعة مكتملة`, documentHints: ['مراجعة الإدارة'] }),
+
+    buildRequirement({ id: 'ISO-REQ-029', group: 'التحسين', clause: '10.2', title: 'سجل الإجراءات التصحيحية', requiredEvidence: 'CAPA بسبب واضح ومالك وموعد.', systemPage: 'capa', systemLabel: 'CAPA', status: requirementStatus(capaCount > 0, false), evidence: `${capaCount} إجراء تصحيحي`, documentHints: ['الإجراءات التصحيحية', 'CAPA'] }),
+    buildRequirement({ id: 'ISO-REQ-030', group: 'التحسين', clause: '10.2', title: 'سجل تقييم فعالية الإجراء التصحيحي', requiredEvidence: 'تحقق من الفعالية بعد التنفيذ.', systemPage: 'capa', systemLabel: 'CAPA', status: requirementStatus(capaClosed > 0, capaCount > 0), evidence: `${capaClosed} إجراء مغلق/متحقق`, documentHints: ['فعالية الإجراء'] }),
+    buildRequirement({ id: 'ISO-REQ-031', group: 'التحسين', clause: '10.3', title: 'سجل مقترحات التطوير والتحسين', requiredEvidence: 'فرص تحسين موثقة ومصنفة.', systemPage: 'improvementProjects', systemLabel: 'التحسين المستمر', status: requirementStatus(capaCount > 0 || riskTreated > 0, false), evidence: 'يرتبط بفرص التحسين و CAPA والمخاطر', documentHints: ['التحسين'] }),
+    buildRequirement({ id: 'ISO-REQ-032', group: 'التحسين', clause: '10.3', title: 'سجل متابعة أفعال التطوير والتحسين', requiredEvidence: 'متابعة إجراءات التحسين حتى الإغلاق.', systemPage: 'improvementProjects', systemLabel: 'التحسين المستمر', status: requirementStatus(capaClosed > 0 || reviewCompleted > 0, capaCount > 0 || reviewCount > 0), evidence: 'يرتبط بقرارات المراجعة، CAPA، والتحسين المستمر', documentHints: ['متابعة التحسين'] }),
+  ];
+
+  const summary = statusSummary(requirements);
+  const implemented = summary.IMPLEMENTED || 0;
+  const applicableTotal = requirements.filter(r => r.status !== 'NOT_APPLICABLE').length;
+  const implementationRate = applicableTotal ? Math.round((implemented / applicableTotal) * 100) : 0;
+
+  res.json({
+    ok: true,
+    year,
+    sourceChecklist: sourceChecklistName,
+    sourceAttachment: {
+      title: ')  قائمة التحقق لنظام إدارة الجودة (2).pdf',
+      note: 'الملف الأصلي مرجعي؛ هذا السجل هو النسخة التشغيلية داخل النظام.',
+    },
+    summary: {
+      total: requirements.length,
+      applicableTotal,
+      implementationRate,
+      byStatus: summary,
+    },
+    requirements,
   });
 }));
 
