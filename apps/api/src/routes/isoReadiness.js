@@ -286,6 +286,72 @@ router.get('/', requireAction('iso-readiness', 'read'), asyncHandler(async (req,
 }));
 
 /**
+ * GET /api/iso-readiness/org-chart
+ * Evidence-oriented organizational chart for ISO 9001 clause 5.3.
+ */
+router.get('/org-chart', requireAction('iso-readiness', 'read'), asyncHandler(async (_req, res) => {
+  const [departments, users, orgDocuments] = await Promise.all([
+    prisma.department.findMany({
+      where: { active: true },
+      select: { id: true, code: true, name: true, nameEn: true, parentId: true, manager: true, active: true },
+      orderBy: [{ parentId: 'asc' }, { code: 'asc' }],
+    }),
+    prisma.user.findMany({
+      where: { active: true },
+      select: { id: true, name: true, email: true, role: true, jobTitle: true, departmentId: true },
+      orderBy: [{ departmentId: 'asc' }, { name: 'asc' }],
+    }),
+    prisma.document.findMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { code: { contains: 'ORG', mode: 'insensitive' } },
+          { title: { contains: 'هيكل', mode: 'insensitive' } },
+          { title: { contains: 'تنظيمي', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, code: true, title: true, status: true, currentVersion: true, updatedAt: true },
+      orderBy: [{ status: 'desc' }, { updatedAt: 'desc' }],
+      take: 10,
+    }),
+  ]);
+
+  const usersByDepartment = new Map();
+  for (const user of users) {
+    const key = user.departmentId || '__unassigned';
+    if (!usersByDepartment.has(key)) usersByDepartment.set(key, []);
+    usersByDepartment.get(key).push(user);
+  }
+
+  const nodes = departments.map((dept) => ({
+    ...dept,
+    users: usersByDepartment.get(dept.id) || [],
+    childrenCount: departments.filter((d) => d.parentId === dept.id).length,
+  }));
+  const unassignedUsers = usersByDepartment.get('__unassigned') || [];
+  const approvedDoc = orgDocuments.find((doc) => ['APPROVED', 'PUBLISHED'].includes(doc.status)) || null;
+
+  res.json({
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      departments: departments.length,
+      activeUsers: users.length,
+      unassignedUsers: unassignedUsers.length,
+      linkedDocuments: orgDocuments.length,
+      hasApprovedDocument: Boolean(approvedDoc),
+      status: approvedDoc ? 'IMPLEMENTED' : (departments.length > 0 && users.length > 0 ? 'NEEDS_REVIEW' : 'MISSING'),
+    },
+    nodes,
+    unassignedUsers,
+    documents: orgDocuments,
+    recommendation: approvedDoc
+      ? 'الهيكل موجود في النظام وله وثيقة معتمدة/منشورة.'
+      : 'الهيكل ظاهر من بيانات الإدارات والموظفين، لكنه يحتاج ربط ملف الهيكل التنظيمي المعتمد في سجل الوثائق.',
+  });
+}));
+
+/**
  * GET /api/iso-readiness/requirements
  * Turns the external ISO checklist into a live requirements register.
  * Each requirement points to the best matching system screen and evidence.
@@ -321,6 +387,8 @@ router.get('/requirements', requireAction('iso-readiness', 'read'), asyncHandler
     reviewCount,
     reviewCompleted,
     operationalActivities,
+    departmentCount,
+    activeUserCount,
   ] = await Promise.all([
     prisma.swotItem.count({ where: { status: 'ACTIVE', deletedAt: null } }),
     prisma.interestedParty.count({ where: { status: 'ACTIVE', deletedAt: null } }),
@@ -354,6 +422,8 @@ router.get('/requirements', requireAction('iso-readiness', 'read'), asyncHandler
     prisma.managementReview.count({ where: { deletedAt: null } }),
     prisma.managementReview.count({ where: { status: 'COMPLETED', deletedAt: null } }),
     prisma.operationalActivity.count({ where: { deletedAt: null } }),
+    prisma.department.count({ where: { active: true } }),
+    prisma.user.count({ where: { active: true } }),
   ]);
 
   const docMatches = (clause, hints = []) => {
@@ -378,7 +448,7 @@ router.get('/requirements', requireAction('iso-readiness', 'read'), asyncHandler
     buildRequirement({ id: 'ISO-REQ-002', group: 'السياق', clause: '4.2', title: 'قائمة الأطراف المعنية واحتياجاتها', requiredEvidence: 'أصحاب علاقة، احتياجات، توقعات، وآلية متابعة.', systemPage: 'interestedParties', systemLabel: 'الأطراف ذات العلاقة', status: requirementStatus(ipCount >= 4, ipCount > 0), evidence: `${ipCount} طرف معني نشط`, documentHints: ['الأطراف', 'معنية'] }),
     buildRequirement({ id: 'ISO-REQ-003', group: 'السياق', clause: '4.3', title: 'نطاق نظام إدارة الجودة Scope', requiredEvidence: 'حدود النظام والاستثناءات ومجال التطبيق.', systemPage: 'qualityScope', systemLabel: 'نطاق نظام الجودة', status: requirementStatus(docMatches('4.3', ['نطاق', 'ISO-DOC-002']).length > 0), evidence: 'صفحة نطاق نظام الجودة + وثيقة ISO-DOC-002', documentHints: ['نطاق', 'ISO-DOC-002'] }),
     buildRequirement({ id: 'ISO-REQ-004', group: 'السياق', clause: '4.4', title: 'خريطة تدفق العمليات Flowchart', requiredEvidence: 'عمليات رئيسية وداعمة بمدخلات ومخرجات وملاك.', systemPage: 'processes', systemLabel: 'خريطة العمليات', status: requirementStatus(processCount >= 5, processCount > 0), evidence: `${processCount} عملية موثقة`, documentHints: ['العمليات', 'خريطة'] }),
-    buildRequirement({ id: 'ISO-REQ-005', group: 'القيادة', clause: '5.3', title: 'هيكل تنظيمي إداري', requiredEvidence: 'هيكل ومسؤوليات وصلاحيات واضحة.', systemPage: 'departments', systemLabel: 'الإدارات والهيكل', status: requirementStatus(docs.some(d => /هيكل|تنظيمي/.test(d.title || ''))), evidence: 'يرتبط بالهيكل والوظائف داخل النظام', documentHints: ['هيكل', 'تنظيمي'] }),
+    buildRequirement({ id: 'ISO-REQ-005', group: 'القيادة', clause: '5.3', title: 'هيكل تنظيمي إداري', requiredEvidence: 'هيكل ومسؤوليات وصلاحيات واضحة.', systemPage: 'organizationalChart', systemLabel: 'الهيكل التنظيمي', status: requirementStatus(docs.some(d => /هيكل|تنظيمي/.test(d.title || '')), departmentCount > 0 && activeUserCount > 0), evidence: `${departmentCount} إدارة/قسم، ${activeUserCount} مستخدم نشط. يحتاج ملف الهيكل المعتمد إن لم يكن مرتبطاً.`, documentHints: ['هيكل', 'تنظيمي'] }),
     buildRequirement({ id: 'ISO-REQ-006', group: 'القيادة', clause: '5.2', title: 'سياسة نظام إدارة الجودة', requiredEvidence: 'سياسة معتمدة ومبلغة وقابلة للإقرار.', systemPage: 'qualityPolicy', systemLabel: 'سياسة الجودة', status: requirementStatus(policyActive > 0), evidence: policyActive ? 'سياسة جودة نشطة' : 'لا توجد سياسة نشطة', documentHints: ['سياسة الجودة'] }),
     buildRequirement({ id: 'ISO-REQ-007', group: 'القيادة', clause: '5.3', title: 'نموذج الوصف الوظيفي', requiredEvidence: 'مهام وصلاحيات وكفاءات لكل وظيفة حرجة.', systemPage: 'competence', systemLabel: 'مصفوفة الكفاءات', status: requirementStatus(competenceCount >= 3, competenceCount > 0), evidence: `${competenceCount} متطلب كفاءة نشط`, documentHints: ['الوصف الوظيفي', 'الكفاءة'] }),
 

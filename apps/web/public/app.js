@@ -440,6 +440,8 @@ function app() {
     isoReport: null,
     isoRequirements: null,
     isoRequirementsLoading: false,
+    organizationalChart: null,
+    organizationalChartLoading: false,
     qualityScopeDoc: null,
     qualityScopeLoading: false,
 
@@ -456,6 +458,7 @@ function app() {
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
       { id: 'isoRequirements',        label: 'متطلبات ISO',          icon: '📑' },
       { id: 'qualityScope',           label: 'نطاق نظام الجودة',     icon: '🎯' },
+      { id: 'organizationalChart',    label: 'الهيكل التنظيمي',      icon: '🏢' },
       { id: 'swot',                   label: 'سياق المنظمة (SWOT)', icon: '🧭' },
       { id: 'interestedParties',      label: 'الأطراف ذات العلاقة', icon: '🤝' },
       { id: 'processes',              label: 'خريطة العمليات',      icon: '🔗' },
@@ -520,7 +523,7 @@ function app() {
       { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','kpiTracking','myKpi','risks','changeRequests'] },
       { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['isoRequirements','managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
       { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix','kpiFollowUp'] },
-      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
+      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
       { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation', title: 'التشغيل',             icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'ai',        title: 'الذكاء الاصطناعي',    icon: '🧠', iso: '',         color: 'indigo',  items: ['consultant','aiSettings','integrationsSettings'] },
@@ -544,7 +547,7 @@ function app() {
         QUALITY_MANAGER:  ALL,
         COMMITTEE_MEMBER: [
           'myWork','dashboard','iso-readiness','isoRequirements','dataHealth','operationalReports','reportBuilder',
-          'qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
           'fundingSources','fundingPlans','operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
@@ -558,7 +561,7 @@ function app() {
         ],
         DEPT_MANAGER: [
           'myWork','dashboard','iso-readiness','isoRequirements','dataHealth','operationalReports',
-          'qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
           'operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
@@ -577,7 +580,7 @@ function app() {
         EMPLOYEE: [
           'myWork',
           'myKpi','myAcknowledgments',
-          'isoRequirements','qualityScope','qualityPolicy','ackDocuments',
+          'isoRequirements','qualityScope','organizationalChart','qualityPolicy','ackDocuments',
           'documents','training','competence',
           'complaints', 'ncr',
           'userGuide',
@@ -585,7 +588,7 @@ function app() {
         GUEST_AUDITOR: [
           'auditorDashboard','iso-readiness','isoRequirements',
           'planMap','strategicGoals','operationalActivities','kpiTracking','risks',
-          'qualityScope','qualityPolicy','documents',
+          'qualityScope','organizationalChart','qualityPolicy','documents',
           'managementReview','audits','auditChecklists','surveys','complaints','ncr',
         ],
       };
@@ -602,7 +605,7 @@ function app() {
           { id: 'auditor-plan', title: 'التخطيط والأداء', icon: '🎯', iso: 'ISO 6',   color: 'violet',
             items: ['planMap','strategicGoals','operationalActivities','kpiTracking','risks'] },
           { id: 'auditor-doc',  title: 'الوثائق والسياسات', icon: '📄', iso: 'ISO 7', color: 'teal',
-            items: ['qualityScope','qualityPolicy','documents'] },
+            items: ['qualityScope','organizationalChart','qualityPolicy','documents'] },
           { id: 'auditor-eval', title: 'التقييم والمتابعة',  icon: '📊', iso: 'ISO 9', color: 'amber',
             items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr'] },
         ];
@@ -1289,6 +1292,7 @@ function app() {
       else if (id === 'iso-readiness') await this.loadIsoReadiness();
       else if (id === 'isoRequirements') await this.loadIsoRequirements();
       else if (id === 'qualityScope') await this.loadQualityScope();
+      else if (id === 'organizationalChart') await this.loadOrganizationalChart();
       else if (id === 'surveys') await this.loadSurveys();
       else if (id === 'kpiTracking') await this.kpiInit();
       else if (id === 'kpiFollowUp') await this.loadKpiFollowUp();
@@ -2052,6 +2056,34 @@ function app() {
         acc[group].push(row);
         return acc;
       }, {});
+    },
+
+    async loadOrganizationalChart() {
+      this.organizationalChartLoading = true;
+      try {
+        this.organizationalChart = await this.api('GET', '/iso-readiness/org-chart');
+      } catch (e) {
+        this.organizationalChart = null;
+        this.toast?.(e.message || 'تعذر تحميل الهيكل التنظيمي', 'warning');
+      } finally {
+        this.organizationalChartLoading = false;
+      }
+    },
+
+    organizationalChartStatusLabel(status) {
+      return ({
+        IMPLEMENTED: 'مكتمل',
+        NEEDS_REVIEW: 'يحتاج ملف معتمد',
+        MISSING: 'غير مكتمل',
+      })[status] || status || 'غير محدد';
+    },
+
+    organizationalChartStatusClass(status) {
+      return ({
+        IMPLEMENTED: 'bg-green-100 text-green-700 border-green-200',
+        NEEDS_REVIEW: 'bg-amber-100 text-amber-700 border-amber-200',
+        MISSING: 'bg-red-100 text-red-700 border-red-200',
+      })[status] || 'bg-gray-100 text-gray-700 border-gray-200';
     },
 
     async loadQualityScope() {

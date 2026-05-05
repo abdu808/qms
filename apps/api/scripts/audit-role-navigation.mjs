@@ -20,6 +20,7 @@ const customPages = new Set([
   'iso-readiness',
   'isoRequirements',
   'qualityScope',
+  'organizationalChart',
   'dataHealth',
   'kpiTracking',
   'kpiFollowUp',

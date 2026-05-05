@@ -13,6 +13,8 @@
     "iso:prepare:dry-run": "node scripts/prepare-iso9001-readiness.mjs",
     "iso:prepare:apply": "node scripts/prepare-iso9001-readiness.mjs --apply",
     "iso:prepare:publish-docs": "node scripts/prepare-iso9001-readiness.mjs --apply --publish-approved-docs",
+    "iso:support:dry-run": "node scripts/ensure-iso-support-items.mjs --dry-run",
+    "iso:support:apply": "node scripts/ensure-iso-support-items.mjs --apply",
     "studio": "prisma studio",
     "generate": "prisma generate",
     "postinstall": "prisma generate",
