@@ -18,6 +18,7 @@ const customPages = new Set([
   'annualTargets',
   'planMap',
   'iso-readiness',
+  'qualityScope',
   'dataHealth',
   'kpiTracking',
   'kpiFollowUp',

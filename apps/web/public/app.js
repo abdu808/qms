@@ -438,6 +438,8 @@ function app() {
 
     // ISO readiness report
     isoReport: null,
+    qualityScopeDoc: null,
+    qualityScopeLoading: false,
 
     // evalLinkModal — moved to modules/supplier-eval.js (window.QmsSupplierEval)
     // surveysList/surveyModal/surveySummary — moved to modules/surveys.js (window.QmsSurveys)
@@ -450,6 +452,7 @@ function app() {
     menu: [
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
+      { id: 'qualityScope',           label: 'نطاق نظام الجودة',     icon: '🎯' },
       { id: 'swot',                   label: 'سياق المنظمة (SWOT)', icon: '🧭' },
       { id: 'interestedParties',      label: 'الأطراف ذات العلاقة', icon: '🤝' },
       { id: 'processes',              label: 'خريطة العمليات',      icon: '🔗' },
@@ -514,7 +517,7 @@ function app() {
       { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','kpiTracking','myKpi','risks','changeRequests'] },
       { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
       { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix','kpiFollowUp'] },
-      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
+      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
       { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
       { id: 'operation', title: 'التشغيل',             icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
       { id: 'ai',        title: 'الذكاء الاصطناعي',    icon: '🧠', iso: '',         color: 'indigo',  items: ['consultant','aiSettings','integrationsSettings'] },
@@ -538,7 +541,7 @@ function app() {
         QUALITY_MANAGER:  ALL,
         COMMITTEE_MEMBER: [
           'myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder',
-          'swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
           'fundingSources','fundingPlans','operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
@@ -552,7 +555,7 @@ function app() {
         ],
         DEPT_MANAGER: [
           'myWork','dashboard','iso-readiness','dataHealth','operationalReports',
-          'swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'qualityScope','swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
           'operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
@@ -571,7 +574,7 @@ function app() {
         EMPLOYEE: [
           'myWork',
           'myKpi','myAcknowledgments',
-          'qualityPolicy','ackDocuments',
+          'qualityScope','qualityPolicy','ackDocuments',
           'documents','training','competence',
           'complaints', 'ncr',
           'userGuide',
@@ -579,7 +582,7 @@ function app() {
         GUEST_AUDITOR: [
           'auditorDashboard','iso-readiness',
           'planMap','strategicGoals','operationalActivities','kpiTracking','risks',
-          'qualityPolicy','documents',
+          'qualityScope','qualityPolicy','documents',
           'managementReview','audits','auditChecklists','surveys','complaints','ncr',
         ],
       };
@@ -596,7 +599,7 @@ function app() {
           { id: 'auditor-plan', title: 'التخطيط والأداء', icon: '🎯', iso: 'ISO 6',   color: 'violet',
             items: ['planMap','strategicGoals','operationalActivities','kpiTracking','risks'] },
           { id: 'auditor-doc',  title: 'الوثائق والسياسات', icon: '📄', iso: 'ISO 7', color: 'teal',
-            items: ['qualityPolicy','documents'] },
+            items: ['qualityScope','qualityPolicy','documents'] },
           { id: 'auditor-eval', title: 'التقييم والمتابعة',  icon: '📊', iso: 'ISO 9', color: 'amber',
             items: ['managementReview','audits','auditChecklists','surveys','complaints','ncr'] },
         ];
@@ -783,7 +786,7 @@ function app() {
         EMPLOYEE: [
           { id: 'guided-today', title: 'عملي اليومي', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'myAcknowledgments'] },
           { id: 'guided-quality', title: 'بلاغات الجودة', icon: '🛠️', iso: '', color: 'amber', items: ['complaints', 'ncr'] },
-          { id: 'guided-docs', title: 'المعرفة والوثائق', icon: '📄', iso: '', color: 'teal', items: ['qualityPolicy', 'ackDocuments', 'documents', 'training'] },
+          { id: 'guided-docs', title: 'المعرفة والوثائق', icon: '📄', iso: '', color: 'teal', items: ['qualityScope', 'qualityPolicy', 'ackDocuments', 'documents', 'training'] },
           { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
         ],
         DEPT_MANAGER: [
@@ -795,14 +798,14 @@ function app() {
         ],
         COMMITTEE_MEMBER: [
           { id: 'guided-today', title: 'المراجعة والقرارات', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'managementReview', 'kpiFollowUp'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'dataHealth', 'progressReports', 'operationalReports'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'qualityScope', 'dataHealth', 'progressReports', 'operationalReports'] },
           { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['ncr', 'capa', 'risks', 'audits'] },
           { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['planMap', 'strategicGoals', 'kpiTracking', 'initiatives'] },
           { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
         ],
         QUALITY_MANAGER: [
           { id: 'guided-today', title: 'مركز قيادة الجودة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
           { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
           { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
           { id: 'guided-admin', title: 'إعدادات تشغيلية', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
@@ -810,7 +813,7 @@ function app() {
         ],
         SUPER_ADMIN: [
           { id: 'guided-today', title: 'مركز قيادة النظام', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
           { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
           { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
           { id: 'guided-admin', title: 'الإدارة والإعدادات', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments', 'audit-log'] },
@@ -1281,6 +1284,7 @@ function app() {
       else if (id === 'audit-log') await this.loadAuditLog();
       else if (id === 'reportBuilder') await this.rbLoadCatalog();
       else if (id === 'iso-readiness') await this.loadIsoReadiness();
+      else if (id === 'qualityScope') await this.loadQualityScope();
       else if (id === 'surveys') await this.loadSurveys();
       else if (id === 'kpiTracking') await this.kpiInit();
       else if (id === 'kpiFollowUp') await this.loadKpiFollowUp();
@@ -2003,6 +2007,42 @@ function app() {
         this.isoReport = null;
         alert(e.message || 'فشل تحميل تقرير الجاهزية');
       }
+    },
+
+    async loadQualityScope() {
+      this.qualityScopeLoading = true;
+      try {
+        const r = await this.api('GET', '/documents?q=ISO-DOC-002&limit=10');
+        const items = r.items || r.data || [];
+        this.qualityScopeDoc = items.find(d => d.code === 'ISO-DOC-002')
+          || items.find(d => /نطاق/.test(d.title || ''))
+          || null;
+      } catch (e) {
+        this.qualityScopeDoc = null;
+        this.toast?.(e.message || 'تعذر تحميل وثيقة نطاق نظام الجودة', 'warning');
+      } finally {
+        this.qualityScopeLoading = false;
+      }
+    },
+
+    qualityScopeStatusLabel(status) {
+      return ({
+        DRAFT: 'مسودة',
+        UNDER_REVIEW: 'تحت المراجعة',
+        APPROVED: 'معتمد',
+        PUBLISHED: 'منشور',
+        ARCHIVED: 'مؤرشف',
+      })[status] || status || 'غير محدد';
+    },
+
+    qualityScopeStatusClass(status) {
+      return ({
+        PUBLISHED: 'bg-green-100 text-green-700 border-green-200',
+        APPROVED: 'bg-blue-100 text-blue-700 border-blue-200',
+        UNDER_REVIEW: 'bg-amber-100 text-amber-700 border-amber-200',
+        DRAFT: 'bg-gray-100 text-gray-700 border-gray-200',
+        ARCHIVED: 'bg-red-100 text-red-700 border-red-200',
+      })[status] || 'bg-gray-100 text-gray-700 border-gray-200';
     },
 
     // ─── Print Reports (C2) ───────────────────────────────────────────
