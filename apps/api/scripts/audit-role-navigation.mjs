@@ -19,6 +19,8 @@ const customPages = new Set([
   'planMap',
   'iso-readiness',
   'isoRequirements',
+  'monthlyReadiness',
+  'templateLibrary',
   'qualityScope',
   'organizationalChart',
   'dataHealth',

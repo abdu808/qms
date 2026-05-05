@@ -75,6 +75,8 @@ const PERMISSIONS = {
   // إعدادات التكاملات والقوالب — QM فأعلى للقراءة، SUPER_ADMIN للحفظ
   'integrations':   { read:_QM_UP, update:_SA },
   'notification-templates': { read:_QM_UP, update:_QM_UP },
+  'template-library': { read:_QM_UP },
+  'monthly-readiness': { read:_QM_UP },
   reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
 };
 
@@ -440,6 +442,8 @@ function app() {
     isoReport: null,
     isoRequirements: null,
     isoRequirementsLoading: false,
+    monthlyReadinessLoading: false,
+    templateLibrarySearch: '',
     organizationalChart: null,
     organizationalChartLoading: false,
     qualityScopeDoc: null,
@@ -457,6 +461,8 @@ function app() {
       { id: 'dashboard',              label: 'لوحة المعلومات',      icon: '📊' },
       { id: 'iso-readiness',          label: 'جاهزية الأيزو',       icon: '🎖️' },
       { id: 'isoRequirements',        label: 'متطلبات ISO',          icon: '📑' },
+      { id: 'monthlyReadiness',       label: 'جاهزية الشهر',          icon: '📅' },
+      { id: 'templateLibrary',        label: 'مكتبة القوالب',         icon: '🧩' },
       { id: 'qualityScope',           label: 'نطاق نظام الجودة',     icon: '🎯' },
       { id: 'organizationalChart',    label: 'الهيكل التنظيمي',      icon: '🏢' },
       { id: 'swot',                   label: 'سياق المنظمة (SWOT)', icon: '🧭' },
@@ -521,7 +527,7 @@ function app() {
     menuGroups: [
       { id: 'home',      title: 'الرئيسية',            icon: '🏠', iso: '',         color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
       { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','kpiTracking','myKpi','risks','changeRequests'] },
-      { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['isoRequirements','managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
+      { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['isoRequirements','monthlyReadiness','templateLibrary','managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
       { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix','kpiFollowUp'] },
       { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
       { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
@@ -811,7 +817,7 @@ function app() {
         ],
         QUALITY_MANAGER: [
           { id: 'guided-today', title: 'مركز قيادة الجودة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'monthlyReadiness', 'templateLibrary', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
           { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
           { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
           { id: 'guided-admin', title: 'إعدادات تشغيلية', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
@@ -819,7 +825,7 @@ function app() {
         ],
         SUPER_ADMIN: [
           { id: 'guided-today', title: 'مركز قيادة النظام', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
+          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'monthlyReadiness', 'templateLibrary', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
           { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
           { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
           { id: 'guided-admin', title: 'الإدارة والإعدادات', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments', 'audit-log'] },
@@ -1291,6 +1297,8 @@ function app() {
       else if (id === 'reportBuilder') await this.rbLoadCatalog();
       else if (id === 'iso-readiness') await this.loadIsoReadiness();
       else if (id === 'isoRequirements') await this.loadIsoRequirements();
+      else if (id === 'monthlyReadiness') await this.loadMonthlyReadiness();
+      else if (id === 'templateLibrary') this.templateLibrarySearch = '';
       else if (id === 'qualityScope') await this.loadQualityScope();
       else if (id === 'organizationalChart') await this.loadOrganizationalChart();
       else if (id === 'surveys') await this.loadSurveys();
@@ -2056,6 +2064,187 @@ function app() {
         acc[group].push(row);
         return acc;
       }, {});
+    },
+
+    async loadMonthlyReadiness() {
+      this.monthlyReadinessLoading = true;
+      try {
+        if (!this.isoRequirements) await this.loadIsoRequirements();
+      } finally {
+        this.monthlyReadinessLoading = false;
+      }
+    },
+
+    monthlyReadinessItems() {
+      const rows = this.isoRequirements?.requirements || [];
+      return rows
+        .filter(r => !['IMPLEMENTED', 'NOT_APPLICABLE'].includes(r.status))
+        .map(r => ({ ...r, actions: this.isoRequirementActions(r) }));
+    },
+
+    monthlyReadinessSummary() {
+      const rows = this.isoRequirements?.requirements || [];
+      const open = rows.filter(r => !['IMPLEMENTED', 'NOT_APPLICABLE'].includes(r.status));
+      const actions = open.reduce((sum, r) => sum + this.isoRequirementActions(r).length, 0);
+      return {
+        total: rows.length,
+        open: open.length,
+        missing: open.filter(r => r.status === 'MISSING').length,
+        needsReview: open.filter(r => r.status === 'NEEDS_REVIEW').length,
+        actions,
+      };
+    },
+
+    isoRequirementActions(req) {
+      const byId = {
+        'ISO-REQ-003': [{ page: 'documents', templateKey: 'POLICY', label: 'إنشاء وثيقة نطاق', icon: '📄', template: { code: 'ISO-DOC-002', title: 'نطاق نظام إدارة الجودة', isoClause: '4.3', reviewIntervalMonths: 12 } }],
+        'ISO-REQ-005': [{ page: 'documents', templateKey: 'EXTERNAL', label: 'إرفاق الهيكل المعتمد', icon: '🏢', template: { title: 'الهيكل التنظيمي المعتمد', category: 'EXTERNAL', isoClause: '5.3', reviewIntervalMonths: 12 } }],
+        'ISO-REQ-007': [{ page: 'documents', templateKey: 'FORM', label: 'نموذج وصف وظيفي', icon: '👤', template: { title: 'نموذج الوصف الوظيفي والمسؤوليات', category: 'FORM', isoClause: '5.3' } }],
+        'ISO-REQ-008': [{ page: 'risks', templateKey: 'ISO_READINESS', label: 'إضافة خطر ISO', icon: '⚠️' }],
+        'ISO-REQ-009': [{ page: 'risks', templateKey: 'ISO_READINESS', label: 'إضافة معالجة خطر', icon: '🛡️' }],
+        'ISO-REQ-011': [{ page: 'operationalActivities', label: 'إضافة نشاط تحقيق', icon: '📅', template: { title: 'استكمال خطة تحقيق أهداف الجودة', description: 'نشاط عملي لتحديد المسؤوليات والمواعيد والموارد اللازمة لتحقيق هدف جودة محدد.', year: new Date().getFullYear(), status: 'PLANNED' } }],
+        'ISO-REQ-013': [{ page: 'training', templateKey: 'ISO_AWARENESS', label: 'تدريب ISO', icon: '🎓' }],
+        'ISO-REQ-014': [{ page: 'training', templateKey: 'ISO_AWARENESS', label: 'تقييم فعالية التدريب', icon: '🎓', template: { title: 'تقييم فعالية تدريب ISO 9001', description: 'قياس فهم المشاركين بعد التدريب وتحديد الاحتياج التحسيني.' } }],
+        'ISO-REQ-016': [{ page: 'documents', templateKey: 'PROCEDURE', label: 'إجراء ضبط الوثائق', icon: '📄' }],
+        'ISO-REQ-017': [{ page: 'ackDocuments', label: 'إقرار قراءة وثيقة', icon: '✅', template: { title: 'إقرار قراءة الوثائق والسياسات المهمة', status: 'ACTIVE' } }],
+        'ISO-REQ-023': [{ page: 'ncr', templateKey: 'MISSING_DOCUMENT', label: 'فتح عدم مطابقة', icon: '🔧' }],
+        'ISO-REQ-025': [
+          { page: 'surveys', templateKey: 'BENEFICIARY_SERVICE', label: 'استبيان رضا', icon: '📝' },
+          { page: 'complaints', templateKey: 'SERVICE_QUALITY', label: 'بلاغ جودة خدمة', icon: '💬' },
+        ],
+        'ISO-REQ-026': [{ page: 'audits', templateKey: 'ISO_PREAUDIT', label: 'خطة تدقيق', icon: '🔍' }],
+        'ISO-REQ-027': [{ page: 'audits', templateKey: 'ISO_PREAUDIT', label: 'تدقيق جاهزية', icon: '🔍' }],
+        'ISO-REQ-028': [{ page: 'managementReview', templateKey: 'Q3_ISO_READY', label: 'محضر مراجعة', icon: '🗣️' }],
+        'ISO-REQ-029': [{ page: 'capa', templateKey: 'DOCUMENT_CONTROL', label: 'فتح CAPA', icon: '🛠️' }],
+        'ISO-REQ-030': [{ page: 'capa', templateKey: 'DOCUMENT_CONTROL', label: 'تحقق فعالية CAPA', icon: '🛠️', template: { title: 'تحقق فعالية إجراء تصحيحي', sourceType: 'MANUAL' } }],
+        'ISO-REQ-031': [{ page: 'improvementProjects', templateKey: 'ISO_GAP', label: 'مشروع تحسين', icon: '🔄' }],
+        'ISO-REQ-032': [{ page: 'improvementProjects', templateKey: 'ISO_GAP', label: 'متابعة تحسين', icon: '🔄' }],
+      };
+      if (byId[req.id]) return byId[req.id];
+
+      const byPage = {
+        risks: [{ page: 'risks', templateKey: 'ISO_READINESS', label: 'إضافة خطر/فرصة', icon: '⚠️' }],
+        training: [{ page: 'training', templateKey: 'ISO_AWARENESS', label: 'إضافة تدريب', icon: '🎓' }],
+        documents: [{ page: 'documents', templateKey: 'PROCEDURE', label: 'إضافة وثيقة', icon: '📄' }],
+        audits: [{ page: 'audits', templateKey: 'ISO_PREAUDIT', label: 'إضافة تدقيق', icon: '🔍' }],
+        managementReview: [{ page: 'managementReview', templateKey: 'Q3_ISO_READY', label: 'إضافة مراجعة', icon: '🗣️' }],
+        capa: [{ page: 'capa', templateKey: 'DOCUMENT_CONTROL', label: 'فتح CAPA', icon: '🛠️' }],
+        improvementProjects: [{ page: 'improvementProjects', templateKey: 'ISO_GAP', label: 'مشروع تحسين', icon: '🔄' }],
+        surveys: [{ page: 'surveys', templateKey: 'BENEFICIARY_SERVICE', label: 'استبيان رضا', icon: '📝' }],
+        ncr: [{ page: 'ncr', templateKey: 'MISSING_DOCUMENT', label: 'عدم مطابقة', icon: '🔧' }],
+      };
+      return byPage[req.systemPage] || [];
+    },
+
+    _dateIsoPlus(days = 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    },
+
+    resolveTemplateValue(value) {
+      if (typeof value === 'string') {
+        return value
+          .replaceAll('{{today}}', this._dateIsoPlus(0))
+          .replaceAll('{{plus30}}', this._dateIsoPlus(30))
+          .replaceAll('{{plus90}}', this._dateIsoPlus(90))
+          .replaceAll('{{year}}', String(new Date().getFullYear()));
+      }
+      if (Array.isArray(value)) return value.map(v => this.resolveTemplateValue(v));
+      if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, this.resolveTemplateValue(v)]));
+      }
+      return value;
+    },
+
+    templateLibraryItems(applySearch = true) {
+      const items = [];
+      Object.entries(MODULES || {}).forEach(([page, mod]) => {
+        (mod.fields || []).forEach(field => {
+          if (!field.applyTemplate) return;
+          (field.options || []).forEach(option => {
+            if (!option?.template || !option.v) return;
+            items.push({
+              page,
+              pageLabel: this.menu.find(m => m.id === page)?.label || mod.title || mod.label || page,
+              fieldLabel: field.label || 'قالب',
+              templateKey: option.v,
+              label: option.l || option.v,
+              template: option.template,
+            });
+          });
+        });
+      });
+      if (typeof this.surveyTemplates === 'function') {
+        this.surveyTemplates().filter(t => t.v && t.data).forEach(t => {
+          items.push({
+            page: 'surveys',
+            pageLabel: 'استبيانات الرضا',
+            fieldLabel: 'قالب الاستبيان',
+            templateKey: t.v,
+            label: t.l || t.v,
+            template: t.data,
+          });
+        });
+      }
+      const q = applySearch ? String(this.templateLibrarySearch || '').trim().toLowerCase() : '';
+      return q
+        ? items.filter(i => `${i.pageLabel} ${i.fieldLabel} ${i.label}`.toLowerCase().includes(q))
+        : items;
+    },
+
+    templateLibraryGrouped() {
+      return this.templateLibraryItems().reduce((acc, item) => {
+        const key = item.pageLabel || item.page;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+      }, {});
+    },
+
+    async createFromTemplate(page, template = {}, templateKey = '') {
+      const targetPage = this.normalizePageId(page);
+      if (!this.pageAllowedForRole(targetPage)) {
+        this.toast?.('هذه الصفحة خارج صلاحيتك الحالية', 'warning');
+        return;
+      }
+      await this.goto(targetPage);
+      if (targetPage === 'surveys') {
+        this.openSurveyCreate();
+        if (templateKey) {
+          this.surveyTemplate = templateKey;
+          this.applySurveyTemplate();
+        } else if (template && Object.keys(template).length) {
+          Object.assign(this.surveyModal, this.resolveTemplateValue(template));
+        }
+        return;
+      }
+      if (!this.currentModule) {
+        this.toast?.('هذا القالب يرتبط بصفحة عرض وليست نموذج إدخال مباشر', 'info');
+        return;
+      }
+      if (!this.canCreate(this.currentResource)) {
+        this.toast?.('لا تملك صلاحية إنشاء سجل في هذه الصفحة', 'warning');
+        return;
+      }
+      await this.loadRelations();
+      const libraryTemplate = templateKey
+        ? this.templateLibraryItems(false).find(i => i.page === targetPage && i.templateKey === templateKey)?.template
+        : null;
+      const resolved = this.resolveTemplateValue({ ...(libraryTemplate || {}), ...(template || {}) });
+      const allowedKeys = new Set((this.currentFields || []).filter(f => !f.applyTemplate).map(f => f.key));
+      const data = Object.fromEntries(Object.entries(resolved).filter(([key]) => allowedKeys.has(key)));
+      this.modal = { open: true, mode: 'create', data, saving: false };
+      this.$nextTick ? this.$nextTick(() => this._snapshotModal()) : this._snapshotModal();
+    },
+
+    async createFromIsoRequirement(req, action) {
+      const extra = action.template || {};
+      const template = {
+        ...extra,
+        notes: [extra.notes, `تم إنشاؤه من متطلب ISO: ${req.clause} - ${req.title}`].filter(Boolean).join('\n'),
+      };
+      await this.createFromTemplate(action.page, template, action.templateKey || '');
     },
 
     async loadOrganizationalChart() {
