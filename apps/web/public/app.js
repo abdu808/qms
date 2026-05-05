@@ -2279,7 +2279,11 @@ function app() {
       this.qualityScopeLoading = true;
       try {
         const r = await this.api('GET', '/documents?q=ISO-DOC-002&limit=10');
-        const items = r.items || r.data || [];
+        let items = r.items || r.data || [];
+        if (!items.length) {
+          const fallback = await this.api('GET', '/documents?q=نطاق&limit=10');
+          items = fallback.items || fallback.data || [];
+        }
         this.qualityScopeDoc = items.find(d => d.code === 'ISO-DOC-002')
           || items.find(d => /نطاق/.test(d.title || ''))
           || null;
