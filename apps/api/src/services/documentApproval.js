@@ -37,7 +37,15 @@ function requireApproveRole(role) {
  * النشر يستلزم عبور APPROVED (نسمح الاثنين في خطوة واحدة لراحة المستخدم،
  * لكن نمر بالحالتين منطقياً).
  */
-export async function approveDocument({ docId, userId, userRole, publish = false }) {
+export async function approveDocument({
+  docId,
+  userId,
+  userRole,
+  publish = false,
+  approvalReference = null,
+  approvalAuthority = null,
+  publicationUrl = null,
+}) {
   requireApproveRole(userRole);
 
   const doc = await prisma.document.findUnique({ where: { id: docId } });
@@ -66,6 +74,9 @@ export async function approveDocument({ docId, userId, userRole, publish = false
       approvedById:  userId,
       approvedAt:    new Date(),
       effectiveDate: publish ? new Date() : doc.effectiveDate,
+      approvalReference: approvalReference || doc.approvalReference,
+      approvalAuthority: approvalAuthority || doc.approvalAuthority,
+      publicationUrl: publicationUrl || doc.publicationUrl,
     },
     include: { approvedBy: { select: { id: true, name: true } } },
   });

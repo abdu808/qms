@@ -15,8 +15,18 @@
     async approveDoc(item, publish) {
       const action = publish ? 'نشر' : 'اعتماد';
       if (!confirm(`تأكيد ${action} الوثيقة "${item.title}"؟`)) return;
+      const payload = { publish: !!publish };
+      if (item.governing) {
+        const ref = prompt('رقم القرار/المرجع:', item.approvalReference || '');
+        if (ref === null) return;
+        const authority = prompt('جهة الاعتماد:', item.approvalAuthority || '');
+        if (authority === null) return;
+        payload.approvalReference = ref.trim();
+        payload.approvalAuthority = authority.trim();
+        payload.publicationUrl = item.publicationUrl || null;
+      }
       try {
-        await this.api('POST', `/documents/${item.id}/approve`, { publish: !!publish });
+        await this.api('POST', `/documents/${item.id}/approve`, payload);
         alert(`✅ تم ${action} الوثيقة بنجاح`);
         await this.loadList();
       } catch (e) { alert(e.message || `فشل ${action} الوثيقة`); }

@@ -2,7 +2,7 @@
  * schemas/document.schema.js — تحقق Zod للوثائق (ISO 7.5).
  */
 import { z } from 'zod';
-import { trimmedString, optionalTrimmedString, idString, optionalDate } from './_helpers.js';
+import { trimmedString, optionalTrimmedString, idString, optionalDate, coercedBoolean } from './_helpers.js';
 
 const CATEGORIES = [
   'MANUAL', 'POLICY', 'PROCEDURE', 'WORK_INSTRUCTION',
@@ -40,6 +40,11 @@ export const createSchema = z.object({
     z.number().int().min(1).max(100).nullable().optional(),
   ),
   isoClause:      isoClauseField,
+  governing:      coercedBoolean,
+  approvalReference: optionalTrimmedString(100),
+  approvalAuthority: optionalTrimmedString(120),
+  publicationUrl: optionalTrimmedString(500),
+  sourceSystem: optionalTrimmedString(120),
 }).strip();
 
 export const updateSchema = createSchema.partial();

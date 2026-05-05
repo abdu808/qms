@@ -93,6 +93,7 @@ const router = crudRouter({
     draft:     () => ({ status: 'DRAFT' }),
     published: () => ({ status: 'PUBLISHED' }),
     archived:  () => ({ status: 'ARCHIVED' }),
+    governing: () => ({ governing: true }),
     mine:      (req) => ({ createdById: req.user.sub }),
     expiring:  () => {
       const soon = new Date(Date.now() + 30 * 86400000);
@@ -116,10 +117,13 @@ const router = crudRouter({
 router.post('/:id/approve', requireAction('documents', 'approve'), asyncHandler(async (req, res) => {
   const publish = req.body?.publish === true || req.body?.publish === 'true';
   const item = await approveDocument({
-    docId:    req.params.id,
-    userId:   req.user.sub,
-    userRole: req.user.role,
+    docId:             req.params.id,
+    userId:            req.user.sub,
+    userRole:          req.user.role,
     publish,
+    approvalReference: req.body?.approvalReference,
+    approvalAuthority: req.body?.approvalAuthority,
+    publicationUrl:    req.body?.publicationUrl,
   });
   res.json({ ok: true, item });
 }));

@@ -837,6 +837,11 @@ model Document {
   retentionYears Int?   @default(5)
   isoClause    String?  // e.g. "7.5"
   isPublic     Boolean  @default(false) // يظهر في البوابة العامة
+  governing    Boolean  @default(false) // وثيقة حاكمة: سياسة/لائحة/إجراء معتمد
+  approvalReference String? // رقم القرار/المحضر/التعميم
+  approvalAuthority String? // مجلس الإدارة/المدير التنفيذي/مدير الجودة...
+  publicationUrl String? // رابط النشر أو المصدر الخارجي المعتمد
+  sourceSystem String? // نظام الجودة/موقع الجمعية/رافد/النظام المالي...
   createdById  String
   createdBy    User     @relation("DocCreator", fields: [createdById], references: [id])
   approvedById String?

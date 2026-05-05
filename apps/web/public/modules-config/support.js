@@ -6,6 +6,7 @@ window.QMS_MODULES_SUPPORT = {
     quickFilters: [
       { key: 'draft',     label: 'مسودة',          icon: '✏️' },
       { key: 'published', label: 'منشور',          icon: '📘' },
+      { key: 'governing', label: 'وثائق حاكمة',    icon: '🏛️' },
       { key: 'expiring',  label: 'تحتاج مراجعة',   icon: '⏳' },
       { key: 'mine',      label: 'وثائقي',         icon: '👤' },
       { key: 'thisMonth', label: 'هذا الشهر',      icon: '📅' },
@@ -21,6 +22,8 @@ window.QMS_MODULES_SUPPORT = {
     cols: [
       { key: 'code', label: 'الرمز' }, { key: 'title', label: 'العنوان' },
       { key: 'category', label: 'النوع' }, { key: 'currentVersion', label: 'الإصدار' },
+      { key: 'governing', label: 'حاكمة', type: 'bool' },
+      { key: 'approvalReference', label: 'رقم الاعتماد' },
       { key: 'status', label: 'الحالة', type: 'status' },
     ],
     fields: [
@@ -32,6 +35,11 @@ window.QMS_MODULES_SUPPORT = {
       ]},
       { key: 'currentVersion', label: 'الإصدار' },
       { key: 'departmentId', label: 'الإدارة', type: 'relation', rel: 'departments' },
+      { key: 'governing', label: 'وثيقة حاكمة', type: 'bool', hint: 'فعّلها للسياسات واللوائح والإجراءات التي تحتاج رقم اعتماد ومراجعة دورية' },
+      { key: 'approvalReference', label: 'رقم القرار/المرجع', hint: 'مثال: قرار مجلس الإدارة رقم 3/2026 أو محضر اجتماع رقم 5' },
+      { key: 'approvalAuthority', label: 'جهة الاعتماد', hint: 'مجلس الإدارة، المدير التنفيذي، مدير الجودة...' },
+      { key: 'sourceSystem', label: 'مكان المصدر/الحفظ', hint: 'نظام الجودة، موقع الجمعية، رافد، النظام المالي...' },
+      { key: 'publicationUrl', label: 'رابط النشر أو المصدر الخارجي' },
       { key: 'effectiveDate', label: 'تاريخ السريان', type: 'date' },
       { key: 'reviewDate', label: 'تاريخ المراجعة التالية', type: 'date', hint: 'حدد تاريخاً دورياً (سنوياً أو عند التغيير) — ISO 7.5.3.2' },
       { key: 'retentionYears', label: 'مدة الاحتفاظ (سنوات)', type: 'number', hint: 'المدة الزمنية لحفظ الوثيقة قبل الإتلاف — ISO 7.5.3.2' },
