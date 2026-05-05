@@ -2439,6 +2439,10 @@ function app() {
       }
 
       for (const f of this.currentFields) {
+        if (f.applyTemplate) {
+          delete payload[f.key];
+          continue;
+        }
         if (f.type === 'number' && payload[f.key] != null && payload[f.key] !== '') {
           let n = Number(payload[f.key]);
           if (!Number.isFinite(n)) { alert(`"${f.label}" يجب أن يكون رقماً`); return; }

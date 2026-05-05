@@ -16,6 +16,7 @@
     surveySummary: { open: false, data: null, survey: null },
     surveysQuick: [],
     surveysCounts: {},
+    surveyTemplate: '',
 
     // ─── Loaders ───────────────────────────────────────────────
     async loadSurveys() {
@@ -49,6 +50,87 @@
       };
     },
 
+    surveyTemplates() {
+      return [
+        { v: '', l: '— بدون قالب —' },
+        {
+          v: 'BENEFICIARY_SERVICE',
+          l: 'رضا المستفيد بعد الخدمة',
+          data: {
+            title: 'استبيان رضا المستفيدين عن الخدمة',
+            target: 'BENEFICIARY',
+            period: `شهر ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام للخدمة المقدمة؟', type: 'rating', required: true },
+              { key: 'speed', label: 'ما تقييمك لسرعة إنجاز الخدمة؟', type: 'rating', required: true },
+              { key: 'clarity', label: 'هل كانت المتطلبات والإجراءات واضحة؟', type: 'yesno', required: true },
+              { key: 'respect', label: 'ما تقييمك للتعامل والاحترام أثناء تقديم الخدمة؟', type: 'rating', required: true },
+              { key: 'suggestion', label: 'ما اقتراحك لتحسين الخدمة؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'BENEFICIARY_AID',
+          l: 'رضا المستفيد عن المساعدة/الكفالة',
+          data: {
+            title: 'استبيان رضا المستفيدين عن المساعدة أو الكفالة',
+            target: 'BENEFICIARY',
+            period: `شهر ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام للمساعدة أو الكفالة؟', type: 'rating', required: true },
+              { key: 'suitability', label: 'هل كانت المساعدة مناسبة لاحتياجك؟', type: 'yesno', required: true },
+              { key: 'timing', label: 'ما تقييمك لتوقيت وصول المساعدة؟', type: 'rating', required: true },
+              { key: 'communication', label: 'ما تقييمك للتواصل والمتابعة؟', type: 'rating', required: true },
+              { key: 'needs', label: 'هل لديك احتياج أو ملاحظة إضافية؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'DONOR_PARTNER',
+          l: 'رضا المتبرع/الشريك',
+          data: {
+            title: 'استبيان رضا المتبرعين والشركاء',
+            target: 'DONOR',
+            period: `شهر ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام لتجربتك مع الجمعية؟', type: 'rating', required: true },
+              { key: 'transparency', label: 'ما تقييمك لوضوح المعلومات والتقارير؟', type: 'rating', required: true },
+              { key: 'communication', label: 'ما تقييمك للتواصل وسرعة الاستجابة؟', type: 'rating', required: true },
+              { key: 'repeat', label: 'هل ترغب في استمرار التعاون أو الدعم؟', type: 'yesno', required: true },
+              { key: 'suggestion', label: 'ما الذي يمكن تحسينه في تجربة الشراكة/التبرع؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_ENV',
+          l: 'رضا الموظف عن بيئة العمل',
+          data: {
+            title: 'استبيان رضا الموظفين عن بيئة العمل',
+            target: 'EMPLOYEE',
+            period: `شهر ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام لبيئة العمل؟', type: 'rating', required: true },
+              { key: 'clarity', label: 'ما تقييمك لوضوح المسؤوليات والإجراءات؟', type: 'rating', required: true },
+              { key: 'tools', label: 'هل تتوفر الأدوات والموارد اللازمة لأداء العمل؟', type: 'yesno', required: true },
+              { key: 'training', label: 'ما تقييمك لفرص التدريب والتطوير؟', type: 'rating', required: true },
+              { key: 'improvement', label: 'ما أهم تحسين تقترحه لبيئة العمل؟', type: 'text', required: false },
+            ],
+          },
+        },
+      ];
+    },
+
+    applySurveyTemplate() {
+      const selected = this.surveyTemplates().find(t => t.v === this.surveyTemplate);
+      if (!selected?.data) return;
+      Object.assign(this.surveyModal, {
+        title: selected.data.title,
+        target: selected.data.target,
+        period: selected.data.period,
+        questions: selected.data.questions.map(q => ({ ...q })),
+      });
+    },
+
     // ─── CRUD ──────────────────────────────────────────────────
     openSurveyCreate() {
       this.surveyModal = {
@@ -58,6 +140,7 @@
           { key: 'overall', label: 'تقييمك العام للخدمة', type: 'rating' },
         ],
       };
+      this.surveyTemplate = '';
     },
     async openSurveyEdit(s) {
       const raw = (() => { try { return JSON.parse(s.questionsJson || '[]'); } catch { return []; } })();

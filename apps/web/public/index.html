@@ -6147,6 +6147,15 @@
                 تغيير نص السؤال أو معرّف المفتاح قد يُفسد الإحصاءات السابقة.
                 يُفضَّل إنشاء استبيان جديد بدلاً من التعديل الجذري.
               </div>
+              <div x-show="surveyModal.mode==='create'" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                <label class="block text-sm font-medium mb-1 text-indigo-900">قالب جاهز للاستبيان</label>
+                <select x-model="surveyTemplate" @change="applySurveyTemplate()" class="w-full border border-indigo-200 rounded-lg px-3 py-2 bg-white">
+                  <template x-for="tpl in surveyTemplates()" :key="tpl.v">
+                    <option :value="tpl.v" x-text="tpl.l"></option>
+                  </template>
+                </select>
+                <div class="text-xs text-indigo-700 mt-1">القالب يجهز الأسئلة الأساسية فقط، ويمكنك تعديلها قبل النشر.</div>
+              </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label class="block text-sm font-medium mb-1">عنوان الاستبيان *</label>
