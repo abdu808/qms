@@ -330,8 +330,10 @@ async function checkIndicatorTargetGaps() {
       where: {
         deletedAt: null,
         objective: {
-          deletedAt: null,
-          goal: { deletedAt: null, planId: plan.id },
+          is: {
+            deletedAt: null,
+            strategicGoal: { is: { deletedAt: null, planId: plan.id } },
+          },
         },
       },
       select: {
