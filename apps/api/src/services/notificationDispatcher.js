@@ -13,6 +13,7 @@
 import { prisma } from '../db.js';
 import { dispatchIntegrationEvent } from './integrationDelivery.js';
 import { getNotificationRule, ruleChannelsCsv } from './notificationRules.js';
+import { ensureNotificationFollowUpTask } from './notificationFollowUpTasks.js';
 
 const TEMPLATE_CACHE_MS = 60 * 1000; // ذاكرة مؤقتة للقوالب لمدة دقيقة
 const _cache = new Map(); // eventKey → { template, expiresAt }
@@ -54,7 +55,7 @@ export function invalidateTemplateCache(eventKey) {
  * @param {string} [params.fallbackMessage] — متن احتياطي إن لم يوجد قالب
  * @param {Object} [params.payloadExtra]    — بيانات إضافية تُرسل إلى n8n
  *
- * @returns {Promise<{inApp: boolean, dispatched: boolean, skipped: string[]}>}
+ * @returns {Promise<{inApp: boolean, dispatched: boolean, taskCreated: boolean, skipped: string[]}>}
  */
 export async function sendNotification({
   eventKey,
@@ -72,7 +73,7 @@ export async function sendNotification({
     throw new Error('eventKey, dedupeKey, recipient.id are required');
   }
 
-  const result = { inApp: false, dispatched: false, skipped: [] };
+  const result = { inApp: false, dispatched: false, taskCreated: false, skipped: [] };
 
   const tpl = await _getTemplate(eventKey);
   const rule = await getNotificationRule(eventKey);
@@ -142,6 +143,31 @@ export async function sendNotification({
     } catch (e) {
       console.warn(`[notify] dispatch failed (${eventKey}):`, e.message);
       result.skipped.push('dispatch-error');
+    }
+  }
+
+  // 3) مهمة متابعة فعلية إذا كانت القاعدة تتطلب ذلك.
+  // تمنع الخدمة التكرار عبر sourceId + ownerId عندما تكون المهمة ما زالت مفتوحة.
+  if (rule?.createsTask) {
+    try {
+      const taskResult = await ensureNotificationFollowUpTask({
+        rule,
+        eventKey,
+        dedupeKey,
+        recipient,
+        title,
+        message,
+        entityType,
+        entityId,
+        link,
+      });
+      result.taskCreated = !!taskResult?.created;
+      if (!taskResult?.created && taskResult?.reason) {
+        result.skipped.push(taskResult.reason);
+      }
+    } catch (e) {
+      console.warn(`[notify] follow-up task failed (${eventKey}):`, e.message);
+      result.skipped.push('task-error');
     }
   }
 

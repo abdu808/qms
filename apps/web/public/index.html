@@ -3073,7 +3073,7 @@
                                 <span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded" x-text="rule.eventKey"></span>
                                 <span class="text-[10px] px-2 py-0.5 rounded-full"
                                       :class="rule.createsTask ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-500'"
-                                      x-text="rule.createsTask ? 'متابعة مطلوبة' : 'تنبيه فقط'"></span>
+                                      x-text="rule.createsTask ? 'يفتح متابعة' : 'تنبيه فقط'"></span>
                               </div>
                               <p class="text-xs text-gray-500 mt-1" x-text="rule.description"></p>
                               <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-[11px]">
@@ -3095,7 +3095,7 @@
                               <div class="flex items-center justify-end gap-2 mt-3">
                                 <label class="text-[11px] text-gray-500 flex items-center gap-1">
                                   <input type="checkbox" x-model="rule.createsTask" class="rounded border-gray-300">
-                                  متابعة مطلوبة
+                                  فتح متابعة تلقائية
                                 </label>
                                 <button @click="saveNotificationRule(rule)"
                                         :disabled="rule.busy"

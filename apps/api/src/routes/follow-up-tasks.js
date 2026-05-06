@@ -22,7 +22,7 @@ const baseShape = {
   description: z.string().max(8000).optional().nullable(),
   ownerId:     z.string().min(1, 'ownerId إلزامي'),
   dueDate:     z.preprocess(v => (v ? new Date(v) : v), z.date()),
-  source:      z.enum(['MANAGEMENT_REVIEW', 'AUDIT', 'NCR', 'CAPA', 'MANUAL']),
+  source:      z.enum(['MANAGEMENT_REVIEW', 'AUDIT', 'NCR', 'CAPA', 'MANUAL', 'NOTIFICATION']),
   sourceId:    z.string().min(1, 'sourceId إلزامي'),
   priority:    z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().nullable(),
   notes:       z.string().max(8000).optional().nullable(),

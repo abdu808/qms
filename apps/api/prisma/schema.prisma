@@ -2430,7 +2430,7 @@ model FollowUpTask {
   owner        User     @relation("FollowUpTaskOwner", fields: [ownerId], references: [id])
   dueDate      DateTime
   // المصدر — يربط المهمة بسجلها الأم (للتتبع)
-  source       String   // MANAGEMENT_REVIEW | AUDIT | NCR | CAPA | MANUAL
+  source       String   // MANAGEMENT_REVIEW | AUDIT | NCR | CAPA | MANUAL | NOTIFICATION
   sourceId     String   // id of the source record
   status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
   priority     String?  // LOW | MEDIUM | HIGH
