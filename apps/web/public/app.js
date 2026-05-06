@@ -2602,6 +2602,15 @@ function app() {
         alert('لا يمكن الحفظ من هذه الصفحة — افتح قسم السجلات المناسب من القائمة الجانبية');
         return;
       }
+      if (this.page === 'training' && this.modal.mode === 'edit') {
+        let original = {};
+        try { original = JSON.parse(this._modalInitialSnapshot || '{}'); } catch {}
+        const hasAttendance = Array.isArray(this.modal.data?.records) && this.modal.data.records.length > 0;
+        if (hasAttendance && original.date && this.modal.data?.date && original.date !== this.modal.data.date) {
+          const ok = confirm('هذا التدريب لديه سجلات حضور أو فعالية. تعديل التاريخ يؤثر على التوثيق، هل تريد المتابعة؟');
+          if (!ok) return;
+        }
+      }
       const payload = { ...this.modal.data };
       const editableKeys = new Set((this.currentFields || [])
         .filter(f => !f.applyTemplate)
@@ -2887,13 +2896,28 @@ function app() {
       if (!res.ok) {
         // دعم صيغتين: { error: { message: '...' } } أو { error: '...' }
         const errObj = data?.error;
-        const msg = (typeof errObj === 'string' && errObj)
+        const rawMsg = (typeof errObj === 'string' && errObj)
           || errObj?.message
           || data?.message
           || `HTTP ${res.status}`;
+        const msg = this._friendlyApiError(rawMsg);
         throw new Error(msg);
       }
       return data;
+    },
+    _friendlyApiError(message) {
+      const text = String(message ?? '').trim();
+      if (!text) return 'حدث خطأ غير متوقع — حاول مرة أخرى أو أعد تحميل الصفحة';
+      if (/Invalid `prisma\./.test(text) || /PrismaClient.*Error/.test(text)) {
+        if (text.includes('Argument `records`')) {
+          return 'لا يمكن تعديل سجلات الحضور من نافذة بيانات التدريب. استخدم زر الحضور والفعالية.';
+        }
+        if (/Unknown argument|Invalid value provided/.test(text)) {
+          return 'تعذر حفظ السجل بسبب حقل غير صالح أو غير مدعوم في النموذج.';
+        }
+        return 'تعذر حفظ السجل بسبب مشكلة في تنسيق البيانات. راجع الحقول وحاول مرة أخرى.';
+      }
+      return text.split('\n').map(s => s.trim()).find(Boolean) || text;
     },
   };
 }
