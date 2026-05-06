@@ -70,7 +70,7 @@ function activityBrief(activity) {
 
 export async function buildPlanConnectivity({ year = null } = {}) {
   const targetYear = Number(year) || null;
-  const [goals, indicators, activities, departments, axes] = await Promise.all([
+  const [goals, indicators, activities, departments, axes, activeUsers] = await Promise.all([
     prisma.strategicGoal.findMany({
       where: active,
       orderBy: { code: 'asc' },
@@ -146,6 +146,10 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     }),
     prisma.department.findMany({ where: { active: true }, select: { id: true, code: true, name: true } }),
     prisma.axis.findMany({ where: active, orderBy: { order: 'asc' }, select: { id: true, code: true, nameAr: true, weight: true } }),
+    prisma.user.findMany({
+      where: { active: true, departmentId: { not: null } },
+      select: { departmentId: true },
+    }),
   ]);
 
   const indicatorsByGoal = new Map();
@@ -247,7 +251,11 @@ export async function buildPlanConnectivity({ year = null } = {}) {
   }
   allIssues.push(...indicatorIssues);
 
+  const staffedDepartmentIds = new Set((activeUsers || []).map(u => u.departmentId).filter(Boolean));
   const departmentsWithoutPlanRole = departments
+    // لا نحاسب الخطة على سجلات أقسام تاريخية/فرعية لا يوجد عليها موظفون نشطون.
+    // التغطية العملية تُقاس على الأقسام التي لها مستخدمون فعليون في النظام.
+    .filter(d => staffedDepartmentIds.has(d.id))
     .filter(d => !deptRoleIds.has(d.id))
     .map(d => issue('WARNING', 'تغطية الأقسام', `${d.name} - لا يظهر كمالك أو مدخل بيانات أو منفذ في الخطة الحالية.`, d.code || d.id));
   allIssues.push(...departmentsWithoutPlanRole);
