@@ -50,6 +50,68 @@
       };
     },
 
+    surveyScorePct(s) {
+      const avg = Number(s?.avgScore);
+      if (!Number.isFinite(avg)) return null;
+      return Math.max(0, Math.min(100, Math.round((avg / 5) * 100)));
+    },
+    surveyScoreText(s) {
+      const pct = this.surveyScorePct(s);
+      return pct == null ? '—' : `${pct}%`;
+    },
+    surveyScoreClass(s) {
+      const pct = this.surveyScorePct(s);
+      if (pct == null) return 'text-gray-400';
+      if (pct >= 80) return 'text-emerald-700';
+      if (pct >= 65) return 'text-amber-700';
+      return 'text-red-700';
+    },
+    surveyTargetLabel(target) {
+      return ({
+        BENEFICIARY: 'المستفيدون',
+        DONOR: 'المتبرعون',
+        VOLUNTEER: 'المتطوعون',
+        EMPLOYEE: 'الموظفون',
+        PARTNER: 'الشركاء',
+      })[target] || target || '—';
+    },
+    surveyCenterRows(target = 'BENEFICIARY') {
+      return (this.surveysList || [])
+        .filter(s => !target || s.target === target)
+        .map(s => ({ ...s, scorePct: this.surveyScorePct(s) }))
+        .sort((a, b) => (b.responses || 0) - (a.responses || 0));
+    },
+    surveyCenterStats(target = 'BENEFICIARY') {
+      const rows = this.surveyCenterRows(target);
+      const totalResponses = rows.reduce((sum, s) => sum + (Number(s.responses) || 0), 0);
+      const scored = rows.filter(s => Number.isFinite(Number(s.avgScore)));
+      const weightedBase = scored.reduce((sum, s) => sum + ((Number(s.responses) || 0) > 0 ? Number(s.responses) : 1), 0);
+      const weightedAvg = weightedBase
+        ? scored.reduce((sum, s) => sum + Number(s.avgScore) * ((Number(s.responses) || 0) > 0 ? Number(s.responses) : 1), 0) / weightedBase
+        : null;
+      const scorePct = weightedAvg == null ? null : Math.round((weightedAvg / 5) * 100);
+      return {
+        surveys: rows.length,
+        active: rows.filter(s => s.active).length,
+        totalResponses,
+        scored: scored.length,
+        scorePct,
+        low: rows.filter(s => (Number(s.responses) || 0) > 0 && Number(s.avgScore) < 3).length,
+        noResponses: rows.filter(s => (Number(s.responses) || 0) === 0).length,
+      };
+    },
+    surveyCenterScoreClass(target = 'BENEFICIARY') {
+      const pct = this.surveyCenterStats(target).scorePct;
+      if (pct == null) return 'text-gray-400';
+      if (pct >= 80) return 'text-emerald-700';
+      if (pct >= 65) return 'text-amber-700';
+      return 'text-red-700';
+    },
+    surveyCenterScoreText(target = 'BENEFICIARY') {
+      const pct = this.surveyCenterStats(target).scorePct;
+      return pct == null ? '—' : `${pct}%`;
+    },
+
     surveyTemplates() {
       return [
         { v: '', l: '— بدون قالب —' },
