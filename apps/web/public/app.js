@@ -1436,10 +1436,10 @@ function app() {
         this.kpiFollowUpTrends = trends?.trends || null;
 
         // تحميل الأقسام إن لم تكن محمّلة
-        if (!this.kpiFollowUpDepts.length) {
+        if (!Array.isArray(this.kpiFollowUpDepts) || !this.kpiFollowUpDepts.length) {
           try {
             const r = await this.api('GET', '/departments');
-            this.kpiFollowUpDepts = r?.data || r || [];
+            this.kpiFollowUpDepts = r?.items || r?.data || (Array.isArray(r) ? r : []);
           } catch {}
         }
 
