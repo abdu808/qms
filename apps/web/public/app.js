@@ -962,7 +962,14 @@ function app() {
     // ─── Toast notification system ────────────────────────────────────
     toast(msg, type = 'success', duration = 4500) {
       const id = Date.now() + Math.random();
-      this.toasts.push({ id, msg: String(msg ?? '').split('\n')[0].slice(0, 120), type });
+      const fallback = type === 'error'
+        ? 'حدث خطأ غير متوقع — حاول مرة أخرى أو أعد تحميل الصفحة'
+        : 'تم تنفيذ الإجراء';
+      const safeMsg = String(msg ?? '')
+        .split('\n')
+        .map(s => s.trim())
+        .find(Boolean) || fallback;
+      this.toasts.push({ id, msg: safeMsg.slice(0, 120), type });
       setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, duration);
     },
 
@@ -2596,6 +2603,12 @@ function app() {
         return;
       }
       const payload = { ...this.modal.data };
+      const editableKeys = new Set((this.currentFields || [])
+        .filter(f => !f.applyTemplate)
+        .map(f => f.key));
+      for (const key of Object.keys(payload)) {
+        if (key !== 'id' && !editableKeys.has(key)) delete payload[key];
+      }
 
       // ── Batch 11 — حارس التوقيع على الانتقالات النهائية ─────────────
       // إذا كانت الصفحة تتطلب توقيعاً عند بلوغ حالة معينة ولم تكن الحالة الأصلية هكذا،

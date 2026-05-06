@@ -5,6 +5,7 @@ import { NotFound } from '../utils/errors.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { requireFields, intInRange, triBool } from '../lib/dataHelpers.js';
+import { createSchema, updateSchema } from '../schemas/training.schema.js';
 
 const base = crudRouter({
   resource: 'training',
@@ -14,6 +15,7 @@ const base = crudRouter({
   include: {
     records: { include: { user: { select: { id: true, name: true, email: true } } } },
   },
+  schemas: { create: createSchema, update: updateSchema },
   allowedSortFields: ['createdAt', 'date'],
 });
 
