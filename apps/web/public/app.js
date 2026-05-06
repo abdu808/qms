@@ -1706,7 +1706,7 @@ function app() {
     // INTEGRATIONS & NOTIFICATIONS SETTINGS
     // ════════════════════════════════════════════════════════════════
 
-    integrationsTab: 'providers', // providers | templates | log
+    integrationsTab: 'providers', // providers | rules | templates | log
     integrationsLoading: false,
 
     // n8n config (state)
@@ -1716,6 +1716,10 @@ function app() {
     // templates state
     notificationTemplates: [],
     notificationTemplateModal: null,  // { tpl, busy, error, preview }
+
+    // notification rules state
+    notificationRules: [],
+    notificationRuleChannels: ['IN_APP', 'WHATSAPP', 'SMS', 'EMAIL'],
 
     // delivery log state
     deliveryLogItems: [],
@@ -1736,12 +1740,15 @@ function app() {
         this.integrationsLoading = true;
         const calls = [
           this.api('GET', '/webhook-settings').catch(() => null),
+          this.api('GET', '/notification-rules').catch(() => null),
           this.api('GET', '/notification-templates').catch(() => null),
           this.api('GET', '/integrations/deliveries?limit=50').catch(() => null),
           this.api('GET', '/integrations/deliveries/stats').catch(() => null),
         ];
-        const [n8n, tpls, log, stats] = await Promise.all(calls);
+        const [n8n, rules, tpls, log, stats] = await Promise.all(calls);
         this.integrationN8n          = n8n?.item || null;
+        this.notificationRules       = rules?.data || [];
+        this.notificationRuleChannels = rules?.allowedChannels || ['IN_APP', 'WHATSAPP', 'SMS', 'EMAIL'];
         this.notificationTemplates   = tpls?.data || [];
         this.deliveryLogItems        = log?.data || [];
         this.deliveryLogStats        = stats || null;
@@ -1813,6 +1820,59 @@ function app() {
         NOT_TESTED:   'bg-amber-100 text-amber-800 border-amber-300',
         NO_URL:       'bg-gray-100 text-gray-700 border-gray-300',
       })[s] || 'bg-gray-100 text-gray-700';
+    },
+
+    // ─── Notification Rules ───────────────────────────────────────
+    notificationRulesByCategory() {
+      const groups = {};
+      for (const r of (this.notificationRules || [])) {
+        const key = r.category || 'OTHER';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r);
+      }
+      return groups;
+    },
+    notificationRuleCategoryLabel(c) {
+      return ({
+        KPI: 'المؤشرات والمتأخرات',
+        NCR: 'عدم المطابقة',
+        COMPLAINT: 'الشكاوى',
+        DOCUMENT: 'الوثائق',
+        TRAINING: 'التدريب',
+        OTHER: 'أخرى',
+      })[c] || c;
+    },
+    isRuleChannel(rule, channel) {
+      return Array.isArray(rule?.channels) && rule.channels.includes(channel);
+    },
+    toggleRuleChannel(rule, channel) {
+      if (!rule) return;
+      if (!Array.isArray(rule.channels)) rule.channels = [];
+      const i = rule.channels.indexOf(channel);
+      if (i >= 0) rule.channels.splice(i, 1);
+      else rule.channels.push(channel);
+    },
+    async saveNotificationRule(rule) {
+      if (!rule?.eventKey) return;
+      try {
+        rule.busy = true;
+        const r = await this.api('PATCH', `/notification-rules/${rule.eventKey}`, {
+          enabled: rule.enabled,
+          channels: rule.channels || [],
+          createsTask: rule.createsTask,
+          audience: rule.audience,
+          timing: rule.timing,
+          repeatPolicy: rule.repeatPolicy,
+          escalation: rule.escalation,
+          description: rule.description,
+        });
+        Object.assign(rule, r.item || {});
+        this.toast?.('تم حفظ قاعدة التنبيه', 'success');
+      } catch (e) {
+        alert(e.message || 'فشل حفظ قاعدة التنبيه');
+      } finally {
+        if (rule) rule.busy = false;
+      }
     },
 
     // ─── Notification Templates ──────────────────────────────────

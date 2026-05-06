@@ -12,6 +12,7 @@
 
 import { prisma } from '../db.js';
 import { dispatchIntegrationEvent } from './integrationDelivery.js';
+import { getNotificationRule, ruleChannelsCsv } from './notificationRules.js';
 
 const TEMPLATE_CACHE_MS = 60 * 1000; // ذاكرة مؤقتة للقوالب لمدة دقيقة
 const _cache = new Map(); // eventKey → { template, expiresAt }
@@ -74,8 +75,13 @@ export async function sendNotification({
   const result = { inApp: false, dispatched: false, skipped: [] };
 
   const tpl = await _getTemplate(eventKey);
+  const rule = await getNotificationRule(eventKey);
 
-  // إن كان القالب مُعطَّلاً صراحةً، نتخطى
+  // إن كانت القاعدة أو القالب مُعطَّلين صراحةً، نتخطى
+  if (rule && rule.enabled === false) {
+    result.skipped.push('rule-disabled');
+    return result;
+  }
   if (tpl && tpl.enabled === false) {
     result.skipped.push('template-disabled');
     return result;
@@ -83,9 +89,10 @@ export async function sendNotification({
 
   const title = tpl ? _renderVars(tpl.subject, variables) : (fallbackTitle || eventKey);
   const message = tpl ? _renderVars(tpl.body, variables) : (fallbackMessage || '');
-  const channels = tpl
-    ? tpl.channels.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
-    : ['IN_APP'];
+  const channelsCsv = rule
+    ? ruleChannelsCsv(rule, tpl?.channels || 'IN_APP')
+    : (tpl?.channels || 'IN_APP');
+  const channels = channelsCsv.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
 
   // 1) Notification داخل النظام (إن كان IN_APP ضمن القنوات)
   if (channels.includes('IN_APP')) {

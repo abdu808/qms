@@ -2941,6 +2941,7 @@
               <!-- Tabs -->
               <div class="bg-white rounded-xl shadow-sm mb-4 p-1 inline-flex gap-1">
                 <button @click="integrationsTab='providers'" :class="integrationsTab==='providers' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">⚙️ المزودات</button>
+                <button @click="integrationsTab='rules'" :class="integrationsTab==='rules' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">🧭 قواعد التنبيه</button>
                 <button @click="integrationsTab='templates'" :class="integrationsTab==='templates' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">✉️ قوالب التنبيهات</button>
                 <button @click="integrationsTab='log'" :class="integrationsTab==='log' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'" class="px-4 py-2 rounded-lg text-sm font-medium transition">📜 سجل الإرسال</button>
               </div>
@@ -3034,7 +3035,83 @@
                 </div>
               </div>
 
-              <!-- ═══ TAB 2: قوالب التنبيهات ═══ -->
+              <!-- ═══ TAB 2: قواعد التنبيه ═══ -->
+              <div x-show="integrationsTab==='rules'" class="space-y-4">
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-emerald-100">
+                  <div class="flex items-start justify-between gap-3 flex-wrap">
+                    <div>
+                      <h3 class="font-bold text-gray-800">قواعد التنبيه والإدارة الذاتية</h3>
+                      <p class="text-xs text-gray-500 mt-1">هنا نحدد قرار النظام: متى يرسل، لمن يرسل، وبأي قناة. n8n يبقى موزع الرسائل فقط.</p>
+                    </div>
+                    <div class="text-xs bg-emerald-50 text-emerald-800 border border-emerald-100 rounded-lg px-3 py-2">
+                      <span class="font-bold" x-text="notificationRules.filter(r => r.enabled).length"></span>
+                      قاعدة مفعلة
+                    </div>
+                  </div>
+                </div>
+
+                <template x-for="(rules, category) in notificationRulesByCategory()" :key="category">
+                  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
+                      <h4 class="font-bold text-sm text-gray-700" x-text="notificationRuleCategoryLabel(category)"></h4>
+                      <span class="text-[11px] text-gray-500" x-text="rules.length + ' قواعد'"></span>
+                    </div>
+                    <div class="divide-y">
+                      <template x-for="rule in rules" :key="rule.eventKey">
+                        <div class="p-4">
+                          <div class="flex items-start justify-between gap-3 flex-wrap">
+                            <div class="min-w-0 flex-1">
+                              <div class="flex items-center gap-2 flex-wrap">
+                                <button @click="rule.enabled=!rule.enabled; saveNotificationRule(rule)"
+                                        :disabled="rule.busy"
+                                        class="relative inline-flex h-6 w-11 items-center rounded-full transition"
+                                        :class="rule.enabled ? 'bg-emerald-600' : 'bg-gray-300'">
+                                  <span class="inline-block h-5 w-5 transform rounded-full bg-white transition"
+                                        :class="rule.enabled ? '-translate-x-5' : '-translate-x-1'"></span>
+                                </button>
+                                <span class="font-bold text-gray-800" x-text="rule.name"></span>
+                                <span class="text-[10px] font-mono bg-gray-100 px-2 py-0.5 rounded" x-text="rule.eventKey"></span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full"
+                                      :class="rule.createsTask ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-500'"
+                                      x-text="rule.createsTask ? 'متابعة مطلوبة' : 'تنبيه فقط'"></span>
+                              </div>
+                              <p class="text-xs text-gray-500 mt-1" x-text="rule.description"></p>
+                              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-[11px]">
+                                <div class="bg-gray-50 rounded-lg p-2"><span class="text-gray-400">المستلم:</span> <span x-text="rule.audience"></span></div>
+                                <div class="bg-gray-50 rounded-lg p-2"><span class="text-gray-400">التوقيت:</span> <span x-text="rule.timing"></span></div>
+                                <div class="bg-gray-50 rounded-lg p-2"><span class="text-gray-400">التصعيد:</span> <span x-text="rule.escalation"></span></div>
+                              </div>
+                            </div>
+                            <div class="w-full md:w-auto md:min-w-[260px]">
+                              <div class="text-[11px] text-gray-500 mb-1">القنوات</div>
+                              <div class="flex flex-wrap gap-1.5">
+                                <template x-for="ch in notificationRuleChannels" :key="ch">
+                                  <button @click="toggleRuleChannel(rule, ch)"
+                                          class="text-[11px] px-2 py-1 rounded border transition"
+                                          :class="isRuleChannel(rule, ch) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                                          x-text="ch"></button>
+                                </template>
+                              </div>
+                              <div class="flex items-center justify-end gap-2 mt-3">
+                                <label class="text-[11px] text-gray-500 flex items-center gap-1">
+                                  <input type="checkbox" x-model="rule.createsTask" class="rounded border-gray-300">
+                                  متابعة مطلوبة
+                                </label>
+                                <button @click="saveNotificationRule(rule)"
+                                        :disabled="rule.busy"
+                                        class="bg-gray-800 hover:bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg disabled:opacity-50"
+                                        x-text="rule.busy ? 'جارٍ...' : 'حفظ'"></button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- ═══ TAB 3: قوالب التنبيهات ═══ -->
               <div x-show="integrationsTab==='templates'" class="space-y-3">
                 <div class="bg-white rounded-xl shadow-sm p-4">
                   <div class="flex items-center justify-between mb-2">
