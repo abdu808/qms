@@ -733,13 +733,15 @@ function app() {
         }
       });
       // إجراءات عامة
-      items.push({
-        kind: 'action', id: 'toggle-mode',
-        label: this.isGuided() ? 'التبديل للوضع المتقدّم' : 'التبديل للوضع الموجَّه',
-        icon: this.isGuided() ? '⚙️' : '🧭',
-        hint: 'تفضيلات الواجهة',
-        action: () => this.toggleUiMode(),
-      });
+      if (this.canUseAdvancedMode()) {
+        items.push({
+          kind: 'action', id: 'toggle-mode',
+          label: this.isGuided() ? 'عرض كل الوحدات' : 'العودة للمسار المختصر',
+          icon: this.isGuided() ? '⚙️' : '🧭',
+          hint: 'تفضيلات الواجهة',
+          action: () => this.toggleUiMode(),
+        });
+      }
       return items;
     },
 
@@ -798,39 +800,34 @@ function app() {
       const groups = {
         EMPLOYEE: [
           { id: 'guided-today', title: 'عملي اليومي', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'myAcknowledgments'] },
-          { id: 'guided-quality', title: 'بلاغات الجودة', icon: '🛠️', iso: '', color: 'amber', items: ['complaints', 'ncr'] },
-          { id: 'guided-docs', title: 'المعرفة والوثائق', icon: '📄', iso: '', color: 'teal', items: ['isoRequirements', 'qualityScope', 'qualityPolicy', 'ackDocuments', 'documents', 'training'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+          { id: 'guided-helpdesk', title: 'أحتاج مساعدة', icon: '💬', iso: '', color: 'sky', items: ['complaints', 'ncr'] },
+          { id: 'guided-know', title: 'أفهم النظام', icon: '📄', iso: '', color: 'slate', items: ['qualityPolicy', 'ackDocuments', 'training', 'userGuide'] },
         ],
         DEPT_MANAGER: [
-          { id: 'guided-today', title: 'ما يحتاج قرارك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'kpiFollowUp'] },
-          { id: 'guided-followup', title: 'المتابعة السريعة', icon: '📋', iso: '', color: 'sky', items: ['progressReports', 'kpiTracking', 'operationalReports', 'slaBoard'] },
-          { id: 'guided-quality', title: 'الجودة والمخاطر', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'risks', 'capa'] },
-          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['planMap', 'operationalActivities', 'initiatives', 'strategicGoals'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+          { id: 'guided-today', title: 'قرارات اليوم', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'slaBoard'] },
+          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['myKpi', 'kpiTracking', 'operationalActivities', 'progressReports'] },
+          { id: 'guided-quality', title: 'جودة القسم', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'risks', 'capa'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'slate', items: ['userGuide'] },
         ],
         COMMITTEE_MEMBER: [
-          { id: 'guided-today', title: 'المراجعة والقرارات', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'managementReview', 'kpiFollowUp'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'qualityScope', 'dataHealth', 'progressReports', 'operationalReports'] },
-          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['ncr', 'capa', 'risks', 'audits'] },
-          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['planMap', 'strategicGoals', 'kpiTracking', 'initiatives'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+          { id: 'guided-today', title: 'ما يحتاج مراجعتك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'managementReview', 'kpiFollowUp'] },
+          { id: 'guided-assurance', title: 'جاهزية وامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'dataHealth', 'progressReports'] },
+          { id: 'guided-quality', title: 'جودة وتحسين', icon: '🛠️', iso: '', color: 'slate', items: ['ncr', 'capa', 'risks', 'audits'] },
+          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'slate', items: ['userGuide'] },
         ],
         QUALITY_MANAGER: [
-          { id: 'guided-today', title: 'مركز قيادة الجودة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'monthlyReadiness', 'templateLibrary', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
-          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
-          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
-          { id: 'guided-admin', title: 'إعدادات تشغيلية', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
+          { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
+          { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements', 'templateLibrary'] },
+          { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
+          { id: 'guided-plan', title: 'الخطة والأداء', icon: '🎯', iso: '', color: 'slate', items: ['planMap', 'strategicGoals', 'kpiTracking', 'progressReports'] },
+          { id: 'guided-admin', title: 'إعدادات محدودة', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
         ],
         SUPER_ADMIN: [
-          { id: 'guided-today', title: 'مركز قيادة النظام', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-followup', title: 'المتابعة والامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'monthlyReadiness', 'templateLibrary', 'qualityScope', 'slaBoard', 'progressReports', 'operationalReports'] },
-          { id: 'guided-quality', title: 'الجودة والتحسين', icon: '⭐', iso: '', color: 'amber', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
-          { id: 'guided-planning', title: 'الخطة والمؤشرات', icon: '🎯', iso: '', color: 'violet', items: ['strategicPlans', 'planMap', 'strategicGoals', 'indicators', 'annualTargets', 'kpiTracking'] },
+          { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
+          { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements', 'templateLibrary'] },
+          { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
+          { id: 'guided-plan', title: 'الخطة والأداء', icon: '🎯', iso: '', color: 'slate', items: ['planMap', 'strategicGoals', 'kpiTracking', 'progressReports'] },
           { id: 'guided-admin', title: 'الإدارة والإعدادات', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments', 'audit-log'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'indigo', items: ['userGuide'] },
         ],
       };
       const allowed = this._menuItemsForRole(role);

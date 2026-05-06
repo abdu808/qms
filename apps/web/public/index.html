@@ -235,12 +235,13 @@
             </div>
           </details>
           <!-- تبديل وضع الواجهة (Guided / Advanced) — ISO 7.2 قابلية الاستخدام -->
-          <button @click="toggleUiMode()"
-                  :title="isGuided() ? 'وضع موجَّه: مهامك اليومية فقط' : 'وضع متقدّم: وصول كامل للوحدات'"
+          <button x-show="canUseAdvancedMode()"
+                  @click="toggleUiMode()"
+                  :title="isGuided() ? 'المسار المختصر يعرض المهم فقط' : 'كل الوحدات للمدير والمستخدم المتقدم'"
                   class="mt-2 w-full rounded px-2 py-1.5 text-[11px] font-medium border transition flex items-center justify-center gap-1.5"
-                  :class="isGuided() ? 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
+                  :class="isGuided() ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'">
             <span x-text="isGuided() ? '🧭' : '⚙️'"></span>
-            <span x-text="isGuided() ? 'واجهة موجّهة' : 'واجهة متقدمة'"></span>
+            <span x-text="isGuided() ? 'المسار المختصر' : 'كل الوحدات'"></span>
           </button>
           <button @click="logout()" class="mt-2 w-full text-red-600 hover:bg-red-50 rounded px-2 py-1">تسجيل الخروج</button>
         </div>
@@ -253,12 +254,13 @@
             <button @click="sidebarOpen=true" class="md:hidden text-2xl text-brand-600 hover:bg-gray-100 rounded p-1" aria-label="فتح القائمة">☰</button>
             <div>
               <h2 class="text-lg font-bold leading-tight" x-text="menu.find(m=>m.id===page)?.label || 'لوحة المعلومات'"></h2>
-              <div class="text-[11px] text-gray-500 mt-0.5" x-text="isGuided() ? 'واجهة يومية مختصرة' : 'كل وحدات النظام حسب الصلاحية'"></div>
+              <div class="text-[11px] text-gray-500 mt-0.5" x-text="isGuided() ? 'يعرض لك المهم فقط' : 'عرض إداري كامل حسب الصلاحية'"></div>
             </div>
           </div>
           <div class="flex items-center gap-2">
             <!-- Command Palette trigger — مرئي لتعليم المستخدم بالاختصار -->
-            <button @click="openPalette()"
+            <button x-show="isAdvanced()"
+                    @click="openPalette()"
                     title="القفز لأي مكان (Ctrl+K)"
                     class="hidden md:flex items-center gap-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-gray-200 hover:border-indigo-200 px-3 py-1.5 transition">
               <span class="text-base">🔍</span>
@@ -3659,27 +3661,32 @@
           <!-- MY WORK (Batch 16) — inbox of required actions -->
           <div x-show="page==='myWork'" x-cloak>
             <!-- رسالة ترحيب للوضع الموجَّه -->
-            <div x-show="isGuided()" class="mb-5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-2xl p-5 shadow-md">
+            <div x-show="isGuided()" class="mb-5 bg-white border border-emerald-100 rounded-2xl p-5 shadow-sm">
               <div class="flex items-start justify-between gap-4">
-                <div>
-                  <h2 class="text-lg font-bold mb-1">🕊️ مرحباً <span x-text="user?.name?.split(' ')[0]"></span>!</h2>
-                  <p class="text-sm opacity-90 mb-3">&#1608;&#1575;&#1580;&#1607;&#1577; &#1605;&#1582;&#1578;&#1589;&#1585;&#1577; &#1578;&#1585;&#1603;&#1586; &#1593;&#1604;&#1609; &#1575;&#1604;&#1571;&#1593;&#1605;&#1575;&#1604; &#1575;&#1604;&#1605;&#1591;&#1604;&#1608;&#1576;&#1577; &#1575;&#1604;&#1570;&#1606;&#1548; &#1605;&#1593; &#1576;&#1602;&#1575;&#1569; &#1575;&#1604;&#1608;&#1589;&#1608;&#1604; &#1575;&#1604;&#1603;&#1575;&#1605;&#1604; &#1601;&#1610; &#1575;&#1604;&#1608;&#1590;&#1593; &#1575;&#1604;&#1605;&#1578;&#1602;&#1583;&#1605;.</p>
+                <div class="min-w-0">
+                  <div class="text-[11px] font-semibold text-emerald-700 mb-1">المسار المختصر</div>
+                  <h2 class="text-lg font-bold text-gray-800 mb-1">مرحباً <span x-text="user?.name?.split(' ')[0]"></span></h2>
+                  <p class="text-sm text-gray-600 mb-3">هذه الصفحة تختصر المطلوب منك. ابدأ من البطاقة الأولى، وإذا لا توجد مهام فعملك مكتمل اليوم.</p>
                   <div class="flex flex-wrap gap-2">
-                    <button @click="goto('myKpi')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1602;&#1585;&#1575;&#1569;&#1575;&#1578; &#1575;&#1604;&#1605;&#1572;&#1588;&#1585;&#1575;&#1578;</button>
-                    <button @click="goto('myAcknowledgments')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1573;&#1602;&#1585;&#1575;&#1585;&#1575;&#1578;&#1610;</button>
-                    <button @click="goto('complaints')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1575;&#1604;&#1588;&#1603;&#1575;&#1608;&#1609;</button>
-                    <button @click="goto('ncr')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1576;&#1604;&#1575;&#1594; &#1580;&#1608;&#1583;&#1577;</button>
-                    <button x-show="['DEPT_MANAGER','QUALITY_MANAGER','SUPER_ADMIN','COMMITTEE_MEMBER'].includes(user?.role)" @click="goto('kpiFollowUp')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1605;&#1578;&#1575;&#1576;&#1593;&#1577; &#1575;&#1604;&#1605;&#1578;&#1571;&#1582;&#1585;&#1575;&#1578;</button>
-                    <button x-show="['QUALITY_MANAGER','SUPER_ADMIN'].includes(user?.role)" @click="goto('dataHealth')" class="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 rounded-lg transition">&#1589;&#1581;&#1577; &#1575;&#1604;&#1576;&#1610;&#1575;&#1606;&#1575;&#1578;</button>
+                    <button @click="goto('myKpi')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 text-xs px-3 py-1.5 rounded-lg transition">قراءات المؤشرات</button>
+                    <button @click="goto('myAcknowledgments')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-100 text-xs px-3 py-1.5 rounded-lg transition">إقراراتي</button>
+                    <button @click="goto('complaints')" class="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs px-3 py-1.5 rounded-lg transition">طلب مساعدة</button>
+                    <button @click="goto('ncr')" class="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs px-3 py-1.5 rounded-lg transition">بلاغ جودة</button>
+                    <button x-show="['DEPT_MANAGER','QUALITY_MANAGER','SUPER_ADMIN','COMMITTEE_MEMBER'].includes(user?.role)" @click="goto('kpiFollowUp')" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-100 text-xs px-3 py-1.5 rounded-lg transition">متابعة المتأخرات</button>
+                    <button x-show="['QUALITY_MANAGER','SUPER_ADMIN'].includes(user?.role)" @click="goto('dataHealth')" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-100 text-xs px-3 py-1.5 rounded-lg transition">صحة البيانات</button>
                   </div>
                 </div>
-                <button x-show="canUseAdvancedMode()" @click="toggleUiMode()" title="&#1578;&#1576;&#1583;&#1610;&#1604; &#1604;&#1604;&#1608;&#1590;&#1593; &#1575;&#1604;&#1605;&#1578;&#1602;&#1583;&#1605;" class="text-white/70 hover:text-white text-xs whitespace-nowrap">&#1608;&#1590;&#1593; &#1605;&#1578;&#1602;&#1583;&#1605;</button>
+                <div class="hidden lg:grid grid-cols-3 gap-2 text-center text-[11px] text-gray-500 shrink-0">
+                  <div class="bg-gray-50 rounded-lg px-3 py-2 border"><div class="font-bold text-gray-700">1</div><div>راجع</div></div>
+                  <div class="bg-gray-50 rounded-lg px-3 py-2 border"><div class="font-bold text-gray-700">2</div><div>أدخل</div></div>
+                  <div class="bg-gray-50 rounded-lg px-3 py-2 border"><div class="font-bold text-gray-700">3</div><div>بلّغ</div></div>
+                </div>
               </div>
             </div>
             <template x-if="myWork">
               <div>
                 <!-- Hero (role-aware) -->
-                <div class="bg-gradient-to-l text-white rounded-xl p-6 mb-4 shadow"
+                <div x-show="!isGuided()" class="bg-gradient-to-l text-white rounded-xl p-6 mb-4 shadow"
                      :class="{
                        'from-indigo-700 via-indigo-600 to-violet-600': myWork.viewMode==='EMPLOYEE',
                        'from-teal-700 via-teal-600 to-emerald-600':    myWork.viewMode==='DEPT',
