@@ -57,6 +57,12 @@ export function crudRouter(opts) {
 
   const router = Router();
 
+  const mergeScopedWhere = (base, patch) => {
+    if (!patch || !Object.keys(patch).length) return base;
+    if (!base || !Object.keys(base).length) return patch;
+    return { AND: [base, patch] };
+  };
+
   // ── RBAC gate ────────────────────────────────────────────────────
   const gate = (action) => (req, res, next) => {
     if (!resource) return next();
@@ -124,7 +130,7 @@ export function crudRouter(opts) {
     // Role-based scope (DEPT_MANAGER / EMPLOYEE)
     if (scopeFilter) {
       const patch = scopeFilter(req);
-      if (patch && Object.keys(patch).length) Object.assign(where, patch);
+      where = mergeScopedWhere(where, patch);
     }
 
     const [total, items] = await Promise.all([
@@ -148,7 +154,7 @@ export function crudRouter(opts) {
     }
     // Use findFirst so scopeFilter can be merged into the where clause
     const item = await prisma[model].findFirst({
-      where: { id: req.params.id, ...scopeWhere }, include,
+      where: mergeScopedWhere({ id: req.params.id }, scopeWhere), include,
     });
     if (!item) throw NotFound();
     // Hide soft-deleted unless privileged caller explicitly asks

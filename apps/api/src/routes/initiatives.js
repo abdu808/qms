@@ -1,4 +1,5 @@
 import { crudRouter } from '../utils/crudFactory.js';
+import { initiativeScopeWhere } from '../lib/accessScope.js';
 import { createSchema, updateSchema } from '../schemas/initiative.schema.js';
 
 export default crudRouter({
@@ -26,4 +27,5 @@ export default crudRouter({
     owner: { select: { id: true, name: true } },
     department: { select: { id: true, name: true } },
   },
+  scopeFilter: (req) => initiativeScopeWhere(req.user),
 });

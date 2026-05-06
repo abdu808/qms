@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
+import { annualTargetScopeWhere } from '../lib/accessScope.js';
 import { BadRequest } from '../utils/errors.js';
 import { createSchema, updateSchema } from '../schemas/annualTarget.schema.js';
 
@@ -30,6 +31,7 @@ const base = crudRouter({
     indicator: { select: { id: true, code: true, nameAr: true } },
     createdBy: { select: { id: true, name: true } },
   },
+  scopeFilter: (req) => annualTargetScopeWhere(req.user),
   // Prisma checked-input fix: relations must use connect syntax.
   // Same pattern as NCR-BUG-001 fix in routes/ncr.js.
   beforeCreate: async (data, req) => {
@@ -86,7 +88,10 @@ const router = Router();
  */
 router.get('/:indicatorId/history', requireAction('annual-targets', 'read'), asyncHandler(async (req, res) => {
   const items = await prisma.annualTarget.findMany({
-    where: { indicatorId: req.params.indicatorId },
+    where: {
+      indicatorId: req.params.indicatorId,
+      ...annualTargetScopeWhere(req.user),
+    },
     orderBy: { year: 'desc' },
     include: {
       indicator: { select: { id: true, code: true, nameAr: true } },

@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
+import { indicatorScopeWhere, mergeScope } from '../lib/accessScope.js';
 import { createSchema, updateSchema } from '../schemas/indicator.schema.js';
 
 const base = crudRouter({
@@ -28,7 +29,10 @@ const base = crudRouter({
     objective: { select: { id: true, title: true } },
     axis: { select: { id: true, nameAr: true, code: true } },
     owner: { select: { id: true, name: true } },
+    dataEntryUser: { select: { id: true, name: true } },
+    approver: { select: { id: true, name: true } },
   },
+  scopeFilter: (req) => indicatorScopeWhere(req.user),
 });
 
 const router = Router();
@@ -45,15 +49,15 @@ router.get('/weight-check', requireAction('indicators', 'read'), asyncHandler(as
   if (planId) {
     // Filter indicators belonging to the given strategic plan via:
     // StrategicPlan → StrategicGoal → Objective → Indicator
-    where = {
-      deletedAt: null,
+    where = mergeScope({ deletedAt: null }, {
       objective: {
         strategicGoal: {
           planId,
         },
       },
-    };
+    });
   }
+  where = mergeScope(where, indicatorScopeWhere(req.user));
 
   const items = await prisma.indicator.findMany({
     where,

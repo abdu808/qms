@@ -23,6 +23,13 @@ import { validateKpiEntryFKs } from '../lib/kpiEntry-integrity.js';
 import { recomputeAfterEntry, recomputeIndicator } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
 import { frequencyLabel, isDueMonth } from '../lib/kpiFrequency.js';
+import {
+  activityScopeWhere,
+  indicatorScopeWhere,
+  initiativeScopeWhere,
+  mergeScope,
+  objectiveScopeWhere,
+} from '../lib/accessScope.js';
 
 const validateKpiEntry = runSchema(kpiCreateSchema);
 
@@ -111,6 +118,29 @@ async function kpiEntryScopeWhere(user) {
     };
   }
   return { id: '___never___' };
+}
+
+async function canAccessKpiRecord(user, kind, id) {
+  if (!user?.role || !id) return false;
+  if (kind === 'objective') {
+    return Boolean(await prisma.objective.findFirst({
+      where: mergeScope({ id, deletedAt: null }, objectiveScopeWhere(user)),
+      select: { id: true },
+    }));
+  }
+  if (kind === 'activity') {
+    return Boolean(await prisma.operationalActivity.findFirst({
+      where: mergeScope({ id, deletedAt: null }, activityScopeWhere(user)),
+      select: { id: true },
+    }));
+  }
+  if (kind === 'indicator') {
+    return Boolean(await prisma.indicator.findFirst({
+      where: mergeScope({ id, deletedAt: null }, indicatorScopeWhere(user)),
+      select: { id: true },
+    }));
+  }
+  return false;
 }
 
 export { canAccessKpiEntry, kpiEntryScopeWhere };
@@ -549,9 +579,9 @@ router.get('/entries', requireAction('kpi', 'read'), async (req, res, next) => {
 });
 
 // ─── helpers ─────────────────────────────────────────────────
-async function getObjectivesWithEntries(year) {
+async function getObjectivesWithEntries(year, user) {
   const objectives = await prisma.objective.findMany({
-    where: { deletedAt: null }, // استثناء المحذوفات منطقياً
+    where: mergeScope({ deletedAt: null }, objectiveScopeWhere(user)), // استثناء المحذوفات منطقياً
     include: {
       strategicGoal: { select: { title: true, perspective: true } },
       kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
@@ -568,9 +598,9 @@ async function getObjectivesWithEntries(year) {
     entries: o.kpiEntries,
   }));
 }
-async function getActivitiesWithEntries(year) {
+async function getActivitiesWithEntries(year, user) {
   const activities = await prisma.operationalActivity.findMany({
-    where: { year, deletedAt: null }, // استثناء المحذوفات منطقياً
+    where: mergeScope({ year, deletedAt: null }, activityScopeWhere(user)), // استثناء المحذوفات منطقياً
     include: {
       strategicGoal: { select: { title: true } },
       kpiEntries: { where: { year }, orderBy: [{ month: 'asc' }] },
@@ -587,12 +617,15 @@ async function getActivitiesWithEntries(year) {
     entries: a.kpiEntries,
   }));
 }
-async function getIndicatorsWithEntries(year) {
+async function getIndicatorsWithEntries(year, user) {
   const indicators = await prisma.indicator.findMany({
-    where: { deletedAt: null },
+    where: mergeScope({ deletedAt: null }, indicatorScopeWhere(user)),
     include: {
       axis:          { select: { id: true, nameAr: true, code: true, weight: true } },
       objective:     { select: { id: true, departmentId: true } },
+      owner:         { select: { departmentId: true } },
+      dataEntryUser: { select: { departmentId: true } },
+      approver:      { select: { departmentId: true } },
       annualTargets: { where: { year }, take: 1 },
       kpiEntries:    { where: { year }, orderBy: [{ month: 'asc' }] },
     },
@@ -617,8 +650,14 @@ async function getIndicatorsWithEntries(year) {
       targetValue: annualTarget?.targetValue ?? 0,
       unit:        ind.unit,
       ownerId:     ind.ownerId,
-      // Indicator لا يحمل departmentId مباشرة — نأخذه من الهدف المرتبط
-      departmentId: ind.objective?.departmentId ?? null,
+      // Indicator لا يحمل departmentId مباشرة — نأخذ كل الأقسام ذات العلاقة للنطاق والفلاتر
+      departmentId: ind.objective?.departmentId ?? ind.owner?.departmentId ?? ind.dataEntryUser?.departmentId ?? ind.approver?.departmentId ?? null,
+      departmentIds: [
+        ind.objective?.departmentId,
+        ind.owner?.departmentId,
+        ind.dataEntryUser?.departmentId,
+        ind.approver?.departmentId,
+      ].filter(Boolean),
       greenThreshold:  ind.greenThreshold,
       yellowThreshold: ind.yellowThreshold,
       frequency:       ind.frequency,
@@ -649,7 +688,7 @@ export const KPI_SMART_FILTERS = {
   },
   myDept: (k, req) =>
     (k.kind === 'objective' || k.kind === 'indicator') && req.user.departmentId
-      ? k.departmentId === req.user.departmentId
+      ? (Array.isArray(k.departmentIds) ? k.departmentIds.includes(req.user.departmentId) : k.departmentId === req.user.departmentId)
       : false,
 
   // الحالة (evaluation.rag)
@@ -706,7 +745,7 @@ router.get('/matrix', requireAction('kpi', 'read'), async (req, res, next) => {
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
     const [objectives, activities, indicators] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
+      getObjectivesWithEntries(year, req.user), getActivitiesWithEntries(year, req.user), getIndicatorsWithEntries(year, req.user),
     ]);
     const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const build = (list, kind) => list.map(k => {
@@ -772,7 +811,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
     const [objectives, activities, indicators] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
+      getObjectivesWithEntries(year, req.user), getActivitiesWithEntries(year, req.user), getIndicatorsWithEntries(year, req.user),
     ]);
     const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const all = [
@@ -821,7 +860,7 @@ router.get('/dashboard', requireAction('kpi', 'read'), async (req, res, next) =>
 
     // إجمالي الميزانية والصرف (نشاطات + مبادرات)
     const initiatives = await prisma.initiative.findMany({
-      where: { deletedAt: null },
+      where: mergeScope({ deletedAt: null }, initiativeScopeWhere(req.user)),
       select: { budget: true, spent: true },
     });
     const activitiesBudget = activities.reduce((s,a)=>s+Number(a.budget||0), 0);
@@ -860,7 +899,7 @@ router.get('/alerts', requireAction('kpi', 'read'), async (req, res, next) => {
     const year = Number(req.query.year) || currentYear();
     const month = Number(req.query.month) || currentMonth();
     const [objectives, activities, indicators] = await Promise.all([
-      getObjectivesWithEntries(year), getActivitiesWithEntries(year), getIndicatorsWithEntries(year),
+      getObjectivesWithEntries(year, req.user), getActivitiesWithEntries(year, req.user), getIndicatorsWithEntries(year, req.user),
     ]);
     const effectiveObjectives = filterObjectivesNotMeasuredByIndicators(objectives, indicators);
     const all = [
@@ -891,6 +930,7 @@ router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'rea
 
     let rec, entries, kpi;
     if (kind === 'objective') {
+      if (!await canAccessKpiRecord(req.user, kind, id)) throw Forbidden('لا يمكنك الاطلاع على هذا المؤشر خارج نطاق صلاحيتك');
       rec = await prisma.objective.findUnique({
         where: { id }, include: { strategicGoal: { select: { title: true, perspective: true } } },
       });
@@ -905,6 +945,7 @@ router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'rea
         budget: rec.budget,
       };
     } else if (kind === 'activity') {
+      if (!await canAccessKpiRecord(req.user, kind, id)) throw Forbidden('لا يمكنك الاطلاع على هذا النشاط خارج نطاق صلاحيتك');
       rec = await prisma.operationalActivity.findUnique({
         where: { id }, include: { strategicGoal: { select: { title: true } } },
       });
@@ -920,6 +961,7 @@ router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'rea
       };
     } else {
       // kind === 'indicator'
+      if (!await canAccessKpiRecord(req.user, kind, id)) throw Forbidden('لا يمكنك الاطلاع على هذا المؤشر خارج نطاق صلاحيتك');
       rec = await prisma.indicator.findUnique({
         where: { id },
         include: { annualTargets: { where: { year }, take: 1 } },
