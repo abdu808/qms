@@ -122,6 +122,24 @@ router.post('/:id/advance', requireAction('capa', 'update'), asyncHandler(async 
   if (!next) throw BadRequest(`لا يمكن التقدم من حالة ${item.status}`);
 
   const update = { status: next };
+  if (next === 'IN_PROGRESS') {
+    const rootCause = req.body.rootCauseAnalysis ?? item.rootCauseAnalysis;
+    const plannedAction = req.body.plannedAction ?? item.plannedAction;
+    const ownerId = req.body.ownerId ?? item.ownerId;
+    const dueDate = req.body.dueDate ?? item.dueDate;
+    const missing = [];
+    if (!ownerId) missing.push('مالك الإجراء');
+    if (!dueDate) missing.push('تاريخ الاستحقاق');
+    if (!rootCause || String(rootCause).trim() === '') missing.push('تحليل السبب الجذري');
+    if (!plannedAction || String(plannedAction).trim() === '') missing.push('الإجراء المخطط');
+    if (missing.length) {
+      throw BadRequest(`لا يمكن بدء CAPA قبل اكتمال التخطيط — الحقول الناقصة: ${missing.join('، ')}`);
+    }
+    if (req.body.ownerId) update.ownerId = req.body.ownerId;
+    if (req.body.dueDate) update.dueDate = new Date(req.body.dueDate);
+    if (req.body.rootCauseAnalysis) update.rootCauseAnalysis = String(req.body.rootCauseAnalysis).trim();
+    if (req.body.plannedAction) update.plannedAction = String(req.body.plannedAction).trim();
+  }
   if (next === 'VERIFICATION') {
     // الانتقال إلى التحقق يتطلب دليل تنفيذ
     const implAction = req.body.implementedAction || item.implementedAction;

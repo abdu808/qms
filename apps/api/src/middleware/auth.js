@@ -21,7 +21,10 @@ export function authenticate(req, res, next) {
     const token = header.startsWith('Bearer ') ? header.slice(7) : req.cookies?.token;
     if (!token) throw Unauthorized('الرجاء تسجيل الدخول');
     const payload = jwt.verify(token, config.jwt.secret);
-    req.user = payload;
+    // JWTs in this system use the standard `sub` claim as the user id.
+    // Older workflow helpers read `req.user.id`, so expose both shapes at
+    // the authentication boundary instead of letting routes drift apart.
+    req.user = { ...payload, id: payload.id || payload.sub };
     next();
   } catch (e) {
     next(Unauthorized('الجلسة منتهية أو غير صالحة'));

@@ -12,16 +12,16 @@ const base = crudRouter({
   allowedFilters: ['objectiveId', 'ownerId', 'indicatorType', 'deletedAt'],
   softDelete: true,
   schemas: { create: createSchema, update: updateSchema },
-  // Plan Freeze: indicator → objective → goal → plan.
+  // Plan Freeze: indicator → objective → strategicGoal → plan.
   // Indicators can also be axis-level in the lightweight model; those remain
   // governable by ownership/targets even when no legacy Objective exists.
   // Once the plan is frozen, master fields lock; only ownership/notes remain editable.
   enforceFreezeFor: async (id, prisma) => {
     const ind = await prisma.indicator.findUnique({
       where: { id },
-      select: { objective: { select: { goal: { select: { planId: true } } } } },
+      select: { objective: { select: { strategicGoal: { select: { planId: true } } } } },
     });
-    return ind?.objective?.goal?.planId || null;
+    return ind?.objective?.strategicGoal?.planId || null;
   },
   transactionFields: ['ownerId', 'dataEntryUserId', 'approverUserId', 'notes'],
   include: {
@@ -48,7 +48,7 @@ router.get('/weight-check', requireAction('indicators', 'read'), asyncHandler(as
     where = {
       deletedAt: null,
       objective: {
-        goal: {
+        strategicGoal: {
           planId,
         },
       },

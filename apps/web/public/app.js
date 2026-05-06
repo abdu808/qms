@@ -665,7 +665,7 @@ function app() {
       const role = this.user?.role;
       return role && role !== 'EMPLOYEE' && role !== 'GUEST_AUDITOR';
     },
-    toggleUiMode() {
+    async toggleUiMode() {
       if (!this.canUseAdvancedMode()) {
         this.toast?.('الوضع المتقدم غير متاح لدورك', 'info');
         return;
@@ -673,7 +673,7 @@ function app() {
       this.uiMode = this.isGuided() ? 'advanced' : 'guided';
       try { localStorage.setItem('qms_ui_mode', this.uiMode); } catch {}
       // في الوضع الموجَّه نعيد المستخدم إلى "مهامي" دائماً
-      if (this.isGuided()) this.page = 'myWork';
+      if (this.isGuided()) await this.goto(this.homePageForRole());
     },
 
     // ─── طبقة الترجمة ISO → عربي — استُخرجت إلى modules/i18n.js ──
@@ -709,7 +709,11 @@ function app() {
     paletteItems() {
       const items = [];
       // الصفحات — من الـ menu الكامل (يعتمد على permissions كما في can(resource,action))
-      (this.menu || []).filter(m => this.pageAllowedForRole(m.id)).forEach(m => {
+      const visiblePageIds = new Set((this.visibleMenuGroups?.() || []).flatMap(g => g.items || []));
+      (this.menu || [])
+        .filter(m => this.pageAllowedForRole(m.id))
+        .filter(m => this.isAdvanced() || visiblePageIds.has(m.id))
+        .forEach(m => {
         items.push({
           kind: 'page', id: m.id, label: m.label, icon: m.icon,
           hint: 'صفحة',
@@ -959,6 +963,7 @@ function app() {
 
     // ─── Toast notification system ────────────────────────────────────
     toast(msg, type = 'success', duration = 4500) {
+      type = ({ warning: 'warn', warn: 'warn', info: 'info', error: 'error', success: 'success' }[type]) || 'success';
       const id = Date.now() + Math.random();
       const fallback = type === 'error'
         ? 'حدث خطأ غير متوقع — حاول مرة أخرى أو أعد تحميل الصفحة'
@@ -967,7 +972,7 @@ function app() {
         .split('\n')
         .map(s => s.trim())
         .find(Boolean) || fallback;
-      this.toasts.push({ id, msg: safeMsg.slice(0, 120), type });
+      this.toasts.push({ id, msg: safeMsg.slice(0, 180), type });
       setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, duration);
     },
 
@@ -1024,6 +1029,11 @@ function app() {
 
       // ── اختصارات لوحة المفاتيح العالمية ──────────────────────────
       window.addEventListener('keydown', (e) => this.handleShortcut(e));
+      window.addEventListener('hashchange', async () => {
+        if (this._syncingHash) return;
+        const parsed = this.parseQmsLink(window.location.hash || '');
+        if (parsed?.page && parsed.page !== this.page) await this.goToResource(parsed.page, parsed.id, parsed);
+      });
 
       // ── مؤقّت خمول الجلسة (30 دقيقة) — تسجيل خروج تلقائي ────────
       this._startIdleTimer();
@@ -1276,7 +1286,7 @@ function app() {
       await this.goToResource(parsed.page, parsed.id, parsed);
     },
 
-    async goto(id) {
+    async goto(id, options = {}) {
       id = this.normalizePageId(id);
       if (!this.pageAllowedForRole(id)) {
         const fallback = this.homePageForRole();
@@ -1286,6 +1296,14 @@ function app() {
         }
       }
       this.page = id;
+      if (!options.skipHash && typeof window !== 'undefined') {
+        const nextHash = `#/${id}`;
+        if (window.location.hash !== nextHash) {
+          this._syncingHash = true;
+          window.history.pushState(null, '', nextHash);
+          setTimeout(() => { this._syncingHash = false; }, 0);
+        }
+      }
       this.search = '';
       this.filterStatus = '';
       this.filterYear = '';

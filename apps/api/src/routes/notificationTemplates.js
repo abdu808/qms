@@ -58,7 +58,7 @@ router.get('/', authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async 
       updatedBy: { select: { id: true, name: true } },
     },
   });
-  res.json({ ok: true, data: items });
+  res.json({ ok: true, items, data: items });
 }));
 
 // ──────────────────────────────────────────────────────────────

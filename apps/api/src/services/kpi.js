@@ -114,13 +114,35 @@ export async function upsertKpiEntry({
   // ── Audit task 6 (architectural): KPI deviation reason ────────────────
   // ratio < 80% → deviationReason إلزامي
   // ratio < 60% → actionNote إلزامي (الإجراء التصحيحي)
-  if (objectiveId || activityId) {
-    const parent = objectiveId
-      ? await tx.objective.findUnique({ where: { id: objectiveId } })
-      : await tx.operationalActivity.findUnique({ where: { id: activityId } });
+  if (objectiveId || activityId || indicatorId) {
+    let parent = null;
+    let existingWhere = null;
+    let targetValue = null;
+    let unit = null;
+
+    if (objectiveId) {
+      parent = await tx.objective.findUnique({ where: { id: objectiveId } });
+      existingWhere = { objectiveId, year };
+      targetValue = parent?.target;
+      unit = parent?.unit;
+    } else if (activityId) {
+      parent = await tx.operationalActivity.findUnique({ where: { id: activityId } });
+      existingWhere = { activityId, year };
+      targetValue = parent?.targetValue;
+      unit = parent?.targetUnit;
+    } else if (indicatorId) {
+      parent = await tx.indicator.findUnique({
+        where: { id: indicatorId },
+        include: { annualTargets: { where: { year }, take: 1 } },
+      });
+      existingWhere = { indicatorId, year };
+      targetValue = parent?.annualTargets?.[0]?.targetValue;
+      unit = parent?.unit;
+    }
+
     if (parent) {
       const existing = await tx.kpiEntry.findMany({
-        where: objectiveId ? { objectiveId, year } : { activityId, year },
+        where: existingWhere,
         orderBy: [{ month: 'asc' }],
       });
       const overlay = existing.filter(e => e.month !== month);
@@ -130,9 +152,10 @@ export async function upsertKpiEntry({
         kpiType:     parent.kpiType,
         seasonality: parent.seasonality,
         direction:   parent.direction,
-        targetValue: objectiveId ? parent.target : parent.targetValue,
-        unit:        objectiveId ? parent.unit   : parent.targetUnit,
+        targetValue,
+        unit,
       };
+      if (targetValue && targetValue > 0) {
       const ev = evaluateKpi(kpi, overlay, year, month);
       const ratio = ev?.ratio;
       if (ratio != null && ratio < 0.80) {
@@ -148,6 +171,7 @@ export async function upsertKpiEntry({
             );
           }
         }
+      }
       }
     }
   }

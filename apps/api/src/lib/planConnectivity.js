@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { isDueMonth } from './kpiFrequency.js';
 
 const active = { deletedAt: null };
 
@@ -70,9 +71,25 @@ function activityBrief(activity) {
 
 export async function buildPlanConnectivity({ year = null } = {}) {
   const targetYear = Number(year) || null;
+  let plan = await prisma.strategicPlan.findFirst({
+    where: { deletedAt: null, status: 'ACTIVE' },
+    orderBy: [{ startYear: 'desc' }, { updatedAt: 'desc' }],
+    select: { id: true, code: true, title: true, status: true, startYear: true, endYear: true },
+  });
+  if (!plan) {
+    plan = await prisma.strategicPlan.findFirst({
+      where: { deletedAt: null },
+      orderBy: [{ startYear: 'desc' }, { updatedAt: 'desc' }],
+      select: { id: true, code: true, title: true, status: true, startYear: true, endYear: true },
+    });
+  }
+  const goalWhere = plan?.id ? { ...active, planId: plan.id } : active;
+  const activityWhere = plan?.id
+    ? { ...active, strategicGoal: { planId: plan.id } }
+    : active;
   const [goals, indicators, activities, departments, axes, activeUsers] = await Promise.all([
     prisma.strategicGoal.findMany({
-      where: active,
+      where: goalWhere,
       orderBy: { code: 'asc' },
       include: {
         axis: { select: { id: true, code: true, nameAr: true, color: true, weight: true } },
@@ -136,7 +153,7 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       },
     }),
     prisma.operationalActivity.findMany({
-      where: active,
+      where: activityWhere,
       include: {
         dept: { select: { id: true, code: true, name: true } },
         owner: { select: { id: true, name: true } },
@@ -260,10 +277,58 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     .map(d => issue('WARNING', 'تغطية الأقسام', `${d.name} - لا يظهر كمالك أو مدخل بيانات أو منفذ في الخطة الحالية.`, d.code || d.id));
   allIssues.push(...departmentsWithoutPlanRole);
 
+  let executionHealth = null;
+  if (targetYear) {
+    const now = new Date();
+    const latestDueMonth = targetYear < now.getFullYear()
+      ? 12
+      : targetYear === now.getFullYear()
+        ? now.getMonth() + 1
+        : 0;
+    const dueSlots = [];
+    if (latestDueMonth > 0) {
+      for (const indicator of indicators) {
+        if (!indicator.annualTargets?.length) continue;
+        for (let month = 1; month <= latestDueMonth; month += 1) {
+          if (isDueMonth(indicator.frequency, month, indicator.seasonality)) {
+            dueSlots.push({ indicatorId: indicator.id, code: indicator.code, month });
+          }
+        }
+      }
+    }
+    const dueIndicatorIds = [...new Set(dueSlots.map(s => s.indicatorId))];
+    const entries = dueIndicatorIds.length
+      ? await prisma.kpiEntry.findMany({
+        where: { indicatorId: { in: dueIndicatorIds }, year: targetYear, month: { lte: latestDueMonth || 0 } },
+        select: { indicatorId: true, month: true, entryStatus: true },
+      })
+      : [];
+    const entryBySlot = new Map(entries.map(e => [`${e.indicatorId}:${e.month}`, e]));
+    const missing = dueSlots.filter(s => !entryBySlot.has(`${s.indicatorId}:${s.month}`));
+    const pendingApproval = entries.filter(e => e.entryStatus && e.entryStatus !== 'APPROVED');
+    executionHealth = {
+      year: targetYear,
+      latestDueMonth,
+      dueReadings: dueSlots.length,
+      enteredReadings: dueSlots.length - missing.length,
+      missingReadings: missing.length,
+      pendingApproval: pendingApproval.length,
+      score: dueSlots.length ? Math.round(((dueSlots.length - missing.length) / dueSlots.length) * 100) : 100,
+      sampleMissing: missing.slice(0, 20),
+    };
+    if (missing.length > 0) {
+      allIssues.push(issue('WARNING', 'قراءات الأداء', `يوجد ${missing.length} قراءة أداء مستحقة وغير مدخلة لعام ${targetYear}.`, String(targetYear)));
+    }
+    if (pendingApproval.length > 0) {
+      allIssues.push(issue('WARNING', 'اعتماد القراءات', `يوجد ${pendingApproval.length} قراءة مدخلة لكنها لم تعتمد بعد.`, String(targetYear)));
+    }
+  }
+
   const errors = allIssues.filter(i => i.severity === 'ERROR').length;
   const warnings = allIssues.filter(i => i.severity === 'WARNING').length;
   const infos = allIssues.filter(i => i.severity === 'INFO').length;
-  const score = Math.max(0, Math.min(100, 100 - (errors * 6) - (warnings * 2)));
+  const definitionScore = Math.max(0, Math.min(100, 100 - (errors * 6) - (warnings * 2)));
+  const score = executionHealth ? Math.min(definitionScore, executionHealth.score) : definitionScore;
 
   return {
     ok: true,
@@ -275,6 +340,8 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     },
     summary: {
       score,
+      definitionScore,
+      executionScore: executionHealth?.score ?? null,
       goals: goals.length,
       axes: axes.length,
       indicators: indicators.length,
@@ -288,6 +355,8 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       warnings,
       infos,
     },
+    plan,
+    executionHealth,
     axes,
     goals: goalsMap,
     indicators: indicators.map(indicatorBrief),

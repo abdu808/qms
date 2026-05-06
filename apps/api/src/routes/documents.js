@@ -186,10 +186,22 @@ router.post('/:id/upload', requireAction('documents', 'update'), upload.single('
     },
   });
 
-  // Bump document's currentVersion to the uploaded version
+  // Bump document's currentVersion to the uploaded version. If a controlled
+  // document already had approval/publication, a new file version must return
+  // it to draft/review instead of silently keeping the old approval state.
+  const nextDocState = ['APPROVED', 'PUBLISHED'].includes(doc.status)
+    ? {
+      currentVersion: version,
+      status: 'DRAFT',
+      approvedById: null,
+      approvedAt: null,
+      effectiveDate: null,
+      approvalReference: null,
+    }
+    : { currentVersion: version };
   await prisma.document.update({
     where: { id: doc.id },
-    data:  { currentVersion: version },
+    data:  nextDocState,
   });
 
   res.json({ ok: true, version: ver });
