@@ -9,6 +9,18 @@ const scoreItem = (ok, weight = 1) => (ok ? weight : 0);
 const currentYear = () => Number(new Date().getFullYear());
 const sourceChecklistName = 'قائمة التحقق لنظام إدارة الجودة ISO 9001:2015';
 
+const startOfDay = (date = new Date()) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const addDays = (date, days) => {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+};
+
 function requirementStatus(ok, partial = false, notApplicable = false) {
   if (notApplicable) return 'NOT_APPLICABLE';
   if (ok) return 'IMPLEMENTED';
@@ -503,6 +515,203 @@ router.get('/requirements', requireAction('iso-readiness', 'read'), asyncHandler
       byStatus: summary,
     },
     requirements,
+  });
+}));
+
+/**
+ * GET /api/iso-readiness/action-center
+ * A practical, low-burden action center for the quality manager.
+ *
+ * This intentionally does not create records or decide on behalf of the team.
+ * It turns existing evidence gaps into weekly/monthly routines with direct
+ * system links, so ISO work remains a rhythm rather than a separate project.
+ */
+router.get('/action-center', requireAction('iso-readiness', 'read'), asyncHandler(async (req, res) => {
+  const year = Number(req.query.year || currentYear());
+  const today = startOfDay();
+  const next14 = addDays(today, 14);
+
+  const countSafe = async (promise) => {
+    try { return await promise; } catch { return 0; }
+  };
+
+  const [
+    overdueKpiEntries,
+    activeKpiFollowUps,
+    openComplaints,
+    openNcr,
+    overdueNcr,
+    openCapa,
+    overdueCapa,
+    plannedAudits,
+    completedAudits,
+    plannedReviews,
+    completedReviews,
+    dueDocuments,
+    trainingCount,
+    trainingEffectivenessMissing,
+    activeAckDocuments,
+    riskWithoutTreatment,
+    openImprovements,
+    activeSurveys,
+    surveyResponses,
+  ] = await Promise.all([
+    countSafe(prisma.kpiFollowUp.count({ where: { year, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } } })),
+    countSafe(prisma.kpiFollowUp.count({ where: { year, status: { in: ['PENDING', 'FIRST_NOTICE', 'ESCALATED'] } } })),
+    countSafe(prisma.complaint.count({ where: { deletedAt: null, status: { in: ['NEW', 'UNDER_REVIEW', 'IN_PROGRESS'] } } })),
+    countSafe(prisma.nCR.count({ where: { deletedAt: null, status: { not: 'CLOSED' } } })),
+    countSafe(prisma.nCR.count({ where: { deletedAt: null, status: { not: 'CLOSED' }, dueDate: { lt: today } } })),
+    countSafe(prisma.capa.count({ where: { deletedAt: null, status: { notIn: ['CLOSED', 'VERIFIED', 'EFFECTIVE'] } } })),
+    countSafe(prisma.capa.count({ where: { deletedAt: null, status: { notIn: ['CLOSED', 'VERIFIED', 'EFFECTIVE'] }, dueDate: { lt: today } } })),
+    countSafe(prisma.audit.count({ where: { deletedAt: null, status: { in: ['PLANNED', 'IN_PROGRESS'] }, plannedDate: { lte: next14 } } })),
+    countSafe(prisma.audit.count({ where: { deletedAt: null, status: 'COMPLETED' } })),
+    countSafe(prisma.managementReview.count({ where: { deletedAt: null, year, status: { not: 'COMPLETED' } } })),
+    countSafe(prisma.managementReview.count({ where: { deletedAt: null, year, status: 'COMPLETED' } })),
+    countSafe(prisma.document.count({ where: { deletedAt: null, reviewDate: { lte: next14 }, status: { not: 'ARCHIVED' } } })),
+    countSafe(prisma.training.count({ where: { deletedAt: null } })),
+    countSafe(prisma.trainingRecord.count({ where: { effective: null } })),
+    countSafe(prisma.ackDocument.count({ where: { active: true, deletedAt: null } })),
+    countSafe(prisma.risk.count({ where: { deletedAt: null, treatment: null } })),
+    countSafe(prisma.improvementProject.count({ where: { deletedAt: null, status: { notIn: ['COMPLETED', 'CLOSED', 'CANCELLED'] } } })),
+    countSafe(prisma.survey.count({ where: { active: true, deletedAt: null } })),
+    countSafe(prisma.surveyResponse.count()),
+  ]);
+
+  const action = ({ id, title, detail, page, count = 0, cadence, tone = 'info', button = 'فتح' }) => ({
+    id, title, detail, page, count, cadence, tone, button,
+    status: count > 0 ? 'OPEN' : 'OK',
+  });
+
+  const weekly = [
+    action({
+      id: 'kpi-late',
+      title: 'متابعة قراءات المؤشرات المتأخرة',
+      detail: 'راجع الإدخالات المتأخرة، أرسل تذكير، ثم صعّد فقط عند الحاجة.',
+      page: 'kpiFollowUp',
+      count: activeKpiFollowUps,
+      cadence: 'أسبوعي',
+      tone: activeKpiFollowUps > 0 ? 'danger' : 'success',
+      button: 'فتح السجل',
+    }),
+    action({
+      id: 'complaints-open',
+      title: 'مراجعة الشكاوى والبلاغات المفتوحة',
+      detail: 'تأكد أن كل شكوى لها مالك وحالة واضحة وموعد معالجة.',
+      page: 'complaints',
+      count: openComplaints,
+      cadence: 'أسبوعي',
+      tone: openComplaints > 0 ? 'warning' : 'success',
+    }),
+    action({
+      id: 'ncr-capa-overdue',
+      title: 'إغلاق المتأخر من عدم المطابقة والإجراءات التصحيحية',
+      detail: 'ابدأ بالمتأخر، ثم راجع السبب والفعالية قبل الإغلاق.',
+      page: overdueNcr > 0 ? 'ncr' : 'capa',
+      count: overdueNcr + overdueCapa,
+      cadence: 'أسبوعي',
+      tone: overdueNcr + overdueCapa > 0 ? 'danger' : 'success',
+    }),
+    action({
+      id: 'docs-review',
+      title: 'مراجعة الوثائق التي اقترب موعد مراجعتها',
+      detail: 'راجع النسخة، القرار، تاريخ الاعتماد، والرابط أو المرفق المعتمد.',
+      page: 'documents',
+      count: dueDocuments,
+      cadence: 'أسبوعي',
+      tone: dueDocuments > 0 ? 'warning' : 'success',
+    }),
+  ];
+
+  const monthly = [
+    action({
+      id: 'audit-ready',
+      title: 'تدقيق داخلي أو فحص جاهزية مصغر',
+      detail: 'يكفي نطاق صغير وواضح: وثائق، تدريب، مؤشرات، NCR/CAPA.',
+      page: 'audits',
+      count: plannedAudits,
+      cadence: 'شهري',
+      tone: completedAudits > 0 ? 'success' : (plannedAudits > 0 ? 'warning' : 'danger'),
+      button: 'فتح التدقيق',
+    }),
+    action({
+      id: 'management-review',
+      title: 'تحضير مراجعة الإدارة',
+      detail: 'اجمع مدخلات الأداء والمخاطر والشكاوى والتدقيق وقرارات التحسين.',
+      page: 'managementReview',
+      count: plannedReviews,
+      cadence: 'شهري/ربعي',
+      tone: completedReviews > 0 ? 'success' : (plannedReviews > 0 ? 'warning' : 'danger'),
+      button: 'فتح المراجعة',
+    }),
+    action({
+      id: 'training-effectiveness',
+      title: 'استكمال دليل التدريب وفعاليته',
+      detail: 'التدريب وحده لا يكفي؛ نحتاج حضوراً وقياس فهم أو أثر مختصر.',
+      page: 'training',
+      count: trainingCount === 0 ? 1 : trainingEffectivenessMissing,
+      cadence: 'شهري',
+      tone: trainingCount === 0 || trainingEffectivenessMissing > 0 ? 'warning' : 'success',
+      button: 'فتح التدريب',
+    }),
+    action({
+      id: 'risks-treatment',
+      title: 'تحديث المخاطر والفرص وخطط المعالجة',
+      detail: 'لا نحتاج كثرة مخاطر؛ نحتاج مخاطر قليلة بمالك ومعالجة ومراجعة.',
+      page: 'risks',
+      count: riskWithoutTreatment,
+      cadence: 'شهري',
+      tone: riskWithoutTreatment > 0 ? 'warning' : 'success',
+    }),
+    action({
+      id: 'beneficiary-feedback',
+      title: 'التغذية الراجعة ورضا المستفيد',
+      detail: 'استبيان نشط أو شكاوى محللة تكفي كبداية، ثم نضيف التحسينات.',
+      page: activeSurveys > 0 ? 'surveys' : 'complaints',
+      count: surveyResponses,
+      cadence: 'شهري',
+      tone: surveyResponses > 0 || openComplaints > 0 ? 'success' : 'warning',
+      button: activeSurveys > 0 ? 'فتح الاستبيانات' : 'فتح البلاغات',
+    }),
+  ];
+
+  const trialCycle = [
+    action({ id: 'trial-training', title: 'تدريب توعوي قصير عن ISO والنظام', detail: 'جلسة واحدة مع حضور وقياس فعالية بسيط.', page: 'training', count: trainingCount, cadence: 'تجريبي', tone: trainingCount > 0 ? 'success' : 'warning' }),
+    action({ id: 'trial-ncr', title: 'فتح حالة عدم مطابقة واحدة عند وجود ملاحظة حقيقية', detail: 'مثال: وثيقة ناقصة، تأخر قراءة، أو إجراء غير مكتمل.', page: 'ncr', count: openNcr, cadence: 'تجريبي', tone: openNcr > 0 ? 'success' : 'warning' }),
+    action({ id: 'trial-capa', title: 'ربط إجراء تصحيحي بسبب واضح', detail: 'نربطه بالـ NCR أو الشكوى أو فجوة وثائق، ثم نتحقق من فعاليته.', page: 'capa', count: openCapa, cadence: 'تجريبي', tone: openCapa > 0 ? 'success' : 'warning' }),
+    action({ id: 'trial-audit', title: 'تنفيذ تدقيق داخلي مصغر', detail: 'نطاق محدود حتى يتدرب الفريق بدون ضغط.', page: 'audits', count: completedAudits, cadence: 'تجريبي', tone: completedAudits > 0 ? 'success' : 'warning' }),
+    action({ id: 'trial-review', title: 'مراجعة إدارة تمهيدية بمحضر مختصر', detail: 'ليست اجتماع لجنة مراجعة؛ هي اجتماع إدارة لمراجعة جاهزية النظام وقرارات التحسين.', page: 'managementReview', count: completedReviews, cadence: 'تجريبي', tone: completedReviews > 0 ? 'success' : 'warning' }),
+    action({ id: 'trial-docs', title: 'تثبيت الوثائق والإقرارات الأساسية', detail: 'السياسة، النطاق، الهيكل، وإقرارات القراءة للوثائق المهمة.', page: activeAckDocuments > 0 ? 'ackDocuments' : 'documents', count: activeAckDocuments, cadence: 'تجريبي', tone: activeAckDocuments > 0 ? 'success' : 'warning' }),
+  ];
+
+  const openWeekly = weekly.filter(i => i.status === 'OPEN').length;
+  const openMonthly = monthly.filter(i => i.status === 'OPEN').length;
+  const trialReady = trialCycle.filter(i => i.tone === 'success').length;
+
+  res.json({
+    ok: true,
+    year,
+    generatedAt: new Date().toISOString(),
+    summary: {
+      openWeekly,
+      openMonthly,
+      trialReady,
+      trialTotal: trialCycle.length,
+      overdueKpiEntries,
+      openNcr,
+      openCapa,
+      openImprovements,
+    },
+    weekly,
+    monthly,
+    trialCycle,
+    guidance: {
+      principle: 'الهدف ليس زيادة العمل؛ الهدف تحويل ISO إلى روتين متابعة خفيف بأدلة واضحة.',
+      nextBestStep: openWeekly > 0
+        ? 'ابدأ بالمتأخرات الأسبوعية لأنها تؤثر على صدق النظام.'
+        : openMonthly > 0
+          ? 'ابدأ بإغلاق عناصر الشهر المفتوحة قبل إضافة نماذج جديدة.'
+          : 'ابدأ دورة ISO التجريبية المصغرة لتدريب الفريق على السجل الكامل.',
+    },
   });
 }));
 

@@ -4691,13 +4691,90 @@
                     <div class="text-xs text-gray-500 mb-1">ISO 9001 + متابعة شهرية</div>
                     <h2 class="text-2xl font-bold text-gray-900">جاهزية الشهر</h2>
                     <p class="text-sm text-gray-600 mt-2 max-w-3xl">
-                      لوحة تشغيلية مختصرة لمدير الجودة: تعرض المتطلبات المفتوحة لهذا الشهر، وتقترح الإجراء المناسب مباشرة دون الرجوع للملفات أو كتابة النماذج من الصفر.
+                      مركز عمل خفيف لمدير الجودة: يوضح ما يراجع أسبوعياً، وما ينجز شهرياً، وما نحتاجه لتجربة ISO مصغرة بدون إرهاق الفريق.
                     </p>
                   </div>
                   <button type="button" @click="loadMonthlyReadiness()" class="border border-brand-200 text-brand-700 hover:bg-brand-50 rounded-lg px-4 py-2 text-sm">
                     تحديث الجاهزية
                   </button>
                 </div>
+              </div>
+
+              <div class="grid xl:grid-cols-3 gap-4" x-show="isoActionCenter">
+                <div class="bg-white border rounded-xl overflow-hidden shadow-sm">
+                  <div class="px-4 py-3 border-b bg-gray-50">
+                    <div class="text-xs text-gray-500">روتين مدير الجودة</div>
+                    <h3 class="font-bold text-gray-900">هذا الأسبوع</h3>
+                  </div>
+                  <div class="divide-y">
+                    <template x-for="item in (isoActionCenter?.weekly || [])" :key="item.id">
+                      <div class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="font-bold text-gray-900" x-text="item.title"></div>
+                            <div class="text-xs text-gray-500 mt-1" x-text="item.detail"></div>
+                          </div>
+                          <span class="text-[11px] rounded-full px-2 py-1 whitespace-nowrap" :class="isoActionBadgeClass(item.tone)" x-text="isoActionStatusLabel(item)"></span>
+                        </div>
+                        <button type="button" @click="goto(item.page)" class="mt-3 text-xs border border-gray-200 hover:bg-gray-50 rounded-lg px-3 py-2">
+                          <span x-text="item.button || 'فتح'"></span>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="bg-white border rounded-xl overflow-hidden shadow-sm">
+                  <div class="px-4 py-3 border-b bg-gray-50">
+                    <div class="text-xs text-gray-500">إغلاق أدلة الجاهزية</div>
+                    <h3 class="font-bold text-gray-900">هذا الشهر</h3>
+                  </div>
+                  <div class="divide-y">
+                    <template x-for="item in (isoActionCenter?.monthly || [])" :key="item.id">
+                      <div class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="font-bold text-gray-900" x-text="item.title"></div>
+                            <div class="text-xs text-gray-500 mt-1" x-text="item.detail"></div>
+                          </div>
+                          <span class="text-[11px] rounded-full px-2 py-1 whitespace-nowrap" :class="isoActionBadgeClass(item.tone)" x-text="isoActionStatusLabel(item)"></span>
+                        </div>
+                        <button type="button" @click="goto(item.page)" class="mt-3 text-xs border border-gray-200 hover:bg-gray-50 rounded-lg px-3 py-2">
+                          <span x-text="item.button || 'فتح'"></span>
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="bg-white border rounded-xl overflow-hidden shadow-sm">
+                  <div class="px-4 py-3 border-b bg-gray-50">
+                    <div class="text-xs text-gray-500">تمرين عملي قبل جهة الاعتماد</div>
+                    <h3 class="font-bold text-gray-900">دورة ISO التجريبية</h3>
+                    <p class="text-xs text-gray-500 mt-1" x-text="isoActionCenter?.guidance?.nextBestStep || ''"></p>
+                  </div>
+                  <div class="divide-y">
+                    <template x-for="item in (isoActionCenter?.trialCycle || [])" :key="item.id">
+                      <div class="p-4">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="font-bold text-gray-900" x-text="item.title"></div>
+                            <div class="text-xs text-gray-500 mt-1" x-text="item.detail"></div>
+                          </div>
+                          <span class="text-[11px] rounded-full px-2 py-1 whitespace-nowrap" :class="isoActionBadgeClass(item.tone)" x-text="item.tone === 'success' ? 'بدأنا' : 'جاهز للبدء'"></span>
+                        </div>
+                        <button type="button" @click="goto(item.page)" class="mt-3 text-xs border border-gray-200 hover:bg-gray-50 rounded-lg px-3 py-2">
+                          فتح
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-sky-50 border border-sky-100 rounded-xl p-4 text-sm text-sky-900" x-show="isoActionCenter">
+                <span class="font-bold">الفكرة:</span>
+                <span x-text="isoActionCenter?.guidance?.principle || 'نحول متطلبات ISO إلى روتين متابعة خفيف بأدلة واضحة.'"></span>
               </div>
 
               <div class="grid md:grid-cols-4 gap-3">

@@ -441,6 +441,7 @@ function app() {
     // ISO readiness report
     isoReport: null,
     isoRequirements: null,
+    isoActionCenter: null,
     isoRequirementsLoading: false,
     monthlyReadinessLoading: false,
     templateLibrarySearch: '',
@@ -2076,10 +2077,43 @@ function app() {
     async loadMonthlyReadiness() {
       this.monthlyReadinessLoading = true;
       try {
-        if (!this.isoRequirements) await this.loadIsoRequirements();
+        const year = this.filterYear || new Date().getFullYear();
+        const [actionCenter] = await Promise.all([
+          this.api('GET', `/iso-readiness/action-center?year=${encodeURIComponent(year)}`).catch(e => {
+            this.toast?.(e.message || 'تعذر تحميل مركز إجراءات الجودة', 'warning');
+            return null;
+          }),
+          this.loadIsoRequirements(),
+        ]);
+        this.isoActionCenter = actionCenter;
       } finally {
         this.monthlyReadinessLoading = false;
       }
+    },
+
+    isoActionToneClass(tone) {
+      return ({
+        danger: 'bg-red-50 border-red-200 text-red-800',
+        warning: 'bg-amber-50 border-amber-200 text-amber-800',
+        success: 'bg-green-50 border-green-200 text-green-800',
+        info: 'bg-sky-50 border-sky-200 text-sky-800',
+      })[tone] || 'bg-gray-50 border-gray-200 text-gray-700';
+    },
+
+    isoActionBadgeClass(tone) {
+      return ({
+        danger: 'bg-red-100 text-red-700',
+        warning: 'bg-amber-100 text-amber-700',
+        success: 'bg-green-100 text-green-700',
+        info: 'bg-sky-100 text-sky-700',
+      })[tone] || 'bg-gray-100 text-gray-700';
+    },
+
+    isoActionStatusLabel(item) {
+      if (!item) return '';
+      if (item.tone === 'success') return 'مطمئن';
+      if (item.count > 0) return `${item.count} يحتاج متابعة`;
+      return 'راجع';
     },
 
     monthlyReadinessItems() {
