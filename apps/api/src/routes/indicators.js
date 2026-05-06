@@ -61,10 +61,11 @@ router.get('/weight-check', requireAction('indicators', 'read'), asyncHandler(as
   });
 
   const total = items.reduce((sum, i) => sum + (i.weight || 0), 0);
-  const remaining = 100 - total;
-  const isValid = total === 100;
+  const roundedTotal = Math.round(total * 10000) / 10000;
+  const remaining = Math.round((100 - roundedTotal) * 10000) / 10000;
+  const isValid = Math.abs(100 - roundedTotal) < 0.0001;
 
-  res.json({ ok: true, total, remaining, isValid, items });
+  res.json({ ok: true, total: roundedTotal, remaining, isValid, items });
 }));
 
 router.use('/', base);
