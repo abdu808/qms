@@ -5216,10 +5216,18 @@
           <div x-show="page==='surveys'" x-cloak>
             <div class="sticky top-[76px] z-10 px-4 md:px-6 py-3 mb-4 bg-white/90 backdrop-blur rounded-2xl shadow-sm ring-1 ring-black/5 mx-4 md:mx-0 flex justify-between items-center flex-wrap gap-2">
               <div>
-                <h2 class="text-xl font-bold">📝 استبيانات رضا المستفيدين (ISO 9.1.2)</h2>
-                <div class="text-sm text-gray-500">قياس رضا المستفيدين والشركاء عبر روابط عامة قابلة للمشاركة</div>
+                <h2 class="text-xl font-bold">📝 استبيانات الرضا والتغذية الراجعة (ISO 9.1.2)</h2>
+                <div class="text-sm text-gray-500">قياس رضا المستفيدين والموظفين والمتبرعين والشركاء عبر روابط عامة قابلة للمشاركة</div>
               </div>
               <button @click="openSurveyCreate()" class="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg">➕ استبيان جديد</button>
+            </div>
+
+            <div class="mx-4 md:mx-0 mb-3 bg-sky-50 border border-sky-200 text-sky-900 rounded-xl px-4 py-3 text-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+              <div>
+                <span class="font-bold">فصل مقصود:</span>
+                تقييم الموردين ليس استبيان رضا؛ تتم إدارته من صفحة الموردين كتقييم اعتماد ورقابة وفق ISO 8.4.
+              </div>
+              <a href="#/suppliers" class="text-sky-700 hover:text-sky-900 underline font-semibold whitespace-nowrap">فتح الموردين</a>
             </div>
 
             <!-- Smart filter chips -->
@@ -5285,7 +5293,7 @@
                     <td colspan="7" class="text-center py-10">
                       <div class="text-4xl mb-2">📝</div>
                       <div class="font-medium text-gray-700">لا توجد استبيانات بعد</div>
-                      <div class="text-xs text-gray-500 mb-3">ابدأ بإنشاء استبيان لقياس رضا المستفيدين</div>
+                      <div class="text-xs text-gray-500 mb-3">ابدأ باستبيان رضا أو تغذية راجعة، أما الموردون فلهم تقييم مستقل</div>
                       <button @click="openSurveyCreate()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded px-4 py-1.5 text-sm">+ إنشاء استبيان</button>
                     </td>
                   </tr>
@@ -6049,6 +6057,9 @@
                     نوع المورد:
                     <span class="font-semibold text-gray-600" x-text="({GOODS:'بضائع',SERVICES:'خدمات',CONSTRUCTION:'مقاولات',IT_SERVICES:'تقنية معلومات',TRANSPORT:'نقل',CONSULTING:'استشارات',IN_KIND_DONOR:'تبرعات عينية',OTHER:'أخرى'}[evalModal.supplier?.type] || evalModal.supplier?.type || '—')"></span>
                   </div>
+                  <div class="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] text-emerald-800">
+                    ISO 8.4 · تقييم اعتماد ورقابة، وليس استبيان رضا
+                  </div>
                 </div>
                 <button @click="evalModal.open=false" class="text-gray-400 hover:text-gray-700 text-xl">✖</button>
               </div>
@@ -6087,6 +6098,9 @@
                       <span class="text-gray-500 mr-auto" x-text="'(' + c.max + ')'"></span>
                     </div>
                   </template>
+                </div>
+                <div class="mt-2 pt-2 border-t border-sky-200 text-sky-800">
+                  هذا السجل يؤثر على قرار استمرار المورد أو اعتماده، لذلك يبقى منفصلاً عن صفحة الاستبيانات.
                 </div>
                 <div class="text-red-700 mt-2 text-[11px]">⚠️ المعايير الحرجة: فشل أي منها (أقل من 50%) = رفض تلقائي</div>
               </div>
@@ -8833,6 +8847,9 @@
         <li>أجب على أسئلة التقييم (الجودة، الالتزام، التسليم...)</li>
         <li>النظام يحسب النتيجة ويغيّر حالة المورد تلقائياً</li>
       </ol>
+      <div class="bg-emerald-50 border-r-4 border-emerald-500 px-3 py-1.5 text-xs text-emerald-800 rounded">
+        تقييم الموردين سجل اعتماد ورقابة على المورّدين وفق ISO 8.4، وليس استبيان رضا. الاستبيانات مخصصة لقياس الرضا والتغذية الراجعة.
+      </div>
       <div class="bg-blue-50 border-r-4 border-blue-500 px-3 py-1.5 text-xs text-blue-800 rounded">يمكن إرسال رابط تقييم خارجي مباشرةً للمورد.</div>
     </div>
   </div>
@@ -8890,7 +8907,7 @@
 
   <!-- ── القسم 17 ── -->
   <div id="ug-17" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-    <div class="bg-blue-600 text-white px-5 py-3 font-bold text-base">17. الاستبيانات ورضا المستفيدين (ISO 9.1.1)</div>
+    <div class="bg-blue-600 text-white px-5 py-3 font-bold text-base">17. الاستبيانات والرضا والتغذية الراجعة (ISO 9.1.2)</div>
     <div class="p-5 space-y-3 text-sm text-gray-700">
       <ol class="list-decimal list-inside space-y-1 mr-2">
         <li>اضغط إضافة استبيان — أدخل العنوان والأسئلة</li>
@@ -8898,6 +8915,9 @@
         <li>الإجابات تتجمع تلقائياً في لوحة النتائج</li>
         <li>يمكن تصدير البيانات كـ CSV لمزيد من التحليل</li>
       </ol>
+      <div class="bg-emerald-50 border-r-4 border-emerald-500 px-3 py-1.5 text-xs text-emerald-800 rounded">
+        لا تستخدم الاستبيانات لتقييم الموردين؛ تقييم الموردين له مسار مستقل في صفحة الموردين لأنه ينتج قرار اعتماد أو متابعة.
+      </div>
       <div class="bg-blue-50 border-r-4 border-blue-500 px-3 py-1.5 text-xs text-blue-800 rounded">نتائج الاستبيانات تُدرج تلقائياً في مراجعة الإدارة.</div>
     </div>
   </div>
