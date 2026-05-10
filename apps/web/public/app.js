@@ -83,7 +83,41 @@ const PERMISSIONS = {
 // Module endpoint → resource key resolver (handles cases where endpoint ≠ resource string)
 function _resourceKey(resource) {
   if (!resource) return null;
-  return PERMISSIONS[resource] ? resource : resource;
+  const aliases = {
+    complaint: 'complaints',
+    complaints: 'complaints',
+    risk: 'risks',
+    risks: 'risks',
+    managementReview: 'management-review',
+    'management-review': 'management-review',
+    objective: 'objectives',
+    objectives: 'objectives',
+    kpiEntry: 'kpi',
+    kpiEntries: 'kpi',
+    myKpi: 'kpi',
+    kpiTracking: 'kpi',
+    kpiFollowUp: 'kpi-followups',
+    kpiFollowups: 'kpi-followups',
+    reportBuilder: 'report-builder',
+    operationalReports: 'reports',
+    improvementProjects: 'improvement-projects',
+    auditChecklists: 'audit-checklists',
+    ackDocuments: 'ack-documents',
+    strategicPlans: 'strategic-plans',
+    strategicGoals: 'strategic-goals',
+    operationalActivities: 'operational-activities',
+    fundingSources: 'funding-sources',
+    fundingPlans: 'funding-plans',
+    planVersions: 'plan-versions',
+    progressReports: 'progress-reports',
+    changeRequests: 'change-requests',
+    dataHealth: 'alerts',
+    templateLibrary: 'template-library',
+    monthlyReadiness: 'monthly-readiness',
+    integrationsSettings: 'integrations',
+  };
+  const key = aliases[resource] || resource;
+  return PERMISSIONS[key] ? key : resource;
 }
 
 // ───────── Field-Level Security mirror (sync with crudFactory lockedFieldsForRole) ─────────
@@ -165,7 +199,8 @@ function app() {
     can(resource, action) {
       const role = this.user?.role;
       if (!role) return false;
-      const policy = PERMISSIONS[resource]?.[action] || PERMISSIONS_DEFAULT[action];
+      const key = _resourceKey(resource);
+      const policy = PERMISSIONS[key]?.[action] || PERMISSIONS_DEFAULT[action];
       return !!policy && policy.includes(role);
     },
     canCreate(r)  { return this.can(r, 'create'); },
@@ -718,10 +753,10 @@ function app() {
       });
       // الـ wizards — إجراءات إنشاء مباشرة (تحترم الصلاحيات)
       const wizardMap = [
-        { id: 'complaint',        label: 'سجّل شكوى جديدة',   icon: '📣', res: 'complaint' },
+        { id: 'complaint',        label: 'سجّل شكوى جديدة',   icon: '📣', res: 'complaints' },
         { id: 'ncr',              label: 'بلّغ عدم مطابقة',   icon: '⚠️', res: 'ncr' },
-        { id: 'risk',             label: 'سجّل مخاطرة جديدة', icon: '🛡️', res: 'risk' },
-        { id: 'managementReview', label: 'جدولة مراجعة إدارية', icon: '🗓️', res: 'managementReview' },
+        { id: 'risk',             label: 'سجّل مخاطرة جديدة', icon: '🛡️', res: 'risks' },
+        { id: 'managementReview', label: 'جدولة مراجعة إدارية', icon: '🗓️', res: 'management-review' },
       ];
       wizardMap.forEach(w => {
         if (this.can(w.res, 'create')) {
@@ -800,27 +835,23 @@ function app() {
       const groups = {
         EMPLOYEE: [
           { id: 'guided-today', title: 'عملي اليومي', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'myKpi', 'myAcknowledgments'] },
-          { id: 'guided-helpdesk', title: 'أحتاج مساعدة', icon: '💬', iso: '', color: 'sky', items: ['complaints', 'ncr'] },
-          { id: 'guided-know', title: 'أفهم النظام', icon: '📄', iso: '', color: 'slate', items: ['qualityPolicy', 'ackDocuments', 'training', 'userGuide'] },
+          { id: 'guided-helpdesk', title: 'أحتاج مساعدة', icon: '💬', iso: '', color: 'sky', items: ['complaints', 'ncr', 'userGuide'] },
         ],
         DEPT_MANAGER: [
           { id: 'guided-today', title: 'قرارات اليوم', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'slaBoard'] },
-          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['myKpi', 'kpiTracking', 'operationalActivities', 'progressReports'] },
-          { id: 'guided-quality', title: 'جودة القسم', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'risks', 'capa'] },
-          { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'slate', items: ['userGuide'] },
+          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['myKpi', 'kpiTracking', 'progressReports'] },
+          { id: 'guided-quality', title: 'جودة القسم', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'risks'] },
         ],
         COMMITTEE_MEMBER: [
-          { id: 'guided-today', title: 'ما يحتاج مراجعتك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'managementReview', 'kpiFollowUp'] },
+          { id: 'guided-today', title: 'ما يحتاج مراجعتك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp'] },
           { id: 'guided-assurance', title: 'جاهزية وامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'dataHealth', 'progressReports'] },
           { id: 'guided-quality', title: 'جودة وتحسين', icon: '🛠️', iso: '', color: 'slate', items: ['ncr', 'capa', 'risks', 'audits'] },
           { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'slate', items: ['userGuide'] },
         ],
         QUALITY_MANAGER: [
           { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
-          { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements', 'templateLibrary'] },
-          { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
-          { id: 'guided-plan', title: 'الخطة والأداء', icon: '🎯', iso: '', color: 'slate', items: ['planMap', 'strategicGoals', 'kpiTracking', 'progressReports'] },
-          { id: 'guided-admin', title: 'إعدادات محدودة', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments'] },
+          { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements'] },
+          { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview'] },
         ],
         SUPER_ADMIN: [
           { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
@@ -1391,6 +1422,34 @@ function app() {
           status: blockingIssues ? 'NEEDS_ATTENTION' : 'OK',
         };
       });
+    },
+    planMapTopGaps(limit = 5) {
+      const gaps = this.planMap?.summary?.topGaps || [];
+      if (gaps.length) return gaps.slice(0, limit);
+      return (this.planMap?.issues || []).slice(0, limit).map(item => ({
+        severity: item.severity || 'WARNING',
+        area: item.area || 'ملاحظة',
+        message: item.message || '',
+        refs: item.ref ? [item.ref] : [],
+      }));
+    },
+    planMapAxisGoalGroups() {
+      const axes = this.planMap?.axes || [];
+      const goals = this.planMap?.goals || [];
+      const groups = axes.map(axis => ({
+        ...axis,
+        goals: goals.filter(goal => goal.axis?.id === axis.id),
+      }));
+      const withoutAxis = goals.filter(goal => !goal.axis?.id);
+      if (withoutAxis.length) {
+        groups.push({
+          id: '__without_axis',
+          code: '',
+          nameAr: 'بلا محور',
+          goals: withoutAxis,
+        });
+      }
+      return groups.filter(group => group.goals.length || group.id !== '__without_axis');
     },
     planMapDecisionItems(limit = 6) {
       const rank = { ERROR: 0, WARNING: 1, INFO: 2 };
@@ -2116,21 +2175,92 @@ function app() {
     myWorkDecisionItems(limit = 5) {
       const rank = { critical: 0, warning: 1, info: 2 };
       const alerts = (this.myWork?.alerts || []).map(alert => ({
+        id: alert.type || alert.title,
         severity: alert.severity || 'info',
         title: alert.title || 'تنبيه',
         page: alert.action?.page,
+        filter: alert.action?.filter || alert.action?.quick,
+        count: Number(alert.count || 0),
+        reason: this.myWorkDecisionReason(alert),
+        icon: this.myWorkDecisionIcon(alert.severity),
         label: alert.action?.label || 'فتح',
       }));
       const followUps = this.myWork?.myFollowUpTasks || {};
       const overdue = (followUps.overdue || []).map(task => ({
+        id: task.id || task.code || task.title,
         severity: 'critical',
         title: task.title || task.code || 'مهمة متابعة متأخرة',
         page: 'follow-up-tasks',
+        reason: 'متابعة متأخرة تحتاج تحديث حالة أو إغلاق موثق.',
+        icon: '⏱',
+        recordId: task.id,
         label: 'فتح المتابعة',
       }));
       return [...overdue, ...alerts]
-        .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
+        .sort((a, b) => {
+          const bySeverity = (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9);
+          if (bySeverity) return bySeverity;
+          return (b.count || 0) - (a.count || 0);
+        })
         .slice(0, limit);
+    },
+    myWorkDecisionIcon(severity) {
+      if (severity === 'critical') return '⛔';
+      if (severity === 'warning') return '⚠';
+      return 'ℹ';
+    },
+    myWorkDecisionReason(alert = {}) {
+      const type = String(alert.type || '');
+      if (type.includes('kpi')) return 'قراءة مؤشر مطلوبة أو متأخرة؛ الإجراء يحافظ على صدق لوحة الأداء.';
+      if (type.includes('ncr')) return 'عدم مطابقة ضمن نطاقك تحتاج معالجة أو متابعة قبل أن تصبح فجوة جودة.';
+      if (type.includes('complaint')) return 'شكوى أو بلاغ يحتاج استجابة ضمن الزمن المعتمد.';
+      if (type.includes('beneficiary')) return 'ملف مستفيد يحتاج مراجعة حتى تبقى البيانات قابلة للاعتماد.';
+      if (type.includes('workflow') || type.includes('approval')) return 'يوجد اعتماد أو مراجعة ينتظر قرارك.';
+      if (type.includes('draft')) return 'مسودة غير مكتملة؛ إما استكمالها أو حذفها لتقليل الضجيج.';
+      if (type.includes('ack')) return 'إقرار مطلوب حتى يكتمل أثر التعميم أو الوثيقة.';
+      return 'تنبيه مهم ضمن نطاق دورك يحتاج إجراء واضح.';
+    },
+    myWorkRoleFocus() {
+      const mode = this.myWork?.viewMode || 'EMPLOYEE';
+      const map = {
+        EMPLOYEE: {
+          title: 'طريقة عملك اليوم',
+          steps: [
+            ['1', 'أدخل القراءات المطلوبة'],
+            ['2', 'أغلق ما يخصك من مهام'],
+            ['3', 'ارفع البلاغات عند الحاجة'],
+          ],
+        },
+        DEPT: {
+          title: 'تركيز مدير القسم',
+          steps: [
+            ['1', 'راجع المتأخرات'],
+            ['2', 'وجّه الفريق'],
+            ['3', 'صعّد ما يحتاج قراراً'],
+          ],
+        },
+        QUALITY: {
+          title: 'تركيز الجودة',
+          steps: [
+            ['1', 'افحص الانحرافات'],
+            ['2', 'وثّق الإجراءات'],
+            ['3', 'تابع الإغلاق'],
+          ],
+        },
+        EXEC: {
+          title: 'تركيز الإدارة',
+          steps: [
+            ['1', 'اقرأ الصورة العامة'],
+            ['2', 'اعتمد القرارات العالقة'],
+            ['3', 'وجّه الموارد'],
+          ],
+        },
+      };
+      return map[mode] || map.EMPLOYEE;
+    },
+    async myWorkDecisionAction(item) {
+      if (!item?.page) return;
+      await this.goToResource(item.page, item.recordId, { filter: item.filter });
     },
     myWorkFollowUpBuckets() {
       const tasks = this.myWork?.myFollowUpTasks || {};

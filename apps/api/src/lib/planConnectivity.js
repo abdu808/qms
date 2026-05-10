@@ -68,6 +68,46 @@ function readinessFrom({ errors, warnings, failedCriticalCriteria }) {
   };
 }
 
+function buildTopGaps({ acceptanceCriteria, issues, limit = 5 }) {
+  const failedCriteria = (acceptanceCriteria || [])
+    .filter(c => c.status === 'FAILED')
+    .map(c => ({
+      id: c.id,
+      severity: c.severity || 'WARNING',
+      area: c.label,
+      message: c.recommendation || c.label,
+      current: c.current,
+      target: c.target,
+      source: 'criterion',
+    }));
+
+  const issueGroups = new Map();
+  for (const item of issues || []) {
+    if (!item || item.severity === 'INFO') continue;
+    const key = `${item.severity}:${item.area}`;
+    const current = issueGroups.get(key) || {
+      id: key,
+      severity: item.severity,
+      area: item.area,
+      message: item.message,
+      count: 0,
+      refs: [],
+      source: 'issue',
+    };
+    current.count += 1;
+    if (item.ref && current.refs.length < 3) current.refs.push(item.ref);
+    issueGroups.set(key, current);
+  }
+
+  return [...failedCriteria, ...issueGroups.values()]
+    .sort((a, b) => {
+      const rank = severityRank(a.severity) - severityRank(b.severity);
+      if (rank !== 0) return rank;
+      return (b.count || 0) - (a.count || 0);
+    })
+    .slice(0, limit);
+}
+
 function indicatorBrief(indicator) {
   return {
     id: indicator.id,
@@ -608,6 +648,7 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       severity: c.severity,
       recommendation: c.recommendation,
     }));
+  const topGaps = buildTopGaps({ acceptanceCriteria, issues: allIssues });
 
   return {
     ok: true,
@@ -647,6 +688,7 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       errors,
       warnings,
       infos,
+      topGaps,
     },
     plan,
     executionHealth,

@@ -63,6 +63,13 @@ export function crudRouter(opts) {
     return { AND: [base, patch] };
   };
 
+  const scopedItemWhere = (req, baseWhere) => {
+    let where = { ...baseWhere };
+    if (softDelete) where.deletedAt = null;
+    if (scopeFilter) where = mergeScopedWhere(where, scopeFilter(req));
+    return where;
+  };
+
   // ── RBAC gate ────────────────────────────────────────────────────
   const gate = (action) => (req, res, next) => {
     if (!resource) return next();
@@ -255,6 +262,11 @@ export function crudRouter(opts) {
   // ── UPDATE ───────────────────────────────────────────────────────
   router.put('/:id', gate('update'), asyncHandler(async (req, res) => {
     let data = stripProtected({ ...req.body });
+    const scopedExisting = await prisma[model].findFirst({
+      where: scopedItemWhere(req, { id: req.params.id }),
+      select: { id: true },
+    });
+    if (!scopedExisting) throw NotFound();
     // Field-Level Security: حذف الحقول المقفولة للدور قبل الـ validate
     if (lockedFieldsForRole && req.user?.role) {
       const lockedFields = lockedFieldsForRole[req.user.role];
@@ -293,6 +305,11 @@ export function crudRouter(opts) {
 
   router.patch('/:id', gate('update'), asyncHandler(async (req, res) => {
     let data = stripProtected({ ...req.body });
+    const scopedExisting = await prisma[model].findFirst({
+      where: scopedItemWhere(req, { id: req.params.id }),
+      select: { id: true },
+    });
+    if (!scopedExisting) throw NotFound();
     // Field-Level Security: حذف الحقول المقفولة للدور قبل الـ validate
     if (lockedFieldsForRole && req.user?.role) {
       const lockedFields = lockedFieldsForRole[req.user.role];
@@ -332,6 +349,11 @@ export function crudRouter(opts) {
   // ── DELETE (soft by default) ─────────────────────────────────────
   router.delete('/:id', gate('delete'), asyncHandler(async (req, res) => {
     let snapshot = null;
+    const scopedExisting = await prisma[model].findFirst({
+      where: scopedItemWhere(req, { id: req.params.id }),
+      select: { id: true },
+    });
+    if (!scopedExisting) throw NotFound();
     if (afterDelete) {
       try { snapshot = await prisma[model].findUnique({ where: { id: req.params.id } }); } catch (e) { console.error('[crud] snapshot fetch failed:', e.message); }
     }

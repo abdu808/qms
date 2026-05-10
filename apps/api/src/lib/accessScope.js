@@ -5,12 +5,21 @@ const FULL_READ_ROLES = new Set([
   'GUEST_AUDITOR',
 ]);
 
+const FULL_RECORD_ACCESS_ROLES = new Set([
+  'SUPER_ADMIN',
+  'QUALITY_MANAGER',
+]);
+
 function empty(obj) {
   return !obj || Object.keys(obj).length === 0;
 }
 
 export function hasFullReadScope(user) {
   return FULL_READ_ROLES.has(user?.role);
+}
+
+export function hasFullRecordAccess(user) {
+  return FULL_RECORD_ACCESS_ROLES.has(user?.role);
 }
 
 export function mergeScope(baseWhere = {}, scopeWhere = {}) {
@@ -110,5 +119,67 @@ export function initiativeScopeWhere(user) {
     };
   }
   if (user.role === 'EMPLOYEE') return { ownerId: user.sub };
+  return { id: '___never___' };
+}
+
+export function beneficiaryScopeWhere(user) {
+  if (!user?.role) return { id: '___never___' };
+  if (hasFullRecordAccess(user)) return {};
+  if (user.role === 'DEPT_MANAGER') {
+    if (!user.departmentId) return { id: '___never___' };
+    return { departmentId: user.departmentId };
+  }
+  if (user.role === 'EMPLOYEE') return { caseManagerId: user.sub };
+  return { id: '___never___' };
+}
+
+export function donationScopeWhere(user) {
+  if (!user?.role) return { id: '___never___' };
+  if (hasFullRecordAccess(user)) return {};
+  if (user.role === 'DEPT_MANAGER') {
+    if (!user.departmentId) return { id: '___never___' };
+    return { recipient: { departmentId: user.departmentId } };
+  }
+  if (user.role === 'EMPLOYEE') {
+    return {
+      OR: [
+        { recipient: { caseManagerId: user.sub } },
+        { receivedBy: user.sub },
+      ],
+    };
+  }
+  return { id: '___never___' };
+}
+
+export function complaintScopeWhere(user) {
+  if (!user?.role) return { id: '___never___' };
+  if (hasFullRecordAccess(user)) return {};
+  if (user.role === 'DEPT_MANAGER') {
+    if (!user.departmentId) return { id: '___never___' };
+    return { assignee: { departmentId: user.departmentId } };
+  }
+  if (user.role === 'EMPLOYEE') return { assigneeId: user.sub };
+  return { id: '___never___' };
+}
+
+export function ncrScopeWhere(user) {
+  if (!user?.role) return { id: '___never___' };
+  if (hasFullRecordAccess(user)) return {};
+  if (user.role === 'DEPT_MANAGER') {
+    const conditions = [
+      { reporterId: user.sub },
+      { assigneeId: user.sub },
+    ];
+    if (user.departmentId) conditions.push({ departmentId: user.departmentId });
+    return { OR: conditions };
+  }
+  if (user.role === 'EMPLOYEE') {
+    return {
+      OR: [
+        { reporterId: user.sub },
+        { assigneeId: user.sub },
+      ],
+    };
+  }
   return { id: '___never___' };
 }

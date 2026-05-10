@@ -16,6 +16,7 @@ import { NotFound, BadRequest } from '../utils/errors.js';
 import { requireAction } from '../lib/permissions.js';
 import { readAudit } from '../middleware/audit.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { beneficiaryScopeWhere, mergeScope } from '../lib/accessScope.js';
 import {
   computePriority, needsReview, reviewDueDate,
   assertActivationReady, VULNERABILITY_FLAGS, REVIEW_INTERVAL,
@@ -41,6 +42,7 @@ const crud = crudRouter({
     donationsReceived: { take: 5, orderBy: { receivedAt: 'desc' } },
   },
   schemas: { create: benCreateSchema, update: benUpdateSchema },
+  scopeFilter: (req) => beneficiaryScopeWhere(req.user),
   smartFilters: {
     applicants:  () => ({ status: 'APPLICANT' }),
     active:      () => ({ status: 'ACTIVE' }),
@@ -121,9 +123,9 @@ router.get('/meta', asyncHandler(async (_req, res) => {
 /**
  * GET /api/beneficiaries/due-review — نشطون تجاوزوا 365 يوماً (ISO 9.1.2).
  */
-router.get('/due-review', requireAction('beneficiaries', 'read'), asyncHandler(async (_req, res) => {
+router.get('/due-review', requireAction('beneficiaries', 'read'), asyncHandler(async (req, res) => {
   const actives = await prisma.beneficiary.findMany({
-    where: activeWhere({ status: 'ACTIVE' }),
+    where: mergeScope(activeWhere({ status: 'ACTIVE' }), beneficiaryScopeWhere(req.user)),
     select: {
       id: true, code: true, fullName: true, category: true,
       assessedAt: true, priorityScore: true, city: true,
@@ -147,7 +149,9 @@ router.get('/due-review', requireAction('beneficiaries', 'read'), asyncHandler(a
  * GET /api/beneficiaries/:id/assessment — معاينة محرك التقييم (دون حفظ).
  */
 router.get('/:id/assessment', requireAction('beneficiaries', 'read'), asyncHandler(async (req, res) => {
-  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id, deletedAt: null } });
+  const b = await prisma.beneficiary.findFirst({
+    where: mergeScope({ id: req.params.id, deletedAt: null }, beneficiaryScopeWhere(req.user)),
+  });
   if (!b) throw NotFound('المستفيد غير موجود');
   const result = computePriority(b);
   res.json({
@@ -173,7 +177,9 @@ router.get('/:id/assessment', requireAction('beneficiaries', 'read'), asyncHandl
  * المحسوبة من المحرك (موضوعية) ما لم يُرسل priorityScore يدوياً ويكون useComputedScore=false.
  */
 router.post('/:id/assess', requireAction('beneficiaries', 'update'), asyncHandler(async (req, res) => {
-  const b = await prisma.beneficiary.findUnique({ where: { id: req.params.id, deletedAt: null } });
+  const b = await prisma.beneficiary.findFirst({
+    where: mergeScope({ id: req.params.id, deletedAt: null }, beneficiaryScopeWhere(req.user)),
+  });
   if (!b) throw NotFound('المستفيد غير موجود');
 
   const body = req.body || {};

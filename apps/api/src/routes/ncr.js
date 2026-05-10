@@ -7,6 +7,8 @@ import { createSchema as ncrCreateSchema, updateSchema as ncrUpdateSchema } from
 import { guardNcrCreate, guardNcrUpdate } from '../services/ncrClosure.js';
 import { reopenRecord } from '../services/reopenGuard.js';
 import { requireAction } from '../lib/permissions.js';
+import { mergeScope, ncrScopeWhere } from '../lib/accessScope.js';
+import { NotFound } from '../utils/errors.js';
 
 const crud = crudRouter({
   resource: 'ncr',
@@ -21,6 +23,7 @@ const crud = crudRouter({
   allowedSortFields: ['createdAt', 'dueDate', 'status'],
   allowedFilters: ['status', 'severity', 'departmentId', 'assigneeId', 'workflowState'],
   schemas: { create: ncrCreateSchema, update: ncrUpdateSchema },
+  scopeFilter: (req) => ncrScopeWhere(req.user),
   smartFilters: {
     overdue: () => ({
       status: { in: ['OPEN', 'ROOT_CAUSE', 'ACTION_PLANNED', 'IN_PROGRESS', 'VERIFICATION'] },
@@ -71,6 +74,15 @@ router.use(readAudit('NCR'));
 router.post('/:id/reopen',
   requireAction('ncr', 'update'),   // QM/SUPER_ADMIN فقط — الـ reopenGuard يعيد التحقق داخلياً
   asyncHandler(async (req, res) => {
+    const ncr = await prisma.nCR.findFirst({
+      where: mergeScope(
+        { id: req.params.id, deletedAt: null },
+        ncrScopeWhere(req.user),
+      ),
+      select: { id: true },
+    });
+    if (!ncr) throw NotFound('السجل غير موجود أو خارج نطاق صلاحيتك');
+
     const updated = await reopenRecord({
       model: 'nCR', entityType: 'NCR',
       id: req.params.id, reason: req.body?.reason, req,

@@ -45,13 +45,13 @@
         myKpi: {
           id: 'myKpi', icon: '📊', label: 'أدخل قراءة KPI',
           sublabel: 'مؤشراتك الشهرية', color: 'violet',
-          show: () => this.can('kpiEntry', 'create') || this.can('objective', 'read'),
+          show: () => this.can('kpi', 'create') || this.can('objectives', 'read'),
           onClick: () => this.goToResource('myKpi'),
         },
         complaint: {
           id: 'complaint', icon: '📣', label: 'سجّل شكوى',
           sublabel: 'معالج خطوة بخطوة', color: 'rose',
-          show: () => this.can('complaint', 'create'),
+          show: () => this.can('complaints', 'create'),
           onClick: () => this.openWizard('complaint'),
         },
         ncr: {
@@ -65,14 +65,14 @@
         risk: {
           id: 'risk', icon: '🛡️', label: 'سجّل مخاطرة',
           sublabel: 'معالج المخاطر', color: 'amber',
-          show: () => this.can('risk', 'create'),
+          show: () => this.can('risks', 'create'),
           onClick: () => this.openWizard('risk'),
         },
         managementReview: {
           id: 'managementReview', icon: '🗓️',
           label: this.isGuided() ? 'اجتماع متابعة الإدارة' : 'مراجعة إدارية',
           sublabel: 'جدولة اجتماع', color: 'indigo',
-          show: () => this.can('managementReview', 'create'),
+          show: () => this.can('management-review', 'create'),
           onClick: () => this.openWizard('managementReview'),
         },
         ncrReview: {
@@ -92,9 +92,9 @@
       };
       // ترتيب حسب الدور — الأعلى قيمة يومية أولاً
       const order = {
-        EMPLOYEE:         ['myKpi', 'complaint', 'ncr', 'risk'],
-        DEPT_MANAGER:     ['myKpi', 'ncrReview', 'slaBoard', 'complaint', 'risk'],
-        QUALITY_MANAGER:  ['ncrReview', 'slaBoard', 'managementReview', 'risk', 'complaint'],
+        EMPLOYEE:         ['myKpi', 'complaint', 'ncr'],
+        DEPT_MANAGER:     ['myKpi', 'ncrReview', 'slaBoard', 'complaint'],
+        QUALITY_MANAGER:  ['ncrReview', 'slaBoard', 'managementReview', 'risk'],
         COMMITTEE_MEMBER: ['ncrReview', 'managementReview', 'risk', 'complaint'],
         SUPER_ADMIN:      ['managementReview', 'ncrReview', 'slaBoard', 'risk', 'complaint'],
       };

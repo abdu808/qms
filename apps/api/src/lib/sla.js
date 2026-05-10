@@ -201,10 +201,16 @@ export function computeNcrSla(n, now = new Date()) {
 // ─────────────────────────────────────────────────────────────
 // مسح مجمَّع: يُستخدم من dataHealth + لوحة SLA
 // ─────────────────────────────────────────────────────────────
-export async function scanSla(prisma) {
+export async function scanSla(prisma, options = {}) {
+  const complaintWhere = options.complaintWhere || {};
+  const ncrWhere = options.ncrWhere || {};
   const [complaints, ncrs] = await Promise.all([
     prisma.complaint.findMany({
-      where: { deletedAt: null, status: { notIn: ['CLOSED', 'REJECTED'] } },
+      where: {
+        deletedAt: null,
+        status: { notIn: ['CLOSED', 'REJECTED'] },
+        ...complaintWhere,
+      },
       select: {
         id: true, code: true, subject: true, severity: true, status: true,
         receivedAt: true, createdAt: true, updatedAt: true,
@@ -212,7 +218,11 @@ export async function scanSla(prisma) {
       },
     }),
     prisma.nCR.findMany({
-      where: { deletedAt: null, status: { not: 'CLOSED' } },
+      where: {
+        deletedAt: null,
+        status: { not: 'CLOSED' },
+        ...ncrWhere,
+      },
       select: {
         id: true, code: true, title: true, severity: true, status: true,
         detectedAt: true, createdAt: true, updatedAt: true, verifiedAt: true,

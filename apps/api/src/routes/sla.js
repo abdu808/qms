@@ -13,6 +13,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { NotFound } from '../utils/errors.js';
 import { requireAction } from '../lib/permissions.js';
 import {
+  complaintScopeWhere,
+  mergeScope,
+  ncrScopeWhere,
+} from '../lib/accessScope.js';
+import {
   SLA_POLICY, scanSla, computeComplaintSla, computeNcrSla,
 } from '../lib/sla.js';
 
@@ -22,19 +27,32 @@ router.get('/policy', asyncHandler(async (_req, res) => {
   res.json({ ok: true, policy: SLA_POLICY });
 }));
 
-router.get('/board', requireAction('alerts', 'read'), asyncHandler(async (_req, res) => {
-  const data = await scanSla(prisma);
+router.get('/board', requireAction('alerts', 'read'), asyncHandler(async (req, res) => {
+  const data = await scanSla(prisma, {
+    complaintWhere: complaintScopeWhere(req.user),
+    ncrWhere: ncrScopeWhere(req.user),
+  });
   res.json({ ok: true, ...data });
 }));
 
 router.get('/complaint/:id', requireAction('complaints', 'read'), asyncHandler(async (req, res) => {
-  const c = await prisma.complaint.findUnique({ where: { id: req.params.id, deletedAt: null } });
+  const c = await prisma.complaint.findFirst({
+    where: mergeScope(
+      { id: req.params.id, deletedAt: null },
+      complaintScopeWhere(req.user),
+    ),
+  });
   if (!c) throw NotFound('الشكوى غير موجودة');
   res.json({ ok: true, id: c.id, code: c.code, sla: computeComplaintSla(c) });
 }));
 
 router.get('/ncr/:id', requireAction('ncr', 'read'), asyncHandler(async (req, res) => {
-  const n = await prisma.nCR.findUnique({ where: { id: req.params.id, deletedAt: null } });
+  const n = await prisma.nCR.findFirst({
+    where: mergeScope(
+      { id: req.params.id, deletedAt: null },
+      ncrScopeWhere(req.user),
+    ),
+  });
   if (!n) throw NotFound('عدم المطابقة غير موجودة');
   res.json({ ok: true, id: n.id, code: n.code, sla: computeNcrSla(n) });
 }));

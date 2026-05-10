@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { crudRouter } from '../utils/crudFactory.js';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { BadRequest, NotFound } from '../utils/errors.js';
 import { requireAction } from '../lib/permissions.js';
+import { NotFound } from '../utils/errors.js';
 import { readAudit } from '../middleware/audit.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { complaintScopeWhere, mergeScope } from '../lib/accessScope.js';
 import { computeComplaintSla } from '../lib/sla.js';
 import { createSchema as complaintCreateSchema, updateSchema as complaintUpdateSchema } from '../schemas/complaint.schema.js';
 import { convertComplaintToNcr, guardComplaintUpdate } from '../services/complaintLifecycle.js';
@@ -36,6 +37,7 @@ const base = crudRouter({
   allowedSortFields: ['createdAt', 'receivedAt', 'status', 'severity'],
   allowedFilters: ['status', 'severity', 'assigneeId'],
   schemas: { create: complaintCreateSchema, update: complaintUpdateSchema },
+  scopeFilter: (req) => complaintScopeWhere(req.user),
   smartFilters: {
     overdue: () => {
       const cutoff = new Date(Date.now() - OVERDUE_DAYS * 86400000);
@@ -76,10 +78,13 @@ router.get('/overdue', requireAction('complaints', 'read'), asyncHandler(async (
   const cutoff = new Date(Date.now() - OVERDUE_DAYS * 24 * 60 * 60 * 1000);
 
   const items = await prisma.complaint.findMany({
-    where: activeWhere({
-      status: { in: OPEN_STATES },
-      receivedAt: { lte: cutoff },
-    }),
+    where: mergeScope(
+      activeWhere({
+        status: { in: OPEN_STATES },
+        receivedAt: { lte: cutoff },
+      }),
+      complaintScopeWhere(req.user),
+    ),
     include: { assignee: { select: { id: true, name: true } } },
     orderBy: { receivedAt: 'asc' },
   });
@@ -108,6 +113,15 @@ router.post(
   '/:id/convert-to-ncr',
   requireAction('ncr', 'create'),
   asyncHandler(async (req, res) => {
+    const complaint = await prisma.complaint.findFirst({
+      where: mergeScope(
+        { id: req.params.id, deletedAt: null },
+        complaintScopeWhere(req.user),
+      ),
+      select: { id: true },
+    });
+    if (!complaint) throw NotFound('السجل غير موجود أو خارج نطاق صلاحيتك');
+
     const result = await convertComplaintToNcr({
       complaintId: req.params.id,
       userId:      req.user.sub,
@@ -124,6 +138,15 @@ router.post(
 router.post('/:id/reopen',
   requireAction('complaints', 'update'),
   asyncHandler(async (req, res) => {
+    const complaint = await prisma.complaint.findFirst({
+      where: mergeScope(
+        { id: req.params.id, deletedAt: null },
+        complaintScopeWhere(req.user),
+      ),
+      select: { id: true },
+    });
+    if (!complaint) throw NotFound('السجل غير موجود أو خارج نطاق صلاحيتك');
+
     const updated = await reopenRecord({
       model: 'complaint', entityType: 'Complaint',
       id: req.params.id, reason: req.body?.reason, req,
