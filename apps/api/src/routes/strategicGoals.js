@@ -61,6 +61,8 @@ router.get('/plan-health', requireAction('strategic-goals', 'read'), asyncHandle
     ok: true,
     operatingModel: map.operatingModel,
     summary: map.summary,
+    acceptanceCriteria: map.acceptanceCriteria,
+    nextActions: map.nextActions,
     issues: map.issues,
   });
 }));

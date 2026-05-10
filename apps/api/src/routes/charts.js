@@ -7,6 +7,7 @@ import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { requireAction } from '../lib/permissions.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { buildPlanConnectivity } from '../lib/planConnectivity.js';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
   }
 
   const now = new Date();
+  const currentYear = now.getFullYear();
 
   // جمع كل البيانات بالتوازي
   const [
@@ -83,6 +85,65 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
     cancelled:  objMap['CANCELLED']  || 0,
   };
 
+  let planReadiness = null;
+  try {
+    const planMap = await buildPlanConnectivity({ year: currentYear });
+    planReadiness = {
+      year: currentYear,
+      score: planMap.summary?.score ?? null,
+      definitionScore: planMap.summary?.definitionScore ?? null,
+      executionScore: planMap.summary?.executionScore ?? null,
+      readiness: planMap.summary?.readiness ?? null,
+      acceptancePassed: planMap.summary?.acceptancePassed ?? 0,
+      acceptanceTotal: planMap.summary?.acceptanceTotal ?? 0,
+      errors: planMap.summary?.errors ?? 0,
+      warnings: planMap.summary?.warnings ?? 0,
+      nextActions: (planMap.nextActions || []).slice(0, 5),
+      topIssues: (planMap.issues || []).slice(0, 5),
+    };
+  } catch (err) {
+    console.warn('[charts] plan readiness unavailable', err?.code || err?.message || err);
+    planReadiness = {
+      year: currentYear,
+      unavailable: true,
+      message: 'تعذر حساب جاهزية الخطة حالياً؛ لا يؤثر ذلك على بقية اللوحة التنفيذية.',
+    };
+  }
+
+  const executiveInsights = [];
+  if (planReadiness?.readiness && planReadiness.readiness.level !== 'READY') {
+    executiveInsights.push({
+      type: planReadiness.readiness.level === 'NOT_READY' ? 'danger' : 'warn',
+      title: 'جاهزية الخطة',
+      message: planReadiness.readiness.note,
+      action: planReadiness.nextActions?.[0]?.recommendation || 'راجع خريطة ترابط الخطة.',
+    });
+  }
+  if (futOverdue > 0) {
+    executiveInsights.push({
+      type: 'danger',
+      title: 'مهام متابعة متأخرة',
+      message: `${futOverdue} مهمة متابعة تجاوزت تاريخ الاستحقاق.`,
+      action: 'راجع لوحة المتابعة وحدد مالك الإغلاق.',
+    });
+  }
+  if (afCritical > 0) {
+    executiveInsights.push({
+      type: 'danger',
+      title: 'ملاحظات تدقيق حرجة',
+      message: `${afCritical} ملاحظة تدقيق كبرى ما زالت مفتوحة.`,
+      action: 'اربطها بإجراء تصحيحي ومراجعة موعد الإغلاق.',
+    });
+  }
+  if (planReadiness?.unavailable) {
+    executiveInsights.push({
+      type: 'warn',
+      title: 'خريطة الخطة',
+      message: planReadiness.message,
+      action: 'تحقق من آخر migrations أو من سلامة ارتباطات الخطة.',
+    });
+  }
+
   res.json({
     ok: true,
     kpiTrend,
@@ -93,6 +154,8 @@ router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (_req, re
     totals: { objectives: objTotal, ncrs: ncrTotal, complaints: cmpTotal },
     followUpTasks: { pending: futPending, overdue: futOverdue },
     auditFindings: { open: afOpen, critical: afCritical },
+    planReadiness,
+    executiveInsights,
   });
 }));
 

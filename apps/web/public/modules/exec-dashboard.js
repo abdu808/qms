@@ -26,13 +26,14 @@
   };
 
   window.QmsExecDashboard = {
-    execDash: { open: false, loading: false, error: '', _charts: {} },
+    execDash: { open: false, loading: false, error: '', data: null, _charts: {} },
 
     async openExecDashboard() {
       const d = this.execDash;
-      d.open = true; d.loading = true; d.error = '';
+      d.open = true; d.loading = true; d.error = ''; d.data = null;
       try {
         const data = await this.api('GET', '/charts');
+        d.data = data;
         await this.$nextTick();
         this._renderExecCharts(data);
       } catch (e) { d.error = e.message || 'فشل تحميل البيانات'; }

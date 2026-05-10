@@ -1,5 +1,12 @@
 export function notFound(req, res) {
-  res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'المسار غير موجود' } });
+  res.status(404).json({
+    ok: false,
+    error: {
+      code: 'NOT_FOUND',
+      message: 'المسار غير موجود',
+      requestId: req.id || null,
+    },
+  });
 }
 
 function friendlyError(err, status) {
@@ -34,9 +41,14 @@ export function errorHandler(err, req, res, next) {
   const status = friendly?.status || originalStatus;
   const code = friendly?.code || err.code || 'INTERNAL';
   const message = friendly?.message || err.message || 'خطأ داخلي في الخادم';
-  if (status >= 500) console.error('[error]', err);
+  if (status >= 500) console.error('[error]', { requestId: req.id || null, err });
   res.status(status).json({
     ok: false,
-    error: { code, message, ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }) },
+    error: {
+      code,
+      message,
+      requestId: req.id || null,
+      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    },
   });
 }
