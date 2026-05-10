@@ -175,6 +175,36 @@ router.get('/', asyncHandler(async (req, res) => {
     };
   } catch { /* non-fatal */ }
 
+  // Personal follow-up tasks turn deviations/review decisions into one clear work queue.
+  let myFollowUpTasks = { open: [], overdue: [], total: 0, overdueCount: 0 };
+  try {
+    const tasks = await prisma.followUpTask.findMany({
+      where: {
+        deletedAt: null,
+        ownerId: userId,
+        status: { in: ['OPEN', 'IN_PROGRESS'] },
+      },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        dueDate: true,
+        priority: true,
+        source: true,
+        status: true,
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      take: 30,
+    });
+    const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now);
+    myFollowUpTasks = {
+      open: tasks,
+      overdue,
+      total: tasks.length,
+      overdueCount: overdue.length,
+    };
+  } catch { /* non-fatal */ }
+
   // ═══ 5) إعادة تقييم مستفيدين (privileged) ═══
   let beneficiariesDueReview = [];
   if (privileged) {
@@ -392,6 +422,7 @@ router.get('/', asyncHandler(async (req, res) => {
     (privileged ? beneficiariesDueReview.length : 0) +
     pendingAcks.length +
     myDrafts.total +
+    myFollowUpTasks.total +
     (deptBlock ? (deptBlock.ncrAssigned.length + deptBlock.complaintsAssigned.length + deptBlock.kpiPendingCount) : 0);
 
   // ═══ 10) تنبيهات موحّدة (بطاقات Action) ═══
@@ -430,6 +461,15 @@ router.get('/', asyncHandler(async (req, res) => {
       count: myDrafts.total,
       title: `${myDrafts.total} مسوّدة لم تُرسَل بعد`,
       action: { page: 'myWork', label: 'إكمال المسوّدات' },
+    });
+  }
+  if (myFollowUpTasks.total > 0) {
+    alerts.push({
+      type: 'follow_up_tasks',
+      severity: myFollowUpTasks.overdueCount > 0 ? 'critical' : 'warning',
+      count: myFollowUpTasks.total,
+      title: `${myFollowUpTasks.total} مهمة متابعة مفتوحة${myFollowUpTasks.overdueCount ? ` — ${myFollowUpTasks.overdueCount} متأخرة` : ''}`,
+      action: { page: 'follow-up-tasks', label: 'فتح مهام المتابعة' },
     });
   }
   if (atRisk.total > 0) {
@@ -573,6 +613,7 @@ router.get('/', asyncHandler(async (req, res) => {
     },
     pendingAcks,
     myDrafts,
+    myFollowUpTasks,
     atRisk,
     dept: deptBlock,
     quality: qualityBlock,

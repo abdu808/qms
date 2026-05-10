@@ -10,6 +10,7 @@ import { prisma as globalPrisma } from '../db.js';
 import { BadRequest } from '../utils/errors.js';
 import { evaluateKpi } from '../lib/kpi-engine.js';
 import { recomputeAfterEntry } from './rollup.js';
+import { ensureKpiDeviationTask } from './kpiDeviationTasks.js';
 
 /**
  * هل هذا الشهر/السنة مُغلَق بسبب مراجعة إدارية مكتملة تغطّي هذه الفترة؟
@@ -209,5 +210,19 @@ export async function upsertKpiEntry({
   }
 
   const feedback = await computeKpiFeedback({ objectiveId, activityId, indicatorId, year, month });
-  return { entry, feedback, rollup, locked: lock.locked };
+  let deviationTask = null;
+  try {
+    deviationTask = await ensureKpiDeviationTask({
+      tx,
+      entry,
+      feedback,
+      objectiveId,
+      activityId,
+      indicatorId,
+      userId,
+    });
+  } catch (err) {
+    console.error('[kpi] deviation follow-up task failed:', err?.message || err);
+  }
+  return { entry, feedback, rollup, deviationTask, locked: lock.locked };
 }

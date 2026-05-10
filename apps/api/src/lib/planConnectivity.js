@@ -160,7 +160,7 @@ export async function buildPlanConnectivity({ year = null } = {}) {
   const activityWhere = plan?.id
     ? { ...active, strategicGoal: { planId: plan.id } }
     : active;
-  const [goals, indicators, activities, departments, axes, activeUsers] = await Promise.all([
+  const [goals, indicators, activities, departments, axes, activeUsers, swotItems] = await Promise.all([
     prisma.strategicGoal.findMany({
       where: goalWhere,
       orderBy: { code: 'asc' },
@@ -259,6 +259,19 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       where: { active: true, departmentId: { not: null } },
       select: { departmentId: true },
     }),
+    prisma.swotItem.findMany({
+      where: { deletedAt: null, status: { not: 'ARCHIVED' } },
+      select: {
+        id: true,
+        code: true,
+        type: true,
+        relatedRiskId: true,
+        relatedGoalId: true,
+        ownerUserId: true,
+        departmentId: true,
+        reviewDate: true,
+      },
+    }).catch(() => []),
   ]);
 
   const indicatorsByGoal = new Map();
@@ -481,6 +494,22 @@ export async function buildPlanConnectivity({ year = null } = {}) {
   const initiativesMissingGovernance = initiatives.filter(initiative => (
     !initiative.ownerId || !initiative.departmentId || !initiative.startDate || !initiative.endDate
   )).length;
+  const actionableSwot = (swotItems || [])
+    .filter(item => ['WEAKNESS', 'THREAT', 'OPPORTUNITY'].includes(String(item.type || '').toUpperCase()));
+  const swotMissingRisk = actionableSwot
+    .filter(item => String(item.type || '').toUpperCase() !== 'OPPORTUNITY' && !item.relatedRiskId).length;
+  const swotMissingGoal = actionableSwot.filter(item => !item.relatedGoalId).length;
+  const swotMissingOwner = actionableSwot.filter(item => !item.ownerUserId || !item.departmentId).length;
+
+  if (swotMissingRisk > 0) {
+    allIssues.push(issue('WARNING', 'SWOT', `يوجد ${swotMissingRisk} عنصر ضعف/تهديد غير مرتبط بخطر أو خطة معالجة.`, 'SWOT'));
+  }
+  if (swotMissingGoal > 0) {
+    allIssues.push(issue('WARNING', 'SWOT', `يوجد ${swotMissingGoal} عنصر SWOT غير مرتبط بهدف استراتيجي.`, 'SWOT'));
+  }
+  if (swotMissingOwner > 0) {
+    allIssues.push(issue('WARNING', 'SWOT', `يوجد ${swotMissingOwner} عنصر SWOT بلا مالك أو إدارة متابعة.`, 'SWOT'));
+  }
 
   const acceptanceCriteria = [
     criterion('AXES_DEFINED', 'وجود محاور استراتيجية نشطة', axes.length > 0, {
@@ -547,6 +576,18 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     }),
   ];
 
+  acceptanceCriteria.push(criterion(
+    'SWOT_ACTIONABLE',
+    'عناصر SWOT المؤثرة مرتبطة بخطر/هدف/مالك متابعة',
+    swotMissingRisk === 0 && swotMissingGoal === 0 && swotMissingOwner === 0,
+    {
+      severity: 'WARNING',
+      current: swotMissingRisk + swotMissingGoal + swotMissingOwner,
+      target: 0,
+      recommendation: 'تحويل عناصر الضعف والتهديد إلى مخاطر أو مهام متابعة وربط الفرص بالأهداف المناسبة.',
+    },
+  ));
+
   const failedCriticalCriteria = acceptanceCriteria
     .filter(c => c.status === 'FAILED' && c.severity === 'ERROR')
     .length;
@@ -597,6 +638,10 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       indicatorsMissingDefinition,
       activitiesMissingGovernance,
       initiativesMissingGovernance,
+      swotActionable: actionableSwot.length,
+      swotMissingRisk,
+      swotMissingGoal,
+      swotMissingOwner,
       indicatorErrors: indicatorIssues.filter(i => i.severity === 'ERROR').length,
       departmentsWithoutPlanRole: departmentsWithoutPlanRole.length,
       errors,
