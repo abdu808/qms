@@ -27,14 +27,64 @@ function issue(severity, area, message, ref = null) {
   return { severity, area, message, ref };
 }
 
+function criterion(id, label, passed, { severity = 'ERROR', current = null, target = null, recommendation = null } = {}) {
+  return {
+    id,
+    label,
+    status: passed ? 'PASSED' : 'FAILED',
+    severity,
+    current,
+    target,
+    recommendation,
+  };
+}
+
+function near(value, target, tolerance = 0.5) {
+  return Math.abs(Number(value || 0) - target) <= tolerance;
+}
+
+function readinessFrom({ errors, warnings, failedCriticalCriteria }) {
+  if (errors > 0 || failedCriticalCriteria > 0) {
+    return {
+      level: 'NOT_READY',
+      label: 'غير جاهزة للاعتماد',
+      canFreeze: false,
+      note: 'توجد مشكلات حاكمة تمنع إقفال الخطة أو توزيعها كنسخة عمل مستقرة.',
+    };
+  }
+  if (warnings > 0) {
+    return {
+      level: 'NEEDS_REVIEW',
+      label: 'جاهزة مشروطة بالمراجعة',
+      canFreeze: true,
+      note: 'يمكن العمل بالخطة مع إغلاق التنبيهات ضمن دورة المتابعة الأولى.',
+    };
+  }
+  return {
+    level: 'READY',
+    label: 'جاهزة للعمل',
+    canFreeze: true,
+    note: 'الترابط الأساسي مكتمل ولا توجد مشكلات ظاهرة في نموذج الخطة.',
+  };
+}
+
 function indicatorBrief(indicator) {
   return {
     id: indicator.id,
     code: indicator.code,
     nameAr: indicator.nameAr,
+    definition: indicator.definition,
+    formula: indicator.formula,
     unit: indicator.unit,
     frequency: indicator.frequency,
     kpiType: indicator.kpiType,
+    indicatorType: indicator.indicatorType,
+    dataSource: indicator.dataSource,
+    baseline: indicator.baseline,
+    weight: indicator.weight,
+    greenThreshold: indicator.greenThreshold,
+    yellowThreshold: indicator.yellowThreshold,
+    isoClause: indicator.isoClause,
     axis: indicator.axis ? { id: indicator.axis.id, code: indicator.axis.code, nameAr: indicator.axis.nameAr } : null,
     objective: indicator.objective ? {
       id: indicator.objective.id,
@@ -47,7 +97,11 @@ function indicatorBrief(indicator) {
     approver: indicator.approver ? { id: indicator.approver.id, name: indicator.approver.name } : null,
     ownerDept: userDept(indicator.owner),
     dataEntryDept: userDept(indicator.dataEntryUser),
+    approverDept: userDept(indicator.approver),
     targetYears: (indicator.annualTargets || []).map(t => t.year).sort((a, b) => a - b),
+    targets: (indicator.annualTargets || [])
+      .map(t => ({ year: t.year, targetValue: t.targetValue }))
+      .sort((a, b) => a.year - b.year),
   };
 }
 
@@ -65,6 +119,25 @@ function activityBrief(activity) {
       id: activity.indicator.id,
       code: activity.indicator.code,
       nameAr: activity.indicator.nameAr,
+    } : null,
+  };
+}
+
+function initiativeBrief(initiative) {
+  return {
+    id: initiative.id,
+    code: initiative.code,
+    name: initiative.name,
+    status: initiative.status,
+    progress: initiative.progress,
+    startDate: initiative.startDate,
+    endDate: initiative.endDate,
+    budget: initiative.budget,
+    owner: initiative.owner ? { id: initiative.owner.id, name: initiative.owner.name } : null,
+    department: initiative.department ? {
+      id: initiative.department.id,
+      code: initiative.department.code,
+      name: initiative.department.name,
     } : null,
   };
 }
@@ -111,7 +184,20 @@ export async function buildPlanConnectivity({ year = null } = {}) {
         },
         initiatives: {
           where: active,
-          select: { id: true, code: true, name: true, status: true, progress: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            status: true,
+            progress: true,
+            ownerId: true,
+            departmentId: true,
+            startDate: true,
+            endDate: true,
+            budget: true,
+            owner: { select: { id: true, name: true } },
+            department: { select: { id: true, code: true, name: true } },
+          },
           orderBy: { code: 'asc' },
         },
         objectives: {
@@ -145,7 +231,13 @@ export async function buildPlanConnectivity({ year = null } = {}) {
             department: { select: { id: true, code: true, name: true } },
           },
         },
-        approver: { select: { id: true, name: true } },
+        approver: {
+          select: {
+            id: true,
+            name: true,
+            department: { select: { id: true, code: true, name: true } },
+          },
+        },
         annualTargets: {
           where: targetYear ? { year: targetYear } : {},
           select: { year: true, targetValue: true },
@@ -199,6 +291,12 @@ export async function buildPlanConnectivity({ year = null } = {}) {
 
   const allIssues = [];
   const deptRoleIds = new Set();
+  const axisWeightTotal = axes.reduce((sum, axis) => sum + Number(axis.weight || 0), 0);
+  if (!axes.length) {
+    allIssues.push(issue('ERROR', 'المحاور', 'لا توجد محاور استراتيجية نشطة؛ لا يمكن قراءة توازن الخطة.', 'AXES'));
+  } else if (axisWeightTotal > 0 && !near(axisWeightTotal, 100)) {
+    allIssues.push(issue('WARNING', 'أوزان المحاور', `مجموع أوزان المحاور ${axisWeightTotal}% وليس 100%.`, 'AXES'));
+  }
   const goalsMap = goals.map(goal => {
     const directIndicators = uniqById(indicatorsByGoal.get(goal.id) || []).map(indicatorBrief);
     const axisIndicators = uniqById(indicatorsByAxis.get(goal.axisId) || [])
@@ -211,6 +309,15 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     for (const activity of goal.activities || []) {
       if (activity.dept) departmentsForGoal.set(activity.dept.id, activityBrief(activity).dept);
     }
+    for (const initiative of goal.initiatives || []) {
+      if (initiative.department) {
+        departmentsForGoal.set(initiative.department.id, {
+          id: initiative.department.id,
+          code: initiative.department.code,
+          name: initiative.department.name,
+        });
+      }
+    }
     for (const indicator of directIndicators) {
       if (indicator.ownerDept) departmentsForGoal.set(indicator.ownerDept.id, indicator.ownerDept);
       if (indicator.dataEntryDept) departmentsForGoal.set(indicator.dataEntryDept.id, indicator.dataEntryDept);
@@ -218,6 +325,9 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     for (const dept of departmentsForGoal.values()) deptRoleIds.add(dept.id);
 
     const issues = [];
+    if (!goal.axisId) {
+      issues.push(issue('ERROR', 'المحور', 'الهدف غير مربوط بمحور استراتيجي؛ هذا يكسر التسلسل الهرمي للخطة.', goal.code));
+    }
     if (directIndicators.length === 0 && axisIndicators.length === 0) {
       issues.push(issue('ERROR', 'المؤشرات', 'الهدف لا يملك مؤشراً مباشراً أو مؤشراً داعماً على نفس المحور.', goal.code));
     } else if (directIndicators.length === 0) {
@@ -228,6 +338,25 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     }
     if (!goal.ownerUserId && !goal.responsible?.trim()) {
       issues.push(issue('WARNING', 'الملكية', 'لا يوجد مالك أو جهة مسؤولة واضحة للهدف.', goal.code));
+    }
+    for (const activity of goal.activities || []) {
+      if (!activity.deptId && !activity.department?.trim()) {
+        issues.push(issue('WARNING', 'حوكمة الأنشطة', `${activity.code || activity.title} - النشاط لا يملك إدارة منفذة مرتبطة.`, activity.code || goal.code));
+      }
+      if (!activity.ownerId && !activity.responsible?.trim()) {
+        issues.push(issue('WARNING', 'حوكمة الأنشطة', `${activity.code || activity.title} - النشاط لا يملك مسؤولا واضحا.`, activity.code || goal.code));
+      }
+    }
+    for (const initiative of goal.initiatives || []) {
+      if (!initiative.ownerId) {
+        issues.push(issue('WARNING', 'حوكمة المبادرات', `${initiative.code || initiative.name} - المبادرة لا تملك مالك تنفيذ.`, initiative.code || goal.code));
+      }
+      if (!initiative.departmentId) {
+        issues.push(issue('WARNING', 'حوكمة المبادرات', `${initiative.code || initiative.name} - المبادرة لا تملك إدارة مسؤولة.`, initiative.code || goal.code));
+      }
+      if (!initiative.startDate || !initiative.endDate) {
+        issues.push(issue('WARNING', 'حوكمة المبادرات', `${initiative.code || initiative.name} - المبادرة تحتاج تاريخ بداية ونهاية.`, initiative.code || goal.code));
+      }
     }
     if (directIndicators.length > 0 && goalActivities.length > 0) {
       issues.push(issue('INFO', 'النموذج', 'الهدف مرتبط بقياس وتنفيذ عملي.', goal.code));
@@ -246,7 +375,7 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       indicators: directIndicators,
       supportingAxisIndicators: axisIndicators,
       activities: goalActivities,
-      initiatives: goal.initiatives || [],
+      initiatives: (goal.initiatives || []).map(initiativeBrief),
       legacyObjectivesCount: (goal.objectives || []).length,
       departments: [...departmentsForGoal.values()],
       issues: issues.sort((a, b) => severityRank(a.severity) - severityRank(b.severity)),
@@ -260,11 +389,16 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     if (!indicator.dataEntryUserId) indicatorIssues.push(issue('ERROR', 'مالك البيانات', `${indicator.code} - لا يوجد مدخل بيانات.`, indicator.code));
     if (!indicator.frequency) indicatorIssues.push(issue('ERROR', 'تردد القياس', `${indicator.code} - لا يوجد تردد قياس.`, indicator.code));
     if (!indicator.annualTargets?.length) indicatorIssues.push(issue('ERROR', 'المستهدفات', `${indicator.code} - لا يوجد مستهدف سنوي${targetYear ? ` لعام ${targetYear}` : ''}.`, indicator.code));
+    if (!indicator.approverUserId) indicatorIssues.push(issue('WARNING', 'اعتماد المؤشر', `${indicator.code} - لا توجد جهة اعتماد واضحة للمؤشر.`, indicator.code));
+    if (!indicator.definition?.trim()) indicatorIssues.push(issue('WARNING', 'تعريف المؤشر', `${indicator.code} - يحتاج تعريفا مختصرا حتى لا تختلف طريقة القياس بين الموظفين.`, indicator.code));
+    if (!indicator.dataSource?.trim()) indicatorIssues.push(issue('WARNING', 'مصدر البيانات', `${indicator.code} - يحتاج مصدر بيانات واضحا.`, indicator.code));
+    if (!indicator.unit?.trim()) indicatorIssues.push(issue('WARNING', 'وحدة القياس', `${indicator.code} - يحتاج وحدة قياس واضحة.`, indicator.code));
     if (!linkedIndicatorIds.has(indicator.id) && !indicator.axisId) {
       indicatorIssues.push(issue('WARNING', 'الربط', `${indicator.code} - مؤشر مستقل غير مربوط بمحور أو نشاط؛ راجع حاجته.`, indicator.code));
     }
     if (brief.ownerDept) deptRoleIds.add(brief.ownerDept.id);
     if (brief.dataEntryDept) deptRoleIds.add(brief.dataEntryDept.id);
+    if (brief.approverDept) deptRoleIds.add(brief.approverDept.id);
   }
   allIssues.push(...indicatorIssues);
 
@@ -324,11 +458,115 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     }
   }
 
+  const goalsWithoutAxis = goals.filter(g => !g.axisId).length;
+  const goalsWithoutOwner = goals.filter(g => !g.ownerUserId && !g.responsible?.trim()).length;
+  const goalsWithoutMeasurement = goalsMap.filter(g => g.indicators.length === 0 && g.supportingAxisIndicators.length === 0).length;
+  const indicatorsMissingGovernance = indicators.filter(indicator => (
+    !indicator.ownerId
+    || !indicator.dataEntryUserId
+    || !indicator.frequency
+    || !indicator.annualTargets?.length
+  )).length;
+  const indicatorsMissingDefinition = indicators.filter(indicator => (
+    !indicator.definition?.trim()
+    || !indicator.dataSource?.trim()
+    || !indicator.unit?.trim()
+    || !indicator.approverUserId
+  )).length;
+  const activitiesMissingGovernance = activities.filter(activity => (
+    (!activity.deptId && !activity.department?.trim())
+    || (!activity.ownerId && !activity.responsible?.trim())
+  )).length;
+  const initiatives = goals.flatMap(g => g.initiatives || []);
+  const initiativesMissingGovernance = initiatives.filter(initiative => (
+    !initiative.ownerId || !initiative.departmentId || !initiative.startDate || !initiative.endDate
+  )).length;
+
+  const acceptanceCriteria = [
+    criterion('AXES_DEFINED', 'وجود محاور استراتيجية نشطة', axes.length > 0, {
+      current: axes.length,
+      target: '1+',
+      recommendation: 'اعتماد محاور الخطة قبل توزيعها على الأقسام.',
+    }),
+    criterion('AXES_WEIGHT_100', 'أوزان المحاور تساوي 100%', axisWeightTotal === 0 || near(axisWeightTotal, 100), {
+      severity: 'WARNING',
+      current: `${axisWeightTotal}%`,
+      target: '100%',
+      recommendation: 'ضبط أوزان المحاور حتى تعطي لوحة الأداء قراءة عادلة.',
+    }),
+    criterion('GOALS_HAVE_AXIS', 'كل هدف استراتيجي مرتبط بمحور', goalsWithoutAxis === 0, {
+      current: goalsWithoutAxis,
+      target: 0,
+      recommendation: 'ربط الأهداف بالمحاور هو أساس الخريطة الاستراتيجية.',
+    }),
+    criterion('GOALS_HAVE_OWNER', 'كل هدف له مالك أو جهة مسؤولة', goalsWithoutOwner === 0, {
+      severity: 'WARNING',
+      current: goalsWithoutOwner,
+      target: 0,
+      recommendation: 'تسمية مالك الهدف تمنع ضياع المسؤولية عند المتابعة.',
+    }),
+    criterion('GOALS_HAVE_MEASUREMENT', 'كل هدف له مؤشر مباشر أو داعم', goalsWithoutMeasurement === 0, {
+      current: goalsWithoutMeasurement,
+      target: 0,
+      recommendation: 'لا يعتمد هدف بلا قياس واضح أو مؤشر داعم على نفس المحور.',
+    }),
+    criterion('INDICATORS_GOVERNED', 'كل مؤشر له مالك ومالك بيانات وتردد ومستهدف سنوي', indicatorsMissingGovernance === 0, {
+      current: indicatorsMissingGovernance,
+      target: 0,
+      recommendation: 'استكمال حوكمة المؤشرات قبل طلب الإدخالات من الموظفين.',
+    }),
+    criterion('INDICATORS_DEFINED', 'تعريف ومصدر ووحدة واعتماد المؤشرات مكتملة', indicatorsMissingDefinition === 0, {
+      severity: 'WARNING',
+      current: indicatorsMissingDefinition,
+      target: 0,
+      recommendation: 'هذه ليست مانعا للتشغيل، لكنها تمنع اختلاف فهم القياس لاحقا.',
+    }),
+    criterion('ACTIVITIES_GOVERNED', 'كل نشاط له إدارة منفذة ومسؤول واضح', activitiesMissingGovernance === 0, {
+      severity: 'WARNING',
+      current: activitiesMissingGovernance,
+      target: 0,
+      recommendation: 'الأنشطة هي لغة الفريق اليومية؛ لا تترك بلا مالك.',
+    }),
+    criterion('INITIATIVES_GOVERNED', 'كل مبادرة لها مالك وإدارة وتاريخ بداية ونهاية', initiativesMissingGovernance === 0, {
+      severity: 'WARNING',
+      current: initiativesMissingGovernance,
+      target: 0,
+      recommendation: 'المبادرات الكبيرة تحتاج إطارا زمنيا حتى لا تتحول إلى عنوان فقط.',
+    }),
+    criterion('STAFFED_DEPTS_COVERED', 'كل قسم نشط له دور ظاهر في الخطة', departmentsWithoutPlanRole.length === 0, {
+      severity: 'WARNING',
+      current: departmentsWithoutPlanRole.length,
+      target: 0,
+      recommendation: 'إن كان القسم إجرائيا فقط فيكفي ربطه بنشاط أو مؤشر مستقل.',
+    }),
+    criterion('READINGS_CURRENT', 'قراءات الأداء المستحقة مدخلة أو تحت الاعتماد', !executionHealth || executionHealth.missingReadings === 0, {
+      severity: 'WARNING',
+      current: executionHealth?.missingReadings ?? 0,
+      target: 0,
+      recommendation: 'هذا معيار تشغيل شهري، وليس عيبا في تصميم الخطة نفسها.',
+    }),
+  ];
+
+  const failedCriticalCriteria = acceptanceCriteria
+    .filter(c => c.status === 'FAILED' && c.severity === 'ERROR')
+    .length;
+  const passedCriteria = acceptanceCriteria.filter(c => c.status === 'PASSED').length;
+
   const errors = allIssues.filter(i => i.severity === 'ERROR').length;
   const warnings = allIssues.filter(i => i.severity === 'WARNING').length;
   const infos = allIssues.filter(i => i.severity === 'INFO').length;
   const definitionScore = Math.max(0, Math.min(100, 100 - (errors * 6) - (warnings * 2)));
   const score = executionHealth ? Math.min(definitionScore, executionHealth.score) : definitionScore;
+  const readiness = readinessFrom({ errors, warnings, failedCriticalCriteria });
+  const nextActions = acceptanceCriteria
+    .filter(c => c.status === 'FAILED')
+    .slice(0, 6)
+    .map(c => ({
+      id: c.id,
+      label: c.label,
+      severity: c.severity,
+      recommendation: c.recommendation,
+    }));
 
   return {
     ok: true,
@@ -342,6 +580,10 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       score,
       definitionScore,
       executionScore: executionHealth?.score ?? null,
+      readiness,
+      acceptancePassed: passedCriteria,
+      acceptanceTotal: acceptanceCriteria.length,
+      axisWeightTotal,
       goals: goals.length,
       axes: axes.length,
       indicators: indicators.length,
@@ -349,6 +591,12 @@ export async function buildPlanConnectivity({ year = null } = {}) {
       departments: departments.length,
       goalsWithoutIndicators: goalsMap.filter(g => g.indicators.length === 0 && g.supportingAxisIndicators.length === 0).length,
       goalsWithoutActivities: goalsMap.filter(g => g.activities.length === 0).length,
+      goalsWithoutAxis,
+      goalsWithoutOwner,
+      indicatorsMissingGovernance,
+      indicatorsMissingDefinition,
+      activitiesMissingGovernance,
+      initiativesMissingGovernance,
       indicatorErrors: indicatorIssues.filter(i => i.severity === 'ERROR').length,
       departmentsWithoutPlanRole: departmentsWithoutPlanRole.length,
       errors,
@@ -360,6 +608,8 @@ export async function buildPlanConnectivity({ year = null } = {}) {
     axes,
     goals: goalsMap,
     indicators: indicators.map(indicatorBrief),
+    acceptanceCriteria,
+    nextActions,
     issues: allIssues
       .filter(i => i.severity !== 'INFO')
       .sort((a, b) => severityRank(a.severity) - severityRank(b.severity))

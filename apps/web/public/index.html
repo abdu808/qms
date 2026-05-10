@@ -1871,6 +1871,46 @@
                 </div>
               </div>
 
+              <div x-show="planMap?.acceptanceCriteria?.length" class="bg-white rounded-2xl border shadow-sm p-5">
+                <h3 class="font-bold text-gray-800 mb-3">معايير قبول الخطة</h3>
+                <div class="grid md:grid-cols-2 gap-2">
+                  <template x-for="item in (planMap?.acceptanceCriteria || [])" :key="item.id">
+                    <div class="border rounded-xl px-3 py-2 text-sm flex items-start justify-between gap-3"
+                         :class="item.status === 'PASSED' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : planIssueClass(item.severity)">
+                      <div>
+                        <div class="font-bold" x-text="item.label"></div>
+                        <div class="text-xs opacity-80 mt-1" x-show="item.recommendation" x-text="item.recommendation"></div>
+                      </div>
+                      <div class="text-xs font-mono whitespace-nowrap" x-text="item.status === 'PASSED' ? 'OK' : ((item.current ?? '-') + ' / ' + (item.target ?? '-'))"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <div x-show="planMap?.summary?.readiness" class="bg-white rounded-2xl border shadow-sm p-5">
+                <div class="grid lg:grid-cols-3 gap-3">
+                  <div class="rounded-xl border p-4" :class="planMap?.summary?.readiness?.canFreeze ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'">
+                    <div class="text-xs text-gray-500">قرار الجاهزية</div>
+                    <div class="text-lg font-extrabold mt-1" :class="planMap?.summary?.readiness?.canFreeze ? 'text-emerald-700' : 'text-red-700'" x-text="planMap?.summary?.readiness?.label || 'غير محسوم'"></div>
+                    <p class="text-xs text-gray-600 mt-2" x-text="planMap?.summary?.readiness?.note || ''"></p>
+                  </div>
+                  <div class="rounded-xl border p-4 bg-slate-50">
+                    <div class="text-xs text-gray-500">معايير القبول</div>
+                    <div class="text-lg font-extrabold text-gray-800 mt-1" x-text="(planMap?.summary?.acceptancePassed || 0) + ' / ' + (planMap?.summary?.acceptanceTotal || 0)"></div>
+                    <p class="text-xs text-gray-600 mt-2">المعايير تفصل بين مانع الاعتماد والتنبيهات التحسينية.</p>
+                  </div>
+                  <div class="rounded-xl border p-4 bg-white">
+                    <div class="text-xs text-gray-500">الإجراء التالي</div>
+                    <template x-if="(planMap?.nextActions || []).length">
+                      <div class="text-sm font-semibold text-gray-800 mt-2" x-text="planMap.nextActions[0].recommendation"></div>
+                    </template>
+                    <template x-if="!(planMap?.nextActions || []).length">
+                      <div class="text-sm font-semibold text-emerald-700 mt-2">لا يوجد إجراء حاكم ظاهر الآن.</div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
               <div x-show="planMap?.issues?.length" class="bg-white rounded-2xl border shadow-sm p-5">
                 <h3 class="font-bold text-gray-800 mb-3">أهم الملاحظات</h3>
                 <div class="grid md:grid-cols-2 gap-2">
