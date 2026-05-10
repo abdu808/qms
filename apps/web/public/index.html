@@ -4268,8 +4268,12 @@
 
                 <!-- EXEC summary (Top management only) -->
                 <template x-if="myWork.viewMode==='EXEC' && myWork.exec">
-                  <div class="bg-white border rounded-xl p-4 mb-4">
-                    <div class="font-bold text-slate-800 mb-3 text-sm">📊 الملخص التنفيذي</div>
+                  <details class="bg-white border rounded-xl mb-4 overflow-hidden">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 list-none flex items-center justify-between">
+                      <span>الصورة الرقمية التفصيلية</span>
+                      <span class="text-[11px] text-slate-500 font-normal">افتحها عند الحاجة فقط</span>
+                    </summary>
+                    <div class="p-4">
                     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                       <div class="bg-indigo-50 rounded p-3 text-center">
                         <div class="text-2xl font-bold text-indigo-700" x-text="myWork.exec.objectives?.total || 0"></div>
@@ -4317,12 +4321,18 @@
                         · الحالة: <span x-text="myWork.exec.mgmtReview.status"></span>
                       </div>
                     </template>
-                  </div>
+                    </div>
+                  </details>
                 </template>
 
                 <!-- QUALITY block (quality manager + committee member) -->
                 <template x-if="myWork.viewMode==='QUALITY' && myWork.quality">
-                  <div class="bg-white border rounded-xl p-4 mb-4">
+                  <details class="bg-white border rounded-xl mb-4 overflow-hidden">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 list-none flex items-center justify-between">
+                      <span>لوحة الجودة التفصيلية</span>
+                      <span class="text-[11px] text-slate-500 font-normal">للمراجعة الأسبوعية والشهرية</span>
+                    </summary>
+                    <div class="p-4">
                     <div class="flex items-center justify-between mb-3">
                       <div class="font-bold text-rose-800 text-sm">🛡️ لوحة الجودة الشاملة</div>
                       <button @click="openQualityDashboard()"
@@ -4368,12 +4378,18 @@
                         <div class="text-xs text-gray-600">مهام متابعة متأخرة</div>
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </details>
                 </template>
 
                 <!-- DEPT block (department manager only) -->
                 <template x-if="myWork.viewMode==='DEPT' && myWork.dept">
-                  <div class="bg-white border rounded-xl p-4 mb-4">
+                  <details class="bg-white border rounded-xl mb-4 overflow-hidden">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 list-none flex items-center justify-between">
+                      <span>لوحة القسم التفصيلية</span>
+                      <span class="text-[11px] text-slate-500 font-normal">افتحها عند المراجعة مع الفريق</span>
+                    </summary>
+                    <div class="p-4">
                     <div class="flex items-center justify-between mb-3">
                       <div>
                         <div class="font-bold text-teal-800 text-sm">👥 قسم: <span x-text="myWork.dept.department?.name || '—'"></span></div>
@@ -4415,7 +4431,8 @@
                         </ul>
                       </div>
                     </template>
-                  </div>
+                    </div>
+                  </details>
                 </template>
 
                 <!-- Empty state -->
@@ -4429,7 +4446,7 @@
 
                 <div class="grid md:grid-cols-2 gap-4">
                   <!-- KPI -->
-                  <template x-if="myWork.kpi">
+                  <template x-if="myWork.kpi && myWork.kpi.pending > 0">
                     <div class="bg-white border rounded-xl overflow-hidden">
                       <div class="bg-violet-50 px-4 py-2 flex justify-between items-center">
                         <div class="font-bold text-violet-800">🎯 قراءات KPI المطلوبة</div>
@@ -4607,17 +4624,6 @@
                   </div>
                 </div>
 
-                <!-- Quick links -->
-                <div class="mt-4 bg-white border rounded-xl p-4">
-                  <div class="font-bold text-gray-700 text-sm mb-2">🚀 اختصارات سريعة</div>
-                  <div class="flex gap-2 flex-wrap">
-                    <button @click="goToResource('dashboard')" class="text-xs bg-gray-100 hover:bg-gray-200 rounded px-3 py-1.5">📊 لوحة المعلومات</button>
-                    <button @click="goToResource('dataHealth')" class="text-xs bg-gray-100 hover:bg-gray-200 rounded px-3 py-1.5">🩺 صحة البيانات</button>
-                    <button @click="goToResource('slaBoard')" class="text-xs bg-gray-100 hover:bg-gray-200 rounded px-3 py-1.5">⏱️ لوحة SLA</button>
-                    <button @click="goToResource('iso-readiness')" class="text-xs bg-gray-100 hover:bg-gray-200 rounded px-3 py-1.5">📋 جاهزية ISO</button>
-                    <button @click="goToResource('myAcknowledgments')" class="text-xs bg-gray-100 hover:bg-gray-200 rounded px-3 py-1.5">📑 إقراراتي</button>
-                  </div>
-                </div>
               </div>
             </template>
           </div>
