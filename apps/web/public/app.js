@@ -2209,6 +2209,38 @@ function app() {
       if (severity === 'warning') return '⚠';
       return 'ℹ';
     },
+    myWorkDecisionToneClass(severity) {
+      if (severity === 'critical') return 'bg-white border-slate-200 border-r-4 border-r-rose-500 text-slate-900';
+      if (severity === 'warning') return 'bg-white border-slate-200 border-r-4 border-r-amber-400 text-slate-900';
+      return 'bg-white border-slate-200 border-r-4 border-r-sky-400 text-slate-900';
+    },
+    myWorkSeverityLabel(severity) {
+      if (severity === 'critical') return 'عاجل';
+      if (severity === 'warning') return 'متابعة';
+      return 'معلومة';
+    },
+    myWorkDecisionLead() {
+      const items = this.myWorkDecisionItems(1);
+      if (items.length) return items[0];
+      return {
+        id: 'clear',
+        severity: 'info',
+        icon: '✓',
+        title: 'لا يوجد إجراء عاجل الآن',
+        reason: 'الوضع مستقر. اكتفِ بمراجعة القراءات الدورية والتنبيهات غير العاجلة.',
+        label: 'مراجعة اللوحة',
+        page: null,
+      };
+    },
+    myWorkComfortStats() {
+      const items = this.myWorkDecisionItems(50);
+      return {
+        urgent: items.filter(i => i.severity === 'critical').length,
+        follow: items.filter(i => i.severity === 'warning').length,
+        info: items.filter(i => i.severity === 'info').length,
+        total: this.myWork?.summary?.totalActions || 0,
+      };
+    },
     myWorkDecisionReason(alert = {}) {
       const type = String(alert.type || '');
       if (type.includes('kpi')) return 'قراءة مؤشر مطلوبة أو متأخرة؛ الإجراء يحافظ على صدق لوحة الأداء.';

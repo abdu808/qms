@@ -3901,33 +3901,60 @@
             <template x-if="myWork">
               <div>
                 <!-- Hero (role-aware) -->
-                <div x-show="!isGuided()" class="bg-gradient-to-l text-white rounded-xl p-6 mb-4 shadow"
-                     :class="{
-                       'from-indigo-700 via-indigo-600 to-violet-600': myWork.viewMode==='EMPLOYEE',
-                       'from-teal-700 via-teal-600 to-emerald-600':    myWork.viewMode==='DEPT',
-                       'from-rose-700 via-rose-600 to-orange-600':     myWork.viewMode==='QUALITY',
-                       'from-slate-800 via-slate-700 to-indigo-800':   myWork.viewMode==='EXEC'
-                     }">
+                <div x-show="!isGuided()" class="bg-white border border-slate-200 rounded-2xl p-5 mb-4 shadow-sm">
                   <div class="flex justify-between items-center flex-wrap gap-4">
                     <div>
-                      <div class="text-sm opacity-90">
-                        <span x-show="myWork.viewMode==='EMPLOYEE'">✅ مركز عملي اليومي</span>
-                        <span x-show="myWork.viewMode==='DEPT'">👥 لوحة مدير القسم</span>
-                        <span x-show="myWork.viewMode==='QUALITY'">🛡️ لوحة الجودة — الانحرافات والحالات الحرجة</span>
-                        <span x-show="myWork.viewMode==='EXEC'">📊 لوحة الإدارة العليا — الملخص التنفيذي</span>
+                      <div class="text-sm text-emerald-700 font-semibold">
+                        <span x-show="myWork.viewMode==='EMPLOYEE'">مركز عملي اليومي</span>
+                        <span x-show="myWork.viewMode==='DEPT'">لوحة مدير القسم</span>
+                        <span x-show="myWork.viewMode==='QUALITY'">لوحة الجودة والمتابعة</span>
+                        <span x-show="myWork.viewMode==='EXEC'">لوحة الإدارة العليا</span>
                       </div>
-                      <h2 class="text-2xl font-bold mt-1">
+                      <h2 class="text-2xl font-bold mt-1 text-slate-900">
                         <span x-show="myWork.viewMode==='EMPLOYEE'">مهامي اليوم</span>
-                        <span x-show="myWork.viewMode==='DEPT'">قسمي — المتأخرات وحالة الفريق</span>
-                        <span x-show="myWork.viewMode==='QUALITY'">الحالات التي تحتاج تدخّل الجودة</span>
+                        <span x-show="myWork.viewMode==='DEPT'">قسمي — قرارات ومتابعات واضحة</span>
+                        <span x-show="myWork.viewMode==='QUALITY'">ما يحتاج متابعة جودة بهدوء</span>
                         <span x-show="myWork.viewMode==='EXEC'">الملخص التنفيذي</span>
                       </h2>
-                      <div class="text-xs opacity-80 mt-1">كل ما يحتاج إجراءً في مكان واحد — مُخصَّص لدورك</div>
+                      <div class="text-xs text-slate-500 mt-1">ابدأ من القرار الأول، والباقي تفاصيل عند الحاجة.</div>
                     </div>
-                    <div class="text-center">
-                      <div class="text-5xl font-bold" x-text="myWork.summary.totalActions"></div>
-                      <div class="text-xs opacity-90">إجمالي المهام</div>
+                    <div class="grid grid-cols-4 gap-2 text-center text-xs min-w-[360px]">
+                      <div class="rounded-xl bg-slate-50 border px-3 py-2">
+                        <div class="text-lg font-bold text-slate-800" x-text="myWorkComfortStats().total"></div>
+                        <div class="text-slate-500">إجمالي</div>
+                      </div>
+                      <div class="rounded-xl bg-rose-50 border border-rose-100 px-3 py-2">
+                        <div class="text-lg font-bold text-rose-700" x-text="myWorkComfortStats().urgent"></div>
+                        <div class="text-rose-600">عاجل</div>
+                      </div>
+                      <div class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
+                        <div class="text-lg font-bold text-amber-700" x-text="myWorkComfortStats().follow"></div>
+                        <div class="text-amber-700">متابعة</div>
+                      </div>
+                      <div class="rounded-xl bg-sky-50 border border-sky-100 px-3 py-2">
+                        <div class="text-lg font-bold text-sky-700" x-text="myWorkComfortStats().info"></div>
+                        <div class="text-sky-700">معلومة</div>
+                      </div>
                     </div>
+                  </div>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-4 shadow-sm">
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0">
+                      <div class="text-[11px] font-bold text-emerald-700 mb-1">ابدأ من هنا</div>
+                      <div class="flex items-center gap-2">
+                        <span class="text-lg" x-text="myWorkDecisionLead().icon"></span>
+                        <h3 class="font-bold text-slate-900 truncate" x-text="myWorkDecisionLead().title"></h3>
+                        <span class="text-[10px] rounded-full bg-white border px-2 py-0.5 text-slate-600" x-text="myWorkSeverityLabel(myWorkDecisionLead().severity)"></span>
+                      </div>
+                      <p class="text-xs text-slate-600 mt-1" x-text="myWorkDecisionLead().reason"></p>
+                    </div>
+                    <button x-show="myWorkDecisionLead().page"
+                            @click="myWorkDecisionAction(myWorkDecisionLead())"
+                            class="shrink-0 text-xs bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg px-4 py-2 font-semibold">
+                      فتح الإجراء ←
+                    </button>
                   </div>
                 </div>
 
@@ -3973,16 +4000,13 @@
                     </div>
                     <div class="space-y-2">
                       <template x-for="item in myWorkDecisionItems()" :key="item.id || (item.title + item.page)">
-                        <div class="flex items-start justify-between gap-3 rounded-lg border px-3 py-2.5"
-                             :class="{
-                               'bg-red-50 border-red-100 text-red-900': item.severity==='critical',
-                               'bg-amber-50 border-amber-100 text-amber-900': item.severity==='warning',
-                               'bg-sky-50 border-sky-100 text-sky-900': item.severity==='info'
-                             }">
+                        <div class="flex items-start justify-between gap-3 rounded-xl border px-3 py-2.5 shadow-sm"
+                             :class="myWorkDecisionToneClass(item.severity)">
                           <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2 min-w-0">
                               <span class="text-base shrink-0" x-text="item.icon"></span>
                               <div class="text-sm font-semibold min-w-0 truncate" x-text="item.title"></div>
+                              <span class="text-[10px] bg-slate-50 border rounded-full px-2 py-0.5 shrink-0 text-slate-500" x-text="myWorkSeverityLabel(item.severity)"></span>
                               <span x-show="item.count" class="text-[10px] bg-white/80 border rounded-full px-2 py-0.5 shrink-0" x-text="item.count"></span>
                             </div>
                             <div class="text-[11px] opacity-75 mt-1 line-clamp-2" x-text="item.reason"></div>
@@ -4004,9 +4028,9 @@
                       <span class="text-xs rounded-full bg-slate-100 text-slate-700 px-2 py-0.5" x-text="myWorkFollowUpBuckets().total"></span>
                     </div>
                     <div class="space-y-2 text-xs">
-                      <div class="rounded-lg border p-2 bg-red-50 border-red-100 text-red-800">
+                      <div class="rounded-lg border p-2 bg-white border-slate-200 text-slate-700">
                         <b x-text="myWorkFollowUpBuckets().overdue.length"></b>
-                        <span> متأخرة تحتاج إغلاق أو تحديث</span>
+                        <span> متأخرة — ابدأ بالأقدم فقط</span>
                       </div>
                       <div class="rounded-lg border p-2 bg-slate-50 text-slate-700">
                         <b x-text="myWorkFollowUpBuckets().open.length"></b>
@@ -4017,26 +4041,32 @@
                   </div>
                 </div>
 
-                <!-- Alerts strip (actionable banners) -->
-                <div x-show="(myWork.alerts||[]).length" class="space-y-2 mb-4">
-                  <template x-for="a in (myWork.alerts||[])" :key="a.type">
-                    <div class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
-                         :class="{
-                           'bg-red-50 border-red-200 text-red-900':       a.severity==='critical',
-                           'bg-amber-50 border-amber-200 text-amber-900': a.severity==='warning',
-                           'bg-sky-50 border-sky-200 text-sky-900':       a.severity==='info'
-                         }">
-                      <div class="flex items-center gap-3 min-w-0">
-                        <span class="text-lg flex-shrink-0"
-                              x-text="a.severity==='critical' ? '⛔' : (a.severity==='warning' ? '⚠️' : 'ℹ️')"></span>
-                        <div class="font-medium text-sm truncate" x-text="a.title"></div>
+                <!-- Alerts details — مطوية لتقليل الضجيج البصري -->
+                <details x-show="(myWork.alerts||[]).length" class="bg-white border rounded-xl mb-4 overflow-hidden">
+                  <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-slate-700 bg-slate-50 hover:bg-slate-100">
+                    كل التنبيهات التفصيلية
+                    <span class="text-[11px] bg-white border rounded-full px-2 py-0.5 mr-2" x-text="(myWork.alerts||[]).length"></span>
+                  </summary>
+                  <div class="space-y-2 p-3">
+                    <template x-for="a in (myWork.alerts||[])" :key="a.type">
+                      <div class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 bg-white"
+                           :class="{
+                             'border-r-4 border-r-rose-500': a.severity==='critical',
+                             'border-r-4 border-r-amber-400': a.severity==='warning',
+                             'border-r-4 border-r-sky-400': a.severity==='info'
+                           }">
+                        <div class="flex items-center gap-3 min-w-0">
+                          <span class="text-base flex-shrink-0"
+                                x-text="a.severity==='critical' ? '⛔' : (a.severity==='warning' ? '⚠' : 'ℹ')"></span>
+                          <div class="font-medium text-sm truncate text-slate-800" x-text="a.title"></div>
+                        </div>
+                        <button @click="goToResource(a.action.page)"
+                                class="text-xs bg-white border hover:bg-gray-50 rounded px-3 py-1.5 font-medium whitespace-nowrap"
+                                x-text="(a.action?.label || 'فتح') + ' ←'"></button>
                       </div>
-                      <button @click="goToResource(a.action.page)"
-                              class="text-xs bg-white border hover:bg-gray-50 rounded px-3 py-1.5 font-medium whitespace-nowrap"
-                              x-text="(a.action?.label || 'فتح') + ' ←'"></button>
-                    </div>
-                  </template>
-                </div>
+                    </template>
+                  </div>
+                </details>
 
                 <!-- Pending Acks — إقرارات بانتظار توقيعك -->
                 <template x-if="(myWork.pendingAcks||[]).length">
