@@ -2182,6 +2182,7 @@ function app() {
         filter: alert.action?.filter || alert.action?.quick,
         count: Number(alert.count || 0),
         reason: this.myWorkDecisionReason(alert),
+        source: this.myWorkDecisionSource(alert),
         icon: this.myWorkDecisionIcon(alert.severity),
         label: alert.action?.label || 'فتح',
       }));
@@ -2192,6 +2193,7 @@ function app() {
         title: task.title || task.code || 'مهمة متابعة متأخرة',
         page: 'follow-up-tasks',
         reason: 'متابعة متأخرة تحتاج تحديث حالة أو إغلاق موثق.',
+        source: 'ظهرت لأنها مهمة متابعة تجاوزت موعدها أو بقيت مفتوحة ضمن نطاقك.',
         icon: '⏱',
         recordId: task.id,
         label: 'فتح المتابعة',
@@ -2228,9 +2230,33 @@ function app() {
         icon: '✓',
         title: 'لا يوجد إجراء عاجل الآن',
         reason: 'الوضع مستقر. اكتفِ بمراجعة القراءات الدورية والتنبيهات غير العاجلة.',
+        source: 'لا توجد تنبيهات أو متابعات عاجلة ضمن نطاق صلاحيتك.',
         label: 'مراجعة اللوحة',
         page: null,
       };
+    },
+    myWorkRolePageTitle() {
+      const mode = this.myWork?.viewMode || 'EMPLOYEE';
+      return ({
+        EMPLOYEE: 'مهامي اليوم',
+        DEPT: 'مركز متابعة القسم',
+        QUALITY: 'مركز متابعة الجودة',
+        EXEC: 'مركز القرار التنفيذي',
+      })[mode] || 'مهامي اليوم';
+    },
+    myWorkStatusText() {
+      const stats = this.myWorkComfortStats();
+      if (!stats.total) return 'وضعك اليوم مستقر، لا توجد إجراءات معلّقة.';
+      if (stats.urgent) return `لديك ${stats.urgent} إجراء عاجل. ابدأ بالأول فقط.`;
+      if (stats.follow) return `لديك ${stats.follow} متابعة. لا يوجد شيء حرج الآن.`;
+      return `لديك ${stats.info} تنبيه معلوماتي للمراجعة الهادئة.`;
+    },
+    myWorkStatusClass() {
+      const stats = this.myWorkComfortStats();
+      if (!stats.total) return 'bg-emerald-50 border-emerald-100 text-emerald-800';
+      if (stats.urgent) return 'bg-rose-50 border-rose-100 text-rose-800';
+      if (stats.follow) return 'bg-amber-50 border-amber-100 text-amber-800';
+      return 'bg-sky-50 border-sky-100 text-sky-800';
     },
     myWorkComfortStats() {
       const items = this.myWorkDecisionItems(50);
@@ -2240,6 +2266,15 @@ function app() {
         info: items.filter(i => i.severity === 'info').length,
         total: this.myWork?.summary?.totalActions || 0,
       };
+    },
+    myWorkPriorityCaption() {
+      const stats = this.myWorkComfortStats();
+      if (!stats.total) return 'لا توجد أولويات مفتوحة الآن.';
+      const parts = [];
+      if (stats.urgent) parts.push(`${stats.urgent} عاجل`);
+      if (stats.follow) parts.push(`${stats.follow} متابعة`);
+      if (stats.info) parts.push(`${stats.info} معلومة`);
+      return `مجمعة حسب الأهمية: ${parts.join('، ')}.`;
     },
     myWorkDecisionReason(alert = {}) {
       const type = String(alert.type || '');
@@ -2251,6 +2286,19 @@ function app() {
       if (type.includes('draft')) return 'مسودة غير مكتملة؛ إما استكمالها أو حذفها لتقليل الضجيج.';
       if (type.includes('ack')) return 'إقرار مطلوب حتى يكتمل أثر التعميم أو الوثيقة.';
       return 'تنبيه مهم ضمن نطاق دورك يحتاج إجراء واضح.';
+    },
+    myWorkDecisionSource(alert = {}) {
+      const type = String(alert.type || '');
+      const count = Number(alert.count || 0);
+      const suffix = count > 1 ? ` العدد الحالي: ${count}.` : '';
+      if (type.includes('kpi')) return `ظهرت لأنها قراءة مؤشر مطلوبة أو متأخرة في الفترة الحالية.${suffix}`;
+      if (type.includes('ncr')) return `ظهرت لأنها عدم مطابقة مرتبطة بك أو تنتظر قراراً ضمن صلاحيتك.${suffix}`;
+      if (type.includes('complaint')) return `ظهرت لأنها شكوى أو بلاغ لم يكتمل التعامل معه ضمن الزمن المطلوب.${suffix}`;
+      if (type.includes('beneficiary')) return `ظهرت لأنها ملفات مستفيدين تحتاج مراجعة بيانات أو أهلية.${suffix}`;
+      if (type.includes('workflow') || type.includes('approval')) return `ظهرت لأنها معاملة تنتظر مراجعة أو اعتماداً منك.${suffix}`;
+      if (type.includes('draft')) return `ظهرت لأنها مسودة لم تُرسل بعد وتحتاج قراراً منك.${suffix}`;
+      if (type.includes('ack')) return `ظهرت لأن لديك إقراراً لم يكتمل توقيعه بعد.${suffix}`;
+      return `ظهرت لأنها ضمن نطاق دورك أو صلاحيتك الحالية.${suffix}`;
     },
     myWorkRoleFocus() {
       const mode = this.myWork?.viewMode || 'EMPLOYEE';

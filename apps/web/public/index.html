@@ -3879,12 +3879,7 @@
                         <span>مركز القرار اليومي</span>
                         <span class="text-[10px] rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5" x-text="myWorkRoleFocus().title"></span>
                       </div>
-                      <h2 class="text-2xl font-bold mt-1 text-slate-900">
-                        <span x-show="myWork.viewMode==='EMPLOYEE'">مركز عملي اليومي</span>
-                        <span x-show="myWork.viewMode==='DEPT'">لوحة مدير القسم</span>
-                        <span x-show="myWork.viewMode==='QUALITY'">لوحة الجودة والمتابعة</span>
-                        <span x-show="myWork.viewMode==='EXEC'">لوحة الإدارة العليا</span>
-                      </h2>
+                      <h2 class="text-2xl font-bold mt-1 text-slate-900" x-text="myWorkRolePageTitle()"></h2>
                       <div class="text-xs text-slate-500 mt-1">القاعدة: عالج أول بطاقة، ثم انتقل لما بعدها. التفاصيل محفوظة لكنها ليست أمامك طوال الوقت.</div>
                     </div>
                     <div class="grid grid-cols-4 gap-2 text-center text-xs min-w-[320px]">
@@ -3906,6 +3901,9 @@
                       </div>
                     </div>
                   </div>
+                  <div class="mt-4 rounded-xl border px-4 py-3 text-sm font-semibold"
+                       :class="myWorkStatusClass()"
+                       x-text="myWorkStatusText()"></div>
                 </div>
 
                 <div class="bg-gradient-to-l from-emerald-50 to-white border border-emerald-100 rounded-2xl p-5 mb-4 shadow-sm">
@@ -3918,6 +3916,10 @@
                         <span class="text-[10px] rounded-full bg-white border px-2 py-0.5 text-slate-600" x-text="myWorkSeverityLabel(myWorkDecisionLead().severity)"></span>
                       </div>
                       <p class="text-xs text-slate-600 mt-1" x-text="myWorkDecisionLead().reason"></p>
+                      <p class="text-[11px] text-slate-500 mt-2">
+                        <span class="font-bold">سبب الظهور:</span>
+                        <span x-text="myWorkDecisionLead().source"></span>
+                      </p>
                     </div>
                     <button x-show="myWorkDecisionLead().page"
                             @click="myWorkDecisionAction(myWorkDecisionLead())"
@@ -3966,7 +3968,7 @@
                     <div class="flex items-center justify-between mb-3">
                       <div>
                         <div class="font-bold text-gray-800 text-sm">أولوية العمل الآن</div>
-                        <div class="text-[11px] text-gray-500">مختصر ما يحتاج قرار أو متابعة مباشرة</div>
+                        <div class="text-[11px] text-gray-500" x-text="myWorkPriorityCaption()"></div>
                       </div>
                       <button @click="loadMyWork()" class="text-xs border rounded-lg px-3 py-1 hover:bg-gray-50">تحديث</button>
                     </div>
@@ -3982,6 +3984,10 @@
                               <span x-show="item.count" class="text-[10px] bg-white/80 border rounded-full px-2 py-0.5 shrink-0" x-text="item.count"></span>
                             </div>
                             <div class="text-[11px] opacity-75 mt-1 line-clamp-2" x-text="item.reason"></div>
+                            <div class="text-[10px] text-slate-500 mt-1">
+                              <span class="font-bold">سبب الظهور:</span>
+                              <span x-text="item.source"></span>
+                            </div>
                           </div>
                           <button x-show="item.page" @click="myWorkDecisionAction(item)"
                                   class="text-xs bg-white border rounded-lg px-3 py-1 hover:bg-gray-50 whitespace-nowrap"
