@@ -1871,6 +1871,54 @@
                 </div>
               </div>
 
+              <div x-show="planMap" class="grid lg:grid-cols-2 gap-4">
+                <div class="bg-white rounded-2xl border shadow-sm p-5">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-800">قراءة المحاور</h3>
+                    <span class="text-xs text-gray-400">هل كل محور له تنفيذ وقياس؟</span>
+                  </div>
+                  <div class="grid sm:grid-cols-2 gap-2">
+                    <template x-for="axis in planMapAxisCards()" :key="axis.id">
+                      <div class="rounded-xl border p-3"
+                           :class="axis.status === 'OK' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'">
+                        <div class="font-bold text-sm text-gray-800" x-text="axis.nameAr"></div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                          <div class="bg-white/70 rounded-lg p-2 border"><b x-text="axis.goals"></b><div>أهداف</div></div>
+                          <div class="bg-white/70 rounded-lg p-2 border"><b x-text="axis.indicators"></b><div>مؤشرات</div></div>
+                          <div class="bg-white/70 rounded-lg p-2 border"><b x-text="axis.activities"></b><div>أنشطة</div></div>
+                        </div>
+                        <div class="mt-2 text-xs font-semibold"
+                             :class="axis.status === 'OK' ? 'text-emerald-700' : 'text-amber-700'"
+                             x-text="axis.status === 'OK' ? 'مقبول للمتابعة' : ('يحتاج انتباه: ' + axis.blockingIssues + ' ملاحظة')"></div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border shadow-sm p-5">
+                  <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-gray-800">قرارات الشهر</h3>
+                    <span class="text-xs text-gray-400">مختصر تنفيذي بدل قراءة كل الجداول</span>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="item in planMapDecisionItems()" :key="item.title + item.text + item.ref">
+                      <div class="border rounded-xl px-3 py-2 text-sm" :class="planIssueClass(item.severity)">
+                        <div class="flex items-start justify-between gap-2">
+                          <div>
+                            <div class="font-bold" x-text="item.title"></div>
+                            <div class="text-xs opacity-90 mt-1" x-text="item.text"></div>
+                          </div>
+                          <span class="text-[10px] font-mono opacity-70" x-show="item.ref" x-text="item.ref"></span>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="!planMapDecisionItems().length" class="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                      لا يوجد قرار حاكم ظاهر الآن.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div x-show="planMap?.acceptanceCriteria?.length" class="bg-white rounded-2xl border shadow-sm p-5">
                 <h3 class="font-bold text-gray-800 mb-3">معايير قبول الخطة</h3>
                 <div class="grid md:grid-cols-2 gap-2">
@@ -2040,6 +2088,8 @@
                       </template>
                     </dl>
                     <div class="flex flex-wrap gap-2 pt-2 mt-2 border-t text-xs">
+                      <button x-show="page==='swot' && !item.deletedAt && !item.relatedRiskId && ['WEAKNESS','THREAT','OPPORTUNITY'].includes(String(item.type||'').toUpperCase()) && canCreate('risks')" @click="swotCreateRisk(item)" class="text-amber-700 hover:underline">تحويل لخطر/فرصة</button>
+                      <button x-show="page==='swot' && !item.deletedAt && canCreate('follow-up-tasks')" @click="swotCreateFollowUp(item)" class="text-emerald-700 hover:underline">مهمة متابعة</button>
                       <button x-show="canEdit(currentResource) && !item.deletedAt" @click="openEdit(item)" class="text-blue-600 hover:underline">✏️ تعديل</button>
                       <button x-show="canDelete(currentResource) && !item.deletedAt" @click="remove(item.id)" class="text-red-600 hover:underline">🗑️ حذف</button>
                       <button x-show="item.deletedAt && canDelete(currentResource)" @click="restoreItem(item)" class="text-green-600 hover:underline">♻️ استعادة</button>
@@ -2083,6 +2133,14 @@
                                 :class="'inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ml-2 ' + workflowStateClass(item.workflowState)"
                                 x-text="workflowStateLabel(item.workflowState)"
                                 :title="item.rejectionReason ? ('سبب الرفض: ' + item.rejectionReason) : ''"></span>
+                          <button x-show="page==='swot' && !item.deletedAt && !item.relatedRiskId && ['WEAKNESS','THREAT','OPPORTUNITY'].includes(String(item.type||'').toUpperCase()) && canCreate('risks')"
+                                  @click="swotCreateRisk(item)"
+                                  class="text-amber-700 hover:underline text-xs ml-2"
+                                  title="ينشئ سجل خطر/فرصة مرتبط بهذا البند">تحويل لخطر/فرصة</button>
+                          <button x-show="page==='swot' && !item.deletedAt && canCreate('follow-up-tasks')"
+                                  @click="swotCreateFollowUp(item)"
+                                  class="text-emerald-700 hover:underline text-xs ml-2"
+                                  title="يفتح مهمة متابعة قابلة للإسناد">مهمة متابعة</button>
                           <!-- Workflow actions (only visible when applicable) -->
                           <button x-show="canWorkflow(item, 'submit',  currentResource)" @click="doWorkflow(item, 'submit',  currentResource)" class="text-blue-600 hover:underline text-xs ml-2">📤 إرسال</button>
                           <button x-show="canWorkflow(item, 'review',  currentResource)" @click="doWorkflow(item, 'review',  currentResource)" class="text-yellow-700 hover:underline text-xs ml-2">🔍 استلام للمراجعة</button>
@@ -3863,6 +3921,54 @@
                     </div>
                   </div>
                 </template>
+
+                <div class="grid lg:grid-cols-3 gap-3 mb-4">
+                  <div class="lg:col-span-2 bg-white border rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <div>
+                        <div class="font-bold text-gray-800 text-sm">أولوية العمل الآن</div>
+                        <div class="text-[11px] text-gray-500">مختصر ما يحتاج قرار أو متابعة مباشرة</div>
+                      </div>
+                      <button @click="loadMyWork()" class="text-xs border rounded-lg px-3 py-1 hover:bg-gray-50">تحديث</button>
+                    </div>
+                    <div class="space-y-2">
+                      <template x-for="item in myWorkDecisionItems()" :key="item.title + item.page">
+                        <div class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                             :class="{
+                               'bg-red-50 border-red-100 text-red-900': item.severity==='critical',
+                               'bg-amber-50 border-amber-100 text-amber-900': item.severity==='warning',
+                               'bg-sky-50 border-sky-100 text-sky-900': item.severity==='info'
+                             }">
+                          <div class="text-sm font-semibold min-w-0 truncate" x-text="item.title"></div>
+                          <button x-show="item.page" @click="goToResource(item.page)"
+                                  class="text-xs bg-white border rounded-lg px-3 py-1 hover:bg-gray-50 whitespace-nowrap"
+                                  x-text="item.label + ' ←'"></button>
+                        </div>
+                      </template>
+                      <div x-show="!myWorkDecisionItems().length" class="rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-800 px-3 py-2 text-sm">
+                        لا يوجد إجراء عاجل الآن. ركّز على إدخال القراءات الدورية فقط.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="bg-white border rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="font-bold text-gray-800 text-sm">متابعات مفتوحة</div>
+                      <span class="text-xs rounded-full bg-slate-100 text-slate-700 px-2 py-0.5" x-text="myWorkFollowUpBuckets().total"></span>
+                    </div>
+                    <div class="space-y-2 text-xs">
+                      <div class="rounded-lg border p-2 bg-red-50 border-red-100 text-red-800">
+                        <b x-text="myWorkFollowUpBuckets().overdue.length"></b>
+                        <span> متأخرة تحتاج إغلاق أو تحديث</span>
+                      </div>
+                      <div class="rounded-lg border p-2 bg-slate-50 text-slate-700">
+                        <b x-text="myWorkFollowUpBuckets().open.length"></b>
+                        <span> مهمة مفتوحة ضمن نطاقك</span>
+                      </div>
+                      <button @click="goToResource('follow-up-tasks')" class="w-full border rounded-lg py-2 hover:bg-gray-50 text-gray-700 font-semibold">فتح سجل المتابعة</button>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- Alerts strip (actionable banners) -->
                 <div x-show="(myWork.alerts||[]).length" class="space-y-2 mb-4">

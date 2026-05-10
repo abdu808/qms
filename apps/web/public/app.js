@@ -1372,6 +1372,66 @@ function app() {
       return { ERROR: 'مشكلة', WARNING: 'تنبيه', INFO: 'معلومة' }[severity] || severity;
     },
 
+    planMapAxisCards() {
+      const axes = this.planMap?.axes || [];
+      const goals = this.planMap?.goals || [];
+      return axes.map(axis => {
+        const axisGoals = goals.filter(goal => goal.axis?.id === axis.id);
+        const indicators = axisGoals.reduce((sum, goal) =>
+          sum + (goal.indicators?.length || 0) + (goal.supportingAxisIndicators?.length || 0), 0);
+        const activities = axisGoals.reduce((sum, goal) => sum + (goal.activities?.length || 0), 0);
+        const blockingIssues = axisGoals.reduce((sum, goal) =>
+          sum + (goal.issues || []).filter(issue => issue.severity !== 'INFO').length, 0);
+        return {
+          ...axis,
+          goals: axisGoals.length,
+          indicators,
+          activities,
+          blockingIssues,
+          status: blockingIssues ? 'NEEDS_ATTENTION' : 'OK',
+        };
+      });
+    },
+    planMapDecisionItems(limit = 6) {
+      const rank = { ERROR: 0, WARNING: 1, INFO: 2 };
+      const nextActions = (this.planMap?.nextActions || []).map(item => ({
+        severity: item.severity || 'WARNING',
+        title: item.label || 'إجراء مطلوب',
+        text: item.recommendation || '',
+        ref: item.id || '',
+      }));
+      const issues = (this.planMap?.issues || []).map(item => ({
+        severity: item.severity || 'INFO',
+        title: item.area || 'ملاحظة',
+        text: item.message || '',
+        ref: item.ref || '',
+      }));
+      return [...nextActions, ...issues]
+        .filter(item => item.text || item.title)
+        .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
+        .slice(0, limit);
+    },
+    async swotCreateRisk(item) {
+      if (!item?.id) return;
+      try {
+        const risk = await this.api('POST', `/swot/${item.id}/create-risk`, {});
+        this.toast?.(`تم تحويل بند SWOT إلى سجل مخاطر/فرصة ${risk?.code || ''}`, 'success');
+        await this.loadList?.(this.pageNo || 1);
+      } catch (e) {
+        this.toast?.(e.message || 'تعذر تحويل بند SWOT إلى خطر/فرصة', 'error');
+      }
+    },
+    async swotCreateFollowUp(item) {
+      if (!item?.id) return;
+      try {
+        const task = await this.api('POST', `/swot/${item.id}/create-follow-up`, {});
+        this.toast?.(`تم إنشاء مهمة متابعة ${task?.code || ''}`, 'success');
+        await this.loadList?.(this.pageNo || 1);
+      } catch (e) {
+        this.toast?.(e.message || 'تعذر إنشاء مهمة متابعة من SWOT', 'error');
+      }
+    },
+
     async loadDataHealth() {
       try {
         const r = await this.api('GET', '/data-health');
@@ -2053,6 +2113,34 @@ function app() {
     // ─── Inbox mode — استُخرجت إلى modules/inbox.js ──
     // (_inboxBusy, inboxBusy, _inboxCall, inboxSubmit, inboxReview,
     //  inboxApprove, inboxReject, canInbox) — تُدمج عبر ...window.QmsInbox
+    myWorkDecisionItems(limit = 5) {
+      const rank = { critical: 0, warning: 1, info: 2 };
+      const alerts = (this.myWork?.alerts || []).map(alert => ({
+        severity: alert.severity || 'info',
+        title: alert.title || 'تنبيه',
+        page: alert.action?.page,
+        label: alert.action?.label || 'فتح',
+      }));
+      const followUps = this.myWork?.myFollowUpTasks || {};
+      const overdue = (followUps.overdue || []).map(task => ({
+        severity: 'critical',
+        title: task.title || task.code || 'مهمة متابعة متأخرة',
+        page: 'follow-up-tasks',
+        label: 'فتح المتابعة',
+      }));
+      return [...overdue, ...alerts]
+        .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
+        .slice(0, limit);
+    },
+    myWorkFollowUpBuckets() {
+      const tasks = this.myWork?.myFollowUpTasks || {};
+      return {
+        overdue: tasks.overdue || [],
+        open: tasks.open || [],
+        total: tasks.total || 0,
+      };
+    },
+
     async goToResource(page, id, options = {}) {
       const target = this.normalizePageId(page);
       const quick = this.normalizeLinkFilter(target, options.filter || options.quick || options?.params?.filter || options?.params?.quick);
