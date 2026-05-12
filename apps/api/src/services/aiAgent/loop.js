@@ -17,6 +17,7 @@
  */
 import { aiComplete } from '../../lib/ai/index.js';
 import { getToolsForRole, READ_ONLY_TOOLS, ALWAYS_REVIEW_TOOLS, executeTool } from './tools.js';
+import { selectToolsForRequest } from './toolSelector.js';
 
 const MAX_ITERATIONS          = 5;   // وضع اقتصادي: يمنع المحادثة الواحدة من التحول إلى جلسة طويلة مكلفة
 const MAX_TOOL_CALLS_PER_ITER = 8;   // يكفي للتشخيص والتنفيذ المرحلي، ويمنع انفجار نتائج الأدوات
@@ -69,8 +70,18 @@ export async function runAgentLoop({
   const isReview     = mode === 'review';
   const isSuperAdmin = callerRole === 'SUPER_ADMIN';
   const canAutoWrite = WRITE_ROLES.has(callerRole); // هل يستطيع الكتابة المباشرة؟
-  // SUPER_ADMIN يرى جميع الأدوات بما فيها الحذف — غيره يرى الأدوات التشغيلية فقط
-  const toolsForRole = getToolsForRole(callerRole);
+  // SUPER_ADMIN can access the full role tool set, then the selector narrows it
+  // to the request intent. This avoids sending dozens of irrelevant tool schemas
+  // with every AI call.
+  const allToolsForRole = getToolsForRole(callerRole);
+  const toolRouting = selectToolsForRequest({
+    tools: allToolsForRole,
+    messages,
+    callerRole,
+    routingTier,
+    mode,
+  });
+  const toolsForRole = toolRouting.tools;
   const history  = buildHistory(messages);
 
   let finalReply     = '';
@@ -104,6 +115,14 @@ export async function runAgentLoop({
       userId: callerUserId,
       provider,
       model,
+      metadata: {
+        routingTier,
+        mode,
+        toolIntent: toolRouting.intent,
+        toolsOffered: toolRouting.selectedToolCount,
+        toolsAvailable: toolRouting.originalToolCount,
+        toolNames: toolRouting.selectedToolNames,
+      },
     });
 
     usageTotals.inputTokens     += result.usage?.inputTokens     || 0;
@@ -258,6 +277,12 @@ export async function runAgentLoop({
     model:    usedModel,
     routingTier,
     mode,
+    toolRouting: {
+      intent: toolRouting.intent,
+      toolsOffered: toolRouting.selectedToolCount,
+      toolsAvailable: toolRouting.originalToolCount,
+      selectedToolNames: toolRouting.selectedToolNames,
+    },
     lastLogId,
   };
 }

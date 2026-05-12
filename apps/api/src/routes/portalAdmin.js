@@ -16,7 +16,7 @@
  * GET    /api/portal/surveys           — الاستبيانات مع toggle isPublic
  * PATCH  /api/portal/surveys/:id/visibility    — تفعيل/إيقاف isPublic
  *
- * الصلاحيات: SUPER_ADMIN + QUALITY_MANAGER فقط
+ * الصلاحيات: SUPER_ADMIN فقط
  */
 import { Router } from 'express';
 import { prisma } from '../db.js';
@@ -32,7 +32,7 @@ const validateUpdate   = runSchema(announcementUpdateSchema);
 const validateSettings = runSchema(portalSettingsSchema);
 
 const router = Router();
-const ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
+const ROLES = ['SUPER_ADMIN'];
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 

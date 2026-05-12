@@ -21,6 +21,8 @@ import {
 } from '../lib/ai/index.js';
 import { FEATURE_CATALOG, setFeatureModels } from '../lib/ai/settings.js';
 import { listTaskPrompts } from '../lib/ai/taskPrompts.js';
+import { listAiGovernancePolicies } from '../lib/ai/governance.js';
+import { listKnowledgeEntries } from '../lib/ai/knowledgeRouter.js';
 import { rateUsage, getUsageByFeature } from '../lib/ai/usage.js';
 import { maskKey, isMasked } from '../lib/ai/crypto.js';
 import { prisma } from '../db.js';
@@ -33,6 +35,45 @@ const USER_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
 const VALID_PROVIDERS = ['anthropic', 'openai', 'google'];
 const VALID_DEFAULT_PROVIDERS = ['anthropic'];
 const VALID_REDACTION = ['always', 'never', 'optional'];
+
+router.get('/governance', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
+  res.json({ ok: true, policies: listAiGovernancePolicies() });
+}));
+
+router.get('/knowledge', authorize(...USER_ROLES), asyncHandler(async (_req, res) => {
+  const custom = await prisma.setting.findUnique({ where: { key: 'ai_knowledge_entries' } })
+    .then(r => r?.value ? JSON.parse(r.value) : [])
+    .catch(() => []);
+  res.json({
+    ok: true,
+    builtin: listKnowledgeEntries(),
+    custom: Array.isArray(custom) ? custom : [],
+  });
+}));
+
+router.put('/knowledge', authorize(...ADMIN_ROLES), asyncHandler(async (req, res) => {
+  const entries = Array.isArray(req.body?.entries) ? req.body.entries : null;
+  if (!entries) throw BadRequest('entries must be an array');
+  if (entries.length > 100) throw BadRequest('الحد الأقصى 100 عنصر معرفة مخصص');
+
+  const safe = entries.map((e, idx) => ({
+    id: String(e.id || `kb-${Date.now()}-${idx}`).slice(0, 80),
+    title: String(e.title || '').trim().slice(0, 120),
+    keywords: Array.isArray(e.keywords)
+      ? e.keywords.map(k => String(k).trim()).filter(Boolean).slice(0, 12)
+      : [],
+    answer: String(e.answer || '').trim().slice(0, 2000),
+    enabled: e.enabled !== false,
+  })).filter(e => e.title && e.answer && e.keywords.length);
+
+  await prisma.setting.upsert({
+    where: { key: 'ai_knowledge_entries' },
+    create: { key: 'ai_knowledge_entries', value: JSON.stringify(safe) },
+    update: { value: JSON.stringify(safe) },
+  });
+
+  res.json({ ok: true, entries: safe });
+}));
 
 /**
  * GET /api/ai-settings — قراءة الإعدادات (مُخفَّاة)

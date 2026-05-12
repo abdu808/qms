@@ -20,6 +20,18 @@ import { BadRequest }    from '../utils/errors.js';
 import { isAllowedFileKind } from '../lib/fileSignatures.js';
 import { buildContext, chat, applyActions, getAiAgentUserIdInternal } from '../services/consultantAgent.js';
 import { applyPendingActions } from '../services/aiAgent/loop.js';
+import { aiComplete } from '../lib/ai/index.js';
+import {
+  getAiChatRoles,
+  getAiContextRoles,
+  getAiUploadRoles,
+  sanitizeMessagesForPolicy,
+  validateMessagesForPolicy,
+  resolveGovernedAiRequest,
+} from '../lib/ai/governance.js';
+import { routeKnowledgeQuestionWithEntries } from '../lib/ai/knowledgeRouter.js';
+import { logUsage } from '../lib/ai/usage.js';
+import { prisma } from '../db.js';
 import { processOperationalPlan } from '../services/aiAgent/fileProcessor.js';
 import { extractText, SUPPORTED_EXTENSIONS } from '../../scripts/ingest/extractors.mjs';
 import { analyzeFile }   from '../../scripts/ingest/analyzer.mjs';
@@ -28,9 +40,22 @@ import rateLimit from 'express-rate-limit';
 
 const router = Router();
 // DEPT_MANAGER مسموح له بالقراءة والاقتراح فقط (review mode إجباري)
-const ROLES      = ['SUPER_ADMIN', 'QUALITY_MANAGER', 'DEPT_MANAGER'];
+const ROLES         = getAiChatRoles();
+const CONTEXT_ROLES = getAiContextRoles();
+const UPLOAD_ROLES  = getAiUploadRoles();
 // الأدوار التي تستطيع تنفيذ الكتابة مباشرةً (auto mode)
 const WRITE_ROLES = ['SUPER_ADMIN', 'QUALITY_MANAGER'];
+
+async function loadCustomKnowledgeEntries() {
+  try {
+    const row = await prisma.setting.findUnique({ where: { key: 'ai_knowledge_entries' } });
+    if (!row?.value) return [];
+    const parsed = JSON.parse(row.value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 // ــ Rate limiting على المستخدم (10 طلبات/دقيقة) — يمنع استنزاف الميزانية ─────────────
 const chatRateLimiter = rateLimit({
@@ -60,7 +85,7 @@ const upload = multer({
 });
 
 // ── GET /context ──────────────────────────────────────────────────────────────
-router.get('/context', authorize(...ROLES), asyncHandler(async (req, res) => {
+router.get('/context', authorize(...CONTEXT_ROLES), asyncHandler(async (req, res) => {
   // SECURITY: نمرّر دور المتصل ليُحجَب عنه users/departments إن لم يكن QM+/MANAGER+
   const ctx = await buildContext({ compact: false, callerRole: req.user?.role });
   res.json({ ok: true, context: ctx });
@@ -69,6 +94,10 @@ router.get('/context', authorize(...ROLES), asyncHandler(async (req, res) => {
 // ــ POST /chat ─────────────────────────────────────────────────────────────────────
 router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (req, res) => {
   const { messages, mode: requestedMode = 'auto', model: modelOverride, provider: providerOverride } = req.body || {};
+  const callerUserId = req.user?.sub || req.user?.id;
+  const callerRole   = req.user?.role;
+  const governed     = resolveGovernedAiRequest({ role: callerRole, requestedMode, modelOverride, providerOverride });
+  const { policy }   = governed;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     throw BadRequest('messages: مصفوفة غير فارغة مطلوبة');
@@ -84,9 +113,14 @@ router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (r
     if (m.content.length > 100_000) throw BadRequest('رسالة طويلة جداً (الحد 100,000 حرف)');
   }
 
-  const callerUserId = req.user?.sub || req.user?.id;
-  const callerRole   = req.user?.role;
-  const mode         = WRITE_ROLES.includes(callerRole) ? requestedMode : 'review';
+  validateMessagesForPolicy(messages, policy);
+  const governedMessages = sanitizeMessagesForPolicy(messages, policy);
+  const customKnowledgeEntries = await loadCustomKnowledgeEntries();
+  const knowledgeRoute = routeKnowledgeQuestionWithEntries(governedMessages, customKnowledgeEntries);
+
+  const mode = WRITE_ROLES.includes(callerRole)
+    ? governed.mode
+    : (policy.forceMode === 'explain' ? 'explain' : 'review');
 
   // ── SSE Streaming — يمنع Cloudflare من قطع الاتصال عند 100 ثانية ────────
   // نُرسل نبضات keep-alive كل 15 ثانية أثناء معالجة الطلب الطويل.
@@ -110,10 +144,73 @@ router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (r
     const onProgress = (event) => {
       if (!res.writableEnded) sseWrite('progress', event);
     };
+    if (knowledgeRoute.handled) {
+      const estimatedSavedTokens = knowledgeRoute.source === 'local_greeting' ? 250 : 650;
+      const logId = await logUsage({
+        provider: 'local',
+        model: 'knowledge-router',
+        feature: knowledgeRoute.source === 'local_greeting' ? 'local_greeting' : 'knowledge_router',
+        inputTokens: 0,
+        outputTokens: 0,
+        costUSD: 0,
+        durationMs: 0,
+        userId: callerUserId,
+        success: true,
+        metadata: { source: knowledgeRoute.source, estimatedSavedTokens },
+      });
+      clearInterval(pingTimer);
+      sseWrite('result', {
+        ok: true,
+        reply: knowledgeRoute.reply,
+        toolsUsed: [],
+        iterations: 0,
+        hitIterationLimit: false,
+        usage: { inputTokens: 0, outputTokens: 0, costUSD: 0 },
+        provider: 'local',
+        model: 'knowledge-router',
+        routingTier: knowledgeRoute.source,
+        logId,
+        context: { source: knowledgeRoute.source, title: knowledgeRoute.title || null, estimatedSavedTokens },
+      });
+      return;
+    }
+    if (mode === 'explain') {
+      const r = await aiComplete({
+        system: [
+          'أنت مساعد موظف داخل نظام الجودة لجمعية البر بصبيا.',
+          'دورك شرح الخطوات، توضيح معنى المؤشرات والتنبيهات، ومساعدة الموظف على كتابة ملاحظة أو تجهيز قراءة KPI.',
+          'لا تطلب بيانات سرية، ولا تقرأ بيانات الأقسام الأخرى، ولا تقترح تعديل الخطة أو إنشاء سجلات رسمية.',
+          'أجب باختصار عملي وبخطوات قليلة عند الحاجة.',
+        ].join('\n'),
+        messages: governedMessages,
+        feature: 'employee_helper',
+        userId: callerUserId,
+        maxTokens: policy.maxTokens,
+      });
+      clearInterval(pingTimer);
+      sseWrite('result', {
+        ok: true,
+        reply: r.content,
+        toolsUsed: [],
+        iterations: 0,
+        hitIterationLimit: false,
+        usage: r.usage,
+        provider: r.provider,
+        model: r.model,
+        routingTier: 'EMPLOYEE_HELPER',
+        logId: r.logId || null,
+        context: { policy: { scope: policy.scope, maxTokens: policy.maxTokens } },
+      });
+      return;
+    }
     const out = await chat({
-      messages, callerUserId, callerRole,
+      messages: governedMessages, callerUserId, callerRole,
       callerUser: req.user, // ⚠️ مصدر الحقيقة لفحص الصلاحيات في AI tools
-      mode, modelOverride, providerOverride, onProgress,
+      mode,
+      modelOverride: governed.modelOverride,
+      providerOverride: governed.providerOverride,
+      maxTokens: policy.maxTokens,
+      onProgress,
     });
     clearInterval(pingTimer);
     sseWrite('result', { ok: true, ...out });
@@ -130,7 +227,7 @@ router.post('/chat', authorize(...ROLES), chatRateLimiter, asyncHandler(async (r
 }));
 
 // ── POST /apply-pending ───────────────────────────────────────────────────────
-router.post('/apply-pending', authorize(...ROLES), asyncHandler(async (req, res) => {
+router.post('/apply-pending', authorize(...CONTEXT_ROLES), asyncHandler(async (req, res) => {
   const { pendingActions } = req.body || {};
 
   if (!Array.isArray(pendingActions) || pendingActions.length === 0) {
@@ -163,7 +260,7 @@ router.post('/apply-pending', authorize(...ROLES), asyncHandler(async (req, res)
 
 // ── POST /upload ──────────────────────────────────────────────────────────────
 // يستقبل حتى 10 ملفات، يعالجها بالتوازي، ويُنشئ السجلات المناسبة
-router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHandler(async (req, res) => {
+router.post('/upload', authorize(...UPLOAD_ROLES), upload.array('files', 10), asyncHandler(async (req, res) => {
   const files = req.files || [];
   if (!files.length) throw BadRequest('لم تُرفق ملفات — أرسل الملفات كـ multipart/form-data في حقل "files"');
 
@@ -299,7 +396,7 @@ router.post('/upload', authorize(...ROLES), upload.array('files', 10), asyncHand
 }));
 
 // ── POST /apply (legacy) ──────────────────────────────────────────────────────
-router.post('/apply', authorize(...ROLES), asyncHandler(async (req, res) => {
+router.post('/apply', authorize(...CONTEXT_ROLES), asyncHandler(async (req, res) => {
   const { actions } = req.body || {};
   if (!Array.isArray(actions) || actions.length === 0) {
     throw BadRequest('actions: مصفوفة غير فارغة مطلوبة');

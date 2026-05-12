@@ -180,6 +180,27 @@ export async function getUsageSummary() {
     });
   } catch { /* silent */ }
 
+  let localSavings = { requests: 0, estimatedTokensSaved: 0 };
+  try {
+    const rows = await prisma.aiUsageLog.findMany({
+      where: {
+        createdAt: { gte: from },
+        provider: 'local',
+        success: true,
+      },
+      select: { metadata: true },
+    });
+    localSavings.requests = rows.length;
+    localSavings.estimatedTokensSaved = rows.reduce((sum, r) => {
+      try {
+        const meta = r.metadata ? JSON.parse(r.metadata) : {};
+        return sum + Math.max(0, Number(meta.estimatedSavedTokens || 0));
+      } catch {
+        return sum;
+      }
+    }, 0);
+  } catch { /* silent */ }
+
   return {
     monthly,
     byFeature: byFeature.map(r => ({
@@ -193,5 +214,6 @@ export async function getUsageSummary() {
       requests: Number(r._count._all || 0),
     })),
     recent,
+    localSavings,
   };
 }

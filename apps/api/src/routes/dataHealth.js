@@ -376,7 +376,7 @@ const detectors = {
 };
 
 // ─── المسارات ────────────────────────────────────────────────
-router.get('/', requireAction('alerts', 'read'), asyncHandler(async (req, res) => {
+router.get('/', requireAction('data-health', 'read'), asyncHandler(async (req, res) => {
   const results = await Promise.all(Object.values(detectors).map(fn => fn().catch(err => ({
     key: 'error', title: 'فحص فشل', severity: 'INFO', count: 0, items: [], error: err.message,
   }))));
@@ -401,7 +401,7 @@ router.get('/', requireAction('alerts', 'read'), asyncHandler(async (req, res) =
   });
 }));
 
-router.get('/:check', requireAction('alerts', 'read'), asyncHandler(async (req, res) => {
+router.get('/:check', requireAction('data-health', 'read'), asyncHandler(async (req, res) => {
   const fn = detectors[req.params.check];
   if (!fn) throw NotFound('فحص غير معروف');
   const result = await fn();

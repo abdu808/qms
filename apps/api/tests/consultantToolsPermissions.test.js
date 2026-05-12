@@ -101,7 +101,7 @@ describe('gateToolForCaller', () => {
     });
   });
 
-  // get_system_state → MANAGER_UP (dashboard:read)
+  // get_system_state → MANAGER_UP (system-state:read)
   describe('get_system_state — MANAGER_UP فأعلى', () => {
     it('EMPLOYEE يُرفض', () => {
       expect(() => gateToolForCaller(user('EMPLOYEE'), 'get_system_state'))
@@ -187,8 +187,8 @@ describe('TOOL_PERMISSIONS mappings', () => {
     expect(TOOL_PERMISSIONS.update_initiative).toEqual({ resource: 'initiatives', action: 'update' });
   });
 
-  it('get_system_state → dashboard:read', () => {
-    expect(TOOL_PERMISSIONS.get_system_state).toEqual({ resource: 'dashboard', action: 'read' });
+  it('get_system_state → system-state:read', () => {
+    expect(TOOL_PERMISSIONS.get_system_state).toEqual({ resource: 'system-state', action: 'read' });
   });
 });
 

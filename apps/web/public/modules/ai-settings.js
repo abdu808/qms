@@ -17,7 +17,7 @@
   window.QmsAiSettings = {
     aiCfg: {
       open: false,
-      tab: 'general', // general | keys | usage | playground
+      tab: 'general', // general | keys | features | usage | governance | knowledge | playground
 
       // General settings
       enabled: false,
@@ -67,6 +67,19 @@
         loading: false,
       },
 
+      governance: {
+        policies: [],
+        loading: false,
+      },
+
+      knowledge: {
+        builtin: [],
+        custom: [],
+        loading: false,
+        saving: false,
+        draft: { id: '', title: '', keywordsText: '', answer: '', enabled: true },
+      },
+
       // Playground
       playground: {
         prompt: '',
@@ -87,8 +100,30 @@
       c.testResult = { anthropic: null, openai: null, google: null };
       c.newKeys = { anthropic: '', openai: '', google: '' };
       c.tab = 'general';
-      await Promise.all([this.loadAiSettings(), this.loadAiModels(), this.loadAiUsage(), this.loadFeatureModels()]);
+      await Promise.all([
+        this.loadAiSettings(),
+        this.loadAiModels(),
+        this.loadAiUsage(),
+        this.loadFeatureModels(),
+        this.loadAiGovernance(),
+        this.loadAiKnowledge(),
+      ]);
       // جلب الموديلات الحية بعد تحميل الإعدادات (لمعرفة من لديه مفاتيح)
+      this.fetchAllLiveModels();
+    },
+
+    async loadAiControlCenter() {
+      const c = this.aiCfg;
+      c.open = false;
+      c.error = '';
+      await Promise.all([
+        this.loadAiSettings(),
+        this.loadAiModels(),
+        this.loadAiUsage(),
+        this.loadFeatureModels(),
+        this.loadAiGovernance(),
+        this.loadAiKnowledge(),
+      ]);
       this.fetchAllLiveModels();
     },
 
@@ -178,6 +213,40 @@
         const r = await this.api('GET', '/ai-settings/usage');
         this.aiCfg.usage = r.item;
       } catch (e) { /* silent */ }
+    },
+
+    async loadAiGovernance() {
+      const c = this.aiCfg.governance;
+      c.loading = true;
+      try {
+        const r = await this.api('GET', '/ai-settings/governance');
+        c.policies = r.policies || [];
+      } catch (e) {
+        c.policies = [];
+      } finally {
+        c.loading = false;
+      }
+    },
+
+    async loadAiKnowledge() {
+      const c = this.aiCfg.knowledge;
+      c.loading = true;
+      try {
+        const r = await this.api('GET', '/ai-settings/knowledge');
+        c.builtin = r.builtin || [];
+        c.custom = (r.custom || []).map((entry) => ({
+          id: entry.id || '',
+          title: entry.title || '',
+          keywordsText: Array.isArray(entry.keywords) ? entry.keywords.join('، ') : '',
+          answer: entry.answer || '',
+          enabled: entry.enabled !== false,
+        }));
+      } catch (e) {
+        c.builtin = [];
+        c.custom = [];
+      } finally {
+        c.loading = false;
+      }
     },
 
     modelsForProvider(provider) {
@@ -343,6 +412,64 @@
       }
     },
 
+    addAiKnowledgeEntry() {
+      const c = this.aiCfg.knowledge;
+      const d = c.draft || {};
+      if (!String(d.title || '').trim() || !String(d.answer || '').trim()) {
+        this.toast?.('أدخل عنوان المعرفة والإجابة قبل الإضافة', 'error');
+        return;
+      }
+      const slug = String(d.title || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\u0600-\u06FF]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+      c.custom.push({
+        id: d.id || `custom-${slug || Date.now()}`,
+        title: d.title.trim(),
+        keywordsText: d.keywordsText || '',
+        answer: d.answer.trim(),
+        enabled: d.enabled !== false,
+      });
+      c.draft = { id: '', title: '', keywordsText: '', answer: '', enabled: true };
+    },
+
+    removeAiKnowledgeEntry(index) {
+      const c = this.aiCfg.knowledge;
+      c.custom.splice(index, 1);
+    },
+
+    aiNormalizeKnowledgeEntries() {
+      return (this.aiCfg.knowledge.custom || [])
+        .filter((entry) => String(entry.title || '').trim() && String(entry.answer || '').trim())
+        .map((entry) => ({
+          id: String(entry.id || entry.title || '').trim(),
+          title: String(entry.title || '').trim(),
+          keywords: String(entry.keywordsText || '')
+            .split(/[،,]/)
+            .map((k) => k.trim())
+            .filter(Boolean),
+          answer: String(entry.answer || '').trim(),
+          enabled: entry.enabled !== false,
+        }));
+    },
+
+    async saveAiKnowledge() {
+      const c = this.aiCfg.knowledge;
+      c.saving = true;
+      try {
+        const entries = this.aiNormalizeKnowledgeEntries();
+        await this.api('PUT', '/ai-settings/knowledge', { entries });
+        this.toast?.('تم حفظ مكتبة المعرفة المحلية ✓');
+        await this.loadAiKnowledge();
+      } catch (e) {
+        this.toast?.(e.message, 'error');
+      } finally {
+        c.saving = false;
+      }
+    },
+
     /** إحصاء ميزة محددة من usageByFeature */
     featureUsageStat(featureId) {
       const rows = (this.aiCfg.featureModels.usageByFeature || []).filter(r => r.feature === featureId);
@@ -365,6 +492,86 @@
       if (pct >= 70) return 'bg-amber-500';
       if (pct >= 40) return 'bg-blue-500';
       return 'bg-emerald-500';
+    },
+
+    aiBudgetPercent() {
+      const usage = this.aiCfg.usage;
+      if (!usage?.budgetUsd) return 0;
+      return Math.min(100, Number(usage.budgetUsedPercent || 0));
+    },
+
+    aiLocalSavingsTokens() {
+      return Number(this.aiCfg.usage?.localSavings?.estimatedTokensSaved || 0);
+    },
+
+    aiLocalSavingsRequests() {
+      return Number(this.aiCfg.usage?.localSavings?.requests || 0);
+    },
+
+    aiPolicyBadgeClass(policy) {
+      if (policy?.role === 'SUPER_ADMIN') return 'bg-slate-900 text-white border-slate-900';
+      if (policy?.canUploadFiles) return 'bg-violet-50 text-violet-700 border-violet-200';
+      if (policy?.canReadContext) return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    },
+
+    aiPolicyScopeLabel(scope) {
+      return {
+        self: 'ذاتي',
+        department: 'قسمه فقط',
+        committee_readonly: 'لجنة / قراءة',
+        quality: 'الجودة',
+        global: 'كامل النظام',
+      }[scope] || scope || 'غير محدد';
+    },
+
+    aiEnabledProviders() {
+      return ['anthropic', 'openai', 'google'].filter(p => this.aiCfg.hasKeys[p]);
+    },
+
+    aiProviderChipClass(provider) {
+      if (!this.aiCfg.hasKeys[provider]) return 'bg-gray-50 text-gray-500 border-gray-200';
+      if (provider === 'anthropic') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    },
+
+    aiProviderStatusText(provider) {
+      if (!this.aiCfg.hasKeys[provider]) return 'غير مضاف';
+      if (provider === 'anthropic') return 'تشغيلي';
+      return 'احتياط يدوي';
+    },
+
+    aiOperatingModeText() {
+      if (!this.aiCfg.enabled) return 'متوقف';
+      if (this.aiCfg.hasKeys.anthropic) return 'تشغيل مؤسسي مضبوط';
+      if (this.aiEnabledProviders().length) return 'احتياط يدوي فقط';
+      return 'ينتظر مفاتيح التشغيل';
+    },
+
+    aiOperatingModeClass() {
+      if (!this.aiCfg.enabled) return 'bg-gray-50 text-gray-700 border-gray-200';
+      if (this.aiCfg.hasKeys.anthropic) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    },
+
+    aiFeatureModelLabel(model) {
+      const found = (this.aiCfg.models || []).find(m => m.model === model || m.id === model);
+      return found?.label || found?.name || model || 'غير محدد';
+    },
+
+    aiConfiguredFeatureCount() {
+      return (this.aiCfg.featureModels.catalog || []).filter(f => !!f.assignedModel).length;
+    },
+
+    aiControlRecommendations() {
+      const c = this.aiCfg;
+      const recs = [];
+      if (!c.enabled) recs.push('فعّل طبقة AI بعد التأكد من الميزانية والمفتاح التشغيلي.');
+      if (!c.hasKeys.anthropic) recs.push('أضف مفتاح Claude للتشغيل المؤسسي، واجعل OpenAI/Gemini احتياطاً يدوياً.');
+      if ((c.usage?.budgetUsedPercent || 0) >= 70) recs.push('راجع الميزانية الشهرية أو وجّه المهام البسيطة لموديل اقتصادي.');
+      if (!c.logRequests) recs.push('فعّل تسجيل الاستدعاءات حتى يمكن ضبط التكلفة والجودة.');
+      if (!recs.length) recs.push('الوضع جيد: شغّل الروتين بالقواعد، واستخدم AI للتحليل والصياغة فقط.');
+      return recs;
     },
 
     aiProviderLabel(p) {

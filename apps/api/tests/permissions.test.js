@@ -234,9 +234,28 @@ describe('sensitive resource guardrails', () => {
     expect(can(user('QUALITY_MANAGER'), 'reports', 'read')).toBe(true);
   });
 
-  it('keeps dashboard away from non-manager roles', () => {
+  it('keeps dashboard limited to quality management and system administration', () => {
     expect(can(user('EMPLOYEE'), 'dashboard', 'read')).toBe(false);
-    expect(can(user('DEPT_MANAGER'), 'dashboard', 'read')).toBe(true);
+    expect(can(user('DEPT_MANAGER'), 'dashboard', 'read')).toBe(false);
+    expect(can(user('QUALITY_MANAGER'), 'dashboard', 'read')).toBe(true);
+  });
+
+  it('allows scoped system state for managers without exposing the dashboard', () => {
+    expect(can(user('EMPLOYEE'), 'system-state', 'read')).toBe(false);
+    expect(can(user('DEPT_MANAGER'), 'system-state', 'read')).toBe(true);
+    expect(can(user('QUALITY_MANAGER'), 'system-state', 'read')).toBe(true);
+  });
+
+  it('keeps operational reports as quality-management decision surfaces', () => {
+    expect(can(user('EMPLOYEE'), 'operational-reports', 'read')).toBe(false);
+    expect(can(user('DEPT_MANAGER'), 'operational-reports', 'read')).toBe(false);
+    expect(can(user('QUALITY_MANAGER'), 'operational-reports', 'read')).toBe(true);
+  });
+
+  it('keeps institutional data-health checks out of department-manager direct access', () => {
+    expect(can(user('EMPLOYEE'), 'data-health', 'read')).toBe(false);
+    expect(can(user('DEPT_MANAGER'), 'data-health', 'read')).toBe(false);
+    expect(can(user('QUALITY_MANAGER'), 'data-health', 'read')).toBe(true);
   });
 });
 

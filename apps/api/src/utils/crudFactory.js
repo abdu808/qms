@@ -99,7 +99,7 @@ export function crudRouter(opts) {
   };
 
   // ── LIST ─────────────────────────────────────────────────────────
-  router.get('/', asyncHandler(async (req, res) => {
+  router.get('/', gate('read'), asyncHandler(async (req, res) => {
     const page    = Math.max(1, Number(req.query.page) || 1);
     const limit   = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const q       = (req.query.q || '').toString().trim();
@@ -153,7 +153,7 @@ export function crudRouter(opts) {
   }));
 
   // ── READ ─────────────────────────────────────────────────────────
-  router.get('/:id', asyncHandler(async (req, res) => {
+  router.get('/:id', gate('read'), asyncHandler(async (req, res) => {
     let scopeWhere = {};
     if (scopeFilter) {
       const patch = scopeFilter(req);

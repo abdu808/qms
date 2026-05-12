@@ -1303,22 +1303,133 @@
             </div>
           </div>
 
-          <!-- ════ صفحة إعداد AI — تفتح المودال مباشرة ════ -->
-          <div x-show="page==='aiSettings'" x-cloak x-init="$watch('page', v => { if (v==='aiSettings') openAiSettings() })" class="space-y-5">
+          <!-- ════ مركز قيادة AI ════ -->
+          <div x-show="page==='aiSettings'" x-cloak class="space-y-5">
             <div class="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <h2 class="text-xl font-bold text-gray-800">🧠 إعداد الذكاء الاصطناعي</h2>
-                <p class="text-sm text-gray-500 mt-1">القواعد تقود الروتين، وكل مهمة تختار الموديل الأنسب: اقتصادي للتذكيرات، وأقوى للتحليل والتقارير</p>
+                <h2 class="text-xl font-bold text-gray-900">🧠 مركز الذكاء الاصطناعي</h2>
+                <p class="text-sm text-gray-500 mt-1">القواعد تنجز الروتين، والـ AI يساعد في الصياغة والتحليل والمراجعة دون أن يستبدل قرار المسؤول.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button @click="loadAiControlCenter()"
+                        class="px-3 py-2 text-sm border rounded-lg bg-white hover:bg-gray-50">🔄 تحديث</button>
+                <button @click="openAiSettings()"
+                        class="px-4 py-2 text-sm bg-violet-700 hover:bg-violet-800 text-white rounded-lg font-semibold">⚙️ إعدادات متقدمة</button>
               </div>
             </div>
-            <div class="bg-violet-50 border border-violet-200 rounded-xl p-6 text-center">
-              <div class="text-5xl mb-3">🧠</div>
-              <div class="text-lg font-semibold text-violet-800 mb-2">إعدادات AI متعدِّد المزوّدين</div>
-              <p class="text-sm text-violet-600 mb-4">أضف مفاتيح API، فعِّل النظام، اختبر الاتصال، وتابع الاستهلاك</p>
-              <button @click="openAiSettings()"
-                      class="bg-violet-700 hover:bg-violet-800 text-white text-sm px-6 py-2.5 rounded-lg font-medium transition">
-                فتح الإعدادات
-              </button>
+
+            <div class="grid xl:grid-cols-4 md:grid-cols-2 gap-3">
+              <div class="bg-white border rounded-xl p-4 shadow-sm">
+                <div class="text-xs text-gray-500">وضع التشغيل</div>
+                <div class="mt-2 inline-flex px-2.5 py-1 rounded-full border text-xs font-semibold" :class="aiOperatingModeClass()" x-text="aiOperatingModeText()"></div>
+                <p class="text-xs text-gray-400 mt-3">التشغيل المؤسسي يعتمد Claude، وOpenAI/Gemini يبقيان للاستخدام اليدوي أو الاحتياطي.</p>
+              </div>
+              <div class="bg-white border rounded-xl p-4 shadow-sm">
+                <div class="text-xs text-gray-500">المزودون المتاحون</div>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <template x-for="p in ['anthropic','openai','google']" :key="p">
+                    <span class="px-2 py-1 rounded-full border text-[11px]" :class="aiProviderChipClass(p)">
+                      <span x-text="aiProviderLabel(p)"></span>
+                      <span class="text-gray-400">·</span>
+                      <span x-text="aiProviderStatusText(p)"></span>
+                    </span>
+                  </template>
+                </div>
+              </div>
+              <div class="bg-white border rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between">
+                  <div class="text-xs text-gray-500">استهلاك الشهر</div>
+                  <div class="text-xs font-semibold text-gray-700" x-text="aiFormatUsd(aiCfg.usage?.monthly?.costUSD || 0)"></div>
+                </div>
+                <div class="h-2 bg-gray-100 rounded-full overflow-hidden mt-3">
+                  <div class="h-full" :class="aiBudgetBarColor(aiBudgetPercent())" :style="'width:' + aiBudgetPercent() + '%'"></div>
+                </div>
+                <div class="text-xs text-gray-400 mt-2">
+                  <span x-text="aiCfg.usage?.monthly?.requestCount || 0"></span>
+                  طلب · حد الميزانية
+                  <span x-text="aiFormatUsd(aiCfg.usage?.budgetUsd || aiCfg.monthlyBudgetUsd || 0)"></span>
+                </div>
+              </div>
+              <div class="bg-white border rounded-xl p-4 shadow-sm">
+                <div class="text-xs text-gray-500">توجيه المهام</div>
+                <div class="text-2xl font-bold text-gray-900 mt-1" x-text="aiConfiguredFeatureCount()"></div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-500">التوفير المحلي</span>
+                    <span class="font-bold text-emerald-700" x-text="aiLocalSavingsTokens().toLocaleString() + ' tok'"></span>
+                  </div>
+                  <div class="text-[11px] text-gray-400 mt-1">
+                    <span x-text="aiLocalSavingsRequests()"></span>
+                    رد من مكتبة المعرفة بدون استدعاء موديل.
+                  </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">ميزة لها موديل محدد حسب نوع المهمة والتكلفة.</p>
+              </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-4">
+              <div class="lg:col-span-2 bg-white border rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 class="font-bold text-gray-800">كيف سيخدم النظام؟</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">هذا هو التصميم المقصود: AI لا يعمل في كل شيء، بل في نقاط محددة تضيف قيمة.</p>
+                  </div>
+                </div>
+                <div class="grid md:grid-cols-2 gap-3 text-sm">
+                  <div class="border rounded-lg p-3 bg-emerald-50/60">
+                    <div class="font-semibold text-emerald-800">1. متابعة الأداء</div>
+                    <p class="text-xs text-emerald-700 mt-1">تلخيص الانحرافات واقتراح إجراء بسيط، بدون تغيير الخطة المعتمدة.</p>
+                  </div>
+                  <div class="border rounded-lg p-3 bg-blue-50/60">
+                    <div class="font-semibold text-blue-800">2. الجودة و ISO</div>
+                    <p class="text-xs text-blue-700 mt-1">مراجعة الجاهزية، صياغة ملاحظات التدقيق، وتحويل الفجوات إلى مهام.</p>
+                  </div>
+                  <div class="border rounded-lg p-3 bg-amber-50/60">
+                    <div class="font-semibold text-amber-800">3. التنبيهات والتواصل</div>
+                    <p class="text-xs text-amber-700 mt-1">القواعد تحدد من يُنبه ومتى، وAI يحسن صياغة الرسالة فقط عند الحاجة.</p>
+                  </div>
+                  <div class="border rounded-lg p-3 bg-violet-50/60">
+                    <div class="font-semibold text-violet-800">4. المستشار الذكي</div>
+                    <p class="text-xs text-violet-700 mt-1">موجه أداء وجودة يساعد المدير، ولا ينفذ أي تعديل رسمي بلا صلاحية واعتماد.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white border rounded-xl p-4 shadow-sm">
+                <h3 class="font-bold text-gray-800 mb-3">توصيات التشغيل</h3>
+                <div class="space-y-2">
+                  <template x-for="rec in aiControlRecommendations()" :key="rec">
+                    <div class="text-xs bg-gray-50 border rounded-lg px-3 py-2 text-gray-700" x-text="rec"></div>
+                  </template>
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                  <button @click="aiCfg.open=true; aiCfg.tab='features'; loadFeatureModels()"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">🎯 توجيه المهام</button>
+                  <button @click="aiCfg.open=true; aiCfg.tab='usage'; loadAiUsage()"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">📊 الاستهلاك</button>
+                  <button @click="aiCfg.open=true; aiCfg.tab='governance'; loadAiGovernance()"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">🛡️ الحوكمة</button>
+                  <button @click="aiCfg.open=true; aiCfg.tab='knowledge'; loadAiKnowledge()"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">📚 المعرفة</button>
+                  <button @click="aiCfg.open=true; aiCfg.tab='keys'"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">🔑 المفاتيح</button>
+                  <button @click="aiCfg.open=true; aiCfg.tab='playground'"
+                          class="text-xs px-3 py-2 rounded-lg border hover:bg-gray-50">🧪 تجربة يدوية</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-slate-900 text-white rounded-xl p-4 shadow-sm">
+              <div class="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <h3 class="font-bold">سياسة الاستخدام المعتمدة</h3>
+                  <p class="text-xs text-slate-300 mt-1">لا نستخدم AI لمعالجة الروتين الواضح. الروتين بالقواعد، والتحليل والصياغة بالذكاء الاصطناعي، والتنفيذ الرسمي بموافقة الإنسان.</p>
+                </div>
+                <div class="text-xs text-slate-300">
+                  <span class="inline-block bg-white/10 rounded px-2 py-1">PII: <b x-text="aiCfg.piiRedaction"></b></span>
+                  <span class="inline-block bg-white/10 rounded px-2 py-1 mr-1">Logging: <b x-text="aiCfg.logRequests ? 'مفعل' : 'متوقف'"></b></span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1851,6 +1962,8 @@
                         <option :value="y" x-text="y"></option>
                       </template>
                     </select>
+                    <button @click="exportPlanMap()" class="border border-emerald-600 text-emerald-700 hover:bg-emerald-50 rounded-xl px-4 py-2 text-sm font-semibold">Excel الخطة كاملة</button>
+                    <button @click="printPlanMapReport()" class="border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl px-4 py-2 text-sm font-semibold">تقرير تنفيذي</button>
                     <button @click="loadPlanMap()" class="bg-brand-600 hover:bg-brand-700 text-white rounded-xl px-4 py-2 text-sm font-semibold">تحديث</button>
                   </div>
                 </div>
@@ -1868,6 +1981,40 @@
                   <div class="rounded-xl border p-3"><div class="text-xs text-gray-500">الأنشطة</div><div class="text-2xl font-bold" x-text="planMap?.summary?.activities || 0"></div></div>
                   <div class="rounded-xl border p-3 bg-red-50"><div class="text-xs text-red-600">مشكلات</div><div class="text-2xl font-bold text-red-700" x-text="planMap?.summary?.errors || 0"></div></div>
                   <div class="rounded-xl border p-3 bg-amber-50"><div class="text-xs text-amber-600">تنبيهات</div><div class="text-2xl font-bold text-amber-700" x-text="planMap?.summary?.warnings || 0"></div></div>
+                </div>
+
+                <div x-show="planMap" class="mt-4 rounded-2xl border p-4"
+                     :class="planMapExecutiveSummary().tone === 'green' ? 'bg-emerald-50 border-emerald-100' : planMapExecutiveSummary().tone === 'red' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'">
+                  <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <div class="text-xs text-gray-500">الملخص التنفيذي</div>
+                      <div class="text-xl font-extrabold mt-1"
+                           :class="planMapExecutiveSummary().tone === 'green' ? 'text-emerald-800' : planMapExecutiveSummary().tone === 'red' ? 'text-red-800' : 'text-amber-800'"
+                           x-text="planMapExecutiveSummary().verdict"></div>
+                      <p class="text-sm text-gray-600 mt-2" x-text="'الإجراء التالي: ' + planMapExecutiveSummary().next"></p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center min-w-[320px]">
+                      <div class="bg-white/80 border rounded-xl p-3">
+                        <div class="text-xs text-gray-500">صحة الخطة</div>
+                        <div class="text-2xl font-extrabold" x-text="planMapExecutiveSummary().score + '%'"></div>
+                      </div>
+                      <div class="bg-white/80 border rounded-xl p-3">
+                        <div class="text-xs text-gray-500">جاهز للمتابعة</div>
+                        <div class="text-2xl font-extrabold text-emerald-700" x-text="planMapExecutiveSummary().ready"></div>
+                      </div>
+                      <div class="bg-white/80 border rounded-xl p-3">
+                        <div class="text-xs text-gray-500">يحتاج معالجة</div>
+                        <div class="text-2xl font-extrabold text-red-700" x-text="planMapExecutiveSummary().urgent"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap gap-2 mt-4">
+                    <template x-for="item in planMapStatusBreakdown()" :key="item.key">
+                      <span class="px-3 py-1 rounded-full border text-xs font-bold"
+                            :class="item.cls"
+                            x-text="item.label + ': ' + item.count"></span>
+                    </template>
+                  </div>
                 </div>
 
                 <div x-show="planMap" class="mt-4 border rounded-xl p-4 bg-slate-50">
@@ -1891,6 +2038,37 @@
                       لا توجد فجوات مؤثرة ظاهرة الآن.
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div x-show="planMap" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                  <div>
+                    <h3 class="font-bold text-gray-800">فلترة الخطة الكاملة</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">اعرض ما يهمك فقط: محور، حالة، أو كلمة بحث.</p>
+                  </div>
+                  <div class="text-xs rounded-full bg-slate-50 border px-3 py-1 text-slate-600">
+                    المعروض: <b x-text="planMapFilteredGoalCount()"></b> هدف
+                  </div>
+                </div>
+                <div class="grid md:grid-cols-4 gap-2">
+                  <input x-model.debounce.250ms="planMapSearch" class="border rounded-xl px-3 py-2 text-sm"
+                         placeholder="بحث في الهدف أو المؤشر أو النشاط..." />
+                  <select x-model="planMapFilterAxis" class="border rounded-xl px-3 py-2 text-sm bg-white">
+                    <option value="">كل المحاور</option>
+                    <template x-for="axis in (planMap?.axes || [])" :key="axis.id">
+                      <option :value="axis.id" x-text="axis.nameAr"></option>
+                    </template>
+                  </select>
+                  <select x-model="planMapFilterStatus" class="border rounded-xl px-3 py-2 text-sm bg-white">
+                    <option value="">كل الحالات</option>
+                    <option value="OK">مكتمل للمتابعة</option>
+                    <option value="WARNING">يحتاج ضبط</option>
+                    <option value="NO_ACTIVITY">بلا نشاط</option>
+                    <option value="NO_MEASURE">بلا قياس</option>
+                    <option value="ERROR">يحتاج تصحيح</option>
+                  </select>
+                  <button @click="resetPlanMapFilters()" class="border rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">مسح الفلاتر</button>
                 </div>
               </div>
 
@@ -2016,6 +2194,9 @@
                               <div class="text-xs text-gray-500 mt-1" x-text="goal.owner?.name || goal.responsible || 'بلا مالك واضح'"></div>
                             </div>
                             <div class="flex gap-2 flex-wrap text-xs">
+                              <span class="px-2 py-1 rounded-full border font-bold"
+                                    :class="planMapGoalStatus(goal).cls"
+                                    x-text="planMapGoalStatus(goal).label"></span>
                               <span class="px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100" x-text="'مؤشرات: ' + goal.indicators.length"></span>
                               <span class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100" x-text="'أنشطة: ' + goal.activities.length"></span>
                               <span class="px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100" x-text="'مبادرات: ' + goal.initiatives.length"></span>
@@ -2023,14 +2204,35 @@
                             </div>
                           </div>
 
+                          <div class="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-[11px] text-slate-600 flex flex-wrap gap-1">
+                            <span x-text="goal.axis?.nameAr || 'محور غير محدد'"></span>
+                            <span>←</span>
+                            <span x-text="goal.title"></span>
+                            <span>←</span>
+                            <span x-text="((goal.indicators||[]).length + (goal.supportingAxisIndicators||[]).length) + ' مؤشر'"></span>
+                            <span>←</span>
+                            <span x-text="(goal.activities||[]).length + ' نشاط'"></span>
+                            <span>←</span>
+                            <span x-text="planMapGoalStatus(goal).label"></span>
+                          </div>
+
                           <div class="grid lg:grid-cols-3 gap-3 mt-4">
                             <div class="rounded-xl border bg-gray-50 p-3">
                               <div class="font-bold text-sm text-gray-700 mb-2">المؤشرات والقراءات</div>
                               <div x-show="!goal.indicators.length && !goal.supportingAxisIndicators.length" class="text-xs text-gray-400">لا يوجد مؤشر مباشر أو داعم</div>
                               <template x-for="ind in [...goal.indicators, ...goal.supportingAxisIndicators]" :key="ind.id">
-                                <div class="text-xs py-1 border-b last:border-0">
-                                  <span class="font-mono text-blue-700" x-text="ind.code"></span>
-                                  <span x-text="' — ' + ind.nameAr"></span>
+                                <div class="text-xs py-2 border-b last:border-0">
+                                  <div>
+                                    <span class="font-mono text-blue-700" x-text="ind.code"></span>
+                                    <span x-text="' — ' + ind.nameAr"></span>
+                                  </div>
+                                  <div class="mt-1 text-[11px] text-gray-500 flex flex-wrap gap-1">
+                                    <span x-show="ind.frequency" class="rounded-full bg-white border px-2 py-0.5" x-text="'التردد: ' + ind.frequency"></span>
+                                    <span x-show="ind.owner?.name" class="rounded-full bg-white border px-2 py-0.5" x-text="'المالك: ' + ind.owner.name"></span>
+                                    <span x-show="ind.dataEntryUser?.name" class="rounded-full bg-white border px-2 py-0.5" x-text="'مدخل البيانات: ' + ind.dataEntryUser.name"></span>
+                                    <span x-show="(ind.targets||[]).length" class="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5"
+                                          x-text="'المستهدف: ' + (ind.targets||[]).map(t => t.year + ': ' + t.targetValue).join(' | ')"></span>
+                                  </div>
                                 </div>
                               </template>
                             </div>
@@ -2038,9 +2240,17 @@
                               <div class="font-bold text-sm text-gray-700 mb-2">الأنشطة والمتابعة</div>
                               <div x-show="!goal.activities.length" class="text-xs text-gray-400">لا توجد أنشطة مرتبطة</div>
                               <template x-for="act in goal.activities.slice(0, 6)" :key="act.id">
-                                <div class="text-xs py-1 border-b last:border-0">
-                                  <span class="font-mono text-emerald-700" x-text="act.code"></span>
-                                  <span x-text="' — ' + act.title"></span>
+                                <div class="text-xs py-2 border-b last:border-0">
+                                  <div>
+                                    <span class="font-mono text-emerald-700" x-text="act.code"></span>
+                                    <span x-text="' — ' + act.title"></span>
+                                  </div>
+                                  <div class="mt-1 text-[11px] text-gray-500 flex flex-wrap gap-1">
+                                    <span x-show="act.dept?.name" class="rounded-full bg-white border px-2 py-0.5" x-text="act.dept.name"></span>
+                                    <span x-show="act.owner?.name" class="rounded-full bg-white border px-2 py-0.5" x-text="'المسؤول: ' + act.owner.name"></span>
+                                    <span x-show="act.indicator?.code" class="rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5" x-text="'يرفع مؤشر: ' + act.indicator.code"></span>
+                                    <span class="rounded-full bg-white border px-2 py-0.5" x-text="'التقدم: ' + (act.progress || 0) + '%'"></span>
+                                  </div>
                                 </div>
                               </template>
                             </div>
@@ -3904,6 +4114,27 @@
                   <div class="mt-4 rounded-xl border px-4 py-3 text-sm font-semibold"
                        :class="myWorkStatusClass()"
                        x-text="myWorkStatusText()"></div>
+                </div>
+
+                <div class="bg-white border border-emerald-100 rounded-2xl p-4 mb-4 shadow-sm">
+                  <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                    <div>
+                      <div class="text-[11px] font-bold text-emerald-700">مسار الإنجاز السريع</div>
+                      <div class="text-xs text-slate-500 mt-0.5">ادخل، أنجز المطلوب، ثم ارجع لهذه الصفحة للتأكد أن العدد نقص.</div>
+                    </div>
+                    <button @click="loadMyWork()" class="text-xs border border-emerald-200 text-emerald-700 rounded-lg px-3 py-1 hover:bg-emerald-50">تحديث الحالة</button>
+                  </div>
+                  <div class="grid md:grid-cols-3 gap-2">
+                    <template x-for="step in myWorkRoleFocus().steps" :key="step[0]">
+                      <div class="rounded-xl bg-slate-50 border border-slate-100 px-3 py-3 flex items-start gap-3">
+                        <div class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="step[0]"></div>
+                        <div>
+                          <div class="text-sm font-bold text-slate-800" x-text="step[1]"></div>
+                          <div class="text-[11px] text-slate-500 mt-1">خطوة واحدة تكفي. لا تحتاج فتح كل النظام.</div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
                 </div>
 
                 <div class="bg-gradient-to-l from-emerald-50 to-white border border-emerald-100 rounded-2xl p-5 mb-4 shadow-sm">
@@ -8356,14 +8587,17 @@
   <div x-show="aiCfg.open" x-cloak
        class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
        @keydown.escape.window="aiCfg.open=false">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
       <div class="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-l from-violet-50 to-indigo-50 rounded-t-2xl">
-        <h2 class="font-bold text-gray-800">🧠 إعدادات الذكاء الاصطناعي</h2>
+        <div>
+          <h2 class="font-bold text-gray-800">🧠 الإعدادات المتقدمة للذكاء الاصطناعي</h2>
+          <p class="text-xs text-gray-500 mt-0.5">استخدمها عند إضافة مفاتيح، ضبط الميزانية، أو تغيير توجيه المهام.</p>
+        </div>
         <button @click="aiCfg.open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
       </div>
 
       <!-- Tabs -->
-      <div class="flex border-b bg-gray-50">
+      <div class="flex border-b bg-gray-50 overflow-x-auto">
         <button @click="aiCfg.tab='general'" :class="aiCfg.tab==='general' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">⚙️ عام</button>
         <button @click="aiCfg.tab='keys'" :class="aiCfg.tab==='keys' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
@@ -8372,6 +8606,10 @@
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">🎯 الميزات</button>
         <button @click="aiCfg.tab='usage'; loadAiUsage()" :class="aiCfg.tab==='usage' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">📊 الاستخدام</button>
+        <button @click="aiCfg.tab='governance'; loadAiGovernance()" :class="aiCfg.tab==='governance' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 min-w-[118px] px-4 py-2.5 text-sm font-medium transition">🛡️ الحوكمة</button>
+        <button @click="aiCfg.tab='knowledge'; loadAiKnowledge()" :class="aiCfg.tab==='knowledge' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
+                class="flex-1 min-w-[118px] px-4 py-2.5 text-sm font-medium transition">📚 المعرفة</button>
         <button @click="aiCfg.tab='playground'" :class="aiCfg.tab==='playground' ? 'bg-white border-b-2 border-violet-600 text-violet-700' : 'text-gray-600 hover:bg-gray-100'"
                 class="flex-1 px-4 py-2.5 text-sm font-medium transition">🧪 تجربة</button>
       </div>
@@ -8680,6 +8918,20 @@
                 </div>
               </div>
 
+              <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="text-xs text-emerald-700 font-semibold">التوفير من الردود المحلية</div>
+                    <div class="text-2xl font-bold text-emerald-800 mt-1" x-text="aiLocalSavingsTokens().toLocaleString() + ' token'"></div>
+                    <p class="text-xs text-emerald-700 mt-1">هذه الأسئلة تمت الإجابة عنها من مكتبة المعرفة والقواعد بدون إرسالها إلى موديل خارجي.</p>
+                  </div>
+                  <div class="text-center bg-white/70 border border-emerald-200 rounded-xl px-4 py-3 min-w-[110px]">
+                    <div class="text-2xl font-bold text-emerald-800" x-text="aiLocalSavingsRequests()"></div>
+                    <div class="text-[11px] text-emerald-600">رد محلي</div>
+                  </div>
+                </div>
+              </div>
+
               <!-- By feature -->
               <div class="bg-white border rounded-lg p-4">
                 <div class="text-sm font-semibold text-gray-700 mb-3">حسب الميزة</div>
@@ -8751,6 +9003,115 @@
         </div>
 
         <!-- ═══ Tab: Playground ═══ -->
+        <div x-show="aiCfg.tab==='governance'" class="space-y-4">
+          <div class="bg-slate-50 border rounded-xl p-4">
+            <div class="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h3 class="font-bold text-gray-800">حوكمة استخدام الذكاء الاصطناعي حسب الدور</h3>
+                <p class="text-xs text-gray-500 mt-1">السياسة تمنع تحميل السياق الكبير أو الملفات إلا للأدوار المناسبة، وتحدد سقف الرسائل والرموز لكل طلب.</p>
+              </div>
+              <button @click="loadAiGovernance()" class="text-xs px-3 py-2 border rounded-lg bg-white hover:bg-gray-50">تحديث</button>
+            </div>
+          </div>
+
+          <template x-if="aiCfg.governance.loading">
+            <div class="text-center text-gray-400 py-8 text-sm">جارٍ تحميل سياسة الحوكمة…</div>
+          </template>
+
+          <div class="grid md:grid-cols-2 gap-3" x-show="!aiCfg.governance.loading">
+            <template x-for="policy in aiCfg.governance.policies" :key="policy.role">
+              <div class="border rounded-xl p-4 bg-white shadow-sm">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-1 rounded-full border text-xs font-bold" :class="aiPolicyBadgeClass(policy)" x-text="policy.role"></span>
+                  <span class="text-xs text-gray-500" x-text="'النطاق: ' + aiPolicyScopeLabel(policy.scope)"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                  <div class="bg-gray-50 rounded-lg p-2"><div class="text-[10px] text-gray-400">Max Tokens</div><div class="font-bold text-gray-800" x-text="policy.maxTokens"></div></div>
+                  <div class="bg-gray-50 rounded-lg p-2"><div class="text-[10px] text-gray-400">Messages</div><div class="font-bold text-gray-800" x-text="policy.maxMessages"></div></div>
+                  <div class="bg-gray-50 rounded-lg p-2"><div class="text-[10px] text-gray-400">Input</div><div class="font-bold text-gray-800" x-text="policy.maxInputChars"></div></div>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+                  <span class="px-2 py-1 rounded bg-blue-50 text-blue-700" x-show="policy.canReadContext">يقرأ السياق</span>
+                  <span class="px-2 py-1 rounded bg-violet-50 text-violet-700" x-show="policy.canUploadFiles">يرفع ملفات</span>
+                  <span class="px-2 py-1 rounded bg-amber-50 text-amber-700" x-show="policy.allowModelOverride">اختيار موديل</span>
+                  <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700" x-show="policy.forceMode" x-text="'وضع: ' + policy.forceMode"></span>
+                </div>
+                <p class="text-xs text-gray-500 mt-3" x-text="policy.notes || 'سياسة مضبوطة.'"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div x-show="aiCfg.tab==='knowledge'" class="space-y-4">
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+            <h3 class="font-bold text-emerald-900">مكتبة المعرفة المحلية</h3>
+            <p class="text-xs text-emerald-700 mt-1">الأسئلة المتكررة تُجاب محلياً بلا استدعاء AI. هذا يقلل التكلفة ويجعل الرد أسرع وأكثر ثباتاً.</p>
+          </div>
+
+          <template x-if="aiCfg.knowledge.loading">
+            <div class="text-center text-gray-400 py-8 text-sm">جارٍ تحميل مكتبة المعرفة…</div>
+          </template>
+
+          <div x-show="!aiCfg.knowledge.loading" class="grid lg:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-gray-800">المعرفة المدمجة</h4>
+                <span class="text-xs text-gray-400" x-text="(aiCfg.knowledge.builtin || []).length + ' عنصر'"></span>
+              </div>
+              <template x-for="entry in aiCfg.knowledge.builtin" :key="entry.id">
+                <details class="border rounded-xl bg-white p-3">
+                  <summary class="cursor-pointer text-sm font-semibold text-gray-800" x-text="entry.title"></summary>
+                  <div class="mt-2 text-xs text-gray-500">
+                    <div class="mb-2">
+                      <template x-for="kw in entry.keywords || []" :key="kw">
+                        <span class="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 ml-1 mb-1" x-text="kw"></span>
+                      </template>
+                    </div>
+                    <div class="whitespace-pre-wrap leading-relaxed" x-text="entry.answer"></div>
+                  </div>
+                </details>
+              </template>
+            </div>
+
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-gray-800">معرفة مخصصة للجمعية</h4>
+                <button @click="saveAiKnowledge()" :disabled="aiCfg.knowledge.saving"
+                        class="text-xs px-3 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
+                        x-text="aiCfg.knowledge.saving ? 'جارٍ الحفظ…' : 'حفظ المعرفة'"></button>
+              </div>
+
+              <div class="border rounded-xl bg-white p-3 space-y-2">
+                <input x-model="aiCfg.knowledge.draft.title" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="عنوان المعرفة: مثال طريقة إغلاق قراءة KPI">
+                <input x-model="aiCfg.knowledge.draft.keywordsText" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="كلمات مفتاحية مفصولة بفاصلة: قراءة، مؤشر، KPI">
+                <textarea x-model="aiCfg.knowledge.draft.answer" rows="4" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="الإجابة المختصرة التي تظهر للمستخدم بدون استدعاء موديل"></textarea>
+                <div class="flex items-center justify-between">
+                  <label class="flex items-center gap-2 text-xs text-gray-600">
+                    <input type="checkbox" x-model="aiCfg.knowledge.draft.enabled" class="accent-emerald-600">
+                    مفعل
+                  </label>
+                  <button @click="addAiKnowledgeEntry()" class="text-xs px-3 py-2 border rounded-lg hover:bg-gray-50">إضافة للقائمة</button>
+                </div>
+              </div>
+
+              <template x-for="(entry, idx) in aiCfg.knowledge.custom" :key="entry.id || idx">
+                <div class="border rounded-xl bg-white p-3 space-y-2">
+                  <div class="flex items-center gap-2">
+                    <input x-model="entry.title" class="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="العنوان">
+                    <button @click="removeAiKnowledgeEntry(idx)" class="text-xs text-red-600 px-2 py-1">حذف</button>
+                  </div>
+                  <input x-model="entry.keywordsText" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="الكلمات المفتاحية">
+                  <textarea x-model="entry.answer" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="الإجابة"></textarea>
+                  <label class="flex items-center gap-2 text-xs text-gray-600">
+                    <input type="checkbox" x-model="entry.enabled" class="accent-emerald-600">
+                    مفعل
+                  </label>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
         <div x-show="aiCfg.tab==='playground'" class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
             <div>

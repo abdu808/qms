@@ -60,7 +60,10 @@ export const DEFAULT_POLICY = {
 //   (donations, ncr, audits, suppliers, beneficiaries …)
 export const MATRIX = {
   // Cross-cutting sensitive surfaces
-  dashboard:        { read: MANAGER_UP },
+  dashboard:        { read: QM_UP },
+  'system-state':   { read: MANAGER_UP },
+  'operational-reports': { read: QM_UP },
+  'data-health':    { read: QM_UP },
   exports:          { read: QM_UP },
   // 'reports' مُعرَّف في القسم السفلي بقيم محدّثة — أُزيل التعريف المكرر القديم
 
@@ -136,7 +139,7 @@ export const MATRIX = {
   'eval-tokens':    { read: MANAGER_UP, create: MANAGER_UP, update: QM_UP, delete: QM_UP },
 
   // ── KPI & ISO readiness ──────────────────────────────────────────
-  kpi:              { read: ANY, create: MANAGER_UP, update: MANAGER_UP, delete: QM_UP },
+  kpi:              { read: ANY, create: MANAGER_UP, update: EMPLOYEE_UP, delete: QM_UP },
   'iso-readiness':  { read: ANY, create: QM_UP, update: QM_UP, delete: QM_UP },
   'report-builder': { read: COMMITTEE_UP, create: QM_UP, update: QM_UP, delete: SA, approve: QM_UP },
 

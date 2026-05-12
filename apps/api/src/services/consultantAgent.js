@@ -576,7 +576,7 @@ function isSimpleConversation(messages) {
 const QUICK_SYSTEM_PROMPT = `أنت "موجه الأداء والجودة" لجمعية بر خيرية تطبِّق ISO 9001:2015.
 رد بشكل ودود ومختصر. لا تحاكم الخطة المعتمدة ولا تسأل المستخدم عن منهجية التقييم. إذا احتاج الطلب تحليلاً أو تنفيذاً، وضّح أنك ستراجع جاهزية التنفيذ والمتابعة من بيانات النظام.`;
 
-export async function chat({ messages, callerUserId, callerRole, callerUser, mode = 'auto', modelOverride, providerOverride, onProgress }) {
+export async function chat({ messages, callerUserId, callerRole, callerUser, mode = 'auto', modelOverride, providerOverride, maxTokens, onProgress }) {
   if (providerOverride && providerOverride !== 'anthropic') {
     const err = new Error('المستشار وأدوات التنفيذ يعملان حالياً على Claude فقط. استخدم OpenAI/Gemini من Playground كاحتياط يدوي.');
     err.code = 'AI_PROVIDER_MANUAL_ONLY';
@@ -602,7 +602,7 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
         feature:   'consultant_quick',
         provider:  'anthropic',
         model:     'claude-haiku-4-5',
-        maxTokens: 512,
+        maxTokens: Math.min(maxTokens || 512, 512),
       });
       const ctx = await buildContext({ compact: true });
       return {
@@ -710,7 +710,7 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
     callerUser: effectiveCaller, // ⚠️ لفحص الصلاحيات داخل executeTool
     mode,
     feature:     'consultant',
-    maxTokens:   routed.tier === 'DEEP' ? 3200 : 1600,
+    maxTokens:   maxTokens || (routed.tier === 'DEEP' ? 3200 : 1600),
     provider:    routed.provider,
     model:       routed.model,
     routingTier: routed.tier,
@@ -731,6 +731,7 @@ export async function chat({ messages, callerUserId, callerRole, callerUser, mod
     provider:    result.provider || settings.defaultProvider,
     model:       result.model    || settings.defaultModel,
     routingTier: result.routingTier,
+    toolRouting: result.toolRouting || null,
     logId:       result.lastLogId || null,
     context: {
       gaps:    ctx.gaps.counts,

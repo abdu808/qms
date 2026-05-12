@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { requireAction } from '../lib/permissions.js';
 
 const router = Router();
 
 const OVERDUE_DAYS    = 14;   // الشكاوى والNCR المتأخرة
 const EXPIRY_WARN_DAYS = 30;  // الوثائق التي تنتهي صلاحية مراجعتها قريباً
 
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', requireAction('dashboard', 'read'), asyncHandler(async (req, res) => {
   const now          = new Date();
   const overdueDate  = new Date(now.getTime() - OVERDUE_DAYS * 86400000);
   const expiryDate   = new Date(now.getTime() + EXPIRY_WARN_DAYS * 86400000);

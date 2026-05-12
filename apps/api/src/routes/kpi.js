@@ -143,6 +143,27 @@ async function canAccessKpiRecord(user, kind, id) {
   return false;
 }
 
+async function ensureCanAccessKpiPayload(user, parsed, action = 'read') {
+  const kind = parsed.objectiveId
+    ? 'objective'
+    : parsed.activityId
+      ? 'activity'
+      : parsed.indicatorId
+        ? 'indicator'
+        : null;
+  const id = parsed.objectiveId || parsed.activityId || parsed.indicatorId;
+
+  if (!kind || !id) {
+    throw BadRequest('يجب تحديد objectiveId أو activityId أو indicatorId');
+  }
+
+  const allowed = await canAccessKpiRecord(user, kind, id);
+  if (!allowed) {
+    const verb = action === 'write' ? 'إدخال قراءة لهذا المؤشر' : 'الاطلاع على هذا المؤشر';
+    throw Forbidden(`لا تملك صلاحية ${verb} خارج نطاق دورك أو إدارتك`);
+  }
+}
+
 export { canAccessKpiEntry, kpiEntryScopeWhere };
 
 // ─── upsert قيمة شهرية ────────────────────────────────────────
@@ -152,6 +173,7 @@ router.post('/entries', requireAction('kpi', 'update'), async (req, res, next) =
     const parsed = validateKpiEntry(req.body);
     // DATA-001: exactly-one-FK guard (orphan + mixed FK combinations)
     validateKpiEntryFKs(parsed);
+    await ensureCanAccessKpiPayload(req.user, parsed, 'write');
 
     const result = await prisma.$transaction(async (tx) => {
       return upsertKpiEntry({
@@ -189,6 +211,7 @@ router.post('/entries/bulk', requireAction('kpi', 'update'), async (req, res, ne
         const parsed = validateKpiEntry(row);
         // DATA-001: exactly-one-FK guard (orphan + mixed FK combinations)
         validateKpiEntryFKs(parsed);
+        await ensureCanAccessKpiPayload(req.user, parsed, 'write');
         // استخدم upsertKpiEntry بـ skipRollup=true (سنعمل rollup دفعة واحدة)
         const result = await upsertKpiEntry({
           ...parsed,
@@ -261,6 +284,7 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
     const parsed = validateKpiEntry(req.body);
     // DATA-001: exactly-one-FK guard (read-only preview but same validation for consistency)
     validateKpiEntryFKs(parsed);
+    await ensureCanAccessKpiPayload(req.user, parsed, 'read');
     const { objectiveId, activityId, indicatorId, year, month, actualValue, spent } = parsed;
 
     // السجل الأب (للحصول على kpiType/target/seasonality/direction)

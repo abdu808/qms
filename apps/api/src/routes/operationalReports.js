@@ -22,8 +22,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { NotFound } from '../utils/errors.js';
 import { computeComplaintSla } from '../lib/sla.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { requireAction } from '../lib/permissions.js';
 
 const router = Router();
+
+router.use(requireAction('operational-reports', 'read'));
 
 // ── قاموس التقارير: slug → { title, description, handler } ─────
 const REPORTS = {};

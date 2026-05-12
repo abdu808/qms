@@ -66,7 +66,7 @@ import { buildPlanConnectivity } from '../../lib/planConnectivity.js';
 // الخالصة التي لا تكشف بيانات خام، فقط حسابات/إحصاءات).
 export const TOOL_PERMISSIONS = {
   // ── قراءة عامة (آمنة) ───────────────────────────────────
-  get_system_state:           { resource: 'dashboard', action: 'read' }, // gated further by role
+  get_system_state:           { resource: 'system-state', action: 'read' }, // scoped further by role
   scan_overdue:               { resource: 'dashboard', action: 'read' },
   compute_iso_maturity:       { resource: 'iso-readiness', action: 'read' },
   generate_management_report: { resource: 'reports', action: 'read' },

@@ -67,9 +67,9 @@ const PERMISSIONS = {
   // ─── أُضيفت في تدقيق 2026-04-27 (كانت مفقودة فيُطبَّق DEFAULT خاطئاً) ───
   alerts:           { read:_MANAGER_UP },
   capa:             { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP, close:_QM_UP },
-  dashboard:        { read:_MANAGER_UP },
+  dashboard:        { read:_QM_UP },
   exports:          { read:_QM_UP },
-  kpi:              { read:_ANY, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
+  kpi:              { read:_ANY, create:_MANAGER_UP, update:_EMPLOYEE_UP, delete:_QM_UP },
   // ملاحظة: لا توجد صلاحية delete — الإغلاق النهائي حصراً عبر /abort مع سبب موثَّق
   'kpi-followups':  { read:_MANAGER_UP, create:_QM_UP, update:_QM_UP, escalate:_QM_UP },
   // إعدادات التكاملات والقوالب — QM فأعلى للقراءة، SUPER_ADMIN للحفظ
@@ -111,7 +111,7 @@ function _resourceKey(resource) {
     planVersions: 'plan-versions',
     progressReports: 'progress-reports',
     changeRequests: 'change-requests',
-    dataHealth: 'alerts',
+    dataHealth: 'data-health',
     templateLibrary: 'template-library',
     monthlyReadiness: 'monthly-readiness',
     integrationsSettings: 'integrations',
@@ -522,9 +522,9 @@ function app() {
       { id: 'kpiTracking',            label: 'متابعة الأداء',        icon: '📈' },
       { id: 'myKpi',                  label: 'قراءات KPI المطلوبة مني', icon: '🎯' },
       { id: 'kpiFollowUp',            label: 'سجل متابعة الإدخالات المتأخرة', icon: '📋' },
-      { id: 'myWork',                 label: 'مهامي اليوم',          icon: '✅' },
+      { id: 'myWork',                 label: 'إنجازي اليوم',          icon: '✅' },
       { id: 'dataHealth',             label: 'صحة البيانات المؤسسية', icon: '🩺' },
-      { id: 'operationalReports',     label: 'التقارير التشغيلية',     icon: '🚨' },
+      { id: 'operationalReports',     label: 'الحالات الحرجة',          icon: '🚨' },
       { id: 'slaBoard',               label: 'لوحة SLA (الشكاوى/NCR)', icon: '⏱️' },
       { id: 'risks',                  label: 'المخاطر والفرص',      icon: '⚠️' },
       { id: 'changeRequests',         label: 'طلبات التعديل',        icon: '📝' },
@@ -550,27 +550,28 @@ function app() {
       { id: 'audit-log',    label: 'سجل التدقيق',         icon: '🗂️' },
       { id: 'reportBuilder', label: 'منشئ التقارير',      icon: '🧾' },
       { id: 'dataImport',        label: 'استيراد البيانات',    icon: '📥' },
-      { id: 'portalAdmin',       label: 'البوابة العامة',       icon: '🌐' },
-      { id: 'aiSettings',        label: 'إعداد AI',             icon: '🧠' },
+      { id: 'portalAdmin',       label: 'البوابة العامة (مؤرشفة)', icon: '🌐' },
+      { id: 'aiSettings',        label: 'مركز AI',              icon: '🧠' },
       { id: 'integrationsSettings', label: 'التكاملات والتنبيهات', icon: '🔗' },
       { id: 'consultant',        label: 'المستشار الذكي',        icon: '🎓' },
-      { id: 'progressReports',   label: 'المحقق الشهري',        icon: '🔎' },
+      { id: 'progressReports',   label: 'تقرير الإنجاز الشهري',   icon: '🔎' },
       { id: 'auditorDashboard',  label: 'لوحة المراقب',         icon: '🔍' },
       { id: 'userGuide',         label: 'دليل المستخدم',         icon: '📖' },
     ],
 
     // ─── Sidebar: Grouped structure (ISO-based) with theme colors ─────
     menuGroups: [
-      { id: 'home',      title: 'الرئيسية',            icon: '🏠', iso: '',         color: 'slate',   items: ['myWork','dashboard','iso-readiness','dataHealth','operationalReports','reportBuilder'] },
-      { id: 'planning',  title: 'التخطيط والمؤشرات',   icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives','fundingSources','fundingPlans','planVersions','operationalActivities','kpiTracking','myKpi','risks','changeRequests'] },
-      { id: 'quality',   title: 'الجودة والتحسين',     icon: '⭐', iso: 'ISO 9-10', color: 'amber',   items: ['isoRequirements','monthlyReadiness','templateLibrary','managementReview','audits','auditChecklists','surveys','complaints','ncr','capa','improvementProjects','slaBoard'] },
-      { id: 'followup',  title: 'المتابعة والإدارة',   icon: '📋', iso: '',         color: 'emerald', items: ['progressReports','myAcknowledgments','acknowledgmentsMatrix','kpiFollowUp'] },
-      { id: 'context',   title: 'السياق والقيادة',     icon: '🧭', iso: 'ISO 4-5',  color: 'sky',     items: ['qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments'] },
-      { id: 'support',   title: 'الدعم',               icon: '🧑‍🎓', iso: 'ISO 7', color: 'teal', items: ['documents','training','competence','performanceReviews','communication'] },
-      { id: 'operation', title: 'التشغيل',             icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','programs','suppliers'] },
-      { id: 'ai',        title: 'الذكاء الاصطناعي',    icon: '🧠', iso: '',         color: 'indigo',  items: ['consultant','aiSettings','integrationsSettings'] },
-      { id: 'settings',  title: 'الإعدادات',           icon: '⚙️', iso: '',         color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
-      { id: 'help',      title: 'المساعدة',            icon: '📖', iso: '',         color: 'indigo',  items: ['userGuide'] },
+      // مرتب حسب تكرار الاستخدام: العمل اليومي أولاً، ثم القرار، ثم وحدات الإدارة المتقدمة.
+      { id: 'daily',        title: 'عملي اليومي',             icon: '✅', iso: '',         color: 'emerald', items: ['myWork','myKpi','myAcknowledgments','userGuide'] },
+      { id: 'performance',  title: 'الأداء والمتابعة',        icon: '📈', iso: 'ISO 9',    color: 'sky',     items: ['kpiFollowUp','kpiTracking','progressReports','dataHealth','operationalReports','slaBoard','dashboard','reportBuilder'] },
+      { id: 'isoCenter',    title: 'جاهزية ISO',              icon: '📋', iso: 'ISO 4-10', color: 'amber',   items: ['monthlyReadiness','iso-readiness','isoRequirements','templateLibrary','managementReview','audits','auditChecklists'] },
+      { id: 'qualityCases', title: 'حالات الجودة والتحسين',   icon: '🛠️', iso: 'ISO 10',   color: 'rose',    items: ['complaints','ncr','capa','risks','changeRequests','improvementProjects','surveys'] },
+      { id: 'planning',     title: 'الخطة والمؤشرات',         icon: '🎯', iso: 'ISO 6',    color: 'violet',  items: ['planMap','strategicGoals','operationalActivities','indicators','annualTargets','strategicPlans','axes','initiatives','fundingSources','fundingPlans','planVersions'] },
+      { id: 'context',      title: 'السياق والوثائق الحاكمة', icon: '🧭', iso: 'ISO 4-5',  color: 'slate',   items: ['qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments','acknowledgmentsMatrix'] },
+      { id: 'support',      title: 'الدعم والموارد البشرية',  icon: '🧑‍🎓', iso: 'ISO 7',   color: 'teal',    items: ['documents','training','competence','performanceReviews','communication'] },
+      { id: 'operation',    title: 'بيانات التشغيل المرجعية', icon: '⚙️', iso: 'ISO 8',    color: 'emerald', items: ['beneficiaries','donations','suppliers','programs'] },
+      { id: 'automation',   title: 'التنبيهات والتكاملات',    icon: '🔗', iso: '',         color: 'indigo',  items: ['integrationsSettings','consultant','aiSettings'] },
+      { id: 'settings',     title: 'إدارة النظام',            icon: '⚙️', iso: '',         color: 'gray',    items: ['users','departments','audit-log','dataImport','portalAdmin'] },
     ],
 
     // ─── دور المراقب الخارجي ──────────────────────────────────────────
@@ -586,7 +587,21 @@ function app() {
       const ALL = 'ALL_ITEMS';
       const matrix = {
         SUPER_ADMIN:      ALL,
-        QUALITY_MANAGER:  ALL,
+        QUALITY_MANAGER: [
+          'myWork','dashboard','monthlyReadiness','iso-readiness','isoRequirements','dataHealth','operationalReports','reportBuilder',
+          'qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments',
+          'myAcknowledgments','acknowledgmentsMatrix',
+          'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
+          'fundingSources','fundingPlans','planVersions','operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
+          'changeRequests',
+          'documents','training','competence','performanceReviews','communication',
+          'beneficiaries','donations','programs','suppliers',
+          'managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports',
+          'ncr','capa','improvementProjects',
+          'consultant','aiSettings','integrationsSettings',
+          'users','departments','audit-log','dataImport',
+          'userGuide',
+        ],
         COMMITTEE_MEMBER: [
           'myWork','dashboard','iso-readiness','isoRequirements','dataHealth','operationalReports','reportBuilder',
           'qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments',
@@ -602,11 +617,10 @@ function app() {
           'userGuide',
         ],
         DEPT_MANAGER: [
-          'myWork','dashboard',
+          'myWork',
           'qualityScope','organizationalChart','qualityPolicy','ackDocuments','myAcknowledgments',
           'operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
           'documents','training','competence','performanceReviews','communication',
-          'beneficiaries','donations','programs','suppliers',
           'complaints','slaBoard','progressReports',
           'ncr','capa','improvementProjects',
           'userGuide',
@@ -689,12 +703,12 @@ function app() {
     },
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
-    isGuided()   { return this.uiMode === 'guided'; },
-    isAdvanced() { return this.uiMode !== 'guided'; },
+    isAdvanced() { return this.canUseAdvancedMode() && this.uiMode !== 'guided'; },
+    isGuided()   { return !this.isAdvanced(); },
     // Audit improvement #2: EMPLOYEE لا يحصل على الوضع المتقدم — يبقى في الموجَّه دائماً.
     canUseAdvancedMode() {
       const role = this.user?.role;
-      return role && role !== 'EMPLOYEE' && role !== 'GUEST_AUDITOR';
+      return ['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER'].includes(role);
     },
     async toggleUiMode() {
       if (!this.canUseAdvancedMode()) {
@@ -852,6 +866,7 @@ function app() {
           { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'dataHealth'] },
           { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements'] },
           { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview'] },
+          { id: 'guided-evidence', title: 'أدلة وتحقق', icon: '🔎', iso: '', color: 'violet', items: ['planMap', 'documents', 'audits', 'surveys', 'userGuide'] },
         ],
         SUPER_ADMIN: [
           { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
@@ -1355,6 +1370,7 @@ function app() {
       else if (id === 'kpiTracking') await this.kpiInit();
       else if (id === 'kpiFollowUp') await this.loadKpiFollowUp();
       else if (id === 'integrationsSettings') await this.loadIntegrationsSettings();
+      else if (id === 'aiSettings') await this.loadAiControlCenter();
       else if (id === 'myKpi') await this.loadMyKpi();
       else if (id === 'dataHealth') await this.loadDataHealth();
       else if (id === 'planMap') await this.loadPlanMap();
@@ -1378,6 +1394,9 @@ function app() {
     planMap: null,
     planMapLoading: false,
     planMapError: '',
+    planMapFilterAxis: '',
+    planMapFilterStatus: '',
+    planMapSearch: '',
 
     async loadPlanMap() {
       this.planMapLoading = true;
@@ -1390,6 +1409,27 @@ function app() {
         this.planMapError = e.message || 'تعذر تحميل خريطة ترابط الخطة';
       } finally {
         this.planMapLoading = false;
+      }
+    },
+    async exportPlanMap() {
+      try {
+        const year = this.filterYear || new Date().getFullYear();
+        const res = await fetch(`${API}/strategic-goals/plan-map/export.xlsx?year=${encodeURIComponent(year)}`, {
+          headers: { Authorization: `Bearer ${this.token}` },
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('فشل تصدير الخطة');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `الخطة-الكاملة-${year}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        this.toast?.(e.message || 'فشل تصدير الخطة', 'error');
       }
     },
     planIssueClass(severity) {
@@ -1436,11 +1476,12 @@ function app() {
     planMapAxisGoalGroups() {
       const axes = this.planMap?.axes || [];
       const goals = this.planMap?.goals || [];
+      const filteredGoals = goals.filter(goal => this.planMapGoalMatchesFilters(goal));
       const groups = axes.map(axis => ({
         ...axis,
-        goals: goals.filter(goal => goal.axis?.id === axis.id),
+        goals: filteredGoals.filter(goal => goal.axis?.id === axis.id),
       }));
-      const withoutAxis = goals.filter(goal => !goal.axis?.id);
+      const withoutAxis = filteredGoals.filter(goal => !goal.axis?.id);
       if (withoutAxis.length) {
         groups.push({
           id: '__without_axis',
@@ -1450,6 +1491,150 @@ function app() {
         });
       }
       return groups.filter(group => group.goals.length || group.id !== '__without_axis');
+    },
+    planMapGoalMatchesFilters(goal) {
+      if (!goal) return false;
+      if (this.planMapFilterAxis && goal.axis?.id !== this.planMapFilterAxis) return false;
+      if (this.planMapFilterStatus && this.planMapGoalStatus(goal).key !== this.planMapFilterStatus) return false;
+      const q = this._normalizeAr(this.planMapSearch || '');
+      if (!q) return true;
+      const haystack = [
+        goal.code,
+        goal.title,
+        goal.owner?.name,
+        goal.responsible,
+        ...(goal.indicators || []).map(i => `${i.code} ${i.nameAr}`),
+        ...(goal.supportingAxisIndicators || []).map(i => `${i.code} ${i.nameAr}`),
+        ...(goal.activities || []).map(a => `${a.code} ${a.title}`),
+      ].join(' ');
+      return this._normalizeAr(haystack).includes(q);
+    },
+    planMapGoalStatus(goal) {
+      const blocking = (goal?.issues || []).some(i => i.severity === 'ERROR');
+      const warnings = (goal?.issues || []).some(i => i.severity === 'WARNING');
+      const hasIndicators = (goal?.indicators || []).length || (goal?.supportingAxisIndicators || []).length;
+      const hasActivities = (goal?.activities || []).length;
+      if (blocking) return { key: 'ERROR', label: 'يحتاج تصحيح', cls: 'bg-red-50 text-red-700 border-red-200' };
+      if (!hasIndicators) return { key: 'NO_MEASURE', label: 'بلا قياس', cls: 'bg-red-50 text-red-700 border-red-200' };
+      if (!hasActivities) return { key: 'NO_ACTIVITY', label: 'بلا نشاط', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+      if (warnings) return { key: 'WARNING', label: 'يحتاج ضبط', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+      return { key: 'OK', label: 'مكتمل للمتابعة', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    },
+    planMapFilteredGoalCount() {
+      return this.planMapAxisGoalGroups().reduce((sum, group) => sum + (group.goals?.length || 0), 0);
+    },
+    resetPlanMapFilters() {
+      this.planMapFilterAxis = '';
+      this.planMapFilterStatus = '';
+      this.planMapSearch = '';
+    },
+    planMapStatusBreakdown() {
+      const goals = this.planMap?.goals || [];
+      const seed = {
+        OK: { label: 'مكتمل للمتابعة', count: 0, cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        WARNING: { label: 'يحتاج ضبط', count: 0, cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+        NO_ACTIVITY: { label: 'بلا نشاط', count: 0, cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+        NO_MEASURE: { label: 'بلا قياس', count: 0, cls: 'bg-red-50 text-red-700 border-red-200' },
+        ERROR: { label: 'يحتاج تصحيح', count: 0, cls: 'bg-red-50 text-red-700 border-red-200' },
+      };
+      goals.forEach(goal => {
+        const key = this.planMapGoalStatus(goal).key;
+        if (seed[key]) seed[key].count += 1;
+      });
+      return Object.entries(seed).map(([key, item]) => ({ key, ...item }));
+    },
+    planMapExecutiveSummary() {
+      const summary = this.planMap?.summary || {};
+      const breakdown = this.planMapStatusBreakdown();
+      const urgent = breakdown.filter(item => ['ERROR', 'NO_MEASURE', 'NO_ACTIVITY'].includes(item.key))
+        .reduce((sum, item) => sum + item.count, 0);
+      const ready = breakdown.find(item => item.key === 'OK')?.count || 0;
+      const score = Number(summary.score || 0);
+      let verdict = 'تحتاج ضبط قبل الاعتماد التشغيلي';
+      let tone = 'amber';
+      if (score >= 85 && urgent === 0) {
+        verdict = 'جاهزة للمتابعة التشغيلية';
+        tone = 'green';
+      } else if (score < 65 || urgent > 0) {
+        verdict = 'تحتاج معالجة مركزة قبل التعميم';
+        tone = 'red';
+      }
+      return {
+        score,
+        verdict,
+        tone,
+        ready,
+        urgent,
+        warnings: summary.warnings || 0,
+        errors: summary.errors || 0,
+        next: (this.planMapDecisionItems(1)[0]?.text || this.planMapDecisionItems(1)[0]?.title || 'لا يوجد إجراء حاكم ظاهر الآن.'),
+      };
+    },
+    printPlanMapReport() {
+      const map = this.planMap;
+      if (!map) return;
+      const year = this.filterYear || new Date().getFullYear();
+      const executive = this.planMapExecutiveSummary();
+      const breakdown = this.planMapStatusBreakdown();
+      const actions = this.planMapDecisionItems(8);
+      const axes = this.planMapAxisCards();
+      const html = `
+        <!doctype html>
+        <html lang="ar" dir="rtl">
+        <head>
+          <meta charset="utf-8" />
+          <title>تقرير خريطة الخطة ${year}</title>
+          <style>
+            body{font-family:Arial,Tahoma,sans-serif;margin:32px;color:#172033;background:#fff}
+            h1{margin:0 0 6px;font-size:24px}
+            .muted{color:#667085;font-size:12px}
+            .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
+            .card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#f8fafc}
+            .num{font-size:22px;font-weight:800;margin-top:6px}
+            table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px}
+            th,td{border:1px solid #e5e7eb;padding:8px;text-align:right;vertical-align:top}
+            th{background:#f1f5f9}
+            .section{margin-top:24px}
+            .pill{display:inline-block;border:1px solid #e5e7eb;border-radius:999px;padding:4px 8px;margin:3px;font-size:12px}
+            @media print{body{margin:18px}.no-print{display:none}}
+          </style>
+        </head>
+        <body>
+          <button class="no-print" onclick="window.print()" style="float:left;padding:8px 14px;border:1px solid #ddd;border-radius:10px;background:#fff">طباعة</button>
+          <h1>تقرير تنفيذي لخريطة ترابط الخطة</h1>
+          <div class="muted">السنة: ${year} · تاريخ الإصدار: ${new Date().toLocaleDateString('ar-SA')}</div>
+          <div class="grid">
+            <div class="card"><div class="muted">درجة الصحة</div><div class="num">${executive.score}%</div></div>
+            <div class="card"><div class="muted">قرار القراءة</div><div class="num" style="font-size:16px">${executive.verdict}</div></div>
+            <div class="card"><div class="muted">جاهز للمتابعة</div><div class="num">${executive.ready}</div></div>
+            <div class="card"><div class="muted">يحتاج معالجة</div><div class="num">${executive.urgent}</div></div>
+          </div>
+          <div class="section">
+            <h2>توزيع الحالات</h2>
+            ${breakdown.map(item => `<span class="pill">${item.label}: <b>${item.count}</b></span>`).join('')}
+          </div>
+          <div class="section">
+            <h2>أهم الإجراءات المقترحة</h2>
+            <table><thead><tr><th>الأولوية</th><th>المجال</th><th>الإجراء</th></tr></thead><tbody>
+              ${actions.map((item, idx) => `<tr><td>${idx + 1}</td><td>${item.title || ''}</td><td>${item.text || ''}</td></tr>`).join('') || '<tr><td colspan="3">لا توجد إجراءات حاكمة ظاهرة.</td></tr>'}
+            </tbody></table>
+          </div>
+          <div class="section">
+            <h2>قراءة المحاور</h2>
+            <table><thead><tr><th>المحور</th><th>الأهداف</th><th>المؤشرات</th><th>الأنشطة</th><th>الملاحظات</th></tr></thead><tbody>
+              ${axes.map(axis => `<tr><td>${axis.nameAr || ''}</td><td>${axis.goals}</td><td>${axis.indicators}</td><td>${axis.activities}</td><td>${axis.blockingIssues ? 'يحتاج انتباه' : 'مستقر'}</td></tr>`).join('')}
+            </tbody></table>
+          </div>
+        </body>
+        </html>`;
+      const win = window.open('', '_blank');
+      if (!win) {
+        this.toast?.('تعذر فتح نافذة التقرير. تأكد من السماح بالنوافذ المنبثقة.', 'error');
+        return;
+      }
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
     },
     planMapDecisionItems(limit = 6) {
       const rank = { ERROR: 0, WARNING: 1, INFO: 2 };
@@ -2238,11 +2423,11 @@ function app() {
     myWorkRolePageTitle() {
       const mode = this.myWork?.viewMode || 'EMPLOYEE';
       return ({
-        EMPLOYEE: 'مهامي اليوم',
-        DEPT: 'مركز متابعة القسم',
-        QUALITY: 'مركز متابعة الجودة',
-        EXEC: 'مركز القرار التنفيذي',
-      })[mode] || 'مهامي اليوم';
+        EMPLOYEE: 'إنجازي اليوم',
+        DEPT: 'إنجاز القسم اليوم',
+        QUALITY: 'إنجاز الجودة اليوم',
+        EXEC: 'إنجاز الإدارة اليوم',
+      })[mode] || 'إنجازي اليوم';
     },
     myWorkStatusText() {
       const stats = this.myWorkComfortStats();
