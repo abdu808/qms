@@ -245,8 +245,19 @@ router.get('/models/live', authorize(...USER_ROLES), asyncHandler(async (req, re
     throw BadRequest(`المزود ${provider} لا يدعم جلب الموديلات`);
   }
 
-  const models = await providerModule.listModels({ apiKey });
-  res.json({ ok: true, provider, models });
+  try {
+    const models = await providerModule.listModels({ apiKey });
+    res.json({ ok: true, provider, models });
+  } catch (e) {
+    // لا نجعل فشل مزود خارجي يكسر واجهة الإعدادات. الواجهة تستطيع
+    // الرجوع للكتالوج الثابت مع إظهار تنبيه لطيف للمستخدم.
+    res.json({
+      ok: false,
+      provider,
+      models: [],
+      error: e?.message || 'تعذر جلب الموديلات من المزود',
+    });
+  }
 }));
 
 /**

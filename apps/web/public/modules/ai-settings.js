@@ -139,6 +139,10 @@
       c.liveModels[provider] = [];
       try {
         const r = await this.api('GET', `/ai-settings/models/live?provider=${provider}`);
+        if (r.ok === false) {
+          c.liveModelsError[provider] = r.error || 'تعذر جلب الموديلات الحية، سيتم استخدام الكتالوج الثابت';
+          return;
+        }
         c.liveModels[provider] = r.models || [];
         // إذا لم يكن الموديل الحالي ضمن القائمة، اضبطه على أول موديل
         if (c.defaultProvider === provider && c.liveModels[provider].length > 0) {
