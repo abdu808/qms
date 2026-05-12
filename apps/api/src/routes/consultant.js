@@ -325,6 +325,7 @@ router.post('/upload', authorize(...UPLOAD_ROLES), upload.array('files', 10), as
         stored,
         operationalResult,
         textLength: extracted.text?.length || 0,
+        textPreview: (extracted.text || '').slice(0, 5000),
       };
     } catch (e) {
       return { ok: false, filename, error: e.message };
@@ -392,8 +393,39 @@ router.post('/upload', authorize(...UPLOAD_ROLES), upload.array('files', 10), as
     totalCreated,
     files:       fileResults,
     chatMessage: lines.join('\n').trim(),
+    attachmentContext: buildAttachmentContext(fileResults),
   });
 }));
+
+function buildAttachmentContext(fileResults = []) {
+  const okFiles = fileResults.filter(r => r.ok);
+  if (!okFiles.length) return '';
+
+  const chunks = [];
+  let remainingChars = 4_500;
+
+  chunks.push('[سياق المرفقات المرفوعة]');
+  for (const r of okFiles) {
+    const a = r.analysis || {};
+    const header = [
+      `الملف: ${r.filename}`,
+      `التصنيف: ${a.category || '-'}`,
+      `الملخص: ${a.summary || '-'}`,
+      `طول النص المستخرج: ${r.textLength || 0} حرف`,
+    ].join('\n');
+
+    chunks.push(`\n---\n${header}`);
+
+    const preview = String(r.textPreview || '').trim();
+    if (preview && remainingChars > 0) {
+      const part = preview.slice(0, remainingChars);
+      chunks.push(`مقتطف النص:\n${part}`);
+      remainingChars -= part.length;
+    }
+  }
+  chunks.push('[نهاية سياق المرفقات]');
+  return chunks.join('\n').trim();
+}
 
 // ── POST /apply (legacy) ──────────────────────────────────────────────────────
 router.post('/apply', authorize(...CONTEXT_ROLES), asyncHandler(async (req, res) => {

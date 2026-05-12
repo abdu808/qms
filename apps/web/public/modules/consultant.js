@@ -94,7 +94,10 @@
         // بعد إعادة تحميل الصفحة.
         const toSave = this.consult.messages
           .map(m => {
-            if (m.role !== 'file') return m;
+            if (m.role !== 'file') {
+              const { _sendContent, ...safeMessage } = m;
+              return safeMessage;
+            }
             return {
               role: 'file',
               count: m.count,
@@ -230,7 +233,7 @@
 
         const r = await this.api('POST', '/consult-sessions', {
           id: c.sessionId || undefined,
-          messages: c.messages,
+          messages: this._consultPersistableMessages(),
           ...usage,
           lastModel: c.lastModel || '',
         });
@@ -238,6 +241,23 @@
           c.sessionId = r.item.id;
         }
       } catch { /* silent — لا نكسر المحادثة */ }
+    },
+
+    _consultPersistableMessages() {
+      return (this.consult.messages || []).map(m => {
+        const { _sendContent, ...safeMessage } = m;
+        if (safeMessage.role === 'file') {
+          return {
+            role: 'file',
+            count: safeMessage.count,
+            succeeded: safeMessage.succeeded,
+            failed: safeMessage.failed,
+            totalCreated: safeMessage.totalCreated,
+            chatMessage: safeMessage.chatMessage,
+          };
+        }
+        return safeMessage;
+      });
     },
 
     /** يفتح جلسة قديمة */
@@ -290,18 +310,47 @@
       // لا إرسال أثناء معالجة سابقة أو إذا لا يوجد محتوى
       if ((!text && !hasFiles) || this.consult.thinking || this.consult.uploading) return;
 
-      // إذا كان هناك ملفات — ارفعها أولاً قبل إرسال الرسالة
+      let uploadedContext = '';
+      let uploadedMessage = null;
+
+      // إذا كان هناك ملفات — ارفعها أولاً ثم اربطها بنفس رسالة المستخدم
       if (hasFiles) {
-        await this.consultUpload();
+        const uploadResult = await this.consultUpload({ silent: !!text });
         // إذا فشل الرفع نوقف هنا (الخطأ ظهر مسبقاً)
         if (this.consult.error) return;
+        uploadedContext = uploadResult?.attachmentContext || uploadResult?.chatMessage || '';
+        uploadedMessage = uploadResult ? {
+          role:        'file',
+          count:       uploadResult.total,
+          succeeded:   uploadResult.succeeded,
+          failed:      uploadResult.failed,
+          totalCreated: uploadResult.totalCreated,
+          files:       uploadResult.files,
+          chatMessage: uploadResult.chatMessage,
+          attachmentContext: uploadResult.attachmentContext,
+        } : null;
         // إذا لا يوجد نص للإرسال نكتفي بنتيجة الرفع
         if (!text) return;
       }
 
       if (!text) return;
 
-      this.consult.messages.push({ role: 'user', content: text });
+      const outgoingText = uploadedContext
+        ? `${uploadedContext}\n\n[توجيه المستخدم على المرفقات]\n${text}`
+        : text;
+
+      this.consult.messages.push({
+        role: 'user',
+        content: text,
+        attachments: uploadedMessage ? {
+          count: uploadedMessage.count,
+          succeeded: uploadedMessage.succeeded,
+          failed: uploadedMessage.failed,
+          totalCreated: uploadedMessage.totalCreated,
+          chatMessage: uploadedMessage.chatMessage,
+        } : null,
+        _sendContent: outgoingText,
+      });
       this.consult.input    = '';
       this.consult.thinking = true;
       this.consult.error    = '';
@@ -317,7 +366,7 @@
               (m.totalCreated ? ` — تم إنشاء ${m.totalCreated} عنصر.` : '');
             return { role: 'user', content: `[سياق الملفات المرفوعة]\n${txt}` };
           }
-          return { role: m.role, content: m.content };
+          return { role: m.role, content: m._sendContent || m.content };
         });
 
       try {
@@ -553,7 +602,8 @@
       this.consult.attachments.splice(index, 1);
     },
 
-    async consultUpload() {
+    async consultUpload(options = {}) {
+      const silent = !!options.silent;
       if (!this.consult.attachments.length || this.consult.uploading || this.consult.thinking) return;
 
       // ← الإصلاح: ضبط uploading=true فوراً لمنع الإرسال المكرر
@@ -578,19 +628,24 @@
         const j = await r.json();
         if (!r.ok || !j.ok) throw new Error(j.error?.message || j.error || 'فشل رفع الملفات');
 
-        // رسالة موحَّدة تُظهر نتيجة كل الملفات
-        this.consult.messages.push({
-          role:        'file',
-          count:       j.total,
-          succeeded:   j.succeeded,
-          failed:      j.failed,
-          totalCreated: j.totalCreated,
-          files:       j.files,
-          chatMessage: j.chatMessage,
-        });
+        // رسالة موحَّدة تُظهر نتيجة كل الملفات عند الرفع دون نص.
+        // عند وجود نص، تُدمج المرفقات داخل رسالة المستخدم نفسها حتى لا ينفصل السياق.
+        if (!silent) {
+          this.consult.messages.push({
+            role:        'file',
+            count:       j.total,
+            succeeded:   j.succeeded,
+            failed:      j.failed,
+            totalCreated: j.totalCreated,
+            files:       j.files,
+            chatMessage: j.chatMessage,
+            attachmentContext: j.attachmentContext,
+          });
+        }
 
         this.consult.attachments = [];
         if (j.totalCreated > 0) await this.loadConsultContext();
+        return j;
 
         // لا نُرسل أي برومت تلقائي — المستخدم يكتب ما يريد بنفسه.
         // الملفات المرفوعة ليست بالضرورة مؤشرات/أهداف، والبرومت الثابت كان يُضلِّل المودل.
