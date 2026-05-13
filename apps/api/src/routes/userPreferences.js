@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import prisma from '../lib/prisma.js';
+import { prisma } from '../db.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { BadRequest } from '../utils/errors.js';
 
