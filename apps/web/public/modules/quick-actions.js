@@ -9,7 +9,10 @@
     // ─── تخصيص "الأكثر استخداماً" ─────────────────────────────
     // نُخزّن آخر 20 نقرة على أزرار Quick Actions في localStorage ونستعملها
     // لترفيع ما يستخدمه المستخدم فعلاً إلى الأعلى. قرار صغير وبلا backend.
-    _qaUsageKey() { return 'qms_qa_usage_' + (this.user?.id || 'anon'); },
+    _qaUsageKey() {
+      const u = this.user || {};
+      return 'qms_qa_usage_' + encodeURIComponent(u.id || u.sub || u.email || 'anon');
+    },
     _qaUsageGet() {
       try {
         const raw = localStorage.getItem(this._qaUsageKey());

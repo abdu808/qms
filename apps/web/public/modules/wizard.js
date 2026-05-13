@@ -25,7 +25,7 @@
     },
     closeWizard() {
       this.wizard = null;
-      localStorage.setItem('qms_wizard_done', '1');
+      this._setUserLocalFlag?.('wizard_done', true);
     },
     wizardGoto(pg) {
       this.closeWizard();

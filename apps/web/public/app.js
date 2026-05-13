@@ -240,7 +240,7 @@ function app() {
     page: 'myWork', // Batch 16: افتراض الدخول على "مهامي اليوم"
     // UI Mode: 'guided' (موجَّه — مهام + wizards) أو 'advanced' (وصول كامل للموارد).
     // افتراضي = advanced للمستخدمين الحاليين (لا كسر في السلوك).
-    uiMode: (typeof localStorage !== 'undefined' && localStorage.getItem('qms_ui_mode')) || 'guided',
+    uiMode: 'guided',
 
     // ─── تغيير كلمة المرور الإجباري ──────────────────────────────────
     mustChangePw: false,
@@ -280,7 +280,7 @@ function app() {
     filterStatus: '',
     filterYear: '',
     quickFilter: '',
-    swotViewMode: (typeof localStorage !== 'undefined' && localStorage.getItem('qms_swot_view_mode')) || 'matrix',
+    swotViewMode: 'matrix',
 
     // ── Live health alerts — moved to modules/live-alerts.js (window.QmsLiveAlerts)
 
@@ -704,6 +704,46 @@ function app() {
     },
 
     // ─── UI Mode helpers (Guided / Advanced) ───────────────────────
+    _uiUserStorageId() {
+      const u = this.user || {};
+      return String(u.id || u.sub || u.email || 'anon').trim();
+    },
+    _uiStorageKey(key) {
+      return `qms_ui:${encodeURIComponent(this._uiUserStorageId())}:${key}`;
+    },
+    _getUserLocalJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(this._uiStorageKey(key));
+        return raw ? JSON.parse(raw) : fallback;
+      } catch { return fallback; }
+    },
+    _setUserLocalJson(key, value) {
+      try { localStorage.setItem(this._uiStorageKey(key), JSON.stringify(value)); } catch {}
+    },
+    _getUserLocalFlag(key) {
+      try { return localStorage.getItem(this._uiStorageKey(key)) === '1'; } catch { return false; }
+    },
+    _setUserLocalFlag(key, value = true) {
+      try { localStorage.setItem(this._uiStorageKey(key), value ? '1' : '0'); } catch {}
+    },
+    _cleanupLegacyUiStorage() {
+      try {
+        ['qms_favorites', 'qms_collapsed_groups', 'qms_wizard_done', 'qms_ui_mode', 'qms_swot_view_mode'].forEach(k => localStorage.removeItem(k));
+      } catch {}
+    },
+    _loadUserUiPreferences() {
+      const defaultFavorites = ['beneficiaries', 'donations', 'complaints'];
+      this.favorites = this._getUserLocalJson('favorites', defaultFavorites);
+      if (!Array.isArray(this.favorites)) this.favorites = defaultFavorites;
+      this.collapsedGroups = this._getUserLocalJson('collapsed_groups', ['settings']);
+      if (!Array.isArray(this.collapsedGroups)) this.collapsedGroups = ['settings'];
+      const savedMode = this._getUserLocalJson('mode', null);
+      if (savedMode === 'guided' || savedMode === 'advanced') this.uiMode = savedMode;
+      const savedSwot = this._getUserLocalJson('swot_view_mode', null);
+      if (savedSwot === 'matrix' || savedSwot === 'list') this.swotViewMode = savedSwot;
+      this._cleanupLegacyUiStorage();
+    },
+
     isAdvanced() { return this.canUseAdvancedMode() && this.uiMode !== 'guided'; },
     isGuided()   { return !this.isAdvanced(); },
     // Audit improvement #2: EMPLOYEE لا يحصل على الوضع المتقدم — يبقى في الموجَّه دائماً.
@@ -717,7 +757,7 @@ function app() {
         return;
       }
       this.uiMode = this.isGuided() ? 'advanced' : 'guided';
-      try { localStorage.setItem('qms_ui_mode', this.uiMode); } catch {}
+      this._setUserLocalJson('mode', this.uiMode);
       // في الوضع الموجَّه نعيد المستخدم إلى "مهامي" دائماً
       if (this.isGuided()) await this.goto(this.homePageForRole());
     },
@@ -943,14 +983,14 @@ function app() {
     toggleGroup(gid) {
       if (this.isGroupCollapsed(gid)) this.collapsedGroups = this.collapsedGroups.filter(x => x !== gid);
       else this.collapsedGroups.push(gid);
-      localStorage.setItem('qms_collapsed_groups', JSON.stringify(this.collapsedGroups));
+      this._setUserLocalJson('collapsed_groups', this.collapsedGroups);
     },
     isFavorite(id) { return this.favorites.includes(id); },
     toggleFavorite(id, e) {
       if (e) { e.stopPropagation(); e.preventDefault(); }
       if (this.isFavorite(id)) this.favorites = this.favorites.filter(x => x !== id);
       else this.favorites.push(id);
-      localStorage.setItem('qms_favorites', JSON.stringify(this.favorites));
+      this._setUserLocalJson('favorites', this.favorites);
       this.toast(this.isFavorite(id) ? '⭐ أُضيف للمفضلة' : 'أُزيل من المفضلة', 'success', 1800);
     },
     badgeFor(id) { return this.menuBadges[id] || null; },
@@ -1082,16 +1122,7 @@ function app() {
       this._startIdleTimer();
 
       // ── استعادة تفضيلات القائمة الجانبية ─────────────────────────
-      try {
-        const fav = JSON.parse(localStorage.getItem('qms_favorites') || 'null');
-        this.favorites = Array.isArray(fav) ? fav : ['beneficiaries', 'donations', 'complaints'];
-        if (!fav) localStorage.setItem('qms_favorites', JSON.stringify(this.favorites));
-        const col = JSON.parse(localStorage.getItem('qms_collapsed_groups') || 'null');
-        this.collapsedGroups = Array.isArray(col) ? col : ['settings'];
-      } catch {
-        this.favorites = ['beneficiaries', 'donations', 'complaints'];
-        this.collapsedGroups = ['settings'];
-      }
+      this._loadUserUiPreferences();
 
       // لا تخزين للـ tokens في localStorage — حماية من XSS.
       // الجلسة تُستعاد من httpOnly cookies فقط عبر /auth/refresh.
@@ -1107,6 +1138,7 @@ function app() {
           this.token = data.token;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
+          this._loadUserUiPreferences();
           this._consultEnsureUserScope?.();
           if (!this.isReadOnly()) {
             this.loadSidebarBadges();
@@ -1122,7 +1154,7 @@ function app() {
           }
           // Audit improvement #1: استخدم homePageForRole بدلاً من dashboard ثابت
           await this.gotoInitialOrHome();
-          if (!this.isReadOnly() && !localStorage.getItem('qms_wizard_done')) {
+          if (!this.isReadOnly() && !this._getUserLocalFlag('wizard_done')) {
             setTimeout(() => this.showWizard(), 800);
           }
         }
@@ -1136,6 +1168,7 @@ function app() {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
         const previousConsultUser = this._consultUserStorageId?.() || '';
         this.token = r.token; this.user = r.user;
+        this._loadUserUiPreferences();
         const nextConsultUser = this._consultUserStorageId?.() || '';
         if (previousConsultUser && nextConsultUser && previousConsultUser !== nextConsultUser) {
           this._consultResetRuntimeState?.({ clearStorage: false });
@@ -1687,7 +1720,7 @@ function app() {
 
     setSwotViewMode(mode) {
       this.swotViewMode = mode === 'list' ? 'list' : 'matrix';
-      try { localStorage.setItem('qms_swot_view_mode', this.swotViewMode); } catch {}
+      this._setUserLocalJson('swot_view_mode', this.swotViewMode);
     },
     swotMeta(type) {
       const key = String(type || '').toUpperCase();
