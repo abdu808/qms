@@ -2343,6 +2343,24 @@
                       </template>
                     </div>
                   </div>
+                  <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mt-4 text-xs">
+                    <div class="rounded-xl border bg-gray-50 px-3 py-2">
+                      <div class="text-gray-500">إجمالي البنود</div>
+                      <div class="text-xl font-black text-gray-800" x-text="swotTranslationSummary().total"></div>
+                    </div>
+                    <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2">
+                      <div class="text-emerald-700">مترجم عملياً</div>
+                      <div class="text-xl font-black text-emerald-800" x-text="swotTranslationSummary().ok"></div>
+                    </div>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div class="text-slate-600">للرصد والمتابعة</div>
+                      <div class="text-xl font-black text-slate-700" x-text="swotTranslationSummary().monitor"></div>
+                    </div>
+                    <div class="rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+                      <div class="text-red-700">تحتاج قرار ربط</div>
+                      <div class="text-xl font-black text-red-800" x-text="swotTranslationSummary().needsAction"></div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -2379,6 +2397,15 @@
                               <span x-show="item.swotDepartment?.name" class="rounded-full bg-gray-50 border px-2 py-0.5" x-text="item.swotDepartment.name"></span>
                               <span x-show="item.ownerUser?.name" class="rounded-full bg-gray-50 border px-2 py-0.5" x-text="'المسؤول: ' + item.ownerUser.name"></span>
                               <span x-show="item.relatedRiskId" class="rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5">مرتبط بخطر/فرصة</span>
+                              <span x-show="item.relatedGoalId" class="rounded-full bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5">مرتبط بهدف</span>
+                            </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                              <span class="rounded-full border px-2 py-0.5 font-bold"
+                                    :class="swotTranslationState(item).className"
+                                    x-text="swotTranslationState(item).label"></span>
+                              <template x-for="link in swotTranslationState(item).links" :key="item.id + '-' + link">
+                                <span class="rounded-full border bg-white text-gray-600 px-2 py-0.5" x-text="link"></span>
+                              </template>
                             </div>
                             <div x-show="item.strategy" class="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-2" x-text="item.strategy"></div>
                             <div class="mt-3 flex flex-wrap gap-2 text-xs">

@@ -1749,6 +1749,55 @@ function app() {
       const type = String(item?.type || '').toUpperCase();
       return !item?.deletedAt && !item?.relatedRiskId && ['WEAKNESS', 'THREAT', 'OPPORTUNITY'].includes(type);
     },
+    swotTranslationState(item) {
+      const type = String(item?.type || '').toUpperCase();
+      const links = [];
+      if (item?.relatedGoalId || item?.relatedGoal) links.push('مرتبط بهدف');
+      if (item?.relatedRiskId || item?.relatedRisk) links.push(type === 'OPPORTUNITY' ? 'مرتبط بفرصة' : 'مرتبط بخطر');
+      if (item?.strategy) links.push('له توجه تعامل');
+      if (item?.ownerUserId || item?.ownerUser) links.push('له مالك');
+
+      if (['WEAKNESS', 'THREAT'].includes(type) && !(item?.relatedRiskId || item?.relatedRisk)) {
+        return {
+          level: 'needs-action',
+          label: 'يحتاج تحويل لخطر/خطة معالجة',
+          className: 'bg-red-50 text-red-700 border-red-100',
+          links,
+        };
+      }
+      if (type === 'OPPORTUNITY' && !(item?.relatedGoalId || item?.relatedGoal || item?.relatedRiskId || item?.relatedRisk)) {
+        return {
+          level: 'needs-action',
+          label: 'يحتاج ربط بهدف أو فرصة',
+          className: 'bg-amber-50 text-amber-700 border-amber-100',
+          links,
+        };
+      }
+      if (type === 'STRENGTH' && !(item?.relatedGoalId || item?.relatedGoal || item?.strategy)) {
+        return {
+          level: 'monitor',
+          label: 'قوة للرصد فقط',
+          className: 'bg-slate-50 text-slate-600 border-slate-200',
+          links,
+        };
+      }
+      return {
+        level: 'ok',
+        label: links.includes('مرتبط بهدف') || links.some(x => x.includes('خطر') || x.includes('فرصة')) ? 'مترجم عملياً' : 'مترجم كتوجه متابعة',
+        className: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        links,
+      };
+    },
+    swotTranslationSummary() {
+      const list = Array.isArray(this.items) ? this.items : [];
+      const states = list.map(item => this.swotTranslationState(item));
+      return {
+        total: list.length,
+        ok: states.filter(s => s.level === 'ok').length,
+        monitor: states.filter(s => s.level === 'monitor').length,
+        needsAction: states.filter(s => s.level === 'needs-action').length,
+      };
+    },
 
     async loadDataHealth() {
       try {
