@@ -1107,6 +1107,7 @@ function app() {
           this.token = data.token;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
+          this._consultEnsureUserScope?.();
           if (!this.isReadOnly()) {
             this.loadSidebarBadges();
             this.loadPolicyAck();
@@ -1133,7 +1134,13 @@ function app() {
       this.loading = true; this.loginError = '';
       try {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
+        const previousConsultUser = this._consultUserStorageId?.() || '';
         this.token = r.token; this.user = r.user;
+        const nextConsultUser = this._consultUserStorageId?.() || '';
+        if (previousConsultUser && nextConsultUser && previousConsultUser !== nextConsultUser) {
+          this._consultResetRuntimeState?.({ clearStorage: false });
+        }
+        this._consultEnsureUserScope?.();
         // Tokens kept in-memory only. Persistence via httpOnly cookies (set by server).
         if (r.mustChangePassword) {
           this.mustChangePw = true;
@@ -1204,6 +1211,7 @@ function app() {
 
     async logout() {
       try { await this.api('POST', '/auth/logout', {}); } catch {}
+      this._consultResetRuntimeState?.({ clearStorage: true });
       // Cookies تُمسح من الخادم — لا localStorage للتنظيف.
       if (this._notifTimer)  { clearInterval(this._notifTimer);  this._notifTimer  = null; }
       if (this._alertsTimer) { clearInterval(this._alertsTimer); this._alertsTimer = null; }

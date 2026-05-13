@@ -8,6 +8,9 @@
 (function () {
   'use strict';
 
+  const LEGACY_CONSULT_HISTORY_KEY = 'qms_consult_history';
+  const CONSULT_HISTORY_PREFIX = 'qms_consult_history:user:';
+
   const TOOL_LABELS = {
     // قراءة وتحليل
     get_system_state:              '🔍 قراءة النظام',
@@ -72,6 +75,7 @@
       sessions:        [],      // قائمة الجلسات السابقة [{id, title, messageCount, costUSD, updatedAt}]
       sessionsOpen:    false,   // هل قائمة الجلسات مفتوحة
       sessionsLoading: false,   // جارٍ التحميل
+      historyOwnerKey: null,
       templates: [
         { id: 'analyze',       label: '🔍 تحليل شامل للنظام',          prompt: 'حلِّل حالة نظام الجودة كاملاً: استخدم scan_overdue لمعرفة التأخيرات، ثم اقرأ الأهداف والمخاطر وNCRs وCAPAs. قدِّم تقريراً بالأولويات والإجراءات العاجلة.' },
         { id: 'fill_gaps',     label: '🔧 أصلح فجوات الخطة',           prompt: 'افحص الفجوات الحالية في الخطة الاستراتيجية وأصلح ما تستطيع: اربط الأنشطة، أضف مسؤولين، واملأ الحقول الناقصة.' },
@@ -88,8 +92,60 @@
     },
 
     // ─── localStorage: حفظ واستعادة المحادثة ────────────────────────────────
+    _consultUserStorageId() {
+      const u = this.user || {};
+      return String(u.id || u.sub || u.email || '').trim();
+    },
+
+    _consultHistoryKey() {
+      const id = this._consultUserStorageId();
+      if (!id) return null;
+      return CONSULT_HISTORY_PREFIX + encodeURIComponent(id);
+    },
+
+    _consultClearLegacyHistory() {
+      try { localStorage.removeItem(LEGACY_CONSULT_HISTORY_KEY); } catch {}
+    },
+
+    _consultRemoveCurrentHistory() {
+      try {
+        const key = this._consultHistoryKey();
+        if (key) localStorage.removeItem(key);
+        this._consultClearLegacyHistory();
+      } catch {}
+    },
+
+    _consultResetRuntimeState(options = {}) {
+      if (options.clearStorage) this._consultRemoveCurrentHistory();
+      this.consult.messages        = [];
+      this.consult.input           = '';
+      this.consult.error           = '';
+      this.consult.attachments     = [];
+      this.consult.sessionId       = null;
+      this.consult.sessions        = [];
+      this.consult.sessionsOpen    = false;
+      this.consult.sessionsLoading = false;
+      this.consult.thinking        = false;
+      this.consult.applying        = false;
+      this.consult.uploading       = false;
+      this.consult.context         = null;
+      this.consult.historyOwnerKey = null;
+    },
+
+    _consultEnsureUserScope() {
+      const key = this._consultHistoryKey();
+      if (this.consult.historyOwnerKey && this.consult.historyOwnerKey !== key) {
+        this._consultResetRuntimeState();
+      }
+      this.consult.historyOwnerKey = key;
+      this._consultClearLegacyHistory();
+      return key;
+    },
+
     _consultSaveHistory() {
       try {
+        const key = this._consultEnsureUserScope();
+        if (!key) return;
         // نحفظ رسائل الملفات كملخص خفيف (chatMessage فقط) حتى لا نضيع السياق
         // بعد إعادة تحميل الصفحة.
         const toSave = this.consult.messages
@@ -108,13 +164,15 @@
             };
           })
           .slice(-40);
-        localStorage.setItem('qms_consult_history', JSON.stringify(toSave));
+        localStorage.setItem(key, JSON.stringify(toSave));
       } catch {}
     },
 
     _consultRestoreHistory() {
       try {
-        const raw = localStorage.getItem('qms_consult_history');
+        const key = this._consultEnsureUserScope();
+        if (!key) return;
+        const raw = localStorage.getItem(key);
         if (!raw) return;
         const msgs = JSON.parse(raw);
         if (Array.isArray(msgs) && msgs.length > 0) {
@@ -127,11 +185,11 @@
           this.consult.messages = filtered;
           if (filtered.length !== msgs.length) {
             // احفظ النسخة المنظفة
-            try { localStorage.setItem('qms_consult_history', JSON.stringify(filtered)); } catch {}
+            try { localStorage.setItem(key, JSON.stringify(filtered)); } catch {}
           }
         }
       } catch {
-        localStorage.removeItem('qms_consult_history');
+        this._consultRemoveCurrentHistory();
       }
     },
 
@@ -173,6 +231,7 @@
 
     async loadConsultContext() {
       if (!this.token) return;
+      this._consultEnsureUserScope();
       // استعادة المحادثة السابقة من localStorage (مرة واحدة فقط عند الفتح)
       if (this.consult.messages.length === 0) this._consultRestoreHistory();
       try {
@@ -676,7 +735,7 @@
       this.consult.error        = '';
       this.consult.attachments  = [];
       this.consult.sessionId    = null;
-      try { localStorage.removeItem('qms_consult_history'); } catch {}
+      this._consultRemoveCurrentHistory();
     },
 
     async consultResetStrategicData() {
