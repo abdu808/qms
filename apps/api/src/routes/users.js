@@ -35,6 +35,39 @@ const router = Router();
 const pub = { id: true, email: true, name: true, role: true, departmentId: true, jobTitle: true, phone: true, active: true, lastLoginAt: true, createdAt: true };
 const pubWithDept = { ...pub, department: { select: { id: true, name: true, code: true } } };
 
+function normalizePersonName(name) {
+  return String(name || '')
+    .trim()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+async function countUserReferences(userId) {
+  const counts = await Promise.all([
+    prisma.objective.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }] } }),
+    prisma.strategicGoal.count({ where: { ownerId: userId } }),
+    prisma.indicator.count({ where: { OR: [{ ownerId: userId }, { dataEntryUserId: userId }, { approverUserId: userId }] } }),
+    prisma.operationalActivity.count({ where: { ownerId: userId } }),
+    prisma.initiative.count({ where: { ownerId: userId } }),
+    prisma.risk.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }] } }),
+    prisma.nCR.count({ where: { OR: [{ reporterId: userId }, { assigneeId: userId }] } }),
+    prisma.complaint.count({ where: { assigneeId: userId } }),
+    prisma.capa.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }, { verifiedById: userId }] } }),
+    prisma.followUpTask.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }] } }),
+    prisma.auditFinding.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }] } }),
+    prisma.kpiEntry.count({ where: { OR: [{ enteredById: userId }, { approvedById: userId }] } }),
+    prisma.kpiFollowUp.count({ where: { OR: [{ dataEntryUserId: userId }, { performanceOwnerId: userId }, { escalatedById: userId }] } }),
+    prisma.trainingRecord.count({ where: { userId } }),
+    prisma.ack.count({ where: { userId } }),
+    prisma.signature.count({ where: { userId } }),
+    prisma.notification.count({ where: { userId } }),
+  ]);
+  return counts.reduce((sum, n) => sum + n, 0);
+}
+
 // Permissions sourced from MATRIX['users']:
 //   read   → MANAGER_UP, create/update → QM_UP, delete → SA.
 // Plus explicit SUPER_ADMIN protection: QM may not create/promote/edit SA.
@@ -48,6 +81,45 @@ router.get('/', requireAction('users', 'read'), asyncHandler(async (req, res) =>
   }
   const users = await prisma.user.findMany({ where, select: pubWithDept, orderBy: { createdAt: 'desc' } });
   res.json({ ok: true, items: users, total: users.length });
+}));
+
+router.get('/duplicates', requireAction('users', 'read'), asyncHandler(async (_req, res) => {
+  const users = await prisma.user.findMany({
+    select: pubWithDept,
+    orderBy: [{ name: 'asc' }, { active: 'desc' }, { createdAt: 'asc' }],
+  });
+  const groups = new Map();
+  for (const user of users) {
+    const key = normalizePersonName(user.name);
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(user);
+  }
+
+  const items = [];
+  for (const [normalizedName, group] of groups.entries()) {
+    if (group.length < 2) continue;
+    const usersWithRefs = await Promise.all(group.map(async (user) => ({
+      ...user,
+      referenceCount: await countUserReferences(user.id),
+      suggestedKeep: false,
+    })));
+    usersWithRefs.sort((a, b) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      if (a.referenceCount !== b.referenceCount) return b.referenceCount - a.referenceCount;
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    if (usersWithRefs[0]) usersWithRefs[0].suggestedKeep = true;
+    items.push({
+      normalizedName,
+      name: group[0].name,
+      count: usersWithRefs.length,
+      activeCount: usersWithRefs.filter(u => u.active).length,
+      users: usersWithRefs,
+    });
+  }
+
+  res.json({ ok: true, items, total: items.length });
 }));
 
 router.get('/:id', requireAction('users', 'read'), asyncHandler(async (req, res) => {
