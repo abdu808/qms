@@ -2315,12 +2315,87 @@
                   <span x-text="showDeleted ? '🗑️ سلة المحذوفات' : '🗑️ المحذوفات'"></span>
                 </label>
                 <button x-show="currentModule?.exportable" @click="exportExcel()" class="border border-green-600 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg text-sm font-medium">⬇️ Excel</button>
+                <div x-show="page==='swot'" class="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 text-xs">
+                  <button @click="setSwotViewMode('matrix')"
+                          :class="swotViewMode==='matrix' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'"
+                          class="px-3 py-1.5 rounded-lg transition">مربعات SWOT</button>
+                  <button @click="setSwotViewMode('list')"
+                          :class="swotViewMode==='list' ? 'bg-brand-600 text-white shadow-sm' : 'text-gray-600 hover:bg-white'"
+                          class="px-3 py-1.5 rounded-lg transition">القائمة التفصيلية</button>
+                </div>
                 <span class="text-xs text-gray-500 mr-auto" x-show="totalItems" x-text="'الإجمالي: ' + totalItems"></span>
                 </div>
               </div>
 
+              <div x-show="page==='swot' && swotViewMode==='matrix'" x-cloak class="space-y-4">
+                <div class="bg-white border rounded-2xl shadow-sm p-4">
+                  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                      <h3 class="text-lg font-black text-gray-900">قراءة سياق المنظمة بطريقة بسيطة</h3>
+                      <p class="text-sm text-gray-500 mt-1">صنّف كل بند: ما يساعدنا داخلياً، ما يعيقنا داخلياً، فرصة خارجية، أو تهديد خارجي. بعدها نقرر: متابعة، خطر/فرصة، أو إجراء تحسين.</p>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center min-w-[280px]">
+                      <template x-for="q in swotQuadrants()" :key="'swot-count-' + q.type">
+                        <div class="rounded-xl border px-3 py-2" :class="q.meta.box">
+                          <div class="text-2xl font-black" :class="q.meta.head" x-text="q.items.length"></div>
+                          <div class="text-[11px] font-semibold" :class="q.meta.head" x-text="q.meta.title"></div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <template x-for="q in swotQuadrants()" :key="'swot-box-' + q.type">
+                    <section class="rounded-2xl border shadow-sm overflow-hidden" :class="q.meta.box">
+                      <header class="px-4 py-3 border-b border-white/70 flex items-center justify-between gap-3">
+                        <div>
+                          <div class="flex items-center gap-2">
+                            <span class="text-xl" x-text="q.meta.icon"></span>
+                            <h4 class="font-black text-lg" :class="q.meta.head" x-text="q.meta.title"></h4>
+                          </div>
+                          <p class="text-xs mt-0.5" :class="q.meta.head" x-text="q.meta.subtitle"></p>
+                        </div>
+                        <span class="text-xs rounded-full border px-3 py-1 font-bold" :class="q.meta.pill" x-text="q.items.length + ' بند'"></span>
+                      </header>
+
+                      <div class="p-3 space-y-2 min-h-[160px]">
+                        <template x-if="!q.items.length">
+                          <div class="rounded-xl bg-white/70 border border-dashed border-gray-200 p-5 text-center text-sm text-gray-500">
+                            لا توجد بنود في هذا المربع حالياً.
+                          </div>
+                        </template>
+                        <template x-for="item in q.items" :key="'swot-card-' + item.id">
+                          <article class="bg-white/90 border border-white rounded-xl p-3 shadow-sm">
+                            <div class="flex items-start justify-between gap-2">
+                              <div class="min-w-0">
+                                <div class="text-[11px] text-gray-400 font-mono" x-text="item.code"></div>
+                                <p class="font-semibold text-gray-900 leading-7" x-text="item.description"></p>
+                              </div>
+                              <span class="shrink-0 text-[11px] rounded-full border px-2 py-1" :class="swotImpactClass(item.impact)" x-text="item.impact || 'غير محدد'"></span>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1.5 text-[11px] text-gray-500">
+                              <span x-show="item.category" class="rounded-full bg-gray-50 border px-2 py-0.5" x-text="item.category"></span>
+                              <span x-show="item.swotDepartment?.name" class="rounded-full bg-gray-50 border px-2 py-0.5" x-text="item.swotDepartment.name"></span>
+                              <span x-show="item.ownerUser?.name" class="rounded-full bg-gray-50 border px-2 py-0.5" x-text="'المسؤول: ' + item.ownerUser.name"></span>
+                              <span x-show="item.relatedRiskId" class="rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-0.5">مرتبط بخطر/فرصة</span>
+                            </div>
+                            <div x-show="item.strategy" class="mt-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-2" x-text="item.strategy"></div>
+                            <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                              <button x-show="swotNeedsRisk(item) && canCreate('risks')" @click="swotCreateRisk(item)" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200">تحويل لخطر/فرصة</button>
+                              <button x-show="!item.deletedAt && canCreate('follow-up-tasks')" @click="swotCreateFollowUp(item)" class="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200">مهمة متابعة</button>
+                              <button x-show="canEdit(currentResource) && !item.deletedAt" @click="openEdit(item)" class="px-3 py-1 rounded-lg bg-white border text-gray-700 hover:bg-gray-50">تعديل</button>
+                            </div>
+                          </article>
+                        </template>
+                      </div>
+                    </section>
+                  </template>
+                </div>
+              </div>
+
               <!-- Mobile card view (< md) — يُعرض على الشاشات الصغيرة بدل الجدول -->
-              <div class="md:hidden space-y-2">
+              <div x-show="!(page==='swot' && swotViewMode==='matrix')" class="md:hidden space-y-2">
                 <template x-for="item in items" :key="'card-' + item.id">
                   <div class="bg-white border rounded-xl p-3 shadow-sm">
                     <dl class="space-y-1.5 text-sm">
@@ -2355,7 +2430,7 @@
               </div>
 
               <!-- Desktop Table (≥ md) -->
-              <div class="bg-white border rounded-xl overflow-x-auto hidden md:block">
+              <div x-show="!(page==='swot' && swotViewMode==='matrix')" class="bg-white border rounded-xl overflow-x-auto hidden md:block">
                 <table class="w-full text-sm">
                   <thead class="bg-gray-100 text-right">
                     <tr>
