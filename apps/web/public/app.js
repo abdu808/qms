@@ -241,6 +241,7 @@ function app() {
     // UI Mode: 'guided' (موجَّه — مهام + wizards) أو 'advanced' (وصول كامل للموارد).
     // افتراضي = advanced للمستخدمين الحاليين (لا كسر في السلوك).
     uiMode: 'guided',
+    _preferenceSyncTimers: {},
 
     // ─── تغيير كلمة المرور الإجباري ──────────────────────────────────
     mustChangePw: false,
@@ -719,19 +720,21 @@ function app() {
     },
     _setUserLocalJson(key, value) {
       try { localStorage.setItem(this._uiStorageKey(key), JSON.stringify(value)); } catch {}
+      this._syncUserPreference(key, value);
     },
     _getUserLocalFlag(key) {
       try { return localStorage.getItem(this._uiStorageKey(key)) === '1'; } catch { return false; }
     },
     _setUserLocalFlag(key, value = true) {
       try { localStorage.setItem(this._uiStorageKey(key), value ? '1' : '0'); } catch {}
+      this._syncUserPreference(key, !!value);
     },
     _cleanupLegacyUiStorage() {
       try {
         ['qms_favorites', 'qms_collapsed_groups', 'qms_wizard_done', 'qms_ui_mode', 'qms_swot_view_mode'].forEach(k => localStorage.removeItem(k));
       } catch {}
     },
-    _loadUserUiPreferences() {
+    async _loadUserUiPreferences() {
       const defaultFavorites = ['beneficiaries', 'donations', 'complaints'];
       this.favorites = this._getUserLocalJson('favorites', defaultFavorites);
       if (!Array.isArray(this.favorites)) this.favorites = defaultFavorites;
@@ -742,6 +745,50 @@ function app() {
       const savedSwot = this._getUserLocalJson('swot_view_mode', null);
       if (savedSwot === 'matrix' || savedSwot === 'list') this.swotViewMode = savedSwot;
       this._cleanupLegacyUiStorage();
+      if (!this.token || !this.user) return;
+      try {
+        const r = await this.api('GET', '/user-preferences');
+        const prefs = r?.preferences || {};
+        if (!Object.keys(prefs).length && !this.isReadOnly?.()) {
+          this.api('PUT', '/user-preferences', { preferences: this._currentUiPreferenceSnapshot() }).catch(() => {});
+        }
+        if (Array.isArray(prefs.favorites)) this.favorites = prefs.favorites;
+        if (Array.isArray(prefs.collapsed_groups)) this.collapsedGroups = prefs.collapsed_groups;
+        if (prefs.mode === 'guided' || prefs.mode === 'advanced') this.uiMode = prefs.mode;
+        if (prefs.swot_view_mode === 'matrix' || prefs.swot_view_mode === 'list') this.swotViewMode = prefs.swot_view_mode;
+        if (typeof prefs.wizard_done === 'boolean') {
+          try { localStorage.setItem(this._uiStorageKey('wizard_done'), prefs.wizard_done ? '1' : '0'); } catch {}
+        }
+        this._writeUserLocalUiSnapshot();
+      } catch {
+        // Keep local fallback if server preferences are temporarily unavailable.
+      }
+    },
+    _writeUserLocalUiSnapshot() {
+      try {
+        localStorage.setItem(this._uiStorageKey('favorites'), JSON.stringify(this.favorites || []));
+        localStorage.setItem(this._uiStorageKey('collapsed_groups'), JSON.stringify(this.collapsedGroups || []));
+        localStorage.setItem(this._uiStorageKey('mode'), JSON.stringify(this.uiMode || 'guided'));
+        localStorage.setItem(this._uiStorageKey('swot_view_mode'), JSON.stringify(this.swotViewMode || 'matrix'));
+      } catch {}
+    },
+    _currentUiPreferenceSnapshot() {
+      return {
+        favorites: Array.isArray(this.favorites) ? this.favorites : [],
+        collapsed_groups: Array.isArray(this.collapsedGroups) ? this.collapsedGroups : [],
+        mode: this.uiMode === 'advanced' ? 'advanced' : 'guided',
+        swot_view_mode: this.swotViewMode === 'list' ? 'list' : 'matrix',
+        wizard_done: this._getUserLocalFlag('wizard_done'),
+      };
+    },
+    _syncUserPreference(key, value) {
+      if (!this.token || !this.user || !key) return;
+      clearTimeout(this._preferenceSyncTimers?.[key]);
+      this._preferenceSyncTimers = this._preferenceSyncTimers || {};
+      this._preferenceSyncTimers[key] = setTimeout(() => {
+        if (!this.token || !this.user) return;
+        this.api('PUT', '/user-preferences', { preferences: { [key]: value } }).catch(() => {});
+      }, 250);
     },
 
     isAdvanced() { return this.canUseAdvancedMode() && this.uiMode !== 'guided'; },
@@ -1138,7 +1185,7 @@ function app() {
           this.token = data.token;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
-          this._loadUserUiPreferences();
+          await this._loadUserUiPreferences();
           this._consultEnsureUserScope?.();
           if (!this.isReadOnly()) {
             this.loadSidebarBadges();
@@ -1168,7 +1215,7 @@ function app() {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
         const previousConsultUser = this._consultUserStorageId?.() || '';
         this.token = r.token; this.user = r.user;
-        this._loadUserUiPreferences();
+        await this._loadUserUiPreferences();
         const nextConsultUser = this._consultUserStorageId?.() || '';
         if (previousConsultUser && nextConsultUser && previousConsultUser !== nextConsultUser) {
           this._consultResetRuntimeState?.({ clearStorage: false });
@@ -1249,6 +1296,10 @@ function app() {
       if (this._notifTimer)  { clearInterval(this._notifTimer);  this._notifTimer  = null; }
       if (this._alertsTimer) { clearInterval(this._alertsTimer); this._alertsTimer = null; }
       this._stopIdleTimer();
+      if (this._preferenceSyncTimers) {
+        Object.values(this._preferenceSyncTimers).forEach(t => clearTimeout(t));
+        this._preferenceSyncTimers = {};
+      }
       this.liveAlerts = []; this.liveAlertsSummary = { danger: 0, warn: 0, info: 0, total: 0 };
       this.stateMachines = null;
       this.user = null; this.token = null; this.refreshToken = null;

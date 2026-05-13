@@ -19,6 +19,7 @@ import { issueCsrfCookie, verifyCsrf } from './middleware/csrf.js';
 
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
+import userPreferencesRoutes from './routes/userPreferences.js';
 import deptsRoutes from './routes/departments.js';
 import objectivesRoutes from './routes/objectives.js';
 import risksRoutes from './routes/risks.js';
@@ -448,6 +449,7 @@ app.use('/api', authenticate, denyReadOnly, issueCsrfCookie, verifyCsrf, auditTr
 app.use('/api/dashboard',     dashboardRoutes);
 app.use('/api/charts',        chartsRoutes);
 app.use('/api/users',         usersRoutes);
+app.use('/api/user-preferences', userPreferencesRoutes);
 app.use('/api/departments',   deptsRoutes);
 app.use('/api/objectives',    objectivesRoutes);
 app.use('/api/risks',         risksRoutes);
@@ -547,7 +549,10 @@ export function invalidatePortalCache() { _portalEnabledCache = null; }
     app.use(express.static(webPath, {
       setHeaders: (res, path) => {
         if (/\.(html|js|css)$/.test(path)) {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+          res.setHeader('X-QMS-Asset-Policy', 'no-store');
         }
       },
     }));
