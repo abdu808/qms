@@ -338,6 +338,9 @@ function app() {
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل الاستعادة'); }
     },
+    isRemovedItem(item) {
+      return Boolean(item?.deletedAt || (this.page === 'users' && item?.active === false));
+    },
     async purgeItem(item) {
       if (!confirm(`حذف نهائي للسجل "${item.code || item.title || item.id}"؟\n⚠️ لا يمكن التراجع.`)) return;
       if (!confirm('هل أنت متأكد تماماً؟ هذا الإجراء دائم ولن يتم تسجيله إلا في سجل التدقيق.')) return;
@@ -2481,9 +2484,14 @@ function app() {
       finally { this.modal.saving = false; }
     },
     async remove(id) {
-      if (!confirm('هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.')) return;
+      const isUsersPage = this.page === 'users';
+      const msg = isUsersPage
+        ? 'سيتم تعطيل المستخدم وإخفاؤه من القائمة العادية، مع إمكانية استعادته من سلة المحذوفات. هل تريد المتابعة؟'
+        : 'هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.';
+      if (!confirm(msg)) return;
       try {
         await this.api('DELETE', `/${this.currentModule.endpoint}/${id}`);
+        this.toast?.(isUsersPage ? '✅ تم تعطيل المستخدم' : '🗑️ تم الحذف');
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل الحذف'); }
     },

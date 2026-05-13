@@ -160,6 +160,7 @@ window.QMS_MODULES_CONTEXT = {
       { key: 'departmentId', label: 'الإدارة', type: 'relation', relation: 'departments' },
       { key: 'phone', label: 'الجوال' },
       { key: 'jobTitle', label: 'المسمى الوظيفي' },
+      { key: 'active', label: 'نشط', type: 'bool' },
     ],
   },
 

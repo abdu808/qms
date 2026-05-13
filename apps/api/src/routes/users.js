@@ -40,7 +40,13 @@ const pubWithDept = { ...pub, department: { select: { id: true, name: true, code
 // Plus explicit SUPER_ADMIN protection: QM may not create/promote/edit SA.
 
 router.get('/', requireAction('users', 'read'), asyncHandler(async (req, res) => {
-  const users = await prisma.user.findMany({ select: pubWithDept, orderBy: { createdAt: 'desc' } });
+  const where = {};
+  if (req.query.onlyDeleted === '1' || req.query.active === 'false') {
+    where.active = false;
+  } else if (req.query.includeInactive !== '1' && req.query.active !== 'all') {
+    where.active = true;
+  }
+  const users = await prisma.user.findMany({ where, select: pubWithDept, orderBy: { createdAt: 'desc' } });
   res.json({ ok: true, items: users, total: users.length });
 }));
 

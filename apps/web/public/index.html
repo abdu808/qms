@@ -2411,7 +2411,7 @@
                             <div class="mt-3 flex flex-wrap gap-2 text-xs">
                               <button x-show="swotNeedsRisk(item) && canCreate('risks')" @click="swotCreateRisk(item)" class="px-3 py-1 rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200">تحويل لخطر/فرصة</button>
                               <button x-show="!item.deletedAt && canCreate('follow-up-tasks')" @click="swotCreateFollowUp(item)" class="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200">مهمة متابعة</button>
-                              <button x-show="canEdit(currentResource) && !item.deletedAt" @click="openEdit(item)" class="px-3 py-1 rounded-lg bg-white border text-gray-700 hover:bg-gray-50">تعديل</button>
+                              <button x-show="canEdit(currentResource) && !isRemovedItem(item)" @click="openEdit(item)" class="px-3 py-1 rounded-lg bg-white border text-gray-700 hover:bg-gray-50">تعديل</button>
                             </div>
                           </article>
                         </template>
@@ -2436,9 +2436,9 @@
                     <div class="flex flex-wrap gap-2 pt-2 mt-2 border-t text-xs">
                       <button x-show="page==='swot' && !item.deletedAt && !item.relatedRiskId && ['WEAKNESS','THREAT','OPPORTUNITY'].includes(String(item.type||'').toUpperCase()) && canCreate('risks')" @click="swotCreateRisk(item)" class="text-amber-700 hover:underline">تحويل لخطر/فرصة</button>
                       <button x-show="page==='swot' && !item.deletedAt && canCreate('follow-up-tasks')" @click="swotCreateFollowUp(item)" class="text-emerald-700 hover:underline">مهمة متابعة</button>
-                      <button x-show="canEdit(currentResource) && !item.deletedAt" @click="openEdit(item)" class="text-blue-600 hover:underline">✏️ تعديل</button>
-                      <button x-show="canDelete(currentResource) && !item.deletedAt" @click="remove(item.id)" class="text-red-600 hover:underline">🗑️ حذف</button>
-                      <button x-show="item.deletedAt && canDelete(currentResource)" @click="restoreItem(item)" class="text-green-600 hover:underline">♻️ استعادة</button>
+                      <button x-show="canEdit(currentResource) && !isRemovedItem(item)" @click="openEdit(item)" class="text-blue-600 hover:underline">✏️ تعديل</button>
+                      <button x-show="canDelete(currentResource) && !isRemovedItem(item)" @click="remove(item.id)" class="text-red-600 hover:underline">🗑️ حذف</button>
+                      <button x-show="isRemovedItem(item) && canDelete(currentResource)" @click="restoreItem(item)" class="text-green-600 hover:underline">♻️ استعادة</button>
                       <button x-show="['complaints','ncr','objectives','documents','risks','suppliers','indicators','initiatives','capa'].includes(page)"
                               @click="openDetail(
                                 page==='complaints' ? 'complaint' :
@@ -2493,16 +2493,16 @@
                           <button x-show="canWorkflow(item, 'approve', currentResource)" @click="doWorkflow(item, 'approve', currentResource)" class="text-green-700 hover:underline text-xs ml-2">✅ اعتماد</button>
                           <button x-show="canWorkflow(item, 'reject',  currentResource)" @click="doWorkflow(item, 'reject',  currentResource)" class="text-red-600 hover:underline text-xs ml-2">❌ رفض</button>
                           <button x-show="canWorkflow(item, 'reopen',  currentResource)" @click="doWorkflow(item, 'reopen',  currentResource)" class="text-gray-600 hover:underline text-xs ml-2">🔄 إعادة فتح</button>
-                          <template x-if="!item.deletedAt">
+                          <template x-if="!isRemovedItem(item)">
                             <span>
                               <button x-show="canEdit(currentResource)" @click="openEdit(item)" class="text-blue-600 hover:underline text-xs ml-2">✏️ تعديل</button>
                               <button x-show="canCreate(currentResource)" @click="duplicateItem(item)" class="text-indigo-500 hover:underline text-xs ml-2">📋 نسخ</button>
                               <button x-show="canDelete(currentResource)" @click="remove(item.id)" class="text-red-600 hover:underline text-xs ml-2">🗑️ حذف</button>
                             </span>
                           </template>
-                          <template x-if="item.deletedAt">
+                          <template x-if="isRemovedItem(item)">
                             <span>
-                              <span class="text-xs text-red-600 ml-2" :title="'محذوف في ' + new Date(item.deletedAt).toLocaleString('ar-SA')">🗑️ محذوف</span>
+                              <span class="text-xs text-red-600 ml-2" :title="item.deletedAt ? ('\u0645\u062d\u0630\u0648\u0641 \u0641\u064a ' + new Date(item.deletedAt).toLocaleString('ar-SA')) : '\u0645\u0633\u062a\u062e\u062f\u0645 \u0645\u0639\u0637\u0644'">🗑️ محذوف</span>
                               <button x-show="canDelete(currentResource)" @click="restoreItem(item)" class="text-green-600 hover:underline text-xs ml-2">♻️ استعادة</button>
                               <button x-show="user?.role==='SUPER_ADMIN'" @click="purgeItem(item)" class="text-red-800 hover:underline text-xs ml-2">☠️ حذف نهائي</button>
                             </span>
