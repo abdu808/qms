@@ -2486,12 +2486,12 @@ function app() {
     async remove(id) {
       const isUsersPage = this.page === 'users';
       const msg = isUsersPage
-        ? 'سيتم تعطيل المستخدم وإخفاؤه من القائمة العادية، مع إمكانية استعادته من سلة المحذوفات. هل تريد المتابعة؟'
+        ? 'سيتم نقل المستخدم إلى المحذوفات وإخفاؤه من القائمة، مع إمكانية استعادته لاحقاً. هل تريد المتابعة؟'
         : 'هل أنت متأكد من الحذف؟ هذا الإجراء لا يمكن التراجع عنه.';
       if (!confirm(msg)) return;
       try {
         await this.api('DELETE', `/${this.currentModule.endpoint}/${id}`);
-        this.toast?.(isUsersPage ? '✅ تم تعطيل المستخدم' : '🗑️ تم الحذف');
+        this.toast?.(isUsersPage ? '🗑️ تم نقل المستخدم إلى المحذوفات' : '🗑️ تم الحذف');
         await this.loadList();
       } catch (e) { alert(e.message || 'فشل الحذف'); }
     },
