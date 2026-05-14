@@ -39,6 +39,16 @@ router.use(authenticate);
 const currentMonth = () => new Date().getMonth() + 1;
 const currentYear  = () => new Date().getFullYear();
 
+function targetFieldsFromAnnualTarget(annualTarget) {
+  return {
+    targetValue: annualTarget?.targetValue ?? 0,
+    q1Target: annualTarget?.q1Target ?? null,
+    q2Target: annualTarget?.q2Target ?? null,
+    q3Target: annualTarget?.q3Target ?? null,
+    q4Target: annualTarget?.q4Target ?? null,
+  };
+}
+
 // ─── Scope helper: can a user act on a specific KpiEntry? ───────────────
 // SUPER_ADMIN / QUALITY_MANAGER  → full scope (any entry)
 // COMMITTEE_MEMBER               → read-only scope (any entry, read only)
@@ -289,15 +299,15 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
 
     // السجل الأب (للحصول على kpiType/target/seasonality/direction)
     let kpiRec;
-    let targetValue;
+    let targetProfile = { targetValue: 0 };
     if (objectiveId) {
       kpiRec = await prisma.objective.findUnique({ where: { id: objectiveId } });
       if (!kpiRec) throw NotFound('المؤشر/النشاط غير موجود');
-      targetValue = kpiRec.target;
+      targetProfile = { targetValue: kpiRec.target ?? 0 };
     } else if (activityId) {
       kpiRec = await prisma.operationalActivity.findUnique({ where: { id: activityId } });
       if (!kpiRec) throw NotFound('المؤشر/النشاط غير موجود');
-      targetValue = kpiRec.targetValue;
+      targetProfile = { targetValue: kpiRec.targetValue ?? 0 };
     } else if (indicatorId) {
       const indicator = await prisma.indicator.findUnique({
         where: { id: indicatorId },
@@ -309,8 +319,13 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
       if (!indicator.annualTargets?.[0]) {
         console.warn(`[preview] No AnnualTarget for indicator ${indicatorId} year ${year} — using 0`);
       }
-      targetValue = indicator?.annualTargets?.[0]?.targetValue ?? 0;
+      targetProfile = targetFieldsFromAnnualTarget(indicator?.annualTargets?.[0]);
       kpiRec = indicator;
+      if (!isDueMonth(indicator.frequency, month, indicator.seasonality)) {
+        throw BadRequest(
+          `هذا المؤشر تردده ${frequencyLabel(indicator.frequency)}، ولا توجد قراءة مطلوبة لهذا الشهر. أدخل القراءة في شهر الاستحقاق الصحيح.`,
+        );
+      }
     } else {
       throw BadRequest('يجب تحديد objectiveId أو activityId أو indicatorId');
     }
@@ -331,7 +346,7 @@ router.post('/entries/preview', requireAction('kpi', 'read'), async (req, res, n
 
     const kpi = {
       kpiType: kpiRec.kpiType, seasonality: kpiRec.seasonality, direction: kpiRec.direction,
-      targetValue,
+      ...targetProfile,
       unit: objectiveId ? kpiRec.unit : activityId ? kpiRec.targetUnit : kpiRec.unit,
     };
     const ev = evaluateKpi(kpi, overlay, year, month);
@@ -412,25 +427,25 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
     ]);
 
     const buildItem = (rec, kind) => {
-      let kpiTargetValue;
+      let targetProfile = { targetValue: 0 };
       let kpiUnit;
       if (kind === 'objective') {
-        kpiTargetValue = rec.target;
+        targetProfile = { targetValue: rec.target ?? 0 };
         kpiUnit = rec.unit;
       } else if (kind === 'activity') {
-        kpiTargetValue = rec.targetValue;
+        targetProfile = { targetValue: rec.targetValue ?? 0 };
         kpiUnit = rec.targetUnit;
       } else {
         // indicator — targetValue from AnnualTarget
         if (!rec.annualTargets?.[0]) {
           console.warn(`[my-due] No AnnualTarget for indicator ${rec.id} year ${year} — using 0`);
         }
-        kpiTargetValue = rec.annualTargets?.[0]?.targetValue ?? 0;
+        targetProfile = targetFieldsFromAnnualTarget(rec.annualTargets?.[0]);
         kpiUnit = rec.unit;
       }
       const kpi = {
         kpiType: rec.kpiType, seasonality: rec.seasonality, direction: rec.direction,
-        targetValue: kpiTargetValue,
+        ...targetProfile,
         unit: kpiUnit,
       };
       const allEntries = kind === 'indicator'
@@ -671,7 +686,7 @@ async function getIndicatorsWithEntries(year, user) {
       kpiType:     ind.kpiType,
       seasonality: ind.seasonality,
       direction:   ind.direction,
-      targetValue: annualTarget?.targetValue ?? 0,
+      ...targetFieldsFromAnnualTarget(annualTarget),
       unit:        ind.unit,
       ownerId:     ind.ownerId,
       // Indicator لا يحمل departmentId مباشرة — نأخذ كل الأقسام ذات العلاقة للنطاق والفلاتر
@@ -997,7 +1012,7 @@ router.get('/:kind(objective|activity|indicator)/:id', requireAction('kpi', 'rea
       entries = await prisma.kpiEntry.findMany({ where: { indicatorId: id, year }, orderBy: [{ month: 'asc' }] });
       kpi = {
         kpiType: rec.kpiType,
-        targetValue: rec.annualTargets?.[0]?.targetValue ?? 0,
+        ...targetFieldsFromAnnualTarget(rec.annualTargets?.[0]),
         unit: rec.unit,
         seasonality: rec.seasonality,
         direction: rec.direction,

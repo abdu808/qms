@@ -9,8 +9,26 @@
 import { prisma as globalPrisma } from '../db.js';
 import { BadRequest } from '../utils/errors.js';
 import { evaluateKpi } from '../lib/kpi-engine.js';
+import { frequencyLabel, isDueMonth } from '../lib/kpiFrequency.js';
 import { recomputeAfterEntry } from './rollup.js';
 import { ensureKpiDeviationTask } from './kpiDeviationTasks.js';
+
+function targetFieldsFromAnnualTarget(annualTarget) {
+  return {
+    targetValue: annualTarget?.targetValue ?? 0,
+    q1Target: annualTarget?.q1Target ?? null,
+    q2Target: annualTarget?.q2Target ?? null,
+    q3Target: annualTarget?.q3Target ?? null,
+    q4Target: annualTarget?.q4Target ?? null,
+  };
+}
+
+function describeExpected(ev, unit) {
+  const expected = Number.isFinite(Number(ev?.expected)) ? Number(ev.expected).toFixed(2).replace(/\.00$/, '') : '-';
+  const actual = Number.isFinite(Number(ev?.actual)) ? Number(ev.actual).toFixed(2).replace(/\.00$/, '') : '-';
+  const suffix = unit ? ` ${unit}` : '';
+  return `المتوقع حتى هذه الفترة: ${expected}${suffix}، والمدخل/المحقق: ${actual}${suffix}`;
+}
 
 /**
  * هل هذا الشهر/السنة مُغلَق بسبب مراجعة إدارية مكتملة تغطّي هذه الفترة؟
@@ -41,28 +59,28 @@ const RAG_MESSAGES = {
 export async function computeKpiFeedback({ objectiveId, activityId, indicatorId, year, month }) {
   try {
     let kpiRec;
-    let targetValue;
+    let targetProfile = { targetValue: 0 };
     let whereEntries;
 
     if (objectiveId) {
       kpiRec = await globalPrisma.objective.findUnique({ where: { id: objectiveId } });
-      targetValue = kpiRec?.target;
+      targetProfile = { targetValue: kpiRec?.target ?? 0 };
       whereEntries = { objectiveId, year };
     } else if (activityId) {
       kpiRec = await globalPrisma.operationalActivity.findUnique({ where: { id: activityId } });
-      targetValue = kpiRec?.targetValue;
+      targetProfile = { targetValue: kpiRec?.targetValue ?? 0 };
       whereEntries = { activityId, year };
     } else if (indicatorId) {
       kpiRec = await globalPrisma.indicator.findUnique({
         where: { id: indicatorId },
         include: { annualTargets: { where: { year }, take: 1 } },
       });
-      targetValue = kpiRec?.annualTargets?.[0]?.targetValue;
+      targetProfile = targetFieldsFromAnnualTarget(kpiRec?.annualTargets?.[0]);
       whereEntries = { indicatorId, year };
     }
 
     if (!kpiRec) return null;
-    if (!targetValue || targetValue <= 0) return null;
+    if (!targetProfile.targetValue || targetProfile.targetValue <= 0) return null;
 
     const allEntries = await globalPrisma.kpiEntry.findMany({
       where:   whereEntries,
@@ -72,7 +90,7 @@ export async function computeKpiFeedback({ objectiveId, activityId, indicatorId,
       kpiType:     kpiRec.kpiType,
       seasonality: kpiRec.seasonality,
       direction:   kpiRec.direction,
-      targetValue,
+      ...targetProfile,
       unit:        objectiveId ? kpiRec.unit : activityId ? kpiRec.targetUnit : kpiRec.unit,
     };
     const ev = evaluateKpi(kpi, allEntries, year, month);
@@ -118,18 +136,18 @@ export async function upsertKpiEntry({
   if (objectiveId || activityId || indicatorId) {
     let parent = null;
     let existingWhere = null;
-    let targetValue = null;
+    let targetProfile = { targetValue: 0 };
     let unit = null;
 
     if (objectiveId) {
       parent = await tx.objective.findUnique({ where: { id: objectiveId } });
       existingWhere = { objectiveId, year };
-      targetValue = parent?.target;
+      targetProfile = { targetValue: parent?.target ?? 0 };
       unit = parent?.unit;
     } else if (activityId) {
       parent = await tx.operationalActivity.findUnique({ where: { id: activityId } });
       existingWhere = { activityId, year };
-      targetValue = parent?.targetValue;
+      targetProfile = { targetValue: parent?.targetValue ?? 0 };
       unit = parent?.targetUnit;
     } else if (indicatorId) {
       parent = await tx.indicator.findUnique({
@@ -137,11 +155,17 @@ export async function upsertKpiEntry({
         include: { annualTargets: { where: { year }, take: 1 } },
       });
       existingWhere = { indicatorId, year };
-      targetValue = parent?.annualTargets?.[0]?.targetValue;
+      targetProfile = targetFieldsFromAnnualTarget(parent?.annualTargets?.[0]);
       unit = parent?.unit;
     }
 
     if (parent) {
+      if (indicatorId && !isDueMonth(parent.frequency, month, parent.seasonality)) {
+        throw BadRequest(
+          `هذا المؤشر تردده ${frequencyLabel(parent.frequency)}، ولا توجد قراءة مطلوبة لهذا الشهر. أدخل القراءة في شهر الاستحقاق الصحيح.`,
+        );
+      }
+
       const existing = await tx.kpiEntry.findMany({
         where: existingWhere,
         orderBy: [{ month: 'asc' }],
@@ -153,12 +177,22 @@ export async function upsertKpiEntry({
         kpiType:     parent.kpiType,
         seasonality: parent.seasonality,
         direction:   parent.direction,
-        targetValue,
+        ...targetProfile,
         unit,
       };
-      if (targetValue && targetValue > 0) {
+      if (targetProfile.targetValue && targetProfile.targetValue > 0) {
       const ev = evaluateKpi(kpi, overlay, year, month);
       const ratio = ev?.ratio;
+      if (ratio != null && ratio < 0.80 && (!deviationReason || String(deviationReason).trim() === '')) {
+        throw BadRequest(
+          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 80% — سبب الانحراف إلزامي. ${describeExpected(ev, unit)}`,
+        );
+      }
+      if (ratio != null && ratio < 0.60 && (!actionNote || String(actionNote).trim() === '')) {
+        throw BadRequest(
+          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 60% — الإجراء التصحيحي إلزامي. ${describeExpected(ev, unit)}`,
+        );
+      }
       if (ratio != null && ratio < 0.80) {
         if (!deviationReason || String(deviationReason).trim() === '') {
           throw BadRequest(
