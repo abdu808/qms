@@ -2311,7 +2311,7 @@
                         class="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg text-sm"
                         title="معالج خطوة بخطوة — أبسط للمستخدمين الجدد">🧭 معالج</button>
                 <label x-show="canViewDeleted" class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer select-none" :title="showDeleted ? 'عرض السجلات النشطة فقط' : 'عرض السجلات المحذوفة (سلة المحذوفات)'">
-                  <input type="checkbox" x-model="showDeleted" @change="loadList(1)" class="rounded">
+                  <input type="checkbox" x-model="showDeleted" @change="$nextTick(() => loadList(1))" class="rounded">
                   <span x-text="showDeleted ? '🗑️ سلة المحذوفات' : '🗑️ المحذوفات'"></span>
                 </label>
                 <button x-show="currentModule?.exportable" @click="exportExcel()" class="border border-green-600 text-green-700 hover:bg-green-50 px-4 py-2 rounded-lg text-sm font-medium">⬇️ Excel</button>

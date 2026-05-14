@@ -122,6 +122,37 @@ router.get('/duplicates', requireAction('users', 'read'), asyncHandler(async (_r
   res.json({ ok: true, items, total: items.length });
 }));
 
+router.post('/trash/purge-unlinked', authorize('SUPER_ADMIN'), asyncHandler(async (_req, res) => {
+  const inactiveUsers = await prisma.user.findMany({
+    where: { active: false, role: { not: 'SUPER_ADMIN' } },
+    select: pubWithDept,
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const purged = [];
+  const skipped = [];
+  for (const user of inactiveUsers) {
+    const referenceCount = await countUserReferences(user.id);
+    if (referenceCount > 0) {
+      skipped.push({ ...user, referenceCount, reason: 'HAS_REFERENCES' });
+      continue;
+    }
+    try {
+      await prisma.user.delete({ where: { id: user.id } });
+      purged.push({ ...user, referenceCount });
+    } catch (e) {
+      skipped.push({
+        ...user,
+        referenceCount,
+        reason: 'DELETE_BLOCKED',
+        message: e?.message || 'delete failed',
+      });
+    }
+  }
+
+  res.json({ ok: true, purged, skipped, totalPurged: purged.length, totalSkipped: skipped.length });
+}));
+
 router.get('/:id', requireAction('users', 'read'), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: pubWithDept });
   if (!user) throw NotFound();
