@@ -120,6 +120,7 @@ echo "[$(ts)] [deploy] ✅ المرحلة 4 اكتملت"
 # ── المرحلة 5: البيانات الأولية (idempotent) ─────────────────────────
 echo "[$(ts)] [deploy] ── المرحلة 5: البيانات الأولية ──"
 node src/seed-if-empty.js || echo "[$(ts)] [deploy] ⚠️  تخطّي — البيانات موجودة أو فشل غير حرج"
+node src/ensure-bootstrap-admin.js
 
 if [ "${SEED_DEMO_DATA:-false}" = "true" ]; then
   echo "[$(ts)] [deploy] ── المرحلة 6: بيانات العرض التجريبية ──"
