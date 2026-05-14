@@ -48,7 +48,7 @@ function normalizePersonName(name) {
 async function countUserReferences(userId) {
   const counts = await Promise.all([
     prisma.objective.count({ where: { OR: [{ ownerId: userId }, { createdById: userId }] } }),
-    prisma.strategicGoal.count({ where: { ownerId: userId } }),
+    prisma.strategicGoal.count({ where: { ownerUserId: userId } }),
     prisma.indicator.count({ where: { OR: [{ ownerId: userId }, { dataEntryUserId: userId }, { approverUserId: userId }] } }),
     prisma.operationalActivity.count({ where: { ownerId: userId } }),
     prisma.initiative.count({ where: { ownerId: userId } }),
