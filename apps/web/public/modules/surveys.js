@@ -299,6 +299,74 @@
           },
         },
         {
+          v: 'DONOR_EXPERIENCE',
+          l: 'المتبرع - تجربة التبرع',
+          data: {
+            title: 'استبيان رضا المتبرع عن تجربة التبرع',
+            target: 'DONOR',
+            period: `بعد التبرع ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'easy_donation', label: 'هل كانت طريقة التبرع سهلة وواضحة؟', type: 'rating', required: true },
+              { key: 'payment_options', label: 'ما مدى رضاك عن خيارات الدفع أو التبرع المتاحة؟', type: 'rating', required: true },
+              { key: 'confirmation', label: 'هل وصلتك رسالة أو تأكيد التبرع بشكل مناسب؟', type: 'rating', required: true },
+              { key: 'trust', label: 'ما مدى ثقتك بأن التبرع يصل لمستحقيه؟', type: 'rating', required: true },
+              { key: 'repeat', label: 'هل ترغب في التبرع مرة أخرى؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما اقتراحك لتحسين تجربة التبرع؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'DONOR_IMPACT_REPORT',
+          l: 'المتبرع - التقارير والأثر',
+          data: {
+            title: 'استبيان رضا الداعم عن التقارير والأثر',
+            target: 'DONOR',
+            period: `نصف سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'report_clarity', label: 'هل تقارير الجمعية عن أثر التبرعات واضحة؟', type: 'rating', required: true },
+              { key: 'report_timing', label: 'هل تصلك المعلومات أو التقارير في وقت مناسب؟', type: 'rating', required: true },
+              { key: 'impact_understood', label: 'هل تساعدك التقارير على فهم أثر دعمك؟', type: 'rating', required: true },
+              { key: 'communication', label: 'ما مدى رضاك عن تواصل الجمعية معك؟', type: 'rating', required: true },
+              { key: 'support_future', label: 'هل تشجعك هذه المعلومات على الاستمرار في الدعم؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما نوع المعلومات التي ترغب أن تصلك مستقبلاً؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'PARTNER_COLLABORATION',
+          l: 'الشريك - تجربة الشراكة',
+          data: {
+            title: 'استبيان رضا الشريك عن تجربة الشراكة',
+            target: 'PARTNER',
+            period: `نصف سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'goal_clarity', label: 'هل كانت أهداف الشراكة واضحة من البداية؟', type: 'rating', required: true },
+              { key: 'communication', label: 'ما مدى رضاك عن التواصل مع فريق الجمعية؟', type: 'rating', required: true },
+              { key: 'commitment', label: 'هل التزمت الجمعية بما تم الاتفاق عليه؟', type: 'rating', required: true },
+              { key: 'impact', label: 'هل ترى أن الشراكة حققت أثراً مناسباً؟', type: 'rating', required: true },
+              { key: 'continue', label: 'هل ترغب في استمرار الشراكة أو تطويرها؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما اقتراحك لتحسين إدارة الشراكات؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'PARTNER_PROJECT',
+          l: 'الشريك - بعد مشروع أو مبادرة',
+          data: {
+            title: 'استبيان تقييم الشريك بعد تنفيذ مبادرة مشتركة',
+            target: 'PARTNER',
+            period: `بعد التنفيذ ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'planning', label: 'ما مدى رضاك عن التخطيط للمبادرة المشتركة؟', type: 'rating', required: true },
+              { key: 'execution', label: 'ما مدى رضاك عن تنفيذ المبادرة؟', type: 'rating', required: true },
+              { key: 'coordination', label: 'هل كان التنسيق بين الطرفين مناسباً؟', type: 'rating', required: true },
+              { key: 'beneficiary_impact', label: 'هل كان أثر المبادرة على المستفيدين واضحاً؟', type: 'rating', required: true },
+              { key: 'repeat', label: 'هل توصي بتكرار المبادرة أو توسيعها؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما أهم درس أو تحسين تقترحه للمبادرات القادمة؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
           v: 'EMPLOYEE_ENV',
           l: 'رضا الموظف عن بيئة العمل',
           data: {
@@ -316,6 +384,23 @@
           },
         },
         {
+          v: 'EMPLOYEE_INTERNAL_SERVICES',
+          l: 'الموظف - الخدمات الداخلية والدعم',
+          data: {
+            title: 'استبيان رضا الموظفين عن الخدمات الداخلية والدعم',
+            target: 'EMPLOYEE',
+            period: `ربع سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'it_support', label: 'ما مدى رضاك عن الدعم التقني عند الحاجة؟', type: 'rating', required: true },
+              { key: 'admin_support', label: 'ما مدى رضاك عن الخدمات الإدارية الداخلية؟', type: 'rating', required: true },
+              { key: 'finance_clarity', label: 'هل إجراءات العهد أو المطالبات المالية واضحة؟', type: 'rating', required: true },
+              { key: 'response_time', label: 'هل يتم الرد على طلباتك الداخلية في وقت مناسب؟', type: 'rating', required: true },
+              { key: 'overall', label: 'بشكل عام، ما مدى رضاك عن الدعم الداخلي؟', type: 'rating', required: true },
+              { key: 'note', label: 'ما أكثر خدمة داخلية تحتاج إلى تحسين؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
           v: 'VOLUNTEER_EXPERIENCE',
           l: 'تجربة المتطوع',
           data: {
@@ -329,6 +414,23 @@
               { key: 'impact', label: 'هل شعرت أن مشاركتك كان لها أثر واضح؟', type: 'rating', required: true },
               { key: 'repeat', label: 'هل ترغب في تكرار المشاركة مستقبلاً؟', type: 'yesno', required: true },
               { key: 'suggestion', label: 'ما اقتراحك لتحسين تجربة المتطوع؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'VOLUNTEER_READINESS',
+          l: 'المتطوع - الجاهزية والتنظيم',
+          data: {
+            title: 'استبيان رضا المتطوع عن الجاهزية والتنظيم',
+            target: 'VOLUNTEER',
+            period: `بعد المشاركة ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'before_info', label: 'هل وصلت لك معلومات المشاركة قبل الموعد بوضوح؟', type: 'rating', required: true },
+              { key: 'location_time', label: 'هل كان المكان والوقت واضحين ومناسبين؟', type: 'rating', required: true },
+              { key: 'tools', label: 'هل توفرت لك الأدوات أو التعليمات اللازمة؟', type: 'rating', required: true },
+              { key: 'team_support', label: 'ما مدى رضاك عن دعم فريق الجمعية أثناء المشاركة؟', type: 'rating', required: true },
+              { key: 'repeat', label: 'هل ترغب في المشاركة معنا مرة أخرى؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما الذي يساعدك كمتطوع على تقديم تجربة أفضل؟', type: 'text', required: false },
             ],
           },
         },
