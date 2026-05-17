@@ -79,11 +79,66 @@ function computeSurveyCounts(items) {
   return counts;
 }
 
+const SURVEY_EXECUTION_STATUSES = new Set(['DRAFT', 'READY', 'IN_PROGRESS', 'CLOSED']);
+const SURVEY_CHANNELS = new Set(['WHATSAPP', 'SMS', 'EMAIL', 'FIELD', 'LINK', 'MIXED']);
+
+function asNullableDate(value, fieldName) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw BadRequest(`${fieldName} غير صالح`);
+  return date;
+}
+
+function asNullableInt(value, fieldName) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw BadRequest(`${fieldName} يجب أن يكون رقماً صحيحاً موجباً`);
+  return n;
+}
+
+function cleanSurveyPayload(body, { create = false } = {}) {
+  const data = {};
+  if (create || body.title !== undefined) {
+    const title = String(body.title || '').trim();
+    if (!title) throw BadRequest('عنوان الاستبيان مطلوب');
+    data.title = title;
+  }
+  if (create || body.target !== undefined) data.target = body.target;
+  if (body.period !== undefined) data.period = body.period ? String(body.period).trim() : null;
+  if (body.active !== undefined) data.active = !!body.active;
+  if (body.isPublic !== undefined) data.isPublic = !!body.isPublic;
+  if (body.questionsJson !== undefined || create) data.questionsJson = validateQuestions(body.questionsJson);
+
+  if (body.ownerId !== undefined) data.ownerId = body.ownerId || null;
+  if (body.audienceNote !== undefined) data.audienceNote = body.audienceNote ? String(body.audienceNote).trim() : null;
+  if (body.channel !== undefined) {
+    const channel = body.channel ? String(body.channel).toUpperCase() : null;
+    if (channel && !SURVEY_CHANNELS.has(channel)) throw BadRequest('قناة تنفيذ الاستبيان غير مدعومة');
+    data.channel = channel;
+  }
+  if (body.executionStatus !== undefined) {
+    const status = body.executionStatus ? String(body.executionStatus).toUpperCase() : 'DRAFT';
+    if (!SURVEY_EXECUTION_STATUSES.has(status)) throw BadRequest('حالة تنفيذ الاستبيان غير مدعومة');
+    data.executionStatus = status;
+  }
+  const plannedStartAt = asNullableDate(body.plannedStartAt, 'تاريخ بداية التنفيذ');
+  if (plannedStartAt !== undefined) data.plannedStartAt = plannedStartAt;
+  const plannedEndAt = asNullableDate(body.plannedEndAt, 'تاريخ نهاية التنفيذ');
+  if (plannedEndAt !== undefined) data.plannedEndAt = plannedEndAt;
+  const targetResponses = asNullableInt(body.targetResponses, 'عدد الردود المستهدف');
+  if (targetResponses !== undefined) data.targetResponses = targetResponses;
+
+  return data;
+}
+
 // LIST — مع دعم Smart Filters (?quick=active,highSatisfaction) + counts
 router.get('/', requireAction('surveys', 'read'), asyncHandler(async (req, res) => {
   const baseUrl = config.appUrl.replace(/\/$/, '');
   const items = await prisma.survey.findMany({
     where: { deletedAt: null },
+    include: { owner: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -100,7 +155,10 @@ router.get('/', requireAction('surveys', 'read'), asyncHandler(async (req, res) 
 
 // GET
 router.get('/:id', requireAction('surveys', 'read'), asyncHandler(async (req, res) => {
-  const item = await prisma.survey.findUnique({ where: { id: req.params.id, deletedAt: null } });
+  const item = await prisma.survey.findUnique({
+    where: { id: req.params.id, deletedAt: null },
+    include: { owner: { select: { id: true, name: true, email: true } } },
+  });
   if (!item) throw NotFound();
   const baseUrl = config.appUrl.replace(/\/$/, '');
   res.json({ ok: true, item: { ...item, publicUrl: `${baseUrl}/survey/${item.id}` } });
@@ -108,8 +166,7 @@ router.get('/:id', requireAction('surveys', 'read'), asyncHandler(async (req, re
 
 // CREATE
 router.post('/', requireAction('surveys', 'create'), asyncHandler(async (req, res) => {
-  const data = { ...req.body };
-  data.questionsJson = validateQuestions(data.questionsJson);
+  const data = cleanSurveyPayload(req.body, { create: true });
   if (!data.code) data.code = await nextCode('survey', 'SRV');
   const item = await prisma.survey.create({ data });
   res.status(201).json({ ok: true, item });
@@ -117,19 +174,13 @@ router.post('/', requireAction('surveys', 'create'), asyncHandler(async (req, re
 
 // UPDATE
 router.put('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
-  const data = { ...req.body };
-  delete data.id; delete data.createdAt; delete data.code;
-  delete data.responses; delete data.avgScore; delete data.resultsJson;
-  if (data.questionsJson) data.questionsJson = validateQuestions(data.questionsJson);
+  const data = cleanSurveyPayload(req.body);
   const item = await prisma.survey.update({ where: { id: req.params.id }, data });
   res.json({ ok: true, item });
 }));
 
 router.patch('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
-  const data = { ...req.body };
-  delete data.id; delete data.createdAt; delete data.code;
-  delete data.responses; delete data.avgScore; delete data.resultsJson;
-  if (data.questionsJson) data.questionsJson = validateQuestions(data.questionsJson);
+  const data = cleanSurveyPayload(req.body);
   const item = await prisma.survey.update({ where: { id: req.params.id }, data });
   res.json({ ok: true, item });
 }));

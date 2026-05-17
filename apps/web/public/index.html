@@ -5776,6 +5776,33 @@
               <a href="#/suppliers" class="text-sky-700 hover:text-sky-900 underline font-semibold whitespace-nowrap">فتح الموردين</a>
             </div>
 
+            <div class="mx-4 md:mx-0 mb-4 bg-white border rounded-xl shadow-sm p-4">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div>
+                  <h3 class="font-bold text-gray-800">خطة تنفيذ الاستبيانات</h3>
+                  <p class="text-xs text-gray-500 mt-1">العمل الصحيح: اختر القالب، حدّد الجمهور والموعد والعدد المستهدف، انشر الرابط، ثم تابع الردود حتى الإغلاق.</p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
+                  <div class="rounded-lg border bg-gray-50 px-3 py-2">
+                    <div class="text-gray-500">قيد التنفيذ</div>
+                    <div class="text-lg font-bold text-emerald-700" x-text="surveysList.filter(s => s.executionStatus === 'IN_PROGRESS').length"></div>
+                  </div>
+                  <div class="rounded-lg border bg-gray-50 px-3 py-2">
+                    <div class="text-gray-500">جاهزة للإرسال</div>
+                    <div class="text-lg font-bold text-blue-700" x-text="surveysList.filter(s => s.executionStatus === 'READY').length"></div>
+                  </div>
+                  <div class="rounded-lg border bg-gray-50 px-3 py-2">
+                    <div class="text-gray-500">تحتاج إجراء</div>
+                    <div class="text-lg font-bold text-amber-700" x-text="surveysList.filter(s => surveyNeedsAction(s)).length"></div>
+                  </div>
+                  <div class="rounded-lg border bg-gray-50 px-3 py-2">
+                    <div class="text-gray-500">مغلقة</div>
+                    <div class="text-lg font-bold text-slate-700" x-text="surveysList.filter(s => s.executionStatus === 'CLOSED').length"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="mx-4 md:mx-0 mb-4 bg-white border rounded-xl shadow-sm overflow-hidden">
               <div class="px-4 py-3 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-1">
                 <div>
@@ -5879,7 +5906,16 @@
                   <template x-for="s in surveysList" :key="s.id">
                     <tr class="border-t hover:bg-gray-50">
                       <td class="px-3 py-2 font-mono text-xs" x-text="s.code"></td>
-                      <td class="px-3 py-2 font-medium" x-text="s.title"></td>
+                      <td class="px-3 py-2">
+                        <div class="font-medium" x-text="s.title"></div>
+                        <div class="mt-1 flex flex-wrap gap-1 text-[11px]">
+                          <span class="border rounded-full px-2 py-0.5" :class="surveyExecutionStatusClass(s.executionStatus)" x-text="surveyExecutionStatusLabel(s.executionStatus)"></span>
+                          <span class="bg-gray-100 text-gray-600 rounded-full px-2 py-0.5" x-text="surveyChannelLabel(s.channel)"></span>
+                          <span class="bg-blue-50 text-blue-700 rounded-full px-2 py-0.5" x-text="'الردود: ' + surveyProgressText(s)"></span>
+                          <span class="bg-amber-50 text-amber-700 rounded-full px-2 py-0.5" x-text="'الموعد: ' + surveyDueText(s)"></span>
+                          <span x-show="surveyIsLate(s)" class="bg-red-50 text-red-700 rounded-full px-2 py-0.5">متأخر</span>
+                        </div>
+                      </td>
                       <td class="px-3 py-2" x-text="({BENEFICIARY:'المستفيدون',DONOR:'المتبرعون',VOLUNTEER:'المتطوعون',EMPLOYEE:'الموظفون',PARTNER:'الشركاء'})[s.target] || s.target"></td>
                       <td class="px-3 py-2 text-center" x-text="s.responses || 0"></td>
                       <td class="px-3 py-2 text-center">
@@ -5891,6 +5927,8 @@
                         <span x-show="!s.active" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">مغلق</span>
                       </td>
                       <td class="px-3 py-2 text-center whitespace-nowrap">
+                        <button x-show="s.executionStatus !== 'IN_PROGRESS' && s.executionStatus !== 'CLOSED'" @click="setSurveyExecutionStatus(s, 'IN_PROGRESS')" class="text-emerald-700 hover:underline text-xs mx-1">بدء</button>
+                        <button x-show="s.executionStatus === 'IN_PROGRESS'" @click="setSurveyExecutionStatus(s, 'CLOSED')" class="text-slate-700 hover:underline text-xs mx-1">إغلاق</button>
                         <button @click="copySurveyLink(s)" class="text-blue-600 hover:underline text-xs mx-1" title="نسخ الرابط العام">🔗 رابط</button>
                         <button @click="shareWhatsappSurvey(s)" class="text-green-600 hover:underline text-xs mx-1" title="مشاركة واتساب">💬 واتساب</button>
                         <button @click="viewSurveySummary(s)" class="text-purple-600 hover:underline text-xs mx-1">📊 النتائج</button>
@@ -7095,6 +7133,54 @@
                     <input type="checkbox" x-model="surveyModal.active" class="accent-brand-500 w-5 h-5">
                     <span class="text-sm font-medium">الاستبيان نشط (يقبل مشاركات)</span>
                   </label>
+                </div>
+              </div>
+
+              <div class="border rounded-xl p-3 bg-gray-50">
+                <div class="font-semibold text-gray-800 mb-2">إعدادات التنفيذ والمتابعة</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium mb-1">حالة التنفيذ</label>
+                    <select x-model="surveyModal.executionStatus" class="w-full border rounded-lg px-3 py-2 bg-white">
+                      <option value="DRAFT">مسودة</option>
+                      <option value="READY">جاهز للإرسال</option>
+                      <option value="IN_PROGRESS">قيد التنفيذ</option>
+                      <option value="CLOSED">مغلق</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">قناة التنفيذ</label>
+                    <select x-model="surveyModal.channel" class="w-full border rounded-lg px-3 py-2 bg-white">
+                      <option value="LINK">رابط مباشر</option>
+                      <option value="WHATSAPP">واتساب</option>
+                      <option value="SMS">رسائل SMS</option>
+                      <option value="EMAIL">بريد إلكتروني</option>
+                      <option value="FIELD">ميداني</option>
+                      <option value="MIXED">مختلط</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">عدد الردود المستهدف</label>
+                    <input type="number" min="0" x-model.number="surveyModal.targetResponses" class="w-full border rounded-lg px-3 py-2 bg-white" placeholder="مثال: 30" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">تاريخ البداية</label>
+                    <input type="date" x-model="surveyModal.plannedStartAt" class="w-full border rounded-lg px-3 py-2 bg-white" />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-1">تاريخ الإغلاق</label>
+                    <input type="date" x-model="surveyModal.plannedEndAt" class="w-full border rounded-lg px-3 py-2 bg-white" />
+                  </div>
+                  <div class="flex items-end">
+                    <label class="flex items-center gap-2 cursor-pointer bg-white border rounded-lg px-3 py-2 w-full">
+                      <input type="checkbox" x-model="surveyModal.isPublic" class="accent-brand-500 w-5 h-5">
+                      <span class="text-sm font-medium">رابط عام قابل للمشاركة</span>
+                    </label>
+                  </div>
+                  <div class="md:col-span-3">
+                    <label class="block text-sm font-medium mb-1">وصف الجمهور أو طريقة الإرسال</label>
+                    <textarea x-model="surveyModal.audienceNote" class="w-full border rounded-lg px-3 py-2 bg-white" rows="2" placeholder="مثال: يرسل لمستفيدي السلال خلال الربع الأول عبر واتساب أو عند التسليم الميداني."></textarea>
+                  </div>
                 </div>
               </div>
 

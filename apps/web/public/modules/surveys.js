@@ -11,6 +11,9 @@
     surveyModal: {
       open: false, mode: 'create', id: null,
       title: '', target: 'BENEFICIARY', period: '', active: true,
+      executionStatus: 'DRAFT', channel: 'LINK',
+      plannedStartAt: '', plannedEndAt: '', targetResponses: '',
+      audienceNote: '', ownerId: '', isPublic: true,
       questions: [],
     },
     surveySummary: { open: false, data: null, survey: null },
@@ -75,6 +78,70 @@
         PARTNER: 'الشركاء',
       })[target] || target || '—';
     },
+    surveyExecutionStatusLabel(status) {
+      return ({
+        DRAFT: 'مسودة',
+        READY: 'جاهز للإرسال',
+        IN_PROGRESS: 'قيد التنفيذ',
+        CLOSED: 'مغلق',
+      })[status] || status || 'مسودة';
+    },
+    surveyExecutionStatusClass(status) {
+      return ({
+        DRAFT: 'bg-gray-100 text-gray-700 border-gray-200',
+        READY: 'bg-blue-50 text-blue-700 border-blue-200',
+        IN_PROGRESS: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        CLOSED: 'bg-slate-100 text-slate-600 border-slate-200',
+      })[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+    },
+    surveyChannelLabel(channel) {
+      return ({
+        WHATSAPP: 'واتساب',
+        SMS: 'رسائل SMS',
+        EMAIL: 'بريد إلكتروني',
+        FIELD: 'ميداني',
+        LINK: 'رابط مباشر',
+        MIXED: 'مختلط',
+      })[channel] || channel || 'رابط مباشر';
+    },
+    surveyProgressPct(s) {
+      const target = Number(s?.targetResponses);
+      if (!Number.isFinite(target) || target <= 0) return null;
+      const responses = Number(s?.responses) || 0;
+      return Math.max(0, Math.min(100, Math.round((responses / target) * 100)));
+    },
+    surveyProgressText(s) {
+      const target = Number(s?.targetResponses);
+      const responses = Number(s?.responses) || 0;
+      return target > 0 ? `${responses}/${target}` : `${responses}`;
+    },
+    surveyDueText(s) {
+      if (!s?.plannedEndAt) return 'بدون موعد';
+      const d = new Date(s.plannedEndAt);
+      if (Number.isNaN(d.getTime())) return 'بدون موعد';
+      return d.toLocaleDateString('ar-SA');
+    },
+    surveyIsLate(s) {
+      if (!s?.plannedEndAt || s.executionStatus === 'CLOSED') return false;
+      const d = new Date(s.plannedEndAt);
+      if (Number.isNaN(d.getTime())) return false;
+      return d.getTime() < Date.now() && (this.surveyProgressPct(s) ?? 0) < 100;
+    },
+    surveyNeedsAction(s) {
+      return this.surveyIsLate(s)
+        || (s.executionStatus === 'IN_PROGRESS' && (Number(s.responses) || 0) === 0)
+        || (s.executionStatus === 'DRAFT' && s.active);
+    },
+    surveyDefaultTargetResponses(target) {
+      return ({
+        BENEFICIARY: 30,
+        EMPLOYEE: 10,
+        DONOR: 10,
+        PARTNER: 10,
+        VOLUNTEER: 10,
+      })[target] || 10;
+    },
+
     surveyCenterRows(target = 'BENEFICIARY') {
       return (this.surveysList || [])
         .filter(s => !target || s.target === target)
@@ -291,6 +358,12 @@
         title: selected.data.title,
         target: selected.data.target,
         period: selected.data.period,
+        active: true,
+        isPublic: true,
+        executionStatus: 'READY',
+        channel: 'LINK',
+        targetResponses: this.surveyDefaultTargetResponses(selected.data.target),
+        audienceNote: selected.l || '',
         questions: selected.data.questions.map(q => ({ ...q })),
       });
     },
@@ -300,6 +373,9 @@
       this.surveyModal = {
         open: true, mode: 'create', id: null,
         title: '', target: 'BENEFICIARY', period: '', active: true,
+        executionStatus: 'DRAFT', channel: 'LINK',
+        plannedStartAt: '', plannedEndAt: '', targetResponses: 30,
+        audienceNote: '', ownerId: '', isPublic: true,
         questions: [
           { key: 'overall', label: 'ما تقييمك العام للتجربة؟', type: 'rating', required: true },
           { key: 'improvement', label: 'ما أهم ملاحظة أو اقتراح للتحسين؟', type: 'text', required: false },
@@ -325,6 +401,14 @@
       this.surveyModal = {
         open: true, mode: 'edit', id: s.id,
         title: s.title, target: s.target, period: s.period || '', active: s.active,
+        isPublic: !!s.isPublic,
+        executionStatus: s.executionStatus || 'DRAFT',
+        channel: s.channel || 'LINK',
+        plannedStartAt: s.plannedStartAt ? String(s.plannedStartAt).slice(0, 10) : '',
+        plannedEndAt: s.plannedEndAt ? String(s.plannedEndAt).slice(0, 10) : '',
+        targetResponses: s.targetResponses ?? '',
+        audienceNote: s.audienceNote || '',
+        ownerId: s.ownerId || '',
         responses: s.responses || 0,
         questions,
       };
@@ -359,6 +443,14 @@
       }
       const payload = {
         title: m.title, target: m.target, period: m.period || null, active: !!m.active,
+        isPublic: !!m.isPublic,
+        executionStatus: m.executionStatus || 'DRAFT',
+        channel: m.channel || 'LINK',
+        plannedStartAt: m.plannedStartAt || null,
+        plannedEndAt: m.plannedEndAt || null,
+        targetResponses: m.targetResponses === '' || m.targetResponses == null ? null : Number(m.targetResponses),
+        audienceNote: m.audienceNote || null,
+        ownerId: m.ownerId || null,
         questionsJson: JSON.stringify(m.questions),
       };
       try {
@@ -385,6 +477,17 @@
     },
 
     // ─── Sharing ────────────────────────────────────────────────
+    async setSurveyExecutionStatus(s, status) {
+      try {
+        await this.api('PATCH', `/surveys/${s.id}`, {
+          executionStatus: status,
+          active: status !== 'CLOSED',
+          isPublic: status !== 'CLOSED',
+        });
+        await this.loadSurveys();
+      } catch (e) { alert(e.message || 'فشل تحديث حالة التنفيذ'); }
+    },
+
     copySurveyLink(s) {
       const url = s.publicUrl || `${window.location.origin}/survey/${s.id}`;
       navigator.clipboard.writeText(url).then(() => {
