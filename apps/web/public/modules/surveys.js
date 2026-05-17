@@ -401,6 +401,106 @@
           },
         },
         {
+          v: 'EMPLOYEE_PERFORMANCE_SELF',
+          l: 'الموظف - تقييم الأداء الذاتي',
+          data: {
+            title: 'استبيان تقييم الأداء الذاتي للموظف',
+            target: 'EMPLOYEE',
+            period: `ربع سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'goal_clarity', label: 'هل تعرف بوضوح ما هو المطلوب منك في عملك؟', type: 'rating', required: true },
+              { key: 'task_completion', label: 'ما تقييمك لالتزامك بإنجاز مهامك في الوقت المحدد؟', type: 'rating', required: true },
+              { key: 'work_quality', label: 'ما تقييمك لجودة مخرجات عملك؟', type: 'rating', required: true },
+              { key: 'initiative', label: 'ما تقييمك لمبادرتك في تحسين العمل أو حل المشكلات؟', type: 'rating', required: true },
+              { key: 'support_needed', label: 'هل تحتاج دعماً أو توجيهاً إضافياً لأداء عملك بشكل أفضل؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما أهم عائق يؤثر على أدائك حالياً؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_MANAGER_REVIEW',
+          l: 'الموظف - تقييم المدير للأداء',
+          data: {
+            title: 'نموذج تقييم المدير لأداء الموظف',
+            target: 'EMPLOYEE',
+            period: `ربع سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'commitment', label: 'ما تقييم التزام الموظف بالحضور والمهام؟', type: 'rating', required: true },
+              { key: 'quality', label: 'ما تقييم جودة إنجاز الموظف لأعماله؟', type: 'rating', required: true },
+              { key: 'response', label: 'ما تقييم سرعة استجابته للطلبات والمتابعات؟', type: 'rating', required: true },
+              { key: 'teamwork', label: 'ما تقييم تعاونه مع الفريق والأقسام الأخرى؟', type: 'rating', required: true },
+              { key: 'needs_improvement', label: 'هل يحتاج الموظف إلى خطة تحسين أو توجيه؟', type: 'yesno', required: true },
+              { key: 'manager_note', label: 'ملاحظة المدير أو الإجراء المقترح', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_TRAINING_NEEDS',
+          l: 'الموظف - الاحتياج التدريبي',
+          data: {
+            title: 'استبيان تحديد الاحتياج التدريبي للموظفين',
+            target: 'EMPLOYEE',
+            period: `سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'job_skills', label: 'ما مدى كفاية مهاراتك الحالية لأداء مهامك؟', type: 'rating', required: true },
+              { key: 'systems_need', label: 'هل تحتاج تدريباً على الأنظمة أو الأدوات المستخدمة؟', type: 'yesno', required: true },
+              { key: 'quality_need', label: 'هل تحتاج تدريباً على الجودة والإجراءات؟', type: 'yesno', required: true },
+              { key: 'communication_need', label: 'هل تحتاج تدريباً في التواصل أو خدمة المستفيد؟', type: 'yesno', required: true },
+              { key: 'priority', label: 'ما أولوية التدريب بالنسبة لك هذا العام؟', type: 'rating', required: true },
+              { key: 'topic', label: 'اكتب أهم موضوع تدريبي تحتاجه', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_QUALITY_READINESS',
+          l: 'الموظف - جاهزية الجودة وISO',
+          data: {
+            title: 'استبيان جاهزية الموظفين لنظام الجودة ISO',
+            target: 'EMPLOYEE',
+            period: `ربع سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'policy_awareness', label: 'هل تعرف سياسة الجودة وأهدافها بشكل عام؟', type: 'rating', required: true },
+              { key: 'procedure_clarity', label: 'هل إجراءات عملك موثقة وواضحة لك؟', type: 'rating', required: true },
+              { key: 'record_keeping', label: 'هل تعرف ما السجلات التي يجب حفظها في عملك؟', type: 'rating', required: true },
+              { key: 'nonconformity', label: 'هل تعرف كيف تبلغ عن خطأ أو عدم مطابقة؟', type: 'yesno', required: true },
+              { key: 'audit_ready', label: 'ما مدى جاهزيتك لشرح عملك أثناء التدقيق؟', type: 'rating', required: true },
+              { key: 'support_note', label: 'ما الذي تحتاجه لتكون جاهزاً أكثر للجودة؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_SYSTEM_EXPERIENCE',
+          l: 'الموظف - تجربة استخدام النظام',
+          data: {
+            title: 'استبيان تجربة الموظفين مع نظام الجودة',
+            target: 'EMPLOYEE',
+            period: `شهري ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'easy_use', label: 'هل النظام سهل الاستخدام في مهامك اليومية؟', type: 'rating', required: true },
+              { key: 'clear_tasks', label: 'هل تظهر لك مهامك وتنبيهاتك بوضوح؟', type: 'rating', required: true },
+              { key: 'data_entry', label: 'هل إدخال البيانات أو القراءات واضح ومريح؟', type: 'rating', required: true },
+              { key: 'speed', label: 'ما تقييمك لسرعة النظام واستجابته؟', type: 'rating', required: true },
+              { key: 'helps_work', label: 'هل يساعدك النظام على تنظيم عملك؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما أكثر شيء تقترح تحسينه في النظام؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'EMPLOYEE_PULSE',
+          l: 'الموظف - نبض سريع',
+          data: {
+            title: 'استبيان نبض الموظفين المختصر',
+            target: 'EMPLOYEE',
+            period: `شهري ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'mood', label: 'كيف تقيم شعورك العام في العمل هذا الشهر؟', type: 'rating', required: true },
+              { key: 'workload', label: 'هل حجم العمل مناسب ويمكن التعامل معه؟', type: 'rating', required: true },
+              { key: 'blocker', label: 'هل يوجد عائق واضح يمنعك من أداء عملك؟', type: 'yesno', required: true },
+              { key: 'one_note', label: 'اكتب ملاحظة واحدة تحتاج انتباه الإدارة', type: 'text', required: false },
+            ],
+          },
+        },
+        {
           v: 'VOLUNTEER_EXPERIENCE',
           l: 'تجربة المتطوع',
           data: {
