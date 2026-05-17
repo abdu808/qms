@@ -72,10 +72,10 @@
     surveyTargetLabel(target) {
       return ({
         BENEFICIARY: 'المستفيدون',
-        DONOR: 'المتبرعون',
+        DONOR: 'المتبرعون والداعمون',
         VOLUNTEER: 'المتطوعون',
         EMPLOYEE: 'الموظفون',
-        PARTNER: 'الشركاء',
+        PARTNER: 'الشركاء وأعضاء الحوكمة',
       })[target] || target || '—';
     },
     surveyExecutionStatusLabel(status) {
@@ -141,6 +141,23 @@
         VOLUNTEER: 10,
       })[target] || 10;
     },
+    surveyTargetOptions() {
+      return [
+        { key: 'BENEFICIARY', label: 'المستفيدون', hint: 'الخدمات والمساعدات والرعاية' },
+        { key: 'EMPLOYEE', label: 'الموظفون', hint: 'الرضا والأداء والجاهزية' },
+        { key: 'DONOR', label: 'المتبرعون والداعمون', hint: 'التبرع والثقة والأثر' },
+        { key: 'PARTNER', label: 'الشركاء وأعضاء الحوكمة', hint: 'الشراكات والجمعية والمجلس واللجان' },
+        { key: 'VOLUNTEER', label: 'المتطوعون', hint: 'التجربة والجاهزية' },
+      ];
+    },
+    surveyTargetSummary(target) {
+      const stats = this.surveyCenterStats(target);
+      return {
+        ...stats,
+        label: this.surveyTargetLabel(target),
+        target,
+      };
+    },
 
     surveyCenterRows(target = 'BENEFICIARY') {
       return (this.surveysList || [])
@@ -177,6 +194,32 @@
     surveyCenterScoreText(target = 'BENEFICIARY') {
       const pct = this.surveyCenterStats(target).scorePct;
       return pct == null ? '—' : `${pct}%`;
+    },
+    surveyTemplateGroupMeta() {
+      return {
+        BENEFICIARY: { label: 'استبيانات المستفيدين', order: 10 },
+        EMPLOYEE: { label: 'استبيانات الموظفين والأداء', order: 20 },
+        DONOR: { label: 'استبيانات المتبرعين والداعمين', order: 30 },
+        PARTNER: { label: 'استبيانات الشركاء وأعضاء الحوكمة', order: 40 },
+        VOLUNTEER: { label: 'استبيانات المتطوعين', order: 50 },
+      };
+    },
+    surveyTemplateOptions() {
+      const meta = this.surveyTemplateGroupMeta();
+      const groups = {};
+      for (const tpl of this.surveyTemplates().filter(t => t.v && t.data)) {
+        const key = tpl.data.target || 'OTHER';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(tpl);
+      }
+      const out = [{ v: '', l: '— بدون قالب —' }];
+      Object.entries(groups)
+        .sort(([a], [b]) => (meta[a]?.order || 99) - (meta[b]?.order || 99))
+        .forEach(([key, items]) => {
+          out.push({ v: `__group_${key}`, l: `── ${meta[key]?.label || key} ──`, disabled: true });
+          for (const item of items) out.push(item);
+        });
+      return out;
     },
 
     surveyTemplates() {
@@ -333,6 +376,23 @@
           },
         },
         {
+          v: 'DONOR_MAJOR_SUPPORTER',
+          l: 'كبار الداعمين - العلاقة والأثر',
+          data: {
+            title: 'استبيان كبار الداعمين عن العلاقة والأثر',
+            target: 'DONOR',
+            period: `سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'relationship_quality', label: 'ما تقييمك لجودة العلاقة والتواصل مع الجمعية؟', type: 'rating', required: true },
+              { key: 'strategic_alignment', label: 'هل ترى أن فرص الدعم المعروضة تتوافق مع أولوياتك؟', type: 'rating', required: true },
+              { key: 'impact_confidence', label: 'ما مدى ثقتك بأثر الدعم المقدم؟', type: 'rating', required: true },
+              { key: 'reporting_quality', label: 'ما تقييمك لجودة التقارير أو المعلومات التي تصلك؟', type: 'rating', required: true },
+              { key: 'expand_support', label: 'هل ترغب في بحث فرص دعم أو شراكة أوسع؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما الذي يجعل تجربة الداعم أفضل وأكثر وضوحاً؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
           v: 'PARTNER_COLLABORATION',
           l: 'الشريك - تجربة الشراكة',
           data: {
@@ -363,6 +423,40 @@
               { key: 'beneficiary_impact', label: 'هل كان أثر المبادرة على المستفيدين واضحاً؟', type: 'rating', required: true },
               { key: 'repeat', label: 'هل توصي بتكرار المبادرة أو توسيعها؟', type: 'yesno', required: true },
               { key: 'note', label: 'ما أهم درس أو تحسين تقترحه للمبادرات القادمة؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'GENERAL_ASSEMBLY_FEEDBACK',
+          l: 'أعضاء الجمعية العمومية - الرضا والمشاركة',
+          data: {
+            title: 'استبيان أعضاء الجمعية العمومية عن الرضا والمشاركة',
+            target: 'PARTNER',
+            period: `سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'information_clarity', label: 'هل تصلك معلومات الجمعية وتقاريرها بوضوح؟', type: 'rating', required: true },
+              { key: 'meeting_quality', label: 'ما تقييمك لتنظيم اجتماعات الجمعية العمومية؟', type: 'rating', required: true },
+              { key: 'participation', label: 'هل تشعر أن مشاركتك ورأيك محل اهتمام؟', type: 'rating', required: true },
+              { key: 'transparency', label: 'ما تقييمك لشفافية عرض النتائج والقرارات؟', type: 'rating', required: true },
+              { key: 'recommend', label: 'هل توصي بالانضمام أو دعم الجمعية؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما اقتراحك لتحسين تواصل الجمعية مع الأعضاء؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'BOARD_COMMITTEE_FEEDBACK',
+          l: 'المجلس واللجان - فاعلية الحوكمة',
+          data: {
+            title: 'استبيان المجلس واللجان عن فاعلية الحوكمة',
+            target: 'PARTNER',
+            period: `نصف سنوي ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'agenda_clarity', label: 'هل تصل أجندة الاجتماعات والمواد قبل الموعد بوقت كاف؟', type: 'rating', required: true },
+              { key: 'decision_followup', label: 'ما تقييمك لمتابعة تنفيذ القرارات والتوصيات؟', type: 'rating', required: true },
+              { key: 'data_quality', label: 'ما تقييمك لجودة البيانات والتقارير المعروضة؟', type: 'rating', required: true },
+              { key: 'role_clarity', label: 'هل الأدوار والمسؤوليات بين المجلس/اللجان والإدارة واضحة؟', type: 'rating', required: true },
+              { key: 'improvement_needed', label: 'هل توجد حاجة لتحسين آلية العمل أو التقارير؟', type: 'yesno', required: true },
+              { key: 'note', label: 'ما أهم تحسين تقترحه لرفع فاعلية الحوكمة؟', type: 'text', required: false },
             ],
           },
         },

@@ -5806,11 +5806,30 @@
             <div class="mx-4 md:mx-0 mb-4 bg-white border rounded-xl shadow-sm overflow-hidden">
               <div class="px-4 py-3 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-1">
                 <div>
-                  <h3 class="font-bold text-gray-800">📍 مركز قياسات رضا المستفيدين</h3>
-                  <div class="text-xs text-gray-500">مركز إرشادي فقط: يعرض عدد الاستبيانات والردود ونسبة الرضا، ولا يرحّل أي قيمة إلى مؤشرات الأداء الرسمية.</div>
+                  <h3 class="font-bold text-gray-800">📍 مركز قياسات رضا أصحاب المصلحة</h3>
+                  <div class="text-xs text-gray-500">مركز إرشادي فقط: يعرض عدد الاستبيانات والردود ونسبة الرضا لكل فئة، ولا يرحّل أي قيمة إلى مؤشرات الأداء الرسمية.</div>
                 </div>
                 <span class="text-[11px] bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-3 py-1 self-start md:self-auto">للاسترشاد لا للاعتماد الآلي</span>
               </div>
+              <div class="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 border-b bg-gray-50/60">
+                <template x-for="t in surveyTargetOptions()" :key="'target-card-' + t.key">
+                  <div class="rounded-lg bg-white border px-3 py-2">
+                    <div class="flex items-start justify-between gap-2">
+                      <div>
+                        <div class="text-xs font-bold text-gray-700" x-text="t.label"></div>
+                        <div class="text-[11px] text-gray-400" x-text="t.hint"></div>
+                      </div>
+                      <div class="text-lg font-bold" :class="surveyCenterScoreClass(t.key)" x-text="surveyCenterScoreText(t.key)"></div>
+                    </div>
+                    <div class="mt-2 grid grid-cols-3 gap-1 text-center text-[11px]">
+                      <div class="bg-gray-50 rounded p-1"><div class="font-bold" x-text="surveyCenterStats(t.key).surveys"></div><div class="text-gray-400">استبيان</div></div>
+                      <div class="bg-gray-50 rounded p-1"><div class="font-bold" x-text="surveyCenterStats(t.key).totalResponses"></div><div class="text-gray-400">رد</div></div>
+                      <div class="bg-gray-50 rounded p-1"><div class="font-bold" x-text="surveyCenterStats(t.key).active"></div><div class="text-gray-400">نشط</div></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+              <div class="px-4 pt-3 text-xs font-bold text-gray-700">تفصيل جميع الاستبيانات</div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3">
                 <div class="rounded-lg bg-gray-50 border px-3 py-2">
                   <div class="text-xs text-gray-500">استبيانات المستفيدين</div>
@@ -5833,11 +5852,12 @@
                   <div class="text-[11px] text-gray-500">منخفضة الرضا أو بلا ردود</div>
                 </div>
               </div>
-              <div class="border-t overflow-x-auto" x-show="surveyCenterRows('BENEFICIARY').length">
+              <div class="border-t overflow-x-auto" x-show="surveyCenterRows('').length">
                 <table class="w-full text-xs">
                   <thead class="bg-gray-50 text-gray-600">
                     <tr>
                       <th class="px-3 py-2 text-right">الاستبيان</th>
+                      <th class="px-3 py-2 text-center">الفئة</th>
                       <th class="px-3 py-2 text-center">الحالة</th>
                       <th class="px-3 py-2 text-center">الردود</th>
                       <th class="px-3 py-2 text-center">الرضا</th>
@@ -5845,12 +5865,13 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <template x-for="s in surveyCenterRows('BENEFICIARY')" :key="'center-' + s.id">
+                    <template x-for="s in surveyCenterRows('')" :key="'center-' + s.id">
                       <tr class="border-t hover:bg-gray-50">
                         <td class="px-3 py-2">
                           <div class="font-semibold text-gray-800" x-text="s.title"></div>
                           <div class="text-[11px] text-gray-400" x-text="s.period || '—'"></div>
                         </td>
+                        <td class="px-3 py-2 text-center text-gray-600" x-text="surveyTargetLabel(s.target)"></td>
                         <td class="px-3 py-2 text-center">
                           <span x-show="s.active" class="text-[11px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">نشط</span>
                           <span x-show="!s.active" class="text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">مغلق</span>
@@ -7103,8 +7124,8 @@
               <div x-show="surveyModal.mode==='create'" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
                 <label class="block text-sm font-medium mb-1 text-indigo-900">قالب جاهز للاستبيان</label>
                 <select x-model="surveyTemplate" @change="applySurveyTemplate()" class="w-full border border-indigo-200 rounded-lg px-3 py-2 bg-white">
-                  <template x-for="tpl in surveyTemplates()" :key="tpl.v">
-                    <option :value="tpl.v" x-text="tpl.l"></option>
+                  <template x-for="tpl in surveyTemplateOptions()" :key="tpl.v">
+                    <option :value="tpl.v" :disabled="tpl.disabled" x-text="tpl.l"></option>
                   </template>
                 </select>
                 <div class="text-xs text-indigo-700 mt-1">القالب يجهز الأسئلة الأساسية فقط، ويمكنك تعديلها قبل النشر.</div>
@@ -7122,10 +7143,10 @@
                   <label class="block text-sm font-medium mb-1">الفئة المستهدفة</label>
                   <select x-model="surveyModal.target" class="w-full border rounded-lg px-3 py-2">
                     <option value="BENEFICIARY">المستفيدون</option>
-                    <option value="DONOR">المتبرعون</option>
+                    <option value="DONOR">المتبرعون والداعمون</option>
                     <option value="VOLUNTEER">المتطوعون</option>
                     <option value="EMPLOYEE">الموظفون</option>
-                    <option value="PARTNER">الشركاء</option>
+                    <option value="PARTNER">الشركاء وأعضاء الحوكمة</option>
                   </select>
                 </div>
                 <div class="flex items-end">
