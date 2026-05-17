@@ -2627,10 +2627,17 @@ function app() {
         const csrf = this._getCsrfToken();
         if (csrf) headers['X-CSRF-Token'] = csrf;
       }
-      const res = await fetch(API + path, {
+      let res = await fetch(API + path, {
         method, headers, credentials: 'include',
         body: body ? JSON.stringify(body) : undefined,
       });
+      if (res.status === 503) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        res = await fetch(API + path, {
+          method, headers, credentials: 'include',
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      }
       // ── 401: تجديد JWT تلقائياً ───────────────────────────────────────────
       if (res.status === 401 && authRequired) {
         try {
@@ -2693,6 +2700,9 @@ function app() {
     _friendlyApiError(message) {
       const text = String(message ?? '').trim();
       if (!text) return 'حدث خطأ غير متوقع — حاول مرة أخرى أو أعد تحميل الصفحة';
+      if (/^HTTP 503\b/.test(text) || /Service Unavailable/i.test(text)) {
+        return 'الخادم غير جاهز مؤقتاً أو يعيد التشغيل. انتظر لحظات ثم أعد المحاولة، ولن تضيع بيانات النموذج.';
+      }
       if (/Invalid `prisma\./.test(text) || /PrismaClient.*Error/.test(text)) {
         if (text.includes('Argument `records`')) {
           return 'لا يمكن تعديل سجلات الحضور من نافذة بيانات التدريب. استخدم زر الحضور والفعالية.';
