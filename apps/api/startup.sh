@@ -63,6 +63,7 @@ node scripts/migrate.mjs || { echo "[startup] ❌ فشلت migrate.mjs"; cleanup
 
 echo "[startup] ── المرحلة 4: ترحيل بيانات الاستبيانات (إن وُجدت) ──"
 node scripts/backfill-survey-responses.mjs || echo "[startup] تخطّي الترحيل — الحقل غير موجود أو البيانات محوّلة مسبقاً"
+node scripts/normalize-surveys.mjs --apply || echo "[startup] تخطّي تسوية الاستبيانات — فشل غير حرج"
 
 echo "[startup] ── المرحلة 5: تهيئة البيانات الأولية ──"
 node src/seed-if-empty.js || echo "[startup] تخطّي — البيانات الأولية موجودة أو فشل غير حرج"

@@ -27,8 +27,9 @@ function validateQuestions(raw) {
   const keys = new Set();
   const normalized = arr.map((q, i) => {
     const key = String(q.key || q.id || `q${i + 1}`).trim();
-    const label = String(q.label || q.text || q.question || '').trim();
-    const type = String(q.type || 'text').toLowerCase();
+    const label = String(q.label || q.text || q.question || q.q || q.title || '').trim();
+    const legacyScale = q.scale || q.max || q.ratingScale;
+    const type = String(q.type || (legacyScale ? 'rating' : 'text')).toLowerCase();
     if (!label) throw BadRequest(`السؤال رقم ${i + 1} بدون نص`);
     if (!['rating', 'text', 'yesno'].includes(type)) {
       throw BadRequest(`نوع السؤال ${i + 1} غير مدعوم (المسموح: rating, text, yesno)`);

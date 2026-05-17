@@ -124,12 +124,11 @@
             period: `ربع سنوي ${new Date().getFullYear()}`,
             questions: [
               { key: 'overall', label: 'ما تقييمك العام لتجربتك مع الجمعية؟', type: 'rating', required: true },
-              { key: 'clarity', label: 'ما تقييمك لوضوح المتطلبات والإجراءات؟', type: 'rating', required: true },
-              { key: 'speed', label: 'ما تقييمك لسرعة الاستجابة أو إنجاز الخدمة؟', type: 'rating', required: true },
-              { key: 'respect', label: 'ما تقييمك للتعامل والاحترام وحفظ الخصوصية؟', type: 'rating', required: true },
-              { key: 'suitability', label: 'ما تقييمك لمناسبة الخدمة أو الدعم لاحتياجك؟', type: 'rating', required: true },
-              { key: 'communication', label: 'ما تقييمك لسهولة التواصل والمتابعة؟', type: 'rating', required: true },
-              { key: 'suggestion', label: 'ما أهم ملاحظة أو اقتراح لتحسين الخدمة؟', type: 'text', required: false },
+              { key: 'clarity', label: 'هل كانت خطوات الحصول على الخدمة واضحة لك؟', type: 'rating', required: true },
+              { key: 'speed', label: 'ما تقييمك لسرعة الاستجابة وإنجاز الطلب؟', type: 'rating', required: true },
+              { key: 'respect', label: 'ما تقييمك للتعامل باحترام وحفظ الخصوصية؟', type: 'rating', required: true },
+              { key: 'suitability', label: 'ما مدى مناسبة الخدمة لاحتياجك الفعلي؟', type: 'rating', required: true },
+              { key: 'improvement', label: 'ما أهم شيء تقترح تحسينه في الخدمة؟', type: 'text', required: false },
             ],
           },
         },
@@ -142,10 +141,10 @@
             period: `عند الحاجة ${new Date().getFullYear()}`,
             questions: [
               { key: 'overall', label: 'ما تقييمك العام للمساعدة أو الكفالة؟', type: 'rating', required: true },
-              { key: 'timing', label: 'ما تقييمك لتوقيت وصول المساعدة أو متابعة الكفالة؟', type: 'rating', required: true },
-              { key: 'fit', label: 'ما تقييمك لمناسبة الدعم لاحتياج الأسرة؟', type: 'rating', required: true },
-              { key: 'communication', label: 'ما تقييمك للتواصل والمتابعة؟', type: 'rating', required: true },
-              { key: 'notes', label: 'احتياج أو ملاحظة إضافية', type: 'text', required: false },
+              { key: 'timing', label: 'هل وصل الدعم أو تمت المتابعة في وقت مناسب؟', type: 'rating', required: true },
+              { key: 'fit', label: 'ما مدى مناسبة الدعم لاحتياج الأسرة؟', type: 'rating', required: true },
+              { key: 'dignity', label: 'ما تقييمك لطريقة تقديم الخدمة وحفظ الكرامة؟', type: 'rating', required: true },
+              { key: 'notes', label: 'هل لديك احتياج أو ملاحظة إضافية؟', type: 'text', required: false },
             ],
           },
         },
@@ -183,6 +182,39 @@
             ],
           },
         },
+        {
+          v: 'VOLUNTEER_EXPERIENCE',
+          l: 'تجربة المتطوع',
+          data: {
+            title: 'استبيان تجربة المتطوعين',
+            target: 'VOLUNTEER',
+            period: `بعد المشاركة ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام لتجربتك التطوعية مع الجمعية؟', type: 'rating', required: true },
+              { key: 'role_clarity', label: 'هل كانت المهمة المطلوبة منك واضحة؟', type: 'rating', required: true },
+              { key: 'support', label: 'ما تقييمك لدعم الفريق لك أثناء المشاركة؟', type: 'rating', required: true },
+              { key: 'impact', label: 'هل شعرت أن مشاركتك كان لها أثر واضح؟', type: 'rating', required: true },
+              { key: 'repeat', label: 'هل ترغب في تكرار المشاركة مستقبلاً؟', type: 'yesno', required: true },
+              { key: 'suggestion', label: 'ما اقتراحك لتحسين تجربة المتطوع؟', type: 'text', required: false },
+            ],
+          },
+        },
+        {
+          v: 'TRAINING_EVENT',
+          l: 'تقييم تدريب أو فعالية',
+          data: {
+            title: 'استبيان تقييم تدريب أو فعالية',
+            target: 'EMPLOYEE',
+            period: `بعد التنفيذ ${new Date().getFullYear()}`,
+            questions: [
+              { key: 'overall', label: 'ما تقييمك العام للتدريب أو الفعالية؟', type: 'rating', required: true },
+              { key: 'content', label: 'ما تقييمك لمناسبة المحتوى لاحتياجك؟', type: 'rating', required: true },
+              { key: 'delivery', label: 'ما تقييمك لطريقة التقديم والتنظيم؟', type: 'rating', required: true },
+              { key: 'benefit', label: 'ما مدى استفادتك العملية مما تم تقديمه؟', type: 'rating', required: true },
+              { key: 'next_need', label: 'ما الموضوع الذي تقترح التدريب عليه لاحقاً؟', type: 'text', required: false },
+            ],
+          },
+        },
       ];
     },
 
@@ -203,7 +235,8 @@
         open: true, mode: 'create', id: null,
         title: '', target: 'BENEFICIARY', period: '', active: true,
         questions: [
-          { key: 'overall', label: 'تقييمك العام للخدمة', type: 'rating' },
+          { key: 'overall', label: 'ما تقييمك العام للتجربة؟', type: 'rating', required: true },
+          { key: 'improvement', label: 'ما أهم ملاحظة أو اقتراح للتحسين؟', type: 'text', required: false },
         ],
       };
       this.surveyTemplate = '';
@@ -211,12 +244,15 @@
     async openSurveyEdit(s) {
       const raw = (() => { try { return JSON.parse(s.questionsJson || '[]'); } catch { return []; } })();
       // تطبيع: يدعم المفاتيح القديمة
-      const questions = raw.map((q, i) => ({
-        key: String(q.key || q.id || `q${i + 1}`),
-        label: String(q.label || q.text || q.question || ''),
-        type: String(q.type || 'text').toLowerCase(),
-        required: !!q.required,
-      }));
+      const questions = raw.map((q, i) => {
+        const legacyScale = q.scale || q.max || q.ratingScale;
+        return {
+          key: String(q.key || q.id || `q${i + 1}`),
+          label: String(q.label || q.text || q.question || q.q || ''),
+          type: String(q.type || (legacyScale ? 'rating' : 'text')).toLowerCase(),
+          required: q.required === undefined ? !!legacyScale : !!q.required,
+        };
+      });
       if (s.responses > 0) {
         if (!confirm(`⚠️ هذا الاستبيان استقبل ${s.responses} ردّاً بالفعل.\nتغيير الأسئلة أو مفاتيحها قد يُفسِد الإحصاءات السابقة.\nهل تريد المتابعة؟`)) return;
       }

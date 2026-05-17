@@ -13,243 +13,260 @@ const TARGET_LABELS = {
   PARTNER: 'الشركاء',
 };
 
-// GET /survey/:id — render public survey form
+// GET /survey/:id - render public survey form
 router.get('/:id', asyncHandler(async (req, res) => {
-  const s = await prisma.survey.findUnique({ where: { id: req.params.id } });
-  if (!s) return res.status(404).send(errorPage('الاستبيان غير موجود'));
-  if (!s.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
+  const survey = await prisma.survey.findUnique({ where: { id: req.params.id } });
+  if (!survey) return res.status(404).send(errorPage('الاستبيان غير موجود'));
+  if (!survey.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
 
-  const rawQuestions = JSON.parse(s.questionsJson || '[]');
-  const questions = rawQuestions.map((q, i) => normalizeQuestion(q, i));
-  res.send(formPage(s, questions));
+  const questions = parseQuestions(survey.questionsJson);
+  res.send(formPage(survey, questions));
 }));
 
-// POST /survey/:id — submit response
+// POST /survey/:id - submit response
 router.post('/:id', asyncHandler(async (req, res) => {
-  const s = await prisma.survey.findUnique({ where: { id: req.params.id } });
-  if (!s) return res.status(404).send(errorPage('الاستبيان غير موجود'));
-  if (!s.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
+  const survey = await prisma.survey.findUnique({ where: { id: req.params.id } });
+  if (!survey) return res.status(404).send(errorPage('الاستبيان غير موجود'));
+  if (!survey.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
 
-  const rawQuestions = JSON.parse(s.questionsJson || '[]');
-  const questions = rawQuestions.map((q, i) => normalizeQuestion(q, i));
+  const questions = parseQuestions(survey.questionsJson);
 
-  // منع التكرار: نفس IP+UA خلال آخر ساعة → رفض (فحص من DB بدل JSON blob)
+  // Prevent noisy duplicate submissions from the same browser within one hour.
   const ipKey = (req.ip || '') + '|' + (req.headers['user-agent'] || '');
   const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000);
-  const dup = await prisma.surveyResponse.findFirst({
-    where: { surveyId: s.id, idHash: ipKey, submittedAt: { gte: ONE_HOUR_AGO } },
+  const duplicate = await prisma.surveyResponse.findFirst({
+    where: { surveyId: survey.id, idHash: ipKey, submittedAt: { gte: ONE_HOUR_AGO } },
     select: { id: true },
   });
-  if (dup) return res.status(429).send(errorPage('لا يمكنك إرسال الاستبيان أكثر من مرّة خلال ساعة واحدة'));
+  if (duplicate) {
+    return res.status(429).send(errorPage('تم استلام مشاركة قريبة من نفس الجهاز. يمكن إعادة المحاولة لاحقاً عند الحاجة.'));
+  }
 
-  // Build answers object from body
   const answers = {};
   const missing = [];
-  let ratingSum = 0;
-  let ratingCount = 0;
   for (const q of questions) {
-    const v = req.body[q.key];
-    const isEmpty = v === undefined || v === '' || v === null;
+    const rawValue = req.body[q.key];
+    const isEmpty = rawValue === undefined || rawValue === '' || rawValue === null;
     if (isEmpty) {
       if (q.required) missing.push(q.label);
       continue;
     }
+
     if (q.type === 'rating') {
-      const n = Math.max(1, Math.min(5, Number(v) || 0));
+      const n = Math.max(1, Math.min(5, Number(rawValue) || 0));
       answers[q.key] = n;
-      ratingSum += n;
-      ratingCount++;
     } else if (q.type === 'yesno') {
-      answers[q.key] = v === 'yes' || v === 'نعم' ? 'yes' : 'no';
+      answers[q.key] = rawValue === 'yes' || rawValue === 'نعم' ? 'yes' : 'no';
     } else {
-      answers[q.key] = String(v).trim().slice(0, 5000);
+      answers[q.key] = String(rawValue).trim().slice(0, 5000);
     }
   }
+
   if (missing.length) {
-    return res.status(400).send(errorPage('يرجى الإجابة عن الأسئلة المطلوبة: ' + missing.join(' · ')));
+    return res.status(400).send(errorPage('يرجى الإجابة عن: ' + missing.join('، ')));
   }
 
   const respondentName = (req.body.respondentName || '').toString().trim().slice(0, 100) || null;
 
-  // ═══ كتابة ذرّية — INSERT إلى SurveyResponse + تحديث المجاميع المُكثَّفة ═══
   await prisma.$transaction(async (tx) => {
-    // 1) أدرج صف الرد الجديد
     await tx.surveyResponse.create({
       data: {
-        surveyId:      s.id,
+        surveyId: survey.id,
         respondentName,
-        answersJson:   JSON.stringify(answers),
-        idHash:        ipKey,
-        // submittedAt: default now()
+        answersJson: JSON.stringify(answers),
+        idHash: ipKey,
       },
     });
 
-    // 2) أعد حساب avgScore من جميع الصفوف (دقيق دائماً)
-    const allRows = await tx.surveyResponse.findMany({
-      where:  { surveyId: s.id },
+    const rows = await tx.surveyResponse.findMany({
+      where: { surveyId: survey.id },
       select: { answersJson: true },
     });
-    let rSum = 0, rCount = 0;
-    for (const row of allRows) {
-      const ans = JSON.parse(row.answersJson || '{}');
+
+    let ratingSum = 0;
+    let ratingCount = 0;
+    for (const row of rows) {
+      const rowAnswers = JSON.parse(row.answersJson || '{}');
       for (const q of questions) {
-        if (q.type === 'rating' && Number.isFinite(Number(ans[q.key]))) {
-          rSum += Number(ans[q.key]); rCount++;
+        if (q.type !== 'rating') continue;
+        const value = Number(rowAnswers[q.key]);
+        if (Number.isFinite(value)) {
+          ratingSum += value;
+          ratingCount += 1;
         }
       }
     }
 
-    // 3) حدّث الحقول المُكثَّفة على Survey (للـ dashboard/reports)
     await tx.survey.update({
-      where: { id: s.id },
+      where: { id: survey.id },
       data: {
-        responses: allRows.length,
-        avgScore:  rCount > 0 ? Math.round((rSum / rCount) * 100) / 100 : null,
+        responses: rows.length,
+        avgScore: ratingCount > 0 ? Math.round((ratingSum / ratingCount) * 100) / 100 : null,
       },
     });
   });
 
-  res.send(successPage(s));
+  res.send(successPage(survey));
 }));
 
-// ─── HTML templates ────────────────────────────────────────────────────────
+function parseQuestions(rawJson) {
+  let raw = [];
+  try {
+    raw = JSON.parse(rawJson || '[]');
+  } catch {
+    raw = [];
+  }
+  return raw.map(normalizeQuestion).filter(q => q.label);
+}
+
+function normalizeQuestion(raw, idx) {
+  const legacyScale = raw.scale || raw.max || raw.ratingScale;
+  const type = String(raw.type || (legacyScale ? 'rating' : 'text')).toLowerCase();
+  return {
+    key: String(raw.key || raw.id || `q${idx + 1}`).trim(),
+    label: String(raw.label || raw.text || raw.question || raw.q || raw.title || '').trim(),
+    type: ['rating', 'yesno', 'text'].includes(type) ? type : 'text',
+    required: raw.required === undefined ? type === 'rating' : !!raw.required,
+  };
+}
 
 const baseStyle = `
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#eff8fe;direction:rtl;color:#1a1a1a;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 10px}
-    .card{background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);width:100%;max-width:640px;overflow:hidden}
-    .header{background:linear-gradient(135deg,#1e40af,#3b82f6);color:#fff;padding:24px 28px}
-    .header h1{font-size:1.3rem;margin-bottom:4px}
-    .header p{opacity:.9;font-size:.9rem}
-    .body{padding:24px 28px}
-    .question{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px}
-    .qlabel{font-weight:600;margin-bottom:10px;color:#1e293b;font-size:.95rem}
-    .rating{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-    .rating label{cursor:pointer;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:8px;background:#fff;font-weight:600;transition:.15s}
-    .rating input{display:none}
-    .rating label:has(input:checked){background:#3b82f6;color:#fff;border-color:#3b82f6}
-    textarea,input[type=text]{width:100%;border:1.5px solid #cbd5e1;border-radius:8px;padding:10px 12px;font-size:.95rem;font-family:inherit;direction:rtl}
-    textarea:focus,input:focus{outline:none;border-color:#3b82f6}
-    .yesno{display:flex;gap:10px}
-    .yesno label{flex:1;text-align:center;padding:10px;border:1.5px solid #cbd5e1;border-radius:8px;cursor:pointer;font-weight:600}
-    .yesno input{display:none}
-    .yesno label:has(input:checked){background:#3b82f6;color:#fff;border-color:#3b82f6}
-    .submit-btn{width:100%;background:#1e40af;color:#fff;border:none;padding:14px;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px}
-    .submit-btn:hover{background:#1e3a8a}
-    .footer{text-align:center;font-size:.75rem;color:#9ca3af;padding:16px;border-top:1px solid #f3f4f6}
-    .field-group{margin-bottom:16px}
-    label.field-lbl{display:block;font-weight:600;margin-bottom:6px;font-size:.9rem;color:#374151}
-    .icon{font-size:3rem;margin-bottom:12px}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f3f7f4;direction:rtl;color:#15251d;min-height:100vh;padding:24px 12px}
+    .wrap{width:100%;max-width:720px;margin:auto}
+    .card{background:#fff;border:1px solid #dfe9e3;border-radius:18px;box-shadow:0 16px 40px rgba(21,37,29,.08);overflow:hidden}
+    .header{background:linear-gradient(135deg,#176b3a,#2e8b57);color:#fff;padding:26px 30px}
+    .brand{font-size:.82rem;opacity:.9;margin-bottom:10px}
+    h1{font-size:1.45rem;line-height:1.45;margin:0 0 8px}
+    .subtitle{font-size:.92rem;opacity:.92;line-height:1.7}
+    .intro{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d;border-radius:14px;padding:12px 14px;margin-bottom:18px;font-size:.9rem;line-height:1.8}
+    .body{padding:24px 30px}
+    .field-group{margin-bottom:18px}
+    .field-lbl,.qlabel{display:block;font-weight:700;margin-bottom:8px;color:#22352b;font-size:.95rem}
+    .hint{color:#64748b;font-size:.78rem;margin-top:4px}
+    input[type=text],textarea{width:100%;border:1.5px solid #cfded5;border-radius:12px;padding:12px 14px;font-size:.95rem;font-family:inherit;direction:rtl;background:#fff}
+    input[type=text]:focus,textarea:focus{outline:none;border-color:#2e8b57;box-shadow:0 0 0 3px rgba(46,139,87,.12)}
+    .question{background:#fbfdfb;border:1px solid #e3ece7;border-radius:14px;padding:15px;margin-bottom:13px}
+    .required{color:#dc2626}
+    .rating{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .choice{position:relative}
+    .choice input{position:absolute;opacity:0}
+    .choice span{display:block;text-align:center;padding:10px 8px;border:1.5px solid #cfded5;border-radius:12px;background:#fff;cursor:pointer;font-weight:800;color:#31513d;transition:.15s}
+    .choice input:checked + span{background:#2e8b57;color:#fff;border-color:#2e8b57}
+    .yesno{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .submit-btn{width:100%;background:#176b3a;color:#fff;border:none;padding:15px;border-radius:13px;font-size:1rem;font-weight:800;cursor:pointer;margin-top:8px}
+    .submit-btn:hover{background:#145c32}
+    .footer{text-align:center;font-size:.78rem;color:#64748b;padding:16px;border-top:1px solid #edf2ef;background:#fbfdfb}
+    .status{padding:42px 30px;text-align:center}
+    .status h1{color:#166534}
+    @media(max-width:560px){.body,.header{padding:20px 16px}.rating{grid-template-columns:1fr}.yesno{grid-template-columns:1fr}}
   </style>
 `;
-
-// تطبيع شكل السؤال — يدعم المفاتيح القديمة (id/text/RATING) والجديدة (key/label/rating)
-function normalizeQuestion(raw, idx) {
-  return {
-    key: String(raw.key || raw.id || `q${idx + 1}`),
-    label: String(raw.label || raw.text || raw.question || raw.title || ''),
-    type: String(raw.type || 'text').toLowerCase(),
-    required: !!raw.required,
-  };
-}
 
 function renderQuestion(raw, idx) {
   const q = normalizeQuestion(raw, idx);
   const label = escapeHtml(q.label) || `سؤال ${idx + 1}`;
-  const key   = escapeHtml(q.key);
-  const req   = q.required ? '<span style="color:#dc2626;font-weight:700" title="إجباري">*</span>' : '';
+  const key = escapeHtml(q.key);
+  const req = q.required ? '<span class="required">*</span>' : '';
   const reqAttr = q.required ? 'required' : '';
+
   if (q.type === 'rating') {
-    const scale = [1, 2, 3, 4, 5];
+    const labels = ['ضعيف', 'مقبول', 'جيد', 'جيد جداً', 'ممتاز'];
     return `<div class="question">
       <div class="qlabel">${label} ${req}</div>
       <div class="rating">
-        ${scale.map(n => `<label><input type="radio" name="${key}" value="${n}" ${reqAttr && n===1 ? 'required' : ''}><span>${'⭐'.repeat(n)} ${n}</span></label>`).join('')}
+        ${[1, 2, 3, 4, 5].map((n, i) => `
+          <label class="choice">
+            <input type="radio" name="${key}" value="${n}" ${reqAttr && n === 1 ? 'required' : ''}>
+            <span>${n}<br><small>${labels[i]}</small></span>
+          </label>
+        `).join('')}
       </div>
     </div>`;
   }
+
   if (q.type === 'yesno') {
     return `<div class="question">
       <div class="qlabel">${label} ${req}</div>
       <div class="yesno">
-        <label><input type="radio" name="${key}" value="yes" ${reqAttr}>✅ نعم</label>
-        <label><input type="radio" name="${key}" value="no">❌ لا</label>
+        <label class="choice"><input type="radio" name="${key}" value="yes" ${reqAttr}><span>نعم</span></label>
+        <label class="choice"><input type="radio" name="${key}" value="no"><span>لا</span></label>
       </div>
     </div>`;
   }
+
   return `<div class="question">
     <div class="qlabel">${label} ${req}</div>
-    <textarea name="${key}" rows="3" maxlength="5000" placeholder="اكتب إجابتك..." ${reqAttr}
-      oninput="this.nextElementSibling.textContent = this.value.length + ' / 5000 حرفاً'"></textarea>
-    <div style="text-align:left;font-size:.7rem;color:#9ca3af;margin-top:2px">0 / 5000 حرفاً</div>
+    <textarea name="${key}" rows="3" maxlength="5000" placeholder="اكتب إجابتك باختصار..." ${reqAttr}
+      oninput="this.nextElementSibling.textContent = this.value.length + ' / 5000 حرف'"></textarea>
+    <div class="hint" style="text-align:left">0 / 5000 حرف</div>
   </div>`;
 }
 
-function formPage(s, questions) {
-  const target = escapeHtml(TARGET_LABELS[s.target] || s.target);
-  const title  = escapeHtml(s.title);
-  const period = escapeHtml(s.period || '');
-  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
-    <title>${title}</title></head>
+function formPage(survey, questions) {
+  const target = escapeHtml(TARGET_LABELS[survey.target] || survey.target);
+  const title = escapeHtml(survey.title);
+  const period = escapeHtml(survey.period || '');
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}<title>${title}</title></head>
   <body>
-    <div class="card">
-      <div class="header">
-        <div style="font-size:.8rem;opacity:.85;margin-bottom:4px">جمعية البر بصبيا — استبيان</div>
-        <h1>📋 ${title}</h1>
-        <p>الفئة المستهدفة: ${target}${period ? ` · ${period}` : ''}</p>
-      </div>
-      <div class="body">
-        <form method="POST">
-          <div class="field-group">
-            <label class="field-lbl">اسمك (اختياري)</label>
-            <input type="text" name="respondentName" placeholder="يمكنك ترك الاسم فارغاً">
-          </div>
-          ${questions.map((q, i) => renderQuestion(q, i)).join('')}
-          <button type="submit" class="submit-btn">💾 إرسال الاستبيان</button>
-        </form>
-      </div>
-      <div class="footer">شكراً لمشاركتك — رأيك يهمنا لتحسين خدماتنا</div>
-    </div>
+    <main class="wrap">
+      <section class="card">
+        <header class="header">
+          <div class="brand">جمعية البر بصبيا - قياس رضا وتحسين خدمة</div>
+          <h1>${title}</h1>
+          <div class="subtitle">الفئة المستهدفة: ${target}${period ? ` - ${period}` : ''}</div>
+        </header>
+        <div class="body">
+          <div class="intro">مشاركتك تساعدنا على تحسين الخدمة. الإجابات تستخدم لأغراض الجودة والتحسين، ويمكن ترك الاسم فارغاً.</div>
+          <form method="POST">
+            <div class="field-group">
+              <label class="field-lbl">الاسم (اختياري)</label>
+              <input type="text" name="respondentName" placeholder="يمكن ترك الاسم فارغاً">
+              <div class="hint">لا نطلب أي بيانات حساسة داخل هذا النموذج.</div>
+            </div>
+            ${questions.map((q, i) => renderQuestion(q, i)).join('')}
+            <button type="submit" class="submit-btn">إرسال المشاركة</button>
+          </form>
+        </div>
+        <footer class="footer">شكراً لمساهمتك في تحسين خدمات جمعية البر بصبيا</footer>
+      </section>
+    </main>
   </body></html>`;
 }
 
-function successPage(s) {
-  const title = escapeHtml(s.title);
-  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
-    <title>تم الإرسال</title></head>
+function successPage(survey) {
+  const title = escapeHtml(survey.title);
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}<title>تم الإرسال</title></head>
   <body>
-    <div class="card">
-      <div class="header">
-        <h1>✅ شكراً لك!</h1>
-        <p>${title}</p>
-      </div>
-      <div class="body" style="text-align:center;padding:40px 28px">
-        <div class="icon">🙏</div>
-        <div style="font-size:1.2rem;font-weight:700;color:#166534;margin-bottom:8px">تم استلام مشاركتك بنجاح</div>
-        <p style="color:#6b7280">رأيك سيُسهم في تحسين خدمات الجمعية.</p>
-        <p style="margin-top:20px;color:#9ca3af;font-size:.85rem">يمكنك إغلاق هذه الصفحة الآن</p>
-      </div>
-      <div class="footer">جمعية البر بصبيا — نظام إدارة الجودة</div>
-    </div>
+    <main class="wrap">
+      <section class="card">
+        <header class="header"><div class="brand">جمعية البر بصبيا</div><h1>تم استلام مشاركتك</h1></header>
+        <div class="status">
+          <h1>شكراً لك</h1>
+          <p>تم حفظ إجابتك على: <strong>${title}</strong></p>
+          <p class="hint">رأيك يساعدنا على تحسين الخدمة واتخاذ قرارات أفضل.</p>
+        </div>
+        <footer class="footer">يمكنك إغلاق هذه الصفحة الآن</footer>
+      </section>
+    </main>
   </body></html>`;
 }
 
-function errorPage(msg) {
-  const safeMsg = escapeHtml(msg);
-  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}
-    <title>خطأ</title></head>
+function errorPage(message) {
+  const safeMessage = escapeHtml(message);
+  return `<!DOCTYPE html><html lang="ar" dir="rtl"><head>${baseStyle}<title>تعذر الإرسال</title></head>
   <body>
-    <div class="card">
-      <div class="header" style="background:linear-gradient(135deg,#991b1b,#dc2626)">
-        <h1>❌ ${safeMsg}</h1>
-      </div>
-      <div class="body" style="text-align:center;padding:40px 28px">
-        <div class="icon">📋</div>
-        <p style="color:#6b7280">تواصل مع الجمعية للاستفسار.</p>
-      </div>
-    </div>
+    <main class="wrap">
+      <section class="card">
+        <header class="header" style="background:linear-gradient(135deg,#991b1b,#dc2626)"><h1>تعذر إكمال الطلب</h1></header>
+        <div class="status">
+          <h1 style="color:#991b1b">${safeMessage}</h1>
+          <p class="hint">يمكنك المحاولة لاحقاً أو التواصل مع الجمعية عند الحاجة.</p>
+        </div>
+      </section>
+    </main>
   </body></html>`;
 }
 
