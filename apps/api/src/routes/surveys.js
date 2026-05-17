@@ -98,6 +98,15 @@ function asNullableInt(value, fieldName) {
   return n;
 }
 
+function rejectCorruptedArabicText(value, fieldName) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  if (text.includes('���') || /\?{5,}/.test(text)) {
+    throw BadRequest(`${fieldName} يبدو غير مقروء بسبب مشكلة ترميز، أعد إدخاله من الواجهة أو أرسله بترميز UTF-8`);
+  }
+  return text;
+}
+
 function cleanSurveyPayload(body, { create = false } = {}) {
   const data = {};
   if (create || body.title !== undefined) {
@@ -112,7 +121,7 @@ function cleanSurveyPayload(body, { create = false } = {}) {
   if (body.questionsJson !== undefined || create) data.questionsJson = validateQuestions(body.questionsJson);
 
   if (body.ownerId !== undefined) data.ownerId = body.ownerId || null;
-  if (body.audienceNote !== undefined) data.audienceNote = body.audienceNote ? String(body.audienceNote).trim() : null;
+  if (body.audienceNote !== undefined) data.audienceNote = rejectCorruptedArabicText(body.audienceNote, 'وصف الجمهور أو طريقة الإرسال');
   if (body.channel !== undefined) {
     const channel = body.channel ? String(body.channel).toUpperCase() : null;
     if (channel && !SURVEY_CHANNELS.has(channel)) throw BadRequest('قناة تنفيذ الاستبيان غير مدعومة');
