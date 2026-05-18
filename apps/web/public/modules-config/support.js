@@ -271,7 +271,7 @@ window.QMS_MODULES_SUPPORT = {
         } },
       ] },
       { key: 'employeeId',  label: 'الموظف المُقيَّم',  type: 'relation', rel: 'users', required: true },
-      { key: 'reviewerId',  label: 'المُقيِّم',           type: 'relation', rel: 'users', hint: 'يختلف عن الموظف (ISO 7.1.2)' },
+      { key: 'reviewerId',  label: 'المُقيِّم',           type: 'relation', rel: 'users', hint: 'رئيس القسم المباشر أو مستوى أعلى، ويختلف عن الموظف (ISO 7.1.2)' },
       { key: 'period',      label: 'الفترة',            required: true, hint: 'مثال: 2026 أو Q1-2026' },
       { key: 'periodStart', label: 'بداية الفترة', type: 'date', required: true },
       { key: 'periodEnd',   label: 'نهاية الفترة', type: 'date', required: true },

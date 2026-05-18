@@ -15,6 +15,10 @@ const DIMENSIONS = [
   'teamwork', 'communication', 'initiative', 'reliability',
 ];
 
+const REVIEWER_ROLES = new Set(['DEPT_MANAGER', 'COMMITTEE_MEMBER', 'QUALITY_MANAGER', 'SUPER_ADMIN']);
+const SENIOR_REVIEWER_ROLES = new Set(['COMMITTEE_MEMBER', 'QUALITY_MANAGER', 'SUPER_ADMIN']);
+const QUALITY_REVIEWER_ROLES = new Set(['QUALITY_MANAGER', 'SUPER_ADMIN']);
+
 function computeOverall(data) {
   const vals = DIMENSIONS.map(k => Number(data[k])).filter(v => Number.isFinite(v) && v >= 1 && v <= 5);
   if (vals.length === 0) return null;
@@ -59,6 +63,87 @@ function assertSeparationOfDuty(employeeId, reviewerId) {
   }
 }
 
+async function loadReviewUsers(employeeId, reviewerId) {
+  const users = await prisma.user.findMany({
+    where: { id: { in: [employeeId, reviewerId].filter(Boolean) } },
+    select: { id: true, name: true, role: true, departmentId: true, active: true },
+  });
+  const byId = new Map(users.map(u => [u.id, u]));
+  const employee = byId.get(employeeId);
+  const reviewer = byId.get(reviewerId);
+  if (!employee) throw BadRequest('الموظف المُقيَّم غير موجود');
+  if (!reviewer) throw BadRequest('المُقيِّم غير موجود');
+  if (!employee.active) throw BadRequest('لا يمكن إنشاء تقييم لموظف غير نشط');
+  if (!reviewer.active) throw BadRequest('لا يمكن إسناد التقييم لمُقيِّم غير نشط');
+  return { employee, reviewer };
+}
+
+function assertReviewerEligibility(employee, reviewer) {
+  assertSeparationOfDuty(employee.id, reviewer.id);
+
+  if (!REVIEWER_ROLES.has(reviewer.role)) {
+    throw BadRequest('المُقيِّم يجب أن يكون رئيس قسم أو أعلى');
+  }
+
+  if (employee.role === 'EMPLOYEE') {
+    if (reviewer.role === 'DEPT_MANAGER' && employee.departmentId !== reviewer.departmentId) {
+      throw BadRequest('رئيس القسم لا يقيّم إلا موظفي قسمه');
+    }
+    return;
+  }
+
+  if (employee.role === 'DEPT_MANAGER') {
+    if (!SENIOR_REVIEWER_ROLES.has(reviewer.role)) {
+      throw BadRequest('تقييم رئيس القسم يحتاج مُقيِّماً أعلى من رئيس القسم');
+    }
+    return;
+  }
+
+  if (employee.role === 'COMMITTEE_MEMBER') {
+    if (!QUALITY_REVIEWER_ROLES.has(reviewer.role)) {
+      throw BadRequest('تقييم عضو اللجنة يحتاج مدير الجودة أو مسؤول النظام');
+    }
+    return;
+  }
+
+  if (employee.role === 'QUALITY_MANAGER') {
+    if (reviewer.role !== 'SUPER_ADMIN') {
+      throw BadRequest('تقييم مدير الجودة يحتاج مسؤول النظام');
+    }
+    return;
+  }
+
+  if (employee.role === 'SUPER_ADMIN') {
+    throw BadRequest('لا يُنشأ تقييم أداء لمسؤول النظام من هذه الصفحة');
+  }
+}
+
+async function assertReviewHierarchy(data, req, existing = {}) {
+  const employeeId = data.employeeId ?? existing.employeeId;
+  let reviewerId = data.reviewerId ?? existing.reviewerId ?? req.user.sub;
+
+  if (!employeeId) throw BadRequest('يجب اختيار الموظف المُقيَّم');
+  if (!reviewerId) reviewerId = req.user.sub;
+
+  if (!isPrivilegedReviewer(req.user)) {
+    if (data.reviewerId && data.reviewerId !== req.user.sub) {
+      throw Forbidden('لا يمكن إسناد التقييم إلى مُقيِّم آخر');
+    }
+    if (reviewerId !== req.user.sub) {
+      throw Forbidden('لا يمكنك تعديل تقييم لست مُقيِّمه');
+    }
+  }
+
+  const { employee, reviewer } = await loadReviewUsers(employeeId, reviewerId);
+  assertReviewerEligibility(employee, reviewer);
+
+  if (req.user.role === 'DEPT_MANAGER' && employee.departmentId !== req.user.departmentId) {
+    throw Forbidden('رئيس القسم يقيّم موظفي قسمه فقط');
+  }
+
+  return reviewerId;
+}
+
 function normalize(data, { partial = false } = {}) {
   for (const k of DIMENSIONS) {
     if (partial && !(k in data)) continue;
@@ -88,16 +173,14 @@ const base = crudRouter({
   beforeCreate: async (data, req) => {
     if (!isPrivilegedReviewer(req.user)) data.reviewerId = req.user.sub;
     if (!data.reviewerId) data.reviewerId = req.user.sub;
-    assertSeparationOfDuty(data.employeeId, data.reviewerId);
+    data.reviewerId = await assertReviewHierarchy(data, req);
     data = normalize(data);
     return data;
   },
   beforeUpdate: async (data, req) => {
     const existing = await loadReviewForUpdate(req);
-    if (!isPrivilegedReviewer(req.user) && data.reviewerId && data.reviewerId !== req.user.sub) {
-      throw Forbidden('لا يمكن نقل التقييم إلى مقيم آخر');
-    }
-    assertSeparationOfDuty(data.employeeId ?? existing.employeeId, data.reviewerId ?? existing.reviewerId);
+    const reviewerId = await assertReviewHierarchy(data, req, existing);
+    if (data.reviewerId !== undefined) data.reviewerId = reviewerId;
     data = normalize(data, { partial: true });
     if (DIMENSIONS.some(k => k in data)) {
       const merged = { ...existing, ...data };

@@ -2176,6 +2176,44 @@ function app() {
       }
     },
 
+    relationFieldOptions(f) {
+      const rel = f.relation || f.rel;
+      const options = this.relationOptions[rel] || [];
+      if (this.page !== 'performanceReviews' || rel !== 'users') return options;
+
+      if (f.key === 'employeeId') {
+        return options.filter(u => u.role !== 'SUPER_ADMIN');
+      }
+
+      if (f.key === 'reviewerId') {
+        const employee = options.find(u => u.id === this.modal?.data?.employeeId);
+        return options.filter(reviewer => this.isReviewerAllowedForEmployee(employee, reviewer));
+      }
+
+      return options;
+    },
+
+    isReviewerAllowedForEmployee(employee, reviewer) {
+      const reviewerRoles = ['DEPT_MANAGER', 'COMMITTEE_MEMBER', 'QUALITY_MANAGER', 'SUPER_ADMIN'];
+      if (!reviewer || !reviewerRoles.includes(reviewer.role)) return false;
+      if (!employee) return true;
+      if (employee.id === reviewer.id) return false;
+
+      if (employee.role === 'EMPLOYEE') {
+        return reviewer.role !== 'DEPT_MANAGER' || employee.departmentId === reviewer.departmentId;
+      }
+      if (employee.role === 'DEPT_MANAGER') {
+        return ['COMMITTEE_MEMBER', 'QUALITY_MANAGER', 'SUPER_ADMIN'].includes(reviewer.role);
+      }
+      if (employee.role === 'COMMITTEE_MEMBER') {
+        return ['QUALITY_MANAGER', 'SUPER_ADMIN'].includes(reviewer.role);
+      }
+      if (employee.role === 'QUALITY_MANAGER') {
+        return reviewer.role === 'SUPER_ADMIN';
+      }
+      return false;
+    },
+
     // ------ data loading ------
     get currentModule() { return MODULES[this.page]; },
     get currentCols()   { return this.currentModule?.cols || []; },
