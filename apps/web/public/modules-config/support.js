@@ -172,7 +172,7 @@ window.QMS_MODULES_SUPPORT = {
     cols: [
       { key: 'code', label: 'الرمز' },
       { key: 'jobTitle', label: 'المسمى الوظيفي' },
-      { key: 'department', label: 'الإدارة' },
+      { key: 'department', label: 'الإدارة/الوحدة نصياً' },
       { key: 'minExperience', label: 'سنوات الخبرة' },
     ],
     fields: [
@@ -184,7 +184,7 @@ window.QMS_MODULES_SUPPORT = {
       { key: 'certifications', label: 'الشهادات المطلوبة', type: 'textarea' },
       { key: 'trainings', label: 'التدريبات المطلوبة', type: 'textarea' },
       { key: 'evaluationMethod', label: 'طريقة التقييم', type: 'textarea' },
-      { key: 'departmentId', label: 'الإدارة', type: 'relation', relation: 'departments' },
+      { key: 'departmentId', label: 'الإدارة المرتبطة بالنظام', type: 'relation', relation: 'departments' },
     ],
   },
 
@@ -217,9 +217,9 @@ window.QMS_MODULES_SUPPORT = {
         { v: 'شهري', l: 'شهري' }, { v: 'ربعي', l: 'ربعي' },
         { v: 'سنوي', l: 'سنوي' }, { v: 'عند الحاجة', l: 'عند الحاجة' },
       ]},
-      { key: 'responsible', label: 'المسؤول', required: true },
+      { key: 'responsible', label: 'المسؤول أو الجهة نصياً', required: true },
       { key: 'format', label: 'الشكل' },
-      { key: 'responsibleUserId', label: 'المسؤول', type: 'relation', relation: 'users' },
+      { key: 'responsibleUserId', label: 'المسؤول من المستخدمين', type: 'relation', relation: 'users' },
     ],
   },
 
