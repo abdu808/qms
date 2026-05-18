@@ -7927,7 +7927,7 @@
                             ? 'w-full appearance-none border-2 border-amber-200 rounded-xl px-4 py-2.5 text-sm bg-amber-50/40 text-gray-500 cursor-not-allowed'
                             : 'w-full appearance-none border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-400 outline-none transition-colors bg-gray-50/80 focus:bg-white cursor-pointer'">
                           <option value="">— لا شيء —</option>
-                          <template x-for="o in (relationOptions[f.relation]||[])" :key="o.id">
+                          <template x-for="o in (relationOptions[f.relation || f.rel]||[])" :key="o.id">
                             <option :value="o.id" x-text="(o.code ? o.code + ' — ' : '') + (o.title||o.nameAr||o.name||'')"></option>
                           </template>
                         </select>

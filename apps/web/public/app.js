@@ -2152,7 +2152,8 @@ function app() {
       if (!this.currentFields) return;
       const needed = new Set();
       for (const f of this.currentFields) {
-        if (f.type === 'relation' && f.relation) needed.add(f.relation);
+        const rel = f.relation || f.rel;
+        if (f.type === 'relation' && rel) needed.add(rel);
       }
       const endpoints = {
         axes:            '/axes?quick=active&limit=100', // المحاور النشطة فقط (لها أهداف) — AXIS-01..04
