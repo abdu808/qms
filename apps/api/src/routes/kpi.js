@@ -23,6 +23,8 @@ import { validateKpiEntryFKs } from '../lib/kpiEntry-integrity.js';
 import { recomputeAfterEntry, recomputeIndicator } from '../services/rollup.js';
 import { arabicSearchVariants } from '../utils/normalize.js';
 import { frequencyLabel, isDueMonth } from '../lib/kpiFrequency.js';
+import { config } from '../config.js';
+import { createKpiEntryToken } from './publicKpiEntry.js';
 import {
   activityScopeWhere,
   indicatorScopeWhere,
@@ -38,6 +40,11 @@ router.use(authenticate);
 
 const currentMonth = () => new Date().getMonth() + 1;
 const currentYear  = () => new Date().getFullYear();
+const appBaseUrl = () => config.appUrl.replace(/\/$/, '');
+
+function publicKpiEntryUrl(payload) {
+  return `${appBaseUrl()}/kpi-entry/${createKpiEntryToken(payload)}`;
+}
 
 function targetFieldsFromAnnualTarget(annualTarget) {
   return {
@@ -466,6 +473,7 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         kpiType: rec.kpiType, targetValue: kpi.targetValue, unit: kpi.unit,
         frequency: rec.frequency,
         frequencyLabel: kind === 'indicator' ? frequencyLabel(rec.frequency) : 'شهري',
+        publicEntryUrl: publicKpiEntryUrl({ kind, id: rec.id, year, month, userId }),
         dueThisMonth,
         currentProgress: Number(rec.progress ?? 0),
         thisMonth: thisMonthEntry
@@ -499,6 +507,65 @@ router.get('/my-due', requireAction('kpi', 'read'), async (req, res, next) => {
         green:  entered.filter(x => x.evaluation.rag === 'GREEN').length,
       },
       pending, entered,
+    });
+  } catch (e) { next(e); }
+});
+
+// روابط تعبئة KPI مباشرة للموظفين — للمشرف/مدير الجودة لإرسالها بدون فتح النظام الكامل
+router.get('/entry-links', requireAction('kpi', 'read'), async (req, res, next) => {
+  try {
+    const year  = Number(req.query.year)  || currentYear();
+    const month = Number(req.query.month) || currentMonth();
+    const userId = req.query.userId ? String(req.query.userId) : null;
+    const requester = await prisma.user.findUnique({
+      where: { id: req.user.sub },
+      select: { role: true, departmentId: true },
+    });
+    const isGlobal = ['SUPER_ADMIN', 'QUALITY_MANAGER'].includes(requester?.role);
+    const isDeptManager = requester?.role === 'DEPT_MANAGER';
+    if (!isGlobal && !isDeptManager) throw Forbidden('هذه الروابط مخصصة للمشرفين ومديري الأقسام');
+
+    const indicators = await prisma.indicator.findMany({
+      where: {
+        deletedAt: null,
+        dataEntryUserId: userId || { not: null },
+        ...(isDeptManager && !isGlobal ? { dataEntryUser: { departmentId: requester.departmentId } } : {}),
+      },
+      include: {
+        dataEntryUser: { select: { id: true, name: true, email: true, departmentId: true } },
+        annualTargets: { where: { year }, take: 1 },
+        kpiEntries: { where: { year, month }, take: 1 },
+        strategicGoal: { select: { title: true, perspective: true } },
+      },
+      orderBy: [{ dataEntryUserId: 'asc' }, { code: 'asc' }],
+    });
+
+    const items = indicators
+      .filter(i => i.dataEntryUser && isDueMonth(i.frequency, month, i.seasonality))
+      .map(i => ({
+        kind: 'indicator',
+        id: i.id,
+        code: i.code,
+        title: i.nameAr,
+        perspective: i.strategicGoal?.perspective || null,
+        targetValue: i.annualTargets?.[0]?.targetValue ?? null,
+        unit: i.unit,
+        frequency: i.frequency,
+        frequencyLabel: frequencyLabel(i.frequency),
+        assignee: i.dataEntryUser,
+        entered: !!i.kpiEntries?.[0],
+        actualValue: i.kpiEntries?.[0]?.actualValue ?? null,
+        publicEntryUrl: publicKpiEntryUrl({ kind: 'indicator', id: i.id, year, month, userId: i.dataEntryUser.id }),
+      }));
+
+    res.json({
+      ok: true,
+      year,
+      month,
+      total: items.length,
+      pending: items.filter(x => !x.entered).length,
+      entered: items.filter(x => x.entered).length,
+      items,
     });
   } catch (e) { next(e); }
 });

@@ -129,5 +129,15 @@
     myKpiEntryStatus(item) {
       return item?.entered ? 'تم الإدخال' : 'بانتظار إدخالك';
     },
+
+    copyMyKpiPublicLink(item) {
+      const url = item?.publicEntryUrl;
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('تم نسخ رابط التعبئة المباشر');
+      }).catch(() => {
+        prompt('انسخ رابط التعبئة:', url);
+      });
+    },
   };
 })();
