@@ -114,5 +114,20 @@
       return { GREEN: 'bg-green-50 border-green-200', YELLOW: 'bg-amber-50 border-amber-200',
                RED: 'bg-red-50 border-red-200', GRAY: 'bg-gray-50 border-gray-200' }[rag] || 'bg-gray-50 border-gray-200';
     },
+
+    myKpiKindLabel(kind) {
+      if (kind === 'indicator') return 'مؤشر أداء';
+      if (kind === 'activity') return 'نشاط تشغيلي';
+      return 'هدف/مؤشر تشغيلي';
+    },
+
+    myKpiPeriodLabel() {
+      if (!this.myKpi) return '';
+      return `${this.myKpi.year} / ${String(this.myKpi.month).padStart(2, '0')}`;
+    },
+
+    myKpiEntryStatus(item) {
+      return item?.entered ? 'تم الإدخال' : 'بانتظار إدخالك';
+    },
   };
 })();
