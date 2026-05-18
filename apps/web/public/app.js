@@ -1944,6 +1944,17 @@ function app() {
       return value;
     },
 
+    applyFieldTemplate(field) {
+      if (!field?.applyTemplate || !this.modal?.data) return;
+      const selected = this.modal.data[field.key];
+      const option = (field.options || []).find(o => o.v === selected);
+      if (!option?.template) return;
+      const resolved = this.resolveTemplateValue(option.template);
+      Object.assign(this.modal.data, resolved);
+      this.modal.data[field.key] = selected;
+      this.toast?.('تم تطبيق قالب التقييم، راجع البيانات قبل الحفظ', 'success');
+    },
+
     templateLibraryItems(applySearch = true) {
       const items = [];
       Object.entries(MODULES || {}).forEach(([page, mod]) => {
