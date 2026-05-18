@@ -104,6 +104,60 @@
         MIXED: 'مختلط',
       })[channel] || channel || 'رابط مباشر';
     },
+    surveyMetricTypeLabel(type) {
+      return ({
+        SATISFACTION: 'رضا',
+        TRUST: 'ثقة',
+        EFFECTIVENESS: 'فعالية',
+        PERFORMANCE: 'أداء',
+        READINESS: 'جاهزية',
+        TRAINING_NEED: 'احتياج تدريبي',
+        GAP: 'فجوة',
+        IMPROVEMENT: 'تحسين',
+        INFO: 'معلومة',
+      })[type] || type || 'رضا';
+    },
+    surveyMetricTypeOptions() {
+      return [
+        { key: 'SATISFACTION', label: 'رضا' },
+        { key: 'TRUST', label: 'ثقة' },
+        { key: 'EFFECTIVENESS', label: 'فعالية' },
+        { key: 'PERFORMANCE', label: 'أداء' },
+        { key: 'READINESS', label: 'جاهزية' },
+        { key: 'TRAINING_NEED', label: 'احتياج تدريبي' },
+        { key: 'GAP', label: 'فجوة' },
+        { key: 'IMPROVEMENT', label: 'تحسين' },
+        { key: 'INFO', label: 'معلومة فقط' },
+      ];
+    },
+    normalizeSurveyQuestionForBuilder(q = {}, i = 0) {
+      const legacyScale = q.scale || q.max || q.ratingScale;
+      const type = String(q.type || (legacyScale ? 'rating' : 'text')).toLowerCase();
+      const normalizedType = ['rating', 'yesno', 'text'].includes(type) ? type : 'text';
+      const contributesToScore = normalizedType === 'rating'
+        && (q.contributesToScore === undefined && q.scoreQuestion === undefined && q.includeInScore === undefined
+          ? true
+          : q.contributesToScore === true || q.scoreQuestion === true || q.includeInScore === true);
+      return {
+        key: String(q.key || q.id || `q${i + 1}`),
+        label: String(q.label || q.text || q.question || q.q || ''),
+        type: normalizedType,
+        required: q.required === undefined ? normalizedType === 'rating' : !!q.required,
+        contributesToScore,
+        metricType: String(q.metricType || q.dimension || q.category || (normalizedType === 'rating' ? 'SATISFACTION' : 'INFO')).toUpperCase(),
+        weight: q.weight == null || q.weight === '' ? 1 : Number(q.weight),
+      };
+    },
+    prepareSurveyQuestionForSave(q = {}, i = 0) {
+      const item = this.normalizeSurveyQuestionForBuilder(q, i);
+      item.key = item.key.trim();
+      item.label = item.label.trim();
+      item.contributesToScore = item.type === 'rating' && item.contributesToScore !== false;
+      item.metricType = item.metricType || (item.type === 'rating' ? 'SATISFACTION' : 'INFO');
+      const weight = Number(item.weight);
+      item.weight = item.contributesToScore && Number.isFinite(weight) && weight > 0 ? Math.min(5, Math.round(weight * 100) / 100) : 0;
+      return item;
+    },
     surveyProgressPct(s) {
       const target = Number(s?.targetResponses);
       if (!Number.isFinite(target) || target <= 0) return null;
@@ -660,7 +714,7 @@
         channel: 'LINK',
         targetResponses: this.surveyDefaultTargetResponses(selected.data.target),
         audienceNote: selected.l || '',
-        questions: selected.data.questions.map(q => ({ ...q })),
+        questions: selected.data.questions.map((q, i) => this.normalizeSurveyQuestionForBuilder(q, i)),
       });
     },
 
@@ -673,8 +727,8 @@
         plannedStartAt: '', plannedEndAt: '', targetResponses: 30,
         audienceNote: '', ownerId: '', isPublic: true,
         questions: [
-          { key: 'overall', label: 'ما تقييمك العام للتجربة؟', type: 'rating', required: true },
-          { key: 'improvement', label: 'ما أهم ملاحظة أو اقتراح للتحسين؟', type: 'text', required: false },
+          this.normalizeSurveyQuestionForBuilder({ key: 'overall', label: 'ما تقييمك العام للتجربة؟', type: 'rating', required: true, metricType: 'SATISFACTION', contributesToScore: true }, 0),
+          this.normalizeSurveyQuestionForBuilder({ key: 'improvement', label: 'ما أهم ملاحظة أو اقتراح للتحسين؟', type: 'text', required: false, metricType: 'IMPROVEMENT', contributesToScore: false }, 1),
         ],
       };
       this.surveyTemplate = '';
@@ -682,15 +736,7 @@
     async openSurveyEdit(s) {
       const raw = (() => { try { return JSON.parse(s.questionsJson || '[]'); } catch { return []; } })();
       // تطبيع: يدعم المفاتيح القديمة
-      const questions = raw.map((q, i) => {
-        const legacyScale = q.scale || q.max || q.ratingScale;
-        return {
-          key: String(q.key || q.id || `q${i + 1}`),
-          label: String(q.label || q.text || q.question || q.q || ''),
-          type: String(q.type || (legacyScale ? 'rating' : 'text')).toLowerCase(),
-          required: q.required === undefined ? !!legacyScale : !!q.required,
-        };
-      });
+      const questions = raw.map((q, i) => this.normalizeSurveyQuestionForBuilder(q, i));
       if (s.responses > 0) {
         if (!confirm(`⚠️ هذا الاستبيان استقبل ${s.responses} ردّاً بالفعل.\nتغيير الأسئلة أو مفاتيحها قد يُفسِد الإحصاءات السابقة.\nهل تريد المتابعة؟`)) return;
       }
@@ -717,7 +763,7 @@
       let i = this.surveyModal.questions.length + 1;
       let key = `q${i}`;
       while (existingKeys.has(key)) { i++; key = `q${i}`; }
-      this.surveyModal.questions.push({ key, label: '', type: 'rating', required: false });
+      this.surveyModal.questions.push(this.normalizeSurveyQuestionForBuilder({ key, label: '', type: 'rating', required: false, metricType: 'SATISFACTION', contributesToScore: true }, i - 1));
     },
     removeSurveyQuestion(idx) {
       if (!confirm('حذف هذا السؤال؟')) return;
@@ -734,9 +780,11 @@
         if (!q.key?.trim()) return alert(`السؤال رقم ${i + 1}: المعرّف (key) مطلوب`);
         if (!q.label?.trim()) return alert(`السؤال رقم ${i + 1}: نص السؤال مطلوب`);
         if (!['rating','text','yesno'].includes(q.type)) return alert(`السؤال رقم ${i+1}: نوع غير مدعوم`);
+        if (q.type !== 'rating') q.contributesToScore = false;
         if (keys.has(q.key.trim())) return alert(`السؤال رقم ${i + 1}: المعرّف "${q.key}" مكرَّر`);
         keys.add(q.key.trim());
       }
+      const questions = m.questions.map((q, i) => this.prepareSurveyQuestionForSave(q, i));
       const payload = {
         title: m.title, target: m.target, period: m.period || null, active: !!m.active,
         isPublic: !!m.isPublic,
@@ -747,7 +795,7 @@
         targetResponses: m.targetResponses === '' || m.targetResponses == null ? null : Number(m.targetResponses),
         audienceNote: m.audienceNote || null,
         ownerId: m.ownerId || null,
-        questionsJson: JSON.stringify(m.questions),
+        questionsJson: JSON.stringify(questions),
       };
       try {
         if (m.mode === 'create') await this.api('POST', '/surveys', payload);

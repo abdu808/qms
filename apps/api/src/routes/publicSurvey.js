@@ -87,12 +87,12 @@ router.post('/:id', asyncHandler(async (req, res) => {
     let ratingCount = 0;
     for (const row of rows) {
       const rowAnswers = JSON.parse(row.answersJson || '{}');
-      for (const q of questions) {
-        if (q.type !== 'rating') continue;
+      for (const q of scoreQuestions(questions)) {
         const value = Number(rowAnswers[q.key]);
         if (Number.isFinite(value)) {
-          ratingSum += value;
-          ratingCount += 1;
+          const weight = q.weight || 1;
+          ratingSum += value * weight;
+          ratingCount += weight;
         }
       }
     }
@@ -122,12 +122,24 @@ function parseQuestions(rawJson) {
 function normalizeQuestion(raw, idx) {
   const legacyScale = raw.scale || raw.max || raw.ratingScale;
   const type = String(raw.type || (legacyScale ? 'rating' : 'text')).toLowerCase();
+  const normalizedType = ['rating', 'yesno', 'text'].includes(type) ? type : 'text';
+  const contributesToScore = normalizedType === 'rating'
+    && (raw.contributesToScore === undefined && raw.scoreQuestion === undefined && raw.includeInScore === undefined
+      ? true
+      : raw.contributesToScore === true || raw.scoreQuestion === true || raw.includeInScore === true);
   return {
     key: String(raw.key || raw.id || `q${idx + 1}`).trim(),
     label: String(raw.label || raw.text || raw.question || raw.q || raw.title || '').trim(),
-    type: ['rating', 'yesno', 'text'].includes(type) ? type : 'text',
+    type: normalizedType,
     required: raw.required === undefined ? type === 'rating' : !!raw.required,
+    contributesToScore,
+    metricType: String(raw.metricType || raw.dimension || raw.category || (normalizedType === 'rating' ? 'SATISFACTION' : 'INFO')).toUpperCase(),
+    weight: Number.isFinite(Number(raw.weight)) && Number(raw.weight) > 0 ? Number(raw.weight) : 1,
   };
+}
+
+function scoreQuestions(questions) {
+  return questions.filter(q => q.type === 'rating' && q.contributesToScore !== false);
 }
 
 const baseStyle = `

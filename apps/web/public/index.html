@@ -7217,18 +7217,31 @@
                         <span class="text-xs font-bold text-gray-500" x-text="'سؤال ' + (idx + 1)"></span>
                         <button @click="removeSurveyQuestion(idx)" class="text-red-500 hover:text-red-700 text-xs">🗑️ حذف</button>
                       </div>
-                      <div class="grid grid-cols-1 md:grid-cols-8 gap-2 items-center">
+                      <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
                         <input x-model="q.key" placeholder="معرف (مثل q1)" class="border rounded px-2 py-1 text-sm font-mono md:col-span-2">
-                        <input x-model="q.label" placeholder="نص السؤال" class="border rounded px-2 py-1 text-sm md:col-span-3">
-                        <select x-model="q.type" class="border rounded px-2 py-1 text-sm md:col-span-2">
+                        <input x-model="q.label" placeholder="نص السؤال" class="border rounded px-2 py-1 text-sm md:col-span-4">
+                        <select x-model="q.type" @change="q.contributesToScore = q.type === 'rating' ? q.contributesToScore !== false : false; q.metricType = q.type === 'rating' && (!q.metricType || q.metricType === 'INFO') ? 'SATISFACTION' : (q.metricType || 'INFO')" class="border rounded px-2 py-1 text-sm md:col-span-2">
                           <option value="rating">تقييم (1-5 ⭐)</option>
                           <option value="yesno">نعم / لا</option>
                           <option value="text">إجابة نصية</option>
+                        </select>
+                        <select x-model="q.metricType" class="border rounded px-2 py-1 text-sm md:col-span-2" title="تصنيف السؤال للتحليل">
+                          <template x-for="opt in surveyMetricTypeOptions()" :key="opt.key">
+                            <option :value="opt.key" x-text="opt.label"></option>
+                          </template>
                         </select>
                         <label class="flex items-center gap-1 text-xs cursor-pointer md:col-span-1 justify-center bg-white border rounded px-2 py-1" title="جعل الإجابة إلزامية">
                           <input type="checkbox" x-model="q.required" class="rounded">
                           <span>إجباري</span>
                         </label>
+                        <label class="flex items-center gap-1 text-xs cursor-pointer md:col-span-1 justify-center bg-white border rounded px-2 py-1" :class="q.type !== 'rating' ? 'opacity-50' : ''" title="يدخل هذا السؤال في حساب مؤشر الرضا/الثقة/الأداء الرسمي">
+                          <input type="checkbox" x-model="q.contributesToScore" :disabled="q.type !== 'rating'" class="rounded">
+                          <span>يُحسب</span>
+                        </label>
+                      </div>
+                      <div class="mt-2 flex items-center gap-2 text-[11px] text-gray-500" x-show="q.type === 'rating'">
+                        <span class="px-2 py-0.5 rounded" :class="q.contributesToScore !== false ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-gray-100 text-gray-500 border'" x-text="q.contributesToScore !== false ? 'يدخل في المؤشر الرسمي' : 'سؤال تشخيصي فقط'"></span>
+                        <span>التصنيف: <b x-text="surveyMetricTypeLabel(q.metricType)"></b></span>
                       </div>
                     </div>
                   </template>
@@ -7705,6 +7718,39 @@
               </div>
 
               <!-- Trend (شهري) -->
+              <template x-if="surveySummary.data?.scoring">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div class="border rounded-lg p-3 bg-emerald-50 border-emerald-100">
+                    <div class="text-xs text-emerald-700 font-bold">منهجية حساب المؤشر</div>
+                    <div class="text-sm text-emerald-900 mt-1">
+                      <b x-text="surveySummary.data.scoring.officialQuestions"></b>
+                      سؤال يدخل في المؤشر الرسمي، و
+                      <b x-text="surveySummary.data.scoring.diagnosticQuestions"></b>
+                      سؤال تشخيصي للتحسين فقط.
+                    </div>
+                  </div>
+                  <div class="border rounded-lg p-3 bg-amber-50 border-amber-100">
+                    <div class="text-xs text-amber-700 font-bold">فجوات تحتاج انتباه</div>
+                    <div class="text-sm text-amber-900 mt-1" x-text="(surveySummary.data.scoring.improvementGaps || []).length ? ((surveySummary.data.scoring.improvementGaps || []).length + ' سؤال أقل من 70%') : 'لا توجد فجوات حرجة في الردود الحالية'"></div>
+                  </div>
+                </div>
+              </template>
+
+              <template x-if="surveySummary.data?.scoring?.dimensionScores?.length">
+                <div class="border rounded-lg p-3 bg-white">
+                  <div class="font-semibold text-sm mb-2">🧭 نتائج حسب نوع القياس</div>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <template x-for="d in surveySummary.data.scoring.dimensionScores" :key="d.metricType">
+                      <div class="rounded-lg border p-2 bg-gray-50 text-center">
+                        <div class="text-xs text-gray-500" x-text="d.label"></div>
+                        <div class="text-lg font-bold" :class="d.scorePct >= 80 ? 'text-emerald-700' : d.scorePct >= 65 ? 'text-amber-700' : 'text-red-700'" x-text="(d.scorePct ?? '—') + '%'"></div>
+                        <div class="text-[10px] text-gray-400" x-text="d.responsesCount + ' إجابة'"></div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
               <template x-if="surveySummary.data?.trend?.length">
                 <div class="border rounded-lg p-3 bg-white">
                   <div class="font-semibold text-sm mb-2">📈 الاتجاه الشهري</div>
@@ -7730,7 +7776,13 @@
 
               <template x-for="st in (surveySummary.data?.stats || [])" :key="st.key">
                 <div class="border rounded-lg p-3 bg-gray-50">
-                  <div class="font-semibold text-sm mb-2" x-text="st.label"></div>
+                  <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="font-semibold text-sm" x-text="st.label"></div>
+                    <div class="flex flex-wrap gap-1 justify-end">
+                      <span x-show="st.type === 'rating'" class="text-[10px] px-1.5 py-0.5 rounded border" :class="st.contributesToScore === false ? 'bg-gray-100 text-gray-500' : 'bg-emerald-50 text-emerald-700 border-emerald-100'" x-text="st.contributesToScore === false ? 'تشخيصي' : 'ضمن المؤشر'"></span>
+                      <span x-show="st.metricLabel" class="text-[10px] px-1.5 py-0.5 rounded bg-white border text-gray-500" x-text="st.metricLabel"></span>
+                    </div>
+                  </div>
                   <template x-if="st.type==='rating'">
                     <div>
                       <div class="flex items-baseline gap-3 flex-wrap">

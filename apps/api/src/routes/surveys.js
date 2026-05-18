@@ -8,6 +8,38 @@ import { requireAction } from '../lib/permissions.js';
 
 const router = Router();
 
+const SURVEY_METRIC_TYPES = new Set([
+  'SATISFACTION',
+  'TRUST',
+  'EFFECTIVENESS',
+  'PERFORMANCE',
+  'READINESS',
+  'TRAINING_NEED',
+  'GAP',
+  'IMPROVEMENT',
+  'INFO',
+]);
+
+function normalizeMetricType(value, type) {
+  const metricType = String(value || '').trim().toUpperCase();
+  if (metricType && SURVEY_METRIC_TYPES.has(metricType)) return metricType;
+  if (type === 'rating') return 'SATISFACTION';
+  return 'INFO';
+}
+
+function normalizeQuestionWeight(value) {
+  if (value === undefined || value === null || value === '') return 1;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || n > 5) return 1;
+  return Math.round(n * 100) / 100;
+}
+
+function questionContributesToScore(q, type) {
+  if (type !== 'rating') return false;
+  if (q.contributesToScore === undefined && q.scoreQuestion === undefined && q.includeInScore === undefined) return true;
+  return q.contributesToScore === true || q.scoreQuestion === true || q.includeInScore === true;
+}
+
 // Validate questionsJson: must be parseable JSON array with {key,label,type}
 // تطبيع يتسامح مع المفاتيح القديمة (id/text/RATING) — انظر publicSurvey.js
 function validateQuestions(raw) {
@@ -38,7 +70,16 @@ function validateQuestions(raw) {
       throw BadRequest(`معرّف السؤال "${key}" مكرَّر — يجب أن يكون المعرّف فريداً`);
     }
     keys.add(key);
-    return { key, label, type, required: !!q.required };
+    const contributesToScore = questionContributesToScore(q, type);
+    return {
+      key,
+      label,
+      type,
+      required: !!q.required,
+      contributesToScore,
+      metricType: normalizeMetricType(q.metricType || q.dimension || q.category, type),
+      weight: contributesToScore ? normalizeQuestionWeight(q.weight) : 0,
+    };
   });
   return JSON.stringify(normalized);
 }
@@ -184,13 +225,15 @@ router.post('/', requireAction('surveys', 'create'), asyncHandler(async (req, re
 // UPDATE
 router.put('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
   const data = cleanSurveyPayload(req.body);
-  const item = await prisma.survey.update({ where: { id: req.params.id }, data });
+  let item = await prisma.survey.update({ where: { id: req.params.id }, data });
+  if (data.questionsJson !== undefined) item = await recalculateSurveyAggregate(item.id, data.questionsJson);
   res.json({ ok: true, item });
 }));
 
 router.patch('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
   const data = cleanSurveyPayload(req.body);
-  const item = await prisma.survey.update({ where: { id: req.params.id }, data });
+  let item = await prisma.survey.update({ where: { id: req.params.id }, data });
+  if (data.questionsJson !== undefined) item = await recalculateSurveyAggregate(item.id, data.questionsJson);
   res.json({ ok: true, item });
 }));
 
@@ -242,18 +285,65 @@ export function computeNps(scores) {
   return Math.round(((promoters - detractors) / scores.length) * 100);
 }
 
+async function recalculateSurveyAggregate(surveyId, questionsJson) {
+  const questions = scoringQuestions(JSON.parse(questionsJson || '[]'));
+  const rows = await prisma.surveyResponse.findMany({
+    where: { surveyId },
+    select: { answersJson: true },
+  });
+  let sum = 0;
+  let count = 0;
+  for (const row of rows) {
+    const answers = JSON.parse(row.answersJson || '{}');
+    for (const q of questions) {
+      const value = Number(answers[q.key]);
+      if (!Number.isFinite(value)) continue;
+      const weight = normalizeQuestionWeight(q.weight);
+      sum += value * weight;
+      count += weight;
+    }
+  }
+  return prisma.survey.update({
+    where: { id: surveyId },
+    data: {
+      responses: rows.length,
+      avgScore: count > 0 ? Math.round((sum / count) * 100) / 100 : null,
+    },
+    include: { owner: { select: { id: true, name: true, email: true } } },
+  });
+}
+
+function scoringQuestions(questions) {
+  return questions.filter(q => q.type === 'rating' && q.contributesToScore !== false);
+}
+
+function scoreLabel(metricType) {
+  return ({
+    SATISFACTION: 'الرضا',
+    TRUST: 'الثقة',
+    EFFECTIVENESS: 'الفعالية',
+    PERFORMANCE: 'الأداء',
+    READINESS: 'الجاهزية',
+    TRAINING_NEED: 'الاحتياج التدريبي',
+    GAP: 'الفجوة',
+    IMPROVEMENT: 'التحسين',
+    INFO: 'معلومة مساعدة',
+  })[metricType] || metricType || 'غير مصنف';
+}
+
 // Summary endpoint — parsed results + stats (Batch 15: نضج الاستبيانات)
 router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async (req, res) => {
   const s = await prisma.survey.findUnique({ where: { id: req.params.id } });
   if (!s) throw NotFound();
   const questions = JSON.parse(s.questionsJson || '[]');
+  const officialQuestions = scoringQuestions(questions);
   const responses = await loadResponses(s.id);
 
   // Compute per-question stats (مع توزيع + نسب + وسيط)
   const stats = questions.map(q => {
     if (q.type === 'rating') {
       const scores = responses.map(r => Number(r.answers?.[q.key])).filter(Number.isFinite);
-      if (!scores.length) return { ...q, responsesCount: 0, avgScore: null };
+      if (!scores.length) return { ...q, responsesCount: 0, avgScore: null, scorePct: null };
       const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
       const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       for (const s of scores) if (distribution[s] != null) distribution[s]++;
@@ -264,6 +354,9 @@ router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async 
         median:         median(scores),
         min:            Math.min(...scores),
         max:            Math.max(...scores),
+        scorePct:       Math.round((avg / 5) * 100),
+        scoreRole:      q.contributesToScore === false ? 'diagnostic' : 'official',
+        metricLabel:    scoreLabel(q.metricType),
         distribution,
         nps:            computeNps(scores),
         satisfactionPct: Math.round(scores.filter(s => s >= 4).length / scores.length * 100),
@@ -284,10 +377,10 @@ router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async 
     const month = (r.at || '').slice(0, 7); // YYYY-MM
     if (!month) continue;
     let sum = 0, cnt = 0;
-    for (const q of questions) {
-      if (q.type !== 'rating') continue;
+    for (const q of officialQuestions) {
       const v = Number(r.answers?.[q.key]);
-      if (Number.isFinite(v)) { sum += v; cnt++; }
+      const weight = normalizeQuestionWeight(q.weight);
+      if (Number.isFinite(v)) { sum += v * weight; cnt += weight; }
     }
     if (!cnt) continue;
     const cur = byMonth.get(month) || { sum: 0, cnt: 0 };
@@ -298,15 +391,46 @@ router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async 
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([month, v]) => ({ month, avgScore: +(v.sum / v.cnt).toFixed(2), samples: v.cnt }));
 
-  // مقياس NPS الإجمالي (كل أسئلة rating مجتمعة)
+  // مقياس NPS الإجمالي الرسمي (أسئلة التقييم الداخلة في المؤشر فقط)
   const allRatings = [];
+  let weightedSum = 0;
+  let weightedCount = 0;
+  const dimensions = new Map();
   for (const r of responses) {
-    for (const q of questions) {
-      if (q.type !== 'rating') continue;
+    for (const q of officialQuestions) {
       const v = Number(r.answers?.[q.key]);
-      if (Number.isFinite(v)) allRatings.push(v);
+      if (!Number.isFinite(v)) continue;
+      const weight = normalizeQuestionWeight(q.weight);
+      allRatings.push(v);
+      weightedSum += v * weight;
+      weightedCount += weight;
+      const metricType = q.metricType || 'SATISFACTION';
+      const cur = dimensions.get(metricType) || { metricType, label: scoreLabel(metricType), sum: 0, weight: 0, count: 0 };
+      cur.sum += v * weight;
+      cur.weight += weight;
+      cur.count += 1;
+      dimensions.set(metricType, cur);
     }
   }
+
+  const dimensionScores = [...dimensions.values()].map(d => ({
+    metricType: d.metricType,
+    label: d.label,
+    avgScore: d.weight ? +(d.sum / d.weight).toFixed(2) : null,
+    scorePct: d.weight ? Math.round((d.sum / d.weight) / 5 * 100) : null,
+    responsesCount: d.count,
+  }));
+  const improvementGaps = stats
+    .filter(st => st.type === 'rating' && st.responsesCount > 0 && st.scorePct != null && st.scorePct < 70)
+    .map(st => ({
+      key: st.key,
+      label: st.label,
+      metricType: st.metricType,
+      metricLabel: st.metricLabel,
+      scorePct: st.scorePct,
+      avgScore: st.avgScore,
+      official: st.contributesToScore !== false,
+    }));
 
   res.json({
     ok: true,
@@ -315,10 +439,16 @@ router.get('/:id/summary', requireAction('surveys', 'read'), asyncHandler(async 
     totalResponses: responses.length,
     trend,
     overallNps: computeNps(allRatings),
-    overallAvg: allRatings.length ? +(allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(2) : null,
+    overallAvg: weightedCount ? +(weightedSum / weightedCount).toFixed(2) : null,
     satisfactionPct: allRatings.length
       ? Math.round(allRatings.filter(s => s >= 4).length / allRatings.length * 100)
       : null,
+    scoring: {
+      officialQuestions: officialQuestions.length,
+      diagnosticQuestions: questions.filter(q => q.type === 'rating' && q.contributesToScore === false).length,
+      dimensionScores,
+      improvementGaps,
+    },
   });
 }));
 
