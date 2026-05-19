@@ -1954,6 +1954,95 @@ function app() {
       this.toast?.('تم تطبيق قالب التقييم، راجع البيانات قبل الحفظ', 'success');
     },
 
+    templateUsageGuide(item = {}) {
+      const page = item.page;
+      const key = item.templateKey || '';
+      const byPage = {
+        surveys: {
+          useWhen: 'عند قياس رضا فئة محددة مثل المستفيدين أو الموظفين أو الداعمين.',
+          filledBy: 'وحدة الجودة أو مالك الخدمة',
+          approvedBy: 'مدير الجودة أو المدير التنفيذي حسب الحساسية',
+          evidence: 'نتائج استبيان وتحليل رضا قابل للمراجعة',
+          iso: 'ISO 9.1.2',
+          approval: 'لا يحتاج اعتماداً رسمياً لكل إرسال، لكن تعتمد صيغة الاستبيان قبل الاستخدام الدوري.',
+        },
+        managementReview: {
+          useWhen: 'عند عقد مراجعة إدارة شهرية أو ربعية أو استعداد للاعتماد.',
+          filledBy: 'وحدة الجودة',
+          approvedBy: 'المدير التنفيذي',
+          evidence: 'أجندة ومحضر وقرارات متابعة',
+          iso: 'ISO 9.3',
+          approval: 'يحتاج محضر معتمد وقرارات واضحة بعد الاجتماع.',
+        },
+        audits: {
+          useWhen: 'قبل تنفيذ تدقيق داخلي أو تدقيق جاهزية ISO.',
+          filledBy: 'مدير الجودة أو المدقق الداخلي',
+          approvedBy: 'مدير الجودة',
+          evidence: 'خطة تدقيق وتقرير نتائج وملاحظات',
+          iso: 'ISO 9.2',
+          approval: 'تعتمد الخطة قبل التنفيذ، ويعتمد التقرير بعد الإغلاق.',
+        },
+        ncr: {
+          useWhen: 'عند وجود مخالفة لإجراء أو متطلب أو سجل ناقص.',
+          filledBy: 'مكتشف الحالة أو مدير الجودة',
+          approvedBy: 'مدير الجودة عند الإغلاق',
+          evidence: 'سجل عدم مطابقة مع إجراء احتواء ومعالجة',
+          iso: 'ISO 10.2',
+          approval: 'لا يغلق إلا بعد توثيق المعالجة والتحقق.',
+        },
+        capa: {
+          useWhen: 'عندما تحتاج المشكلة إجراءً تصحيحياً يمنع التكرار.',
+          filledBy: 'مالك الإجراء',
+          approvedBy: 'مدير الجودة',
+          evidence: 'سبب جذري، إجراء تصحيحي، تحقق فعالية',
+          iso: 'ISO 10.2',
+          approval: 'يحتاج تحقق فعالية قبل اعتباره مكتمل.',
+        },
+        risks: {
+          useWhen: 'عند ظهور تهديد أو فرصة تؤثر على تحقيق الجودة أو الخطة.',
+          filledBy: 'مالك الخطر أو وحدة الجودة',
+          approvedBy: 'مدير الجودة / الإدارة المختصة',
+          evidence: 'سجل خطر أو فرصة وخطة معالجة ومراجعة',
+          iso: 'ISO 6.1',
+          approval: 'المعالجة الحرجة تحتاج متابعة واعتماد من المالك.',
+        },
+        documents: {
+          useWhen: 'عند الحاجة إلى سياسة أو إجراء أو نموذج أو وثيقة داعمة.',
+          filledBy: 'مالك الوثيقة',
+          approvedBy: 'مدير الجودة أو المدير التنفيذي حسب نوع الوثيقة',
+          evidence: 'وثيقة برقم إصدار وحالة اعتماد',
+          iso: 'ISO 7.5',
+          approval: 'السياسات والإجراءات الرسمية تحتاج اعتماد قبل النشر.',
+        },
+        training: {
+          useWhen: 'عند وجود احتياج تدريبي أو توعية ISO أو قياس أثر تدريب.',
+          filledBy: 'الموارد البشرية / المعهد والتدريب',
+          approvedBy: 'الإدارة المختصة',
+          evidence: 'خطة تدريب، حضور، تقييم أثر',
+          iso: 'ISO 7.2',
+          approval: 'يعتمد كبرنامج أو سجل حسب نوع التدريب.',
+        },
+        improvementProjects: {
+          useWhen: 'عند تحويل فرصة تحسين إلى عمل منظم قابل للمتابعة.',
+          filledBy: 'مالك التحسين',
+          approvedBy: 'مدير الجودة أو الإدارة المختصة',
+          evidence: 'خطة تحسين ونتائج متابعة',
+          iso: 'ISO 10.3',
+          approval: 'المشاريع المؤثرة تعتمد قبل التنفيذ.',
+        },
+      };
+      const guide = byPage[page] || {
+        useWhen: 'عند الحاجة إلى إنشاء سجل جاهز بسرعة مع إمكانية تعديله قبل الحفظ.',
+        filledBy: 'مالك العملية المختص',
+        approvedBy: 'حسب صلاحيات الصفحة',
+        evidence: 'سجل موثق داخل النظام',
+        iso: '',
+        approval: 'راجع البيانات قبل الحفظ ولا تعتبر معتمدة إلا حسب سير عمل الصفحة.',
+      };
+      if (key.includes('ISO')) return { ...guide, useWhen: `${guide.useWhen} مناسب تحديداً لإغلاق فجوات ISO.` };
+      return guide;
+    },
+
     templateLibraryItems(applySearch = true) {
       const items = [];
       Object.entries(MODULES || {}).forEach(([page, mod]) => {
@@ -1961,32 +2050,36 @@ function app() {
           if (!field.applyTemplate) return;
           (field.options || []).forEach(option => {
             if (!option?.template || !option.v) return;
-            items.push({
+            const item = {
               page,
               pageLabel: this.menu.find(m => m.id === page)?.label || mod.title || mod.label || page,
               fieldLabel: field.label || 'قالب',
               templateKey: option.v,
               label: option.l || option.v,
               template: option.template,
-            });
+            };
+            item.guide = this.templateUsageGuide(item);
+            items.push(item);
           });
         });
       });
       if (typeof this.surveyTemplates === 'function') {
         this.surveyTemplates().filter(t => t.v && t.data).forEach(t => {
-          items.push({
+          const item = {
             page: 'surveys',
             pageLabel: 'استبيانات الرضا',
             fieldLabel: 'قالب الاستبيان',
             templateKey: t.v,
             label: t.l || t.v,
             template: t.data,
-          });
+          };
+          item.guide = this.templateUsageGuide(item);
+          items.push(item);
         });
       }
       const q = applySearch ? String(this.templateLibrarySearch || '').trim().toLowerCase() : '';
       return q
-        ? items.filter(i => `${i.pageLabel} ${i.fieldLabel} ${i.label}`.toLowerCase().includes(q))
+        ? items.filter(i => `${i.pageLabel} ${i.fieldLabel} ${i.label} ${i.guide?.useWhen || ''} ${i.guide?.iso || ''}`.toLowerCase().includes(q))
         : items;
     },
 

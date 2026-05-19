@@ -5527,6 +5527,30 @@
                         <div class="text-xs text-gray-500" x-text="item.fieldLabel"></div>
                         <div class="font-bold text-gray-900 mt-1" x-text="item.label"></div>
                         <div class="text-xs text-gray-500 mt-2" x-text="item.pageLabel"></div>
+                        <div class="mt-3 rounded-lg bg-slate-50 border border-slate-100 p-3 text-xs text-slate-700 leading-6">
+                          <div>
+                            <span class="font-bold text-slate-900">متى يستخدم؟ </span>
+                            <span x-text="item.guide?.useWhen"></span>
+                          </div>
+                          <div class="mt-1 grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <span class="font-semibold text-slate-800">يعبئه: </span>
+                              <span x-text="item.guide?.filledBy"></span>
+                            </div>
+                            <div>
+                              <span class="font-semibold text-slate-800">يعتمده: </span>
+                              <span x-text="item.guide?.approvedBy"></span>
+                            </div>
+                          </div>
+                          <div class="mt-1">
+                            <span class="font-semibold text-slate-800">الدليل الناتج: </span>
+                            <span x-text="item.guide?.evidence"></span>
+                          </div>
+                          <div class="mt-2 flex flex-wrap gap-1">
+                            <span x-show="item.guide?.iso" class="rounded-full bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5" x-text="item.guide?.iso"></span>
+                            <span class="rounded-full bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5" x-text="item.guide?.approval"></span>
+                          </div>
+                        </div>
                         <button type="button" @click="createFromTemplate(item.page, item.template, item.templateKey)" class="mt-4 bg-brand-500 hover:bg-brand-600 text-white rounded-lg px-3 py-2 text-xs">
                           استخدام القالب
                         </button>
