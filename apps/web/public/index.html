@@ -5211,6 +5211,9 @@
                     <p class="text-sm text-gray-600 mt-2 max-w-3xl">
                       تحويل قائمة التحقق من ملف PDF إلى سجل تشغيلي واضح: كل متطلب له حالة، دليل، صفحة نظام، ومستندات مرتبطة عند توفرها.
                     </p>
+                    <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2 mt-3 max-w-3xl">
+                      النص الرسمي للمتطلب محفوظ كما هو، والإيضاحات أدناه مجرد ترجمة عملية: ماذا يعني؟ من يتابعه؟ وما أمثلة الدليل المقبول؟
+                    </p>
                   </div>
                   <div class="text-left">
                     <div class="text-4xl font-bold text-brand-700" x-text="(isoRequirements?.summary?.implementationRate ?? 0) + '%'"></div>
@@ -5273,8 +5276,26 @@
                             <td class="px-3 py-2">
                               <div class="font-medium text-gray-900" x-text="r.title"></div>
                               <div class="text-[11px] text-gray-500 mt-1" x-text="r.id"></div>
+                              <div class="mt-2 rounded-lg bg-slate-50 border border-slate-100 p-2 text-xs text-slate-700 leading-6">
+                                <div>
+                                  <span class="font-bold text-slate-900">ببساطة: </span>
+                                  <span x-text="r.simpleExplanation || 'متطلب رسمي يحتاج دليلاً عملياً يثبت تطبيقه داخل الجمعية.'"></span>
+                                </div>
+                                <div class="mt-1 text-[11px] text-slate-500">
+                                  <span class="font-semibold">المتابعة: </span>
+                                  <span x-text="r.ownerHint || 'مالك العملية المختص + وحدة الجودة'"></span>
+                                </div>
+                              </div>
                             </td>
-                            <td class="px-3 py-2 text-xs text-gray-600 max-w-xs" x-text="r.requiredEvidence"></td>
+                            <td class="px-3 py-2 text-xs text-gray-600 max-w-xs">
+                              <div x-text="r.requiredEvidence"></div>
+                              <div class="mt-2 flex flex-wrap gap-1" x-show="r.evidenceExamples?.length">
+                                <template x-for="ex in r.evidenceExamples" :key="ex">
+                                  <span class="rounded-full border border-blue-100 bg-blue-50 text-blue-700 px-2 py-0.5" x-text="ex"></span>
+                                </template>
+                              </div>
+                              <div class="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1" x-text="r.approvalNote"></div>
+                            </td>
                             <td class="px-3 py-2 text-xs text-gray-700 max-w-xs" x-text="r.evidence"></td>
                             <td class="px-3 py-2 text-xs">
                               <template x-if="r.evidenceDocuments?.length">
