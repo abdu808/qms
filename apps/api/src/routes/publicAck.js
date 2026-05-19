@@ -10,6 +10,13 @@ import { escapeHtml, trimLen } from '../utils/html.js';
 
 const router = Router();
 
+function safeReferenceUrl(url) {
+  if (!url) return null;
+  const value = String(url).trim();
+  if (/^https?:\/\//i.test(value) || value.startsWith('/')) return value;
+  return null;
+}
+
 /**
  * GET /ack/:token — صفحة الإقرار العامة (HTML)
  */
@@ -40,6 +47,15 @@ router.get('/:token', asyncHandler(async (req, res) => {
   }
 
   const who = t.user?.name || t.externalName || 'المُخاطَب';
+  const referenceUrl = safeReferenceUrl(doc.referenceUrl);
+  const referenceCard = referenceUrl ? `
+      <div class="mb-5 bg-sky-50 border border-sky-200 rounded-xl p-4">
+        <div class="font-bold text-sky-950 mb-1">الوثيقة الرسمية المعتمدة</div>
+        ${doc.referenceTitle ? `<div class="text-sm text-sky-900 mb-2">${escapeHtml(doc.referenceTitle)}</div>` : ''}
+        <a href="${escapeHtml(referenceUrl)}" target="_blank" rel="noopener noreferrer"
+           class="inline-block text-sm text-sky-700 underline font-semibold">فتح الوثيقة الرسمية للمراجعة</a>
+        ${doc.referenceNote ? `<div class="mt-2 text-xs text-sky-800 whitespace-pre-wrap">${escapeHtml(doc.referenceNote)}</div>` : ''}
+      </div>` : '';
 
   res.type('html').send(`<!doctype html>
 <html lang="ar" dir="rtl">
@@ -81,6 +97,7 @@ router.get('/:token', asyncHandler(async (req, res) => {
     </div>
 
     <div class="bg-white shadow-xl p-6 md:p-8">
+      ${referenceCard}
       <div id="docContent" data-md="${escapeHtml(doc.content || '')}" dir="rtl" class="prose max-w-none border border-gray-200 rounded-xl p-5 bg-gray-50/40 max-h-[60vh] overflow-y-auto"
            onscroll="onScroll(this)"></div>
 

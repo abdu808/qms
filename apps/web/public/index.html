@@ -8306,6 +8306,17 @@
 
       <!-- Content -->
       <div class="flex-1 overflow-auto px-6 py-4 text-sm text-gray-800 leading-relaxed" @scroll="onAckScroll($event)">
+        <template x-if="ackReadModal.referenceUrl">
+          <div class="mb-4 bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-sky-950">
+            <div class="font-bold mb-1">الوثيقة الرسمية المعتمدة</div>
+            <div x-show="ackReadModal.referenceTitle" class="mb-2" x-text="ackReadModal.referenceTitle"></div>
+            <a :href="ackReadModal.referenceUrl" target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 underline font-semibold">
+              فتح الوثيقة الرسمية للمراجعة
+            </a>
+            <div x-show="ackReadModal.referenceNote" class="mt-2 text-xs text-sky-800 whitespace-pre-wrap" x-text="ackReadModal.referenceNote"></div>
+          </div>
+        </template>
         <div class="prose prose-sm max-w-none whitespace-pre-wrap text-right leading-8"
              dir="rtl" style="unicode-bidi: plaintext;"
              x-text="ackReadModal.content || 'لا يوجد نص.'"></div>

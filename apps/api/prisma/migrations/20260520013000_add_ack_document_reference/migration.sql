@@ -1,0 +1,4 @@
+ALTER TABLE "AckDocument"
+  ADD COLUMN IF NOT EXISTS "referenceTitle" TEXT,
+  ADD COLUMN IF NOT EXISTS "referenceUrl" TEXT,
+  ADD COLUMN IF NOT EXISTS "referenceNote" TEXT;

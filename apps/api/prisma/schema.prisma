@@ -1681,6 +1681,9 @@ model AckDocument {
   version        String         @default("1.0")
   content        String                                    // النص الكامل (markdown)
   commitments    String?
+  referenceTitle String?
+  referenceUrl   String?
+  referenceNote  String?
   mandatory      Boolean        @default(true)
   renewFrequency AckRenewFreq   @default(ON_CHANGE)
   effectiveDate  DateTime?

@@ -17,6 +17,24 @@ import { ackAudienceTagsForUser, ackDocumentAppliesToUser, isInternalAckDocument
 
 const router = Router();
 
+function normalizeReferenceFields(data) {
+  if (!data || typeof data !== 'object') return data;
+  for (const key of ['referenceTitle', 'referenceUrl', 'referenceNote']) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key] == null ? '' : String(data[key]).trim();
+      data[key] = value || null;
+    }
+  }
+  if (data.referenceUrl) {
+    const isSafeExternal = /^https?:\/\//i.test(data.referenceUrl);
+    const isSafeInternal = data.referenceUrl.startsWith('/');
+    if (!isSafeExternal && !isSafeInternal) {
+      throw BadRequest('رابط الوثيقة الرسمية يجب أن يكون رابط https أو رابطاً داخلياً في النظام');
+    }
+  }
+  return data;
+}
+
 // ── CRUD للوثائق (سياسات/مواثيق) — QM فقط ───────────────────────────
 const docsCrud = crudRouter({
   resource: 'ack-documents',
@@ -28,11 +46,11 @@ const docsCrud = crudRouter({
   beforeCreate: async (data, req) => {
     data.createdById = req.user?.sub;
     if (data.audience && !Array.isArray(data.audience)) data.audience = [data.audience];
-    return data;
+    return normalizeReferenceFields(data);
   },
   beforeUpdate: async (data) => {
     if (data.audience && !Array.isArray(data.audience)) data.audience = [data.audience];
-    return data;
+    return normalizeReferenceFields(data);
   },
 });
 
