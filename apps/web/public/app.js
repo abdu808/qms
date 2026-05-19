@@ -627,6 +627,7 @@ function app() {
         ],
         DEPT_MANAGER: [
           'myWork',
+          'users',
           'qualityScope','organizationalChart','qualityPolicy','ackDocuments','myAcknowledgments',
           'operationalActivities','kpiTracking','myKpi','kpiFollowUp','risks',
           'documents','training','competence','performanceReviews','communication',
@@ -639,10 +640,8 @@ function app() {
         //              إدارة المستخدمين، إعدادات AI، إعدادات النظام، إدارة البوابة.
         // مُضاف: ncr (مع smart filter assignedToMe في الواجهة) لرؤية ما أُسند له.
         EMPLOYEE: [
-          'myWork',
-          'myKpi','myAcknowledgments',
-          'isoRequirements','qualityScope','organizationalChart','qualityPolicy','ackDocuments',
-          'documents','training','competence',
+          'myKpi','myWork','myAcknowledgments',
+          'documents',
           'complaints', 'ncr',
           'userGuide',
         ],
@@ -702,7 +701,7 @@ function app() {
       const role = this.user?.role;
       switch (role) {
         case 'GUEST_AUDITOR':    return 'auditorDashboard'; // لوحة قراءة محدودة
-        case 'EMPLOYEE':         return 'myWork';           // مهامي اليوم
+        case 'EMPLOYEE':         return 'myKpi';            // واجهة إدخال هادئة ومباشرة للموظف
         case 'DEPT_MANAGER':     return 'myWork';           // مركز قرارات القسم
         case 'QUALITY_MANAGER':  return 'myWork';           // مركز قيادة الجودة
         case 'COMMITTEE_MEMBER': return 'myWork';           // ملخص القرارات والمراجعة
@@ -948,7 +947,7 @@ function app() {
         ],
         DEPT_MANAGER: [
           { id: 'guided-today', title: 'قرارات اليوم', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'slaBoard'] },
-          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['myKpi', 'kpiTracking', 'progressReports'] },
+          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['users', 'myKpi', 'kpiTracking', 'progressReports'] },
           { id: 'guided-quality', title: 'جودة القسم', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'risks'] },
         ],
         COMMITTEE_MEMBER: [

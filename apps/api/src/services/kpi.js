@@ -185,12 +185,12 @@ export async function upsertKpiEntry({
       const ratio = ev?.ratio;
       if (ratio != null && ratio < 0.80 && (!deviationReason || String(deviationReason).trim() === '')) {
         throw BadRequest(
-          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 80% — سبب الانحراف إلزامي. ${describeExpected(ev, unit)}`,
+          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 80% — سبب الانحراف (deviationReason) إلزامي. ${describeExpected(ev, unit)}`,
         );
       }
       if (ratio != null && ratio < 0.60 && (!actionNote || String(actionNote).trim() === '')) {
         throw BadRequest(
-          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 60% — الإجراء التصحيحي إلزامي. ${describeExpected(ev, unit)}`,
+          `نسبة التحقق ${Math.round(ratio * 100)}% أقل من 60% — الإجراء التصحيحي (actionNote) إلزامي. ${describeExpected(ev, unit)}`,
         );
       }
       if (ratio != null && ratio < 0.80) {

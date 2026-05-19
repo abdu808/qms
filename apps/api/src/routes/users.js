@@ -28,6 +28,39 @@ function assertCanAssignRole(actor, requestedRole) {
   }
 }
 
+function hasFullUserReadScope(actor) {
+  return ['SUPER_ADMIN', 'QUALITY_MANAGER', 'COMMITTEE_MEMBER'].includes(actor?.role);
+}
+
+function userReadScope(actor) {
+  if (hasFullUserReadScope(actor)) return {};
+  if (actor?.role === 'DEPT_MANAGER') {
+    if (!actor.departmentId) return { id: '__NO_DEPARTMENT_SCOPE__' };
+    return {
+      OR: [
+        { departmentId: actor.departmentId },
+        { id: actor.sub || actor.id },
+      ],
+    };
+  }
+  return { id: actor?.sub || actor?.id || '__NO_USER_SCOPE__' };
+}
+
+function mergeWhere(base, scope) {
+  if (!scope || !Object.keys(scope).length) return base;
+  if (!base || !Object.keys(base).length) return scope;
+  return { AND: [base, scope] };
+}
+
+function assertCanReadTargetUser(actor, targetUser) {
+  if (hasFullUserReadScope(actor)) return;
+  if (actor?.role === 'DEPT_MANAGER') {
+    const actorId = actor.sub || actor.id;
+    if (targetUser.id === actorId || (actor.departmentId && targetUser.departmentId === actor.departmentId)) return;
+  }
+  throw Forbidden('لا يمكنك الاطلاع إلا على مستخدمي نطاقك الإداري');
+}
+
 const validateCreate = runSchema(userCreateSchema);
 const validateUpdate = runSchema(userUpdateSchema);
 
@@ -73,17 +106,18 @@ async function countUserReferences(userId) {
 // Plus explicit SUPER_ADMIN protection: QM may not create/promote/edit SA.
 
 router.get('/', requireAction('users', 'read'), asyncHandler(async (req, res) => {
-  const where = {};
+  const baseWhere = {};
   if (req.query.onlyDeleted === '1' || req.query.active === 'false') {
-    where.active = false;
+    baseWhere.active = false;
   } else if (req.query.includeInactive !== '1' && req.query.active !== 'all') {
-    where.active = true;
+    baseWhere.active = true;
   }
+  const where = mergeWhere(baseWhere, userReadScope(req.user));
   const users = await prisma.user.findMany({ where, select: pubWithDept, orderBy: { createdAt: 'desc' } });
   res.json({ ok: true, items: users, total: users.length });
 }));
 
-router.get('/duplicates', requireAction('users', 'read'), asyncHandler(async (_req, res) => {
+router.get('/duplicates', requireAction('users', 'read'), authorize('SUPER_ADMIN', 'QUALITY_MANAGER'), asyncHandler(async (_req, res) => {
   const users = await prisma.user.findMany({
     select: pubWithDept,
     orderBy: [{ name: 'asc' }, { active: 'desc' }, { createdAt: 'asc' }],
@@ -156,6 +190,7 @@ router.post('/trash/purge-unlinked', authorize('SUPER_ADMIN'), asyncHandler(asyn
 router.get('/:id', requireAction('users', 'read'), asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.id }, select: pubWithDept });
   if (!user) throw NotFound();
+  assertCanReadTargetUser(req.user, user);
   res.json({ ok: true, item: user });
 }));
 
