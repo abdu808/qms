@@ -211,6 +211,25 @@ router.post('/:id/submit-to-employee',
       where: { id: req.params.id },
       data: { status: 'EMPLOYEE_REVIEW' },
     });
+    await prisma.notification.upsert({
+      where: { eventKey: `PERFORMANCE_REVIEW_SIGNATURE:${item.id}` },
+      update: {
+        title: 'تقييم أداء بانتظار تعليقك وتوقيعك',
+        message: `لديك تقييم أداء للفترة ${item.period}. راجعه من مهامي اليوم ثم أضف تعليقك ووقّع.`,
+        link: '/#/myWork',
+        readAt: null,
+      },
+      create: {
+        userId: item.employeeId,
+        type: 'PERFORMANCE_REVIEW_SIGNATURE',
+        title: 'تقييم أداء بانتظار تعليقك وتوقيعك',
+        message: `لديك تقييم أداء للفترة ${item.period}. راجعه من مهامي اليوم ثم أضف تعليقك ووقّع.`,
+        link: '/#/myWork',
+        entityType: 'PerformanceReview',
+        entityId: item.id,
+        eventKey: `PERFORMANCE_REVIEW_SIGNATURE:${item.id}`,
+      },
+    });
     res.json({ ok: true, item: updated });
   }),
 );
@@ -232,6 +251,14 @@ router.post('/:id/sign', asyncHandler(async (req, res) => {
       employeeComments: req.body?.employeeComments || item.employeeComments,
       employeeSignedAt: new Date(),
     },
+  });
+  await prisma.notification.updateMany({
+    where: {
+      eventKey: `PERFORMANCE_REVIEW_SIGNATURE:${item.id}`,
+      userId: req.user.sub,
+      readAt: null,
+    },
+    data: { readAt: new Date() },
   });
   res.json({ ok: true, item: updated });
 }));

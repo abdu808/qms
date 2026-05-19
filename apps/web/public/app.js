@@ -382,7 +382,8 @@ function app() {
       try {
         await this.api('POST', `/performance-reviews/${item.id}/submit-to-employee`);
         this.toast?.('📤 تم الإرسال للموظف');
-        await this.loadList();
+        if (this.page === 'myWork') await this.loadMyWork();
+        else await this.loadList();
       } catch (e) { alert(e.message || 'فشل الإرسال'); }
     },
     async perfReviewSign(item) {
@@ -392,7 +393,8 @@ function app() {
       try {
         await this.api('POST', `/performance-reviews/${item.id}/sign`, { employeeComments: comment });
         this.toast?.('✅ تم توقيعك على التقييم');
-        await this.loadList();
+        if (this.page === 'myWork') await this.loadMyWork();
+        else await this.loadList();
       } catch (e) { alert(e.message || 'فشل التوقيع'); }
     },
     async perfReviewFinalize(item) {
@@ -404,7 +406,8 @@ function app() {
       try {
         await this.api('POST', `/performance-reviews/${item.id}/finalize`);
         this.toast?.('✅ تم الختم النهائي');
-        await this.loadList();
+        if (this.page === 'myWork') await this.loadMyWork();
+        else await this.loadList();
       } catch (e) { alert(e.message || 'فشل الختم'); }
     },
 
@@ -2021,6 +2024,14 @@ function app() {
           evidence: 'خطة تدريب، حضور، تقييم أثر',
           iso: 'ISO 7.2',
           approval: 'يعتمد كبرنامج أو سجل حسب نوع التدريب.',
+        },
+        performanceReviews: {
+          useWhen: 'عند تقييم أداء موظف أو رئيس قسم بطريقة خفيفة: رئيس مباشر يقيم، والموظف يطلع ويعلق ويوقع.',
+          filledBy: 'الرئيس المباشر أو مستوى أعلى حسب التسلسل الوظيفي',
+          approvedBy: 'مدير الجودة أو الموارد البشرية عند الختم النهائي',
+          evidence: 'سجل تقييم أداء + تعليق الموظف + خطة تطوير مختصرة',
+          iso: 'ISO 7.1.2 / 7.2',
+          approval: 'لا تعمم تقييم 360 الآن. استخدمه كتجربة قيادية فقط إذا صدر قرار واضح.',
         },
         improvementProjects: {
           useWhen: 'عند تحويل فرصة تحسين إلى عمل منظم قابل للمتابعة.',

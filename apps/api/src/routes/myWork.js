@@ -144,6 +144,36 @@ router.get('/', asyncHandler(async (req, res) => {
     });
   } catch { pendingAcks = []; }
 
+  // ═══ 4b-2) تقييمات أداء بانتظار توقيعي — مسار 180 خفيف ═══
+  let pendingPerformanceReviews = [];
+  try {
+    pendingPerformanceReviews = await prisma.performanceReview.findMany({
+      where: {
+        deletedAt: null,
+        employeeId: userId,
+        status: 'EMPLOYEE_REVIEW',
+        employeeSignedAt: null,
+      },
+      select: {
+        id: true,
+        code: true,
+        period: true,
+        periodStart: true,
+        periodEnd: true,
+        overallRating: true,
+        grade: true,
+        strengths: true,
+        areasToImprove: true,
+        goalsNextPeriod: true,
+        developmentPlan: true,
+        employeeComments: true,
+        reviewer: { select: { name: true, jobTitle: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+    });
+  } catch { pendingPerformanceReviews = []; }
+
   // ═══ 4c) مسوّداتي — NCR + Risk + Document حيث أنا المنشئ وفي حالة DRAFT ═══
   let myDrafts = { ncr: [], risks: [], documents: [], total: 0 };
   try {
@@ -421,6 +451,7 @@ router.get('/', asyncHandler(async (req, res) => {
     (privileged ? risksPendingReview.length + supplierEvalsPendingReview.length : 0) +
     (privileged ? beneficiariesDueReview.length : 0) +
     pendingAcks.length +
+    pendingPerformanceReviews.length +
     myDrafts.total +
     myFollowUpTasks.total +
     (deptBlock ? (deptBlock.ncrAssigned.length + deptBlock.complaintsAssigned.length + deptBlock.kpiPendingCount) : 0);
@@ -452,6 +483,15 @@ router.get('/', asyncHandler(async (req, res) => {
       count: pendingAcks.length,
       title: `${pendingAcks.length} إقرار بانتظار توقيعك`,
       action: { page: 'myAcknowledgments', label: 'فتح الإقرارات' },
+    });
+  }
+  if (pendingPerformanceReviews.length > 0) {
+    alerts.push({
+      type: 'performance_review_signature',
+      severity: 'info',
+      count: pendingPerformanceReviews.length,
+      title: `${pendingPerformanceReviews.length} تقييم أداء بانتظار تعليقك وتوقيعك`,
+      action: { page: 'myWork', label: 'فتح التقييم' },
     });
   }
   if (myDrafts.total > 0) {
@@ -612,6 +652,7 @@ router.get('/', asyncHandler(async (req, res) => {
       dueReview: privileged ? beneficiariesDueReview : [],
     },
     pendingAcks,
+    pendingPerformanceReviews,
     myDrafts,
     myFollowUpTasks,
     atRisk,
