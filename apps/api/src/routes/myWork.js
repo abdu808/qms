@@ -23,6 +23,7 @@ import { activeWhere } from '../lib/dataHelpers.js';
 import { computeComplaintSla } from '../lib/sla.js';
 import { needsReview as beneficiaryNeedsReview } from '../lib/beneficiaryAssessment.js';
 import { isDueMonth } from '../lib/kpiFrequency.js';
+import { ackAudienceTagsForUser } from '../lib/ackAudience.js';
 
 const router = Router();
 
@@ -128,6 +129,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
   // ═══ 4b) Pending Acks — توكنات إقرار شخصية مرسَلة لي (ISO 7.5.3.2(c)) ═══
   let pendingAcks = [];
+  let pendingAckDocuments = [];
   try {
     pendingAcks = await prisma.ackToken.findMany({
       where: {
@@ -142,7 +144,37 @@ router.get('/', asyncHandler(async (req, res) => {
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
-  } catch { pendingAcks = []; }
+
+    const relevantAudiences = ackAudienceTagsForUser(req.user);
+    const activeAckDocs = await prisma.ackDocument.findMany({
+      where: activeWhere({
+        active: true,
+        audience: { hasSome: relevantAudiences },
+      }),
+      select: { id: true, code: true, title: true, category: true, version: true, mandatory: true },
+      orderBy: [{ mandatory: 'desc' }, { effectiveDate: 'desc' }],
+      take: 50,
+    });
+    const acked = activeAckDocs.length
+      ? await prisma.acknowledgment.findMany({
+          where: {
+            userId,
+            documentId: { in: activeAckDocs.map(d => d.id) },
+          },
+          select: { documentId: true, documentVersion: true },
+        })
+      : [];
+    const ackedKeys = new Set(acked.map(a => `${a.documentId}:${a.documentVersion}`));
+    const tokenKeys = new Set(pendingAcks
+      .filter(t => t.document?.id)
+      .map(t => `${t.document.id}:${t.documentVersion}`));
+    pendingAckDocuments = activeAckDocs
+      .filter(d => !ackedKeys.has(`${d.id}:${d.version}`) && !tokenKeys.has(`${d.id}:${d.version}`))
+      .slice(0, 20);
+  } catch {
+    pendingAcks = [];
+    pendingAckDocuments = [];
+  }
 
   // ═══ 4b-2) تقييمات أداء بانتظار توقيعي — مسار 180 خفيف ═══
   let pendingPerformanceReviews = [];
@@ -451,6 +483,7 @@ router.get('/', asyncHandler(async (req, res) => {
     (privileged ? risksPendingReview.length + supplierEvalsPendingReview.length : 0) +
     (privileged ? beneficiariesDueReview.length : 0) +
     pendingAcks.length +
+    pendingAckDocuments.length +
     pendingPerformanceReviews.length +
     myDrafts.total +
     myFollowUpTasks.total +
@@ -476,12 +509,13 @@ router.get('/', asyncHandler(async (req, res) => {
       action: { page: 'ncr', label: 'فتح القائمة' },
     });
   }
-  if (pendingAcks.length > 0) {
+  const pendingAckTotal = pendingAcks.length + pendingAckDocuments.length;
+  if (pendingAckTotal > 0) {
     alerts.push({
       type: 'acks_pending',
       severity: 'info',
-      count: pendingAcks.length,
-      title: `${pendingAcks.length} إقرار بانتظار توقيعك`,
+      count: pendingAckTotal,
+      title: `${pendingAckTotal} إقرار بانتظار توقيعك`,
       action: { page: 'myAcknowledgments', label: 'فتح الإقرارات' },
     });
   }
@@ -652,6 +686,7 @@ router.get('/', asyncHandler(async (req, res) => {
       dueReview: privileged ? beneficiariesDueReview : [],
     },
     pendingAcks,
+    pendingAckDocuments,
     pendingPerformanceReviews,
     myDrafts,
     myFollowUpTasks,

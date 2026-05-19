@@ -2627,7 +2627,7 @@
           <div x-show="page==='myAcknowledgments'" x-cloak>
             <div class="bg-gradient-to-l from-teal-600 to-teal-500 text-white rounded-xl p-6 mb-4 shadow">
               <h2 class="text-2xl font-bold">📋 إقراراتي على السياسات والمواثيق</h2>
-              <div class="text-sm opacity-90 mt-1">كل ما يجب عليك الاطّلاع عليه وإقراره — حفاظاً على الامتثال والحوكمة.</div>
+              <div class="text-sm opacity-90 mt-1">كل وثيقة تظهر هنا موجهة لفئتك فقط، وإقرارك يحفظ أثر الاطلاع المطلوب في ISO 9001 وحوكمة الوثائق.</div>
             </div>
 
             <!-- معلَّقة -->
@@ -2699,7 +2699,7 @@
           <div x-show="page==='acknowledgmentsMatrix'" x-cloak>
             <div class="bg-gradient-to-l from-indigo-700 to-indigo-600 text-white rounded-xl p-6 mb-4 shadow">
               <h2 class="text-2xl font-bold">🗂️ مصفوفة الإقرارات الشاملة</h2>
-              <div class="text-sm opacity-90 mt-1">من أقرّ على ماذا · مرجع التغطية الكامل للحوكمة</div>
+              <div class="text-sm opacity-90 mt-1">تعرض التغطية على الفئات المستهدفة فقط، فلا تُحتسب وثيقة على موظف غير مطالب بها.</div>
             </div>
             <template x-if="ackMatrixLoading">
               <div class="text-gray-500 text-center py-12">
@@ -2793,12 +2793,13 @@
                           <td class="p-2 text-center text-gray-500" x-text="row.user.department || '—'"></td>
                           <template x-for="cell in row.cells" :key="cell.docId">
                             <td class="p-1 text-center">
-                              <span x-show="cell.acknowledged" class="text-green-600" :title="cell.acknowledgedAt ? new Date(cell.acknowledgedAt).toLocaleDateString('ar-SA') : ''">✅</span>
-                              <button x-show="!cell.acknowledged && canEdit('ack-documents')"
+                              <span x-show="!cell.applicable" class="text-gray-300" title="غير مستهدف بهذه الوثيقة">—</span>
+                              <span x-show="cell.applicable && cell.acknowledged" class="text-green-600" :title="cell.acknowledgedAt ? new Date(cell.acknowledgedAt).toLocaleDateString('ar-SA') : ''">✅</span>
+                              <button x-show="cell.applicable && !cell.acknowledged && canEdit('ack-documents')"
                                       @click="quickAckLink(row.user.id, cell.docId)"
                                       title="إنشاء رابط إقرار وإرساله"
                                       class="text-gray-300 hover:text-purple-600 hover:scale-125 transition">📨</button>
-                              <span x-show="!cell.acknowledged && !canEdit('ack-documents')" class="text-gray-300">—</span>
+                              <span x-show="cell.applicable && !cell.acknowledged && !canEdit('ack-documents')" class="text-gray-300">—</span>
                             </td>
                           </template>
                           <td class="p-2 text-center">
@@ -4389,15 +4390,25 @@
                 </details>
 
                 <!-- Pending Acks — إقرارات بانتظار توقيعك -->
-                <template x-if="(myWork.pendingAcks||[]).length">
+                <template x-if="(myWork.pendingAcks||[]).length || (myWork.pendingAckDocuments||[]).length">
                   <div class="bg-white border rounded-xl p-4 mb-4">
                     <div class="flex items-center justify-between mb-3">
                       <div class="font-bold text-teal-800 text-sm">📋 إقرارات بانتظار توقيعك
-                        <span class="ml-1 text-[11px] bg-teal-100 text-teal-700 rounded-full px-2 py-0.5" x-text="myWork.pendingAcks.length"></span>
+                        <span class="ml-1 text-[11px] bg-teal-100 text-teal-700 rounded-full px-2 py-0.5" x-text="(myWork.pendingAcks||[]).length + (myWork.pendingAckDocuments||[]).length"></span>
                       </div>
                       <button @click="goToResource('myAcknowledgments')" class="text-xs text-teal-600 hover:underline">كل الإقرارات ←</button>
                     </div>
                     <ul class="divide-y text-sm border rounded">
+                      <template x-for="d in (myWork.pendingAckDocuments||[]).slice(0,5)" :key="'doc-' + d.id">
+                        <li class="p-2 flex justify-between items-center gap-2 hover:bg-gray-50">
+                          <div class="flex-1 min-w-0">
+                            <span class="font-mono text-xs text-gray-500 ml-2" x-text="d.code"></span>
+                            <span class="truncate" x-text="d.title"></span>
+                          </div>
+                          <button @click="goToResource('myAcknowledgments')"
+                                  class="text-xs bg-teal-600 text-white hover:bg-teal-700 rounded px-3 py-1">راجع وأقر ←</button>
+                        </li>
+                      </template>
                       <template x-for="t in myWork.pendingAcks.slice(0,5)" :key="t.id">
                         <li class="p-2 flex justify-between items-center gap-2 hover:bg-gray-50">
                           <div class="flex-1 min-w-0">

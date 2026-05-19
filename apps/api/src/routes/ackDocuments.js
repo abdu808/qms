@@ -13,6 +13,7 @@ import { BadRequest, NotFound } from '../utils/errors.js';
 import { crudRouter } from '../utils/crudFactory.js';
 import { requireAction } from '../lib/permissions.js';
 import { activeWhere } from '../lib/dataHelpers.js';
+import { ackAudienceTagsForUser, ackDocumentAppliesToUser, isInternalAckDocument } from '../lib/ackAudience.js';
 
 const router = Router();
 
@@ -74,11 +75,7 @@ router.post('/:id/deactivate', requireAction('ack-documents', 'update'), asyncHa
  */
 router.get('/me/pending', asyncHandler(async (req, res) => {
   const userId = req.user.sub;
-  const userRole = req.user.role;
-
-  // تحديد الفئات المستهدفة بناء على دور المستخدم (الموظفون دائماً EMPLOYEE؛ SUPER_ADMIN يدخل كل شيء مستهدف للموظفين)
-  const relevantAudiences = ['EMPLOYEE', 'ALL'];
-  // (يمكن توسيعها لاحقاً لتمييز المتطوعين/الأعضاء عبر حقل خاص على User)
+  const relevantAudiences = ackAudienceTagsForUser(req.user);
 
   const docs = await prisma.ackDocument.findMany({
     where: activeWhere({
@@ -167,7 +164,7 @@ router.get('/matrix', requireAction('ack-documents', 'update'), asyncHandler(asy
   if (category) whereDocs.category = category;
   if (audience) whereDocs.audience = { has: audience };
 
-  const [docs, users] = await Promise.all([
+  let [docs, users] = await Promise.all([
     prisma.ackDocument.findMany({
       where: whereDocs,
       select: { id: true, code: true, title: true, category: true, version: true, audience: true, mandatory: true },
@@ -180,6 +177,8 @@ router.get('/matrix', requireAction('ack-documents', 'update'), asyncHandler(asy
       orderBy: { name: 'asc' },
     }),
   ]);
+
+  docs = docs.filter(d => isInternalAckDocument(d) && users.some(u => ackDocumentAppliesToUser(d, u)));
 
   const acksFinal = docs.length
     ? await prisma.acknowledgment.findMany({
@@ -196,30 +195,42 @@ router.get('/matrix', requireAction('ack-documents', 'update'), asyncHandler(asy
   // بناء مصفوفة
   const rows = users.map(u => {
     const cells = docs.map(d => {
+      const applicable = ackDocumentAppliesToUser(d, u);
       const ackedAt = ackIndex.get(`${u.id}:${d.id}:${d.version}`);
       return {
         docId: d.id,
-        acknowledged: !!ackedAt,
+        applicable,
+        acknowledged: applicable && !!ackedAt,
         acknowledgedAt: ackedAt || null,
       };
     });
     const ackedCount = cells.filter(c => c.acknowledged).length;
+    const totalCount = cells.filter(c => c.applicable).length;
     return {
       user: { id: u.id, name: u.name, email: u.email, role: u.role,
               department: u.department?.name || null },
       cells,
       ackedCount,
-      totalCount: docs.length,
-      coverage: docs.length ? Math.round((ackedCount / docs.length) * 100) : 0,
+      totalCount,
+      coverage: totalCount ? Math.round((ackedCount / totalCount) * 100) : 0,
     };
   });
 
   // إجماليات الوثائق
   const docStats = docs.map(d => {
-    const count = acksFinal.filter(a => a.documentId === d.id && a.documentVersion === d.version).length;
-    return { ...d, ackedCount: count, totalUsers: users.length,
-             coverage: users.length ? Math.round((count / users.length) * 100) : 0 };
+    const applicableUsers = users.filter(u => ackDocumentAppliesToUser(d, u));
+    const applicableIds = new Set(applicableUsers.map(u => u.id));
+    const count = acksFinal.filter(a =>
+      a.documentId === d.id &&
+      a.documentVersion === d.version &&
+      applicableIds.has(a.userId)
+    ).length;
+    return { ...d, ackedCount: count, totalUsers: applicableUsers.length,
+             coverage: applicableUsers.length ? Math.round((count / applicableUsers.length) * 100) : 0 };
   });
+
+  const totalCells = rows.reduce((sum, row) => sum + row.totalCount, 0);
+  const acknowledgedCells = rows.reduce((sum, row) => sum + row.ackedCount, 0);
 
   res.json({
     ok: true,
@@ -227,10 +238,10 @@ router.get('/matrix', requireAction('ack-documents', 'update'), asyncHandler(asy
     users: users.length,
     rows,
     overall: {
-      totalCells: users.length * docs.length,
-      acknowledgedCells: acksFinal.length,
-      coverage: users.length && docs.length
-        ? Math.round((acksFinal.length / (users.length * docs.length)) * 100)
+      totalCells,
+      acknowledgedCells,
+      coverage: totalCells
+        ? Math.round((acknowledgedCells / totalCells) * 100)
         : 0,
     },
   });
@@ -243,9 +254,7 @@ router.get('/:id/report', requireAction('ack-documents', 'update'), asyncHandler
   const doc = await prisma.ackDocument.findUnique({ where: { id: req.params.id } });
   if (!doc) throw NotFound('الوثيقة غير موجودة');
 
-  // فئات المستخدمين المستهدفين (داخلياً: employees/all)
-  const internalAudiences = ['EMPLOYEE', 'ALL', 'BOARD_MEMBER', 'VOLUNTEER', 'AUDITOR'];
-  const isInternal = doc.audience.some(a => internalAudiences.includes(a));
+  const isInternal = isInternalAckDocument(doc);
 
   let rows = [];
   let stats = { total: 0, acknowledged: 0, pending: 0, coverage: 0 };
@@ -261,8 +270,10 @@ router.get('/:id/report', requireAction('ack-documents', 'update'), asyncHandler
         select: { userId: true, acknowledgedAt: true, ipAddress: true, method: true },
       }),
     ]);
-    const ackMap = new Map(acks.map(a => [a.userId, a]));
-    rows = users.map(u => ({
+    const applicableUsers = users.filter(u => ackDocumentAppliesToUser(doc, u));
+    const applicableIds = new Set(applicableUsers.map(u => u.id));
+    const ackMap = new Map(acks.filter(a => applicableIds.has(a.userId)).map(a => [a.userId, a]));
+    rows = applicableUsers.map(u => ({
       ...u,
       department: u.department?.name || null,
       acknowledged: ackMap.has(u.id),
@@ -271,10 +282,10 @@ router.get('/:id/report', requireAction('ack-documents', 'update'), asyncHandler
       ipAddress: ackMap.get(u.id)?.ipAddress || null,
     }));
     stats = {
-      total: users.length,
-      acknowledged: acks.length,
-      pending: users.length - acks.length,
-      coverage: users.length ? Math.round((acks.length / users.length) * 100) : 0,
+      total: applicableUsers.length,
+      acknowledged: ackMap.size,
+      pending: applicableUsers.length - ackMap.size,
+      coverage: applicableUsers.length ? Math.round((ackMap.size / applicableUsers.length) * 100) : 0,
     };
   } else {
     // إقرارات خارجية (مستفيدين/موردين/متبرعين) — نعرض السجلات كما هي
