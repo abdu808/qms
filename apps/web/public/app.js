@@ -2340,6 +2340,7 @@ function app() {
         const r = await this.api('GET', `/${this.currentModule.endpoint}?${params}`);
         this.items = r.items || [];
         this.totalItems = r.total || 0;
+        if (this.page === 'ackDocuments') await this.loadAckOpsSummary?.();
       } catch (e) {
         this.items = [];
         this.totalItems = 0;

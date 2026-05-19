@@ -266,6 +266,98 @@ router.get('/matrix', requireAction('ack-documents', 'update'), asyncHandler(asy
 }));
 
 /**
+ * GET /dashboard-summary — operational snapshot for the acknowledgment center.
+ * QM+ only. Keeps the page decision-oriented without loading the full matrix.
+ */
+router.get('/dashboard-summary', requireAction('ack-documents', 'update'), asyncHandler(async (req, res) => {
+  const [docs, users] = await Promise.all([
+    prisma.ackDocument.findMany({
+      where: activeWhere({ active: true }),
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        category: true,
+        version: true,
+        audience: true,
+        mandatory: true,
+        referenceUrl: true,
+      },
+      orderBy: [{ mandatory: 'desc' }, { category: 'asc' }, { title: 'asc' }],
+    }),
+    prisma.user.findMany({
+      where: { active: true },
+      select: { id: true, role: true, isDepartmentManager: true },
+    }),
+  ]);
+
+  const internalDocs = docs.filter(d => isInternalAckDocument(d) && users.some(u => ackDocumentAppliesToUser(d, u)));
+  const acks = internalDocs.length
+    ? await prisma.acknowledgment.findMany({
+        where: { documentId: { in: internalDocs.map(d => d.id) }, userId: { not: null } },
+        select: { documentId: true, documentVersion: true, userId: true },
+      })
+    : [];
+  const openTokens = internalDocs.length
+    ? await prisma.ackToken.count({
+        where: {
+          documentId: { in: internalDocs.map(d => d.id) },
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      })
+    : 0;
+
+  const ackIndex = new Set(acks.map(a => `${a.userId}:${a.documentId}:${a.documentVersion}`));
+  const docsSummary = internalDocs.map(d => {
+    const applicableUsers = users.filter(u => ackDocumentAppliesToUser(d, u));
+    const acknowledged = applicableUsers.filter(u => ackIndex.has(`${u.id}:${d.id}:${d.version}`)).length;
+    const pending = Math.max(0, applicableUsers.length - acknowledged);
+    const coverage = applicableUsers.length ? Math.round((acknowledged / applicableUsers.length) * 100) : 0;
+    return {
+      id: d.id,
+      code: d.code,
+      title: d.title,
+      category: d.category,
+      mandatory: d.mandatory,
+      hasReference: Boolean(d.referenceUrl),
+      targetUsers: applicableUsers.length,
+      acknowledged,
+      pending,
+      coverage,
+    };
+  });
+
+  const totalCells = docsSummary.reduce((sum, d) => sum + d.targetUsers, 0);
+  const acknowledgedCells = docsSummary.reduce((sum, d) => sum + d.acknowledged, 0);
+  const pendingCells = Math.max(0, totalCells - acknowledgedCells);
+  const missingReference = docsSummary.filter(d => !d.hasReference).length;
+  const coreCodes = new Set([
+    'ACK-CORE-QP-001-2026',
+    'ACK-CORE-ETH-001-2026',
+    'ACK-CORE-DP-001-2026',
+  ]);
+
+  res.json({
+    ok: true,
+    summary: {
+      activeDocuments: internalDocs.length,
+      coreDocuments: internalDocs.filter(d => coreCodes.has(d.code)).length,
+      totalCells,
+      acknowledgedCells,
+      pendingCells,
+      coverage: totalCells ? Math.round((acknowledgedCells / totalCells) * 100) : 0,
+      openTokens,
+      missingReference,
+    },
+    attention: docsSummary
+      .filter(d => d.pending > 0 || !d.hasReference)
+      .sort((a, b) => (b.pending - a.pending) || (a.coverage - b.coverage))
+      .slice(0, 6),
+  });
+}));
+
+/**
  * GET /:id/report — تقرير إقرار وثيقة محددة (من أقرّ/لم يُقرّ)
  */
 router.get('/:id/report', requireAction('ack-documents', 'update'), asyncHandler(async (req, res) => {

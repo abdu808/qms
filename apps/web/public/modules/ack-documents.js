@@ -8,6 +8,8 @@
   window.QmsAckDocuments = {
     // ─── State ─────────────────────────────────────────────────
     myAcks: { pending: [], completed: [], pendingCount: 0 },
+    ackOpsSummary: null,
+    ackOpsSummaryLoading: false,
     ackMatrix: null, // { docs, users, rows, overall }
     ackMatrixLoading: false,
     ackMatrixError: null,
@@ -22,6 +24,26 @@
       try {
         this.myAcks = await this.api('GET', '/ack-documents/me/pending');
       } catch { this.myAcks = { pending: [], completed: [], pendingCount: 0 }; }
+    },
+
+    async loadAckOpsSummary() {
+      if (!this.canEdit?.('ack-documents')) return;
+      this.ackOpsSummaryLoading = true;
+      try {
+        this.ackOpsSummary = await this.api('GET', '/ack-documents/dashboard-summary');
+      } catch (e) {
+        console.warn('[ack-dashboard-summary]', e?.message || e);
+        this.ackOpsSummary = null;
+      } finally {
+        this.ackOpsSummaryLoading = false;
+      }
+    },
+
+    ackCoverageTone(value) {
+      const n = Number(value || 0);
+      if (n >= 90) return 'text-emerald-700 bg-emerald-50 border-emerald-100';
+      if (n >= 70) return 'text-amber-700 bg-amber-50 border-amber-100';
+      return 'text-rose-700 bg-rose-50 border-rose-100';
     },
 
     openAckRead(doc) {
