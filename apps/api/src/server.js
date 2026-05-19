@@ -60,7 +60,6 @@ import kpiFollowUpRoutes from './routes/kpiFollowUp.js';
 import publicEvalRoutes from './routes/publicEval.js';
 import publicSurveyRoutes from './routes/publicSurvey.js';
 import publicAckRoutes from './routes/publicAck.js';
-import publicKpiEntryRoutes from './routes/publicKpiEntry.js';
 import policyAckRoutes from './routes/policyAck.js';
 import performanceReviewsRoutes from './routes/performanceReviews.js';
 import improvementProjectsRoutes from './routes/improvementProjects.js';
@@ -429,14 +428,6 @@ app.use('/ack',
   publicBodyLimit,
   publicUrlEncoded,
   publicAckRoutes,
-);
-// Public KPI entry form (signed personal link, no full system login required)
-app.use('/kpi-entry',
-  publicSecurityHeaders,
-  publicSubmitLimiter,
-  publicBodyLimit,
-  publicUrlEncoded,
-  publicKpiEntryRoutes,
 );
 // Public portal — no auth, serves portal content (announcements, docs, surveys, policy)
 app.use('/api/public',
