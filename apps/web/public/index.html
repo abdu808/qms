@@ -8306,11 +8306,15 @@
 
       <!-- Content -->
       <div class="flex-1 overflow-auto px-6 py-4 text-sm text-gray-800 leading-relaxed" @scroll="onAckScroll($event)">
-        <div class="prose prose-sm max-w-none whitespace-pre-wrap" x-text="ackReadModal.content || 'لا يوجد نص.'"></div>
+        <div class="prose prose-sm max-w-none whitespace-pre-wrap text-right leading-8"
+             dir="rtl" style="unicode-bidi: plaintext;"
+             x-text="ackReadModal.content || 'لا يوجد نص.'"></div>
         <template x-if="ackReadModal.commitments">
           <div class="mt-6 bg-teal-50 border-r-4 border-teal-500 rounded-lg p-4">
             <div class="font-bold text-teal-900 mb-2">🤝 التعهدات</div>
-            <div class="whitespace-pre-wrap text-teal-900 text-sm" x-text="ackReadModal.commitments"></div>
+            <div class="whitespace-pre-wrap text-teal-900 text-sm text-right leading-7"
+                 dir="rtl" style="unicode-bidi: plaintext;"
+                 x-text="ackReadModal.commitments"></div>
           </div>
         </template>
         <div class="mt-6 text-center text-xs text-gray-400 border-t pt-4">— نهاية الوثيقة —</div>
@@ -8570,12 +8574,16 @@
           <span x-show="policyAck?.policy?.approvedAt" x-text="policyAck?.policy?.approvedAt ? 'بتاريخ ' + new Date(policyAck.policy.approvedAt).toLocaleDateString('ar-SA') : ''"></span>
         </div>
 
-        <div class="prose prose-sm max-w-none whitespace-pre-wrap" x-text="policyAck?.policy?.content || 'لا يوجد نص للسياسة.'"></div>
+        <div class="prose prose-sm max-w-none whitespace-pre-wrap text-right leading-8"
+             dir="rtl" style="unicode-bidi: plaintext;"
+             x-text="policyAck?.policy?.content || 'لا يوجد نص للسياسة.'"></div>
 
         <template x-if="policyAck?.policy?.commitments">
           <div class="mt-6 bg-indigo-50 border-r-4 border-indigo-500 rounded-lg p-4">
             <div class="font-bold text-indigo-900 mb-2">🤝 التعهدات والالتزامات</div>
-            <div class="whitespace-pre-wrap text-indigo-900 text-sm" x-text="policyAck?.policy?.commitments"></div>
+            <div class="whitespace-pre-wrap text-indigo-900 text-sm text-right leading-7"
+                 dir="rtl" style="unicode-bidi: plaintext;"
+                 x-text="policyAck?.policy?.commitments"></div>
           </div>
         </template>
 

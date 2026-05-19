@@ -51,7 +51,8 @@ router.get('/:token', asyncHandler(async (req, res) => {
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', Tahoma, sans-serif; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
-    .prose h1,.prose h2,.prose h3 { font-weight: 700; margin: 1em 0 0.5em; color: #1e3a8a; }
+    .prose { direction: rtl; text-align: right; unicode-bidi: plaintext; }
+    .prose h1,.prose h2,.prose h3 { font-weight: 700; margin: 1em 0 0.5em; color: #1e3a8a; text-align: right; }
     .prose h1 { font-size: 1.6rem; } .prose h2 { font-size: 1.3rem; } .prose h3 { font-size: 1.1rem; }
     .prose p, .prose li { line-height: 1.85; color: #334155; margin: 0.6em 0; }
     .prose ul { padding-right: 1.5em; list-style: disc; }
@@ -80,13 +81,13 @@ router.get('/:token', asyncHandler(async (req, res) => {
     </div>
 
     <div class="bg-white shadow-xl p-6 md:p-8">
-      <div id="docContent" data-md="${escapeHtml(doc.content || '')}" class="prose max-w-none border border-gray-200 rounded-xl p-5 bg-gray-50/40 max-h-[60vh] overflow-y-auto"
+      <div id="docContent" data-md="${escapeHtml(doc.content || '')}" dir="rtl" class="prose max-w-none border border-gray-200 rounded-xl p-5 bg-gray-50/40 max-h-[60vh] overflow-y-auto"
            onscroll="onScroll(this)"></div>
 
       ${doc.commitments ? `
         <div class="mt-4 bg-amber-50 border border-amber-300 rounded-xl p-4">
           <div class="font-bold text-amber-900 mb-2">⚖️ التعهدات:</div>
-          <div id="commitments" data-md="${escapeHtml(doc.commitments)}" class="prose max-w-none text-sm"></div>
+          <div id="commitments" data-md="${escapeHtml(doc.commitments)}" dir="rtl" class="prose max-w-none text-sm"></div>
         </div>
       ` : ''}
 
