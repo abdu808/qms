@@ -36,6 +36,8 @@
     "audit:persona:report": "node scripts/audit-persona-experience.mjs --write-report",
     "audit:routes": "node scripts/audit-route-security.mjs",
     "audit:routes:report": "node scripts/audit-route-security.mjs --write-report",
+    "audit:frontend": "node scripts/audit-frontend-navigation.mjs",
+    "audit:frontend:report": "node scripts/audit-frontend-navigation.mjs --write-report",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.js",
