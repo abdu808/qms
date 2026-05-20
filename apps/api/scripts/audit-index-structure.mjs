@@ -148,6 +148,15 @@ const completedTemplatePlan = [
   ['mainCrud modal', 'main-crud-modal.js'],
   ['commandPalette modal', 'command-palette-modal.js'],
   ['ackLinks modal', 'ack-links-modal.js'],
+  ['auditorDashboard', 'auditor-dashboard-page.js'],
+  ['aiControlCenter', 'ai-control-center-page.js'],
+  ['dashboard', 'dashboard-page.js'],
+  ['myKpi', 'my-kpi-page.js'],
+  ['kpiFollowUp', 'kpi-followup-page.js'],
+  ['integrationSupport modals', 'integration-support-modals.js'],
+  ['myKpiEntry modal', 'my-kpi-entry-modal.js'],
+  ['supplierBeneficiarySurvey modals', 'supplier-beneficiary-survey-modals.js'],
+  ['notificationsSystem modals', 'notifications-and-system-modals.js'],
 ];
 
 const completedMoves = completedTemplatePlan
