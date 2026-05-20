@@ -7,6 +7,7 @@
     if (!host || host.dataset.templateMounted === '1') return;
     host.innerHTML = html;
     host.dataset.templateMounted = '1';
+    if (window.Alpine?.initTree) window.Alpine.initTree(host);
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', mount, { once: true });

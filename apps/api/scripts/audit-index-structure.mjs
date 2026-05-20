@@ -125,41 +125,42 @@ const extractedTemplates = fs.existsSync(path.join(repoRoot, 'apps', 'web', 'pub
   ? fs.readdirSync(path.join(repoRoot, 'apps', 'web', 'public', 'modules', 'templates')).filter(name => name.endsWith('.js'))
   : [];
 
-const completedMoves = [
-  {
-    item: 'consultant',
-    status: extractedTemplates.includes('consultant-page.js') ? 'مفصول' : 'داخل index',
-    file: extractedTemplates.includes('consultant-page.js') ? '/modules/templates/consultant-page.js' : '',
-  },
-].filter(item => item.status === 'مفصول');
-
-const recommendedFirstMoves = [
-  {
-    priority: 1,
-    item: 'progressReports',
-    reason: 'صفحة عمل كاملة بتبويبات ولوحات، مناسبة للفصل كجزء واحد واضح.',
-  },
-  {
-    priority: 2,
-    item: 'portalAdmin',
-    reason: 'تبويب مستقل بإدارة محتوى وواجهات داخلية، فصله منخفض المخاطر نسبياً.',
-  },
-  {
-    priority: 3,
-    item: 'integrationsSettings',
-    reason: 'صفحة طويلة لكنها مستقلة وظيفياً، وفصلها يساعد عند تطوير التنبيهات والتكاملات.',
-  },
-  {
-    priority: 4,
-    item: 'aiSettings modal',
-    reason: 'مودال طويل ومتعدد التبويبات، لكن يؤجل بعد الصفحات لأنه حساس للإعدادات.',
-  },
-  {
-    priority: 5,
-    item: 'reviewSnapshot modal',
-    reason: 'لقطة مراجعة الإدارة ضخمة ومحددة الوظيفة، يمكن فصلها بعد تثبيت الصفحات الثلاث.',
-  },
+const completedTemplatePlan = [
+  ['consultant', 'consultant-page.js'],
+  ['progressReports', 'progress-reports-page.js'],
+  ['portalAdmin', 'portal-admin-page.js'],
+  ['planMap', 'plan-map-page.js'],
+  ['integrationsSettings', 'integrations-settings-page.js'],
+  ['myWork', 'my-work-page.js'],
+  ['kpiTracking', 'kpi-tracking-page.js'],
+  ['userGuide', 'user-guide-page.js'],
+  ['aiSettings modal', 'ai-settings-modal.js'],
+  ['reviewSnapshot modal', 'review-snapshot-modal.js'],
 ];
+
+const completedMoves = completedTemplatePlan
+  .filter(([, fileName]) => extractedTemplates.includes(fileName))
+  .map(([item, fileName]) => ({
+    item,
+    status: 'extracted',
+    file: `/modules/templates/${fileName}`,
+  }));
+
+const remainingLargeBlocks = largeBlocks
+  .filter(block => !completedTemplatePlan.some(([item]) => item === block.page || item.startsWith(block.page)))
+  .slice(0, 5);
+
+const recommendedFirstMoves = remainingLargeBlocks.length
+  ? remainingLargeBlocks.map((block, index) => ({
+    priority: index + 1,
+    item: block.page,
+    reason: `Remaining inline block spans ${block.span} lines; review before extracting because the first template wave is already complete.`,
+  }))
+  : [{
+    priority: 1,
+    item: 'No immediate extraction target',
+    reason: 'The large standalone page/modal templates have been extracted. Next work should focus on smaller reusable components, not another broad move.',
+  }];
 
 function mdTable(rows, columns) {
   const header = `| ${columns.map(c => c.label).join(' | ')} |`;

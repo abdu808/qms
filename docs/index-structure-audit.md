@@ -1,122 +1,132 @@
 # جرد بنية index.html
 
-آخر تحديث: 2026-05-20T16:25:26.443Z
+آخر تحديث: 2026-05-20T16:45:15.460Z
 
 ## الخلاصة
 
-- الحجم: 730.2 KB
-- عدد الأسطر: 10098
-- x-show: 513
-- x-if: 169
-- x-for: 223
-- كتل صفحات صريحة داخل الملف: 33
-- صفحات صريحة فريدة: 30
-- سكربتات محملة: 46
-- أقسام/مودالات معنونة: 28
+- الحجم: 446.7 KB
+- عدد الأسطر: 6356
+- x-show: 366
+- x-if: 118
+- x-for: 131
+- كتل صفحات صريحة داخل الملف: 26
+- صفحات صريحة فريدة: 23
+- سكربتات محملة: 55
+- أقسام/مودالات معنونة: 22
 - معرفات HTML مكررة: 0
-- كتل كبيرة فوق 250 سطر: 7
+- كتل كبيرة فوق 250 سطر: 0
 
 ## ما تم فصله
 
 | الجزء | الحالة | الملف |
 | --- | --- | --- |
-| consultant | مفصول | /modules/templates/consultant-page.js |
+| consultant | extracted | /modules/templates/consultant-page.js |
+| progressReports | extracted | /modules/templates/progress-reports-page.js |
+| portalAdmin | extracted | /modules/templates/portal-admin-page.js |
+| planMap | extracted | /modules/templates/plan-map-page.js |
+| integrationsSettings | extracted | /modules/templates/integrations-settings-page.js |
+| myWork | extracted | /modules/templates/my-work-page.js |
+| kpiTracking | extracted | /modules/templates/kpi-tracking-page.js |
+| userGuide | extracted | /modules/templates/user-guide-page.js |
+| aiSettings modal | extracted | /modules/templates/ai-settings-modal.js |
+| reviewSnapshot modal | extracted | /modules/templates/review-snapshot-modal.js |
 
 ## أكبر كتل الصفحات
 
 | الصفحة | النوع | من سطر | إلى سطر | عدد الأسطر |
 | --- | --- | --- | --- | --- |
-| myWork | inline-or-generic | 3907 | 4723 | 817 |
-| userGuide | special-page | 9339 | 9829 | 491 |
-| kpiTracking | inline-or-generic | 6172 | 6534 | 363 |
-| progressReports | special-page | 546 | 891 | 346 |
-| planMap | special-page | 1538 | 1859 | 322 |
-| integrationsSettings | settings-page | 3091 | 3400 | 310 |
-| portalAdmin | special-page | 1023 | 1321 | 299 |
-| kpiFollowUp | inline-or-generic | 2648 | 2885 | 238 |
-| dashboard | special-page | 1325 | 1535 | 211 |
-| surveys | inline-or-generic | 5584 | 5794 | 211 |
-| swot | inline-or-generic | 2174 | 2333 | 160 |
-| reportBuilder | inline-or-generic | 6013 | 6167 | 155 |
+| kpiFollowUp | inline-or-generic | 1684 | 1921 | 238 |
+| dashboard | special-page | 682 | 892 | 211 |
+| surveys | inline-or-generic | 3495 | 3705 | 211 |
+| swot | inline-or-generic | 1210 | 1369 | 160 |
+| reportBuilder | inline-or-generic | 3924 | 4078 | 155 |
 | auditorDashboard | inline-or-generic | 388 | 540 | 153 |
-| monthlyReadiness | inline-or-generic | 5114 | 5262 | 149 |
-| isoRequirements | inline-or-generic | 4972 | 5111 | 140 |
-| dataImport | inline-or-generic | 5875 | 6011 | 137 |
-| slaBoard | inline-or-generic | 4834 | 4969 | 136 |
-| aiSettings | settings-page | 894 | 1021 | 128 |
-| acknowledgmentsMatrix | inline-or-generic | 2413 | 2531 | 119 |
-| myKpi | inline-or-generic | 2534 | 2645 | 112 |
-| organizationalChart | inline-or-generic | 5334 | 5440 | 107 |
-| operationalReports | inline-or-generic | 4726 | 4831 | 106 |
-| swot | inline-or-generic | 2044 | 2136 | 93 |
-| dataHealth | inline-or-generic | 3820 | 3904 | 85 |
-| qualityScope | inline-or-generic | 5443 | 5517 | 75 |
-| audit-log | inline-or-generic | 5797 | 5869 | 73 |
-| myAcknowledgments | inline-or-generic | 2341 | 2408 | 68 |
-| templateLibrary | inline-or-generic | 5265 | 5331 | 67 |
-| ackDocuments | inline-or-generic | 1917 | 1980 | 64 |
-| iso-readiness | inline-or-generic | 5520 | 5581 | 62 |
+| monthlyReadiness | inline-or-generic | 3025 | 3173 | 149 |
+| isoRequirements | inline-or-generic | 2883 | 3022 | 140 |
+| dataImport | inline-or-generic | 3786 | 3922 | 137 |
+| slaBoard | inline-or-generic | 2745 | 2880 | 136 |
+| aiSettings | settings-page | 549 | 676 | 128 |
+| acknowledgmentsMatrix | inline-or-generic | 1449 | 1567 | 119 |
+| myKpi | inline-or-generic | 1570 | 1681 | 112 |
+| organizationalChart | inline-or-generic | 3245 | 3351 | 107 |
+| operationalReports | inline-or-generic | 2637 | 2742 | 106 |
+| swot | inline-or-generic | 1080 | 1172 | 93 |
+| dataHealth | inline-or-generic | 2547 | 2631 | 85 |
+| qualityScope | inline-or-generic | 3354 | 3428 | 75 |
+| audit-log | inline-or-generic | 3708 | 3780 | 73 |
+| myAcknowledgments | inline-or-generic | 1377 | 1444 | 68 |
+| templateLibrary | inline-or-generic | 3176 | 3242 | 67 |
+| ackDocuments | inline-or-generic | 953 | 1016 | 64 |
+| iso-readiness | inline-or-generic | 3431 | 3492 | 62 |
+| documents | inline-or-generic | 1018 | 1078 | 61 |
+| swot | inline-or-generic | 1175 | 1207 | 33 |
+| swot | inline-or-generic | 941 | 948 | 8 |
 
 ## المرشحون الآمنون للفصل
 
 | الأولوية | الجزء | سبب الاختيار |
 | --- | --- | --- |
-| 1 | progressReports | صفحة عمل كاملة بتبويبات ولوحات، مناسبة للفصل كجزء واحد واضح. |
-| 2 | portalAdmin | تبويب مستقل بإدارة محتوى وواجهات داخلية، فصله منخفض المخاطر نسبياً. |
-| 3 | integrationsSettings | صفحة طويلة لكنها مستقلة وظيفياً، وفصلها يساعد عند تطوير التنبيهات والتكاملات. |
-| 4 | aiSettings modal | مودال طويل ومتعدد التبويبات، لكن يؤجل بعد الصفحات لأنه حساس للإعدادات. |
-| 5 | reviewSnapshot modal | لقطة مراجعة الإدارة ضخمة ومحددة الوظيفة، يمكن فصلها بعد تثبيت الصفحات الثلاث. |
+| 1 | No immediate extraction target | The large standalone page/modal templates have been extracted. Next work should focus on smaller reusable components, not another broad move. |
 
 ## السكربتات المحملة
 
 | # | السطر | الملف |
 | --- | --- | --- |
 | 1 | 15 | https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js |
-| 2 | 10051 | /modules/kpi-common.js?v=2026-05-20a |
-| 3 | 10052 | /modules/i18n.js?v=2026-05-20a |
-| 4 | 10053 | /modules/inbox.js?v=2026-05-20a |
-| 5 | 10054 | /modules/kpi-quickentry.js?v=2026-05-20a |
-| 6 | 10055 | /modules/kpi-bulk.js?v=2026-05-20a |
-| 7 | 10056 | /modules/data-import.js?v=2026-05-20a |
-| 8 | 10057 | /modules/portal-admin.js?v=2026-05-20a |
-| 9 | 10058 | /modules/operational-reports.js?v=2026-05-20a |
-| 10 | 10059 | /modules/sla-board.js?v=2026-05-20a |
-| 11 | 10060 | /modules/document-workflow.js?v=2026-05-20a |
-| 12 | 10061 | /modules/training.js?v=2026-05-20a |
-| 13 | 10062 | /modules/document-versions.js?v=2026-05-20a |
-| 14 | 10063 | /modules/wizard.js?v=2026-05-20a |
-| 15 | 10064 | /modules/detail-shell.js?v=2026-05-20a |
-| 16 | 10065 | /modules/surveys.js?v=2026-05-20a |
-| 17 | 10066 | /modules/report-builder.js?v=2026-05-20a |
-| 18 | 10067 | /modules/supplier-eval.js?v=2026-05-20a |
-| 19 | 10068 | /modules/beneficiary.js?v=2026-05-20a |
-| 20 | 10069 | /modules/live-alerts.js?v=2026-05-20a |
-| 21 | 10070 | /modules/signatures.js?v=2026-05-20a |
-| 22 | 10071 | /modules/notifications.js?v=2026-05-20a |
-| 23 | 10072 | /modules/ack-documents.js?v=2026-05-20a |
-| 24 | 10073 | /modules/policy-ack.js?v=2026-05-20a |
-| 25 | 10074 | /modules/plan-map.js?v=2026-05-20a |
-| 26 | 10075 | /modules/swot.js?v=2026-05-20a |
-| 27 | 10076 | /modules/my-kpi.js?v=2026-05-20a |
-| 28 | 10077 | /modules/kpi-tracking.js?v=2026-05-20a |
-| 29 | 10078 | /modules/kpi-followup.js?v=2026-05-20a |
-| 30 | 10079 | /modules/quick-actions.js?v=2026-05-20a |
-| 31 | 10080 | /modules/webhook-settings.js?v=2026-05-20a |
-| 32 | 10081 | /modules/integrations.js?v=2026-05-20a |
-| 33 | 10082 | /modules/ai-settings.js?v=2026-05-20a |
-| 34 | 10083 | /modules/consultant.js?v=2026-05-20a |
-| 35 | 10084 | /modules/progress-reports.js?v=2026-05-20a |
-| 36 | 10085 | /modules/exec-dashboard.js?v=2026-05-20a |
-| 37 | 10086 | /modules/dept-dashboard.js?v=2026-05-20a |
-| 38 | 10087 | /modules/quality-dashboard.js?v=2026-05-20a |
-| 39 | 10088 | /modules/capa.js?v=2026-05-20a |
-| 40 | 10089 | /modules/templates/consultant-page.js?v=2026-05-20a |
-| 41 | 10090 | /modules-config/context.js?v=2026-05-20a |
-| 42 | 10091 | /modules-config/planning.js?v=2026-05-20a |
-| 43 | 10092 | /modules-config/support.js?v=2026-05-20a |
-| 44 | 10093 | /modules-config/operation.js?v=2026-05-20a |
-| 45 | 10094 | /modules-config/evaluation.js?v=2026-05-20a |
-| 46 | 10095 | /app.js?v=2026-05-20a |
+| 2 | 6300 | /modules/kpi-common.js?v=2026-05-20a |
+| 3 | 6301 | /modules/i18n.js?v=2026-05-20a |
+| 4 | 6302 | /modules/inbox.js?v=2026-05-20a |
+| 5 | 6303 | /modules/kpi-quickentry.js?v=2026-05-20a |
+| 6 | 6304 | /modules/kpi-bulk.js?v=2026-05-20a |
+| 7 | 6305 | /modules/data-import.js?v=2026-05-20a |
+| 8 | 6306 | /modules/portal-admin.js?v=2026-05-20a |
+| 9 | 6307 | /modules/operational-reports.js?v=2026-05-20a |
+| 10 | 6308 | /modules/sla-board.js?v=2026-05-20a |
+| 11 | 6309 | /modules/document-workflow.js?v=2026-05-20a |
+| 12 | 6310 | /modules/training.js?v=2026-05-20a |
+| 13 | 6311 | /modules/document-versions.js?v=2026-05-20a |
+| 14 | 6312 | /modules/wizard.js?v=2026-05-20a |
+| 15 | 6313 | /modules/detail-shell.js?v=2026-05-20a |
+| 16 | 6314 | /modules/surveys.js?v=2026-05-20a |
+| 17 | 6315 | /modules/report-builder.js?v=2026-05-20a |
+| 18 | 6316 | /modules/supplier-eval.js?v=2026-05-20a |
+| 19 | 6317 | /modules/beneficiary.js?v=2026-05-20a |
+| 20 | 6318 | /modules/live-alerts.js?v=2026-05-20a |
+| 21 | 6319 | /modules/signatures.js?v=2026-05-20a |
+| 22 | 6320 | /modules/notifications.js?v=2026-05-20a |
+| 23 | 6321 | /modules/ack-documents.js?v=2026-05-20a |
+| 24 | 6322 | /modules/policy-ack.js?v=2026-05-20a |
+| 25 | 6323 | /modules/plan-map.js?v=2026-05-20a |
+| 26 | 6324 | /modules/swot.js?v=2026-05-20a |
+| 27 | 6325 | /modules/my-kpi.js?v=2026-05-20a |
+| 28 | 6326 | /modules/kpi-tracking.js?v=2026-05-20a |
+| 29 | 6327 | /modules/kpi-followup.js?v=2026-05-20a |
+| 30 | 6328 | /modules/quick-actions.js?v=2026-05-20a |
+| 31 | 6329 | /modules/webhook-settings.js?v=2026-05-20a |
+| 32 | 6330 | /modules/integrations.js?v=2026-05-20a |
+| 33 | 6331 | /modules/ai-settings.js?v=2026-05-20a |
+| 34 | 6332 | /modules/consultant.js?v=2026-05-20a |
+| 35 | 6333 | /modules/progress-reports.js?v=2026-05-20a |
+| 36 | 6334 | /modules/exec-dashboard.js?v=2026-05-20a |
+| 37 | 6335 | /modules/dept-dashboard.js?v=2026-05-20a |
+| 38 | 6336 | /modules/quality-dashboard.js?v=2026-05-20a |
+| 39 | 6337 | /modules/capa.js?v=2026-05-20a |
+| 40 | 6338 | /modules/templates/consultant-page.js?v=2026-05-20a |
+| 41 | 6339 | /modules/templates/ai-settings-modal.js?v=2026-05-20a |
+| 42 | 6340 | /modules/templates/integrations-settings-page.js?v=2026-05-20a |
+| 43 | 6341 | /modules/templates/kpi-tracking-page.js?v=2026-05-20a |
+| 44 | 6342 | /modules/templates/my-work-page.js?v=2026-05-20a |
+| 45 | 6343 | /modules/templates/plan-map-page.js?v=2026-05-20a |
+| 46 | 6344 | /modules/templates/portal-admin-page.js?v=2026-05-20a |
+| 47 | 6345 | /modules/templates/progress-reports-page.js?v=2026-05-20a |
+| 48 | 6346 | /modules/templates/review-snapshot-modal.js?v=2026-05-20a |
+| 49 | 6347 | /modules/templates/user-guide-page.js?v=2026-05-20a |
+| 50 | 6348 | /modules-config/context.js?v=2026-05-20a |
+| 51 | 6349 | /modules-config/planning.js?v=2026-05-20a |
+| 52 | 6350 | /modules-config/support.js?v=2026-05-20a |
+| 53 | 6351 | /modules-config/operation.js?v=2026-05-20a |
+| 54 | 6352 | /modules-config/evaluation.js?v=2026-05-20a |
+| 55 | 6353 | /app.js?v=2026-05-20a |
 
 ## الأقسام والمودالات المعنونة
 
@@ -127,29 +137,23 @@
 | 271 | ISO 9.1.3: لقطة صحة النظام الحيّة — للمديرين فقط |
 | 387 | ═══ لوحة مراقب الجودة (GUEST_AUDITOR) ══════════════════ |
 | 390 | رأس اللوحة |
-| 568 | ═════ لوحة مدير الجودة ═════ |
-| 815 | الطبقة 3: أسئلة التحقيق من AI |
-| 893 | ════ مركز قيادة AI ════ |
-| 1160 | ──── تبويب: الإعدادات ──────────────────────────────── |
-| 1224 | n8n Webhook Integration |
-| 1376 | المراجعة الإدارية القادمة |
-| 1479 | الوثائق التي تستحق المراجعة |
-| 2272 | P-13 §6.1: توليد حزمة مدخلات المراجعة الإدارية (ISO 9.3.2) |
-| 6197 | ─── Dashboard view ─────────────────────────────────── |
-| 6630 | STEP 3: مراجعة |
-| 6822 | TRAINING RECORDS MODAL |
-| 7147 | Review step |
-| 7278 | UX-4: DETAIL SHELL DRAWER — unified quick-view |
-| 7657 | ═══ MAIN CRUD MODAL — نموذج الإضافة والتعديل ════════════ |
-| 7903 | ═══ Bulk KPI Import Modal (CSV paste) ═══ |
-| 8448 | ═══ اللوحة التنفيذية — Executive Dashboard Modal ════════════════════ |
-| 8526 | ═══ لوحة مدير القسم — Dept Dashboard Modal ══════════════════════════ |
-| 8591 | ═══ لوحة مدير الجودة — Quality Dashboard Modal ═══════════════════════ |
-| 8633 | ═══ Webhook Settings Modal (n8n) ════════════════════════════════════ |
-| 8688 | ═══ AI Settings Modal (Multi-Provider) ═══════════════════════════════ |
-| 9284 | ═══ CAPA Advance Modal ═══════════════════════════════════════════════ |
-| 9831 | ── Management Review Smart Snapshot Modal (لوحة المراجعة الذكية) ── |
-| 10018 | Section 10: Previous Reviews |
+| 548 | ════ مركز قيادة AI ════ |
+| 733 | المراجعة الإدارية القادمة |
+| 836 | الوثائق التي تستحق المراجعة |
+| 1308 | P-13 §6.1: توليد حزمة مدخلات المراجعة الإدارية (ISO 9.3.2) |
+| 4179 | STEP 3: مراجعة |
+| 4371 | TRAINING RECORDS MODAL |
+| 4696 | Review step |
+| 4827 | UX-4: DETAIL SHELL DRAWER — unified quick-view |
+| 5206 | ═══ MAIN CRUD MODAL — نموذج الإضافة والتعديل ════════════ |
+| 5452 | ═══ Bulk KPI Import Modal (CSV paste) ═══ |
+| 5997 | ═══ اللوحة التنفيذية — Executive Dashboard Modal ════════════════════ |
+| 6075 | ═══ لوحة مدير القسم — Dept Dashboard Modal ══════════════════════════ |
+| 6140 | ═══ لوحة مدير الجودة — Quality Dashboard Modal ═══════════════════════ |
+| 6182 | ═══ Webhook Settings Modal (n8n) ════════════════════════════════════ |
+| 6237 | ═══ AI Settings Modal (Multi-Provider) ═══════════════════════════════ |
+| 6240 | ═══ CAPA Advance Modal ═══════════════════════════════════════════════ |
+| 6297 | ── Management Review Smart Snapshot Modal (لوحة المراجعة الذكية) ── |
 
 ## معرفات HTML مكررة
 
