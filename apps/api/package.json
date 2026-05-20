@@ -38,6 +38,8 @@
     "audit:routes:report": "node scripts/audit-route-security.mjs --write-report",
     "audit:frontend": "node scripts/audit-frontend-navigation.mjs",
     "audit:frontend:report": "node scripts/audit-frontend-navigation.mjs --write-report",
+    "audit:index": "node scripts/audit-index-structure.mjs",
+    "audit:index:report": "node scripts/audit-index-structure.mjs --write-report",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.js",
