@@ -2,15 +2,228 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Custom styles (من styles.css) ─────────────────────────────────── */
-[x-cloak] { display: none !important; }
+@layer base {
+  :root {
+    --qms-brand: #206d43;
+    --qms-brand-strong: #144830;
+    --qms-brand-soft: #f0f9f4;
+    --qms-brand-border: #b9e5cc;
+    --qms-ink: #17231d;
+    --qms-muted: #64746c;
+    --qms-canvas: #f4f7f4;
+    --qms-line: #dfe8e2;
+    --qms-gold: #b8872f;
+  }
 
-body { font-family: 'Noto Kufi Arabic', system-ui, sans-serif; }
-html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+  }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #f3f4f6; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  body {
+    font-family: 'Noto Kufi Arabic', system-ui, sans-serif;
+    color: var(--qms-ink);
+    background:
+      radial-gradient(circle at 92% 0%, rgba(46, 139, 87, 0.12), transparent 30rem),
+      linear-gradient(135deg, #f7faf7 0%, #eef5f0 55%, #f7f5ee 100%);
+  }
 
-table { border-collapse: collapse; }
+  ::selection {
+    color: white;
+    background: var(--qms-brand);
+  }
+
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
+    transition-duration: 150ms;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--qms-brand);
+    box-shadow: 0 0 0 3px rgba(46, 139, 87, 0.18);
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+}
+
+@layer components {
+  /* Institutional identity layer: calm, readable, and close to جمعية البر بصبيا. */
+  body > template + div,
+  .min-h-screen.bg-gradient-to-bl {
+    background:
+      radial-gradient(circle at 88% 4%, rgba(46, 139, 87, 0.10), transparent 26rem),
+      linear-gradient(135deg, #f7faf7 0%, #eef5f0 58%, #f8f5ee 100%) !important;
+  }
+
+  aside.bg-white {
+    border: 1px solid rgba(185, 229, 204, 0.72);
+    box-shadow: 0 22px 45px rgba(20, 72, 48, 0.14);
+  }
+
+  aside nav {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdfb 100%);
+  }
+
+  aside [role="button"],
+  aside button {
+    border-radius: 0.65rem;
+  }
+
+  .bg-white.rounded-xl,
+  .bg-white.rounded-2xl {
+    border-color: rgba(223, 232, 226, 0.95);
+  }
+
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: 0 18px 40px rgba(20, 72, 48, 0.13);
+  }
+
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: 0 10px 24px rgba(20, 72, 48, 0.09);
+  }
+
+  button.bg-brand-500,
+  button.bg-brand-600,
+  .bg-brand-500,
+  .bg-brand-600 {
+    box-shadow: 0 8px 18px rgba(32, 109, 67, 0.18);
+  }
+
+  .bg-gradient-to-l.from-brand-600.to-brand-500,
+  .bg-gradient-to-r.from-brand-600.to-brand-500 {
+    background-image: linear-gradient(135deg, #144830 0%, #206d43 58%, #2e8b57 100%) !important;
+  }
+
+  .bg-gradient-to-br.from-brand-50.to-brand-100,
+  .bg-gradient-to-bl.from-brand-50.to-brand-100 {
+    background-image:
+      radial-gradient(circle at 72% 16%, rgba(46, 139, 87, 0.16), transparent 24rem),
+      linear-gradient(135deg, #f0f9f4 0%, #e5f3e9 62%, #f8f5ee 100%) !important;
+  }
+
+  .border {
+    border-color: var(--qms-line);
+  }
+
+  .text-gray-500,
+  .text-gray-600 {
+    color: var(--qms-muted);
+  }
+
+  .rounded-2xl {
+    border-radius: 1rem;
+  }
+
+  .rounded-xl {
+    border-radius: 0.85rem;
+  }
+
+  .bg-teal-50 {
+    background-color: #edf8f2 !important;
+  }
+
+  .border-teal-300 {
+    border-color: var(--qms-brand-border) !important;
+  }
+
+  .text-teal-900,
+  .text-teal-800,
+  .text-teal-700 {
+    color: var(--qms-brand-strong) !important;
+  }
+
+  .bg-teal-600,
+  .hover\:bg-teal-700:hover {
+    background-color: var(--qms-brand) !important;
+  }
+
+  .bg-indigo-50,
+  .bg-blue-50,
+  .bg-violet-50 {
+    background-color: #f3f8f5 !important;
+  }
+
+  .text-indigo-600,
+  .text-indigo-700,
+  .text-blue-600,
+  .text-blue-700,
+  .text-violet-700 {
+    color: var(--qms-brand) !important;
+  }
+
+  .border-indigo-100,
+  .border-indigo-200,
+  .border-blue-100,
+  .border-blue-200,
+  .border-violet-100 {
+    border-color: var(--qms-brand-border) !important;
+  }
+
+  .bg-amber-50,
+  .bg-yellow-50 {
+    background-color: #fff9ec !important;
+  }
+
+  .text-amber-700,
+  .text-yellow-700 {
+    color: #8b641f !important;
+  }
+
+  .border-amber-100,
+  .border-amber-200,
+  .border-yellow-200 {
+    border-color: #ecd8a8 !important;
+  }
+
+  .bg-rose-50,
+  .bg-red-50 {
+    background-color: #fff4f2 !important;
+  }
+
+  .text-rose-700,
+  .text-red-700 {
+    color: #b42318 !important;
+  }
+
+  .border-rose-100,
+  .border-red-100,
+  .border-red-200 {
+    border-color: #f6c7bf !important;
+  }
+
+  .bg-gray-50 {
+    background-color: #f8faf8 !important;
+  }
+}
+
+[x-cloak] {
+  display: none !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef5f0;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b9d8c5;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7fb492;
+}
