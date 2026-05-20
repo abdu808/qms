@@ -16,8 +16,9 @@ const personas = {
   VISITOR: {
     label: 'زائر / مستخدم جديد',
     role: 'EMPLOYEE',
-    mustSeeText: ['دليل البداية', 'إنجازي اليوم'],
+    mustSeeText: ['دليل المستخدم', 'إنجازي اليوم'],
     mustGuided: ['myWork', 'userGuide'],
+    expectedHome: 'myKpi',
     shouldNotGuided: ['dashboard', 'dataHealth', 'operationalReports', 'reportBuilder', 'portalAdmin'],
     intent: 'يدخل بدون خوف: يعرف أين يبدأ، وما المطلوب منه اليوم، وكيف يطلب المساعدة.',
   },
@@ -32,6 +33,7 @@ const personas = {
     label: 'موظف',
     role: 'EMPLOYEE',
     mustGuided: ['myWork', 'myKpi', 'myAcknowledgments', 'complaints', 'ncr', 'userGuide'],
+    expectedHome: 'myKpi',
     shouldNotGuided: ['dashboard', 'managementReview', 'dataHealth', 'operationalReports', 'reportBuilder', 'users', 'departments', 'portalAdmin'],
     intent: 'يرى عمله الشخصي فقط، بدون لوحات تنفيذية أو مصطلحات إدارية تخوفه.',
   },
@@ -39,6 +41,7 @@ const personas = {
     label: 'رئيس قسم',
     role: 'DEPT_MANAGER',
     mustGuided: ['myWork', 'kpiFollowUp', 'slaBoard', 'myKpi', 'kpiTracking', 'progressReports', 'complaints', 'ncr', 'risks'],
+    expectedHome: 'myWork',
     shouldNotGuided: ['dashboard', 'dataHealth', 'operationalReports', 'reportBuilder', 'beneficiaries', 'donations', 'programs', 'suppliers', 'portalAdmin'],
     intent: 'يرى قسمه وفريقه ومؤشراته وحالات الجودة التي تخصه، لا بيانات المؤسسة كلها.',
   },
@@ -46,6 +49,7 @@ const personas = {
     label: 'مدير الجودة',
     role: 'QUALITY_MANAGER',
     mustGuided: ['myWork', 'kpiFollowUp', 'dataHealth', 'monthlyReadiness', 'iso-readiness', 'isoRequirements', 'complaints', 'ncr', 'capa', 'risks', 'managementReview', 'planMap', 'documents', 'audits', 'surveys', 'userGuide'],
+    expectedHome: 'myWork',
     shouldNotGuided: ['portalAdmin'],
     intent: 'يمتلك مركز قيادة للجودة: تأخير المؤشرات، جاهزية ISO، الحالات، الأدلة، وخريطة الترابط.',
   },
@@ -109,6 +113,14 @@ function hasText(text) {
   return appJs.includes(text) || indexHtml.includes(text);
 }
 
+function homePageForRole(role) {
+  const block = extractObjectBlock(appJs, 'homePageForRole()');
+  const roleLine = block.match(new RegExp(`case ['"]${role}['"]:\\s*return ['"]([^'"]+)['"]`));
+  if (roleLine) return roleLine[1];
+  const fallback = block.match(/default:\s*return ['"]([^'"]+)['"]/);
+  return fallback ? fallback[1] : null;
+}
+
 function evaluatePersona(key, config) {
   const guided = extractGuidedItems(config.role);
   const allowed = extractAllowedItems(config.role);
@@ -151,8 +163,16 @@ function evaluatePersona(key, config) {
     }
   }
 
-  if (config.role === 'EMPLOYEE' && appJs.includes("case 'EMPLOYEE':         return 'myWork'") === false) {
-    findings.push({ type: 'wrong-default-page', severity: 'major', text: 'الموظف لا يبدأ من إنجازي اليوم.' });
+  if (config.expectedHome) {
+    const actualHome = homePageForRole(config.role);
+    if (actualHome !== config.expectedHome) {
+      findings.push({ type: 'wrong-default-page', severity: 'major', text: `صفحة البداية للدور ${config.role} هي ${actualHome || 'غير محددة'} وليست ${config.expectedHome}.` });
+      score -= 12;
+    }
+  }
+
+  if (key === 'VISITOR' && !guided.includes('myWork')) {
+    findings.push({ type: 'missing-guided-today', severity: 'major', text: 'الموظف الجديد لا يجد "إنجازي اليوم" في المسار الموجه.' });
     score -= 12;
   }
 

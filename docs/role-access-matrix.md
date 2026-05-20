@@ -1,6 +1,6 @@
 # مصفوفة عرض الأدوار والصلاحيات
 
-آخر تحديث: 2026-05-12
+آخر تحديث: 2026-05-20
 
 هذا الملف مرجع تشغيلي سريع لما يجب أن يظهر لكل دور في واجهة النظام. يتم توليده من تعريفات الواجهة الحالية في `apps/web/public/app.js`، ويُراجع عبر `npm run audit:roles`.
 
@@ -21,23 +21,16 @@
 **المسار الموجه الظاهر:**
 - إنجازي اليوم `myWork`
 - قراءات KPI المطلوبة مني `myKpi`
-- إقراراتي `myAcknowledgments`
+- إقراراتي المطلوبة `myAcknowledgments`
 - الشكاوى `complaints`
 - بلّغ عدم مطابقة `ncr`
 - دليل المستخدم `userGuide`
 
 **النطاق الكامل المسموح:**
-- إنجازي اليوم `myWork`
 - قراءات KPI المطلوبة مني `myKpi`
-- إقراراتي `myAcknowledgments`
-- متطلبات ISO `isoRequirements`
-- نطاق نظام الجودة `qualityScope`
-- الهيكل التنظيمي `organizationalChart`
-- سياسة الجودة `qualityPolicy`
-- السياسات والمواثيق (الإقرارات) `ackDocuments`
+- إنجازي اليوم `myWork`
+- إقراراتي المطلوبة `myAcknowledgments`
 - الوثائق والسجلات `documents`
-- التدريب `training`
-- مصفوفة الكفاءات `competence`
 - الشكاوى `complaints`
 - بلّغ عدم مطابقة `ncr`
 - دليل المستخدم `userGuide`
@@ -50,6 +43,7 @@
 - إنجازي اليوم `myWork`
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
 - لوحة SLA (الشكاوى/NCR) `slaBoard`
+- المستخدمون `users`
 - قراءات KPI المطلوبة مني `myKpi`
 - متابعة الأداء `kpiTracking`
 - تقرير الإنجاز الشهري `progressReports`
@@ -59,11 +53,12 @@
 
 **النطاق الكامل المسموح:**
 - إنجازي اليوم `myWork`
+- المستخدمون `users`
 - نطاق نظام الجودة `qualityScope`
 - الهيكل التنظيمي `organizationalChart`
 - سياسة الجودة `qualityPolicy`
-- السياسات والمواثيق (الإقرارات) `ackDocuments`
-- إقراراتي `myAcknowledgments`
+- وثائق تحتاج إقرار `ackDocuments`
+- إقراراتي المطلوبة `myAcknowledgments`
 - الخطة التشغيلية `operationalActivities`
 - متابعة الأداء `kpiTracking`
 - قراءات KPI المطلوبة مني `myKpi`
@@ -113,9 +108,9 @@
 - الأطراف ذات العلاقة `interestedParties`
 - خريطة العمليات `processes`
 - سياسة الجودة `qualityPolicy`
-- السياسات والمواثيق (الإقرارات) `ackDocuments`
-- إقراراتي `myAcknowledgments`
-- مصفوفة الإقرارات الشاملة `acknowledgmentsMatrix`
+- وثائق تحتاج إقرار `ackDocuments`
+- إقراراتي المطلوبة `myAcknowledgments`
+- تغطية الإقرارات `acknowledgmentsMatrix`
 - الخطط الاستراتيجية `strategicPlans`
 - محاور BSC `axes`
 - مكتبة المؤشرات `indicators`
@@ -190,9 +185,9 @@
 - الأطراف ذات العلاقة `interestedParties`
 - خريطة العمليات `processes`
 - سياسة الجودة `qualityPolicy`
-- السياسات والمواثيق (الإقرارات) `ackDocuments`
-- إقراراتي `myAcknowledgments`
-- مصفوفة الإقرارات الشاملة `acknowledgmentsMatrix`
+- وثائق تحتاج إقرار `ackDocuments`
+- إقراراتي المطلوبة `myAcknowledgments`
+- تغطية الإقرارات `acknowledgmentsMatrix`
 - الخطط الاستراتيجية `strategicPlans`
 - محاور BSC `axes`
 - مكتبة المؤشرات `indicators`
@@ -295,6 +290,7 @@
       "myWork",
       "kpiFollowUp",
       "slaBoard",
+      "users",
       "myKpi",
       "kpiTracking",
       "progressReports",
