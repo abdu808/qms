@@ -8,10 +8,37 @@
     // ─── State ───────────────────────────────────────────────────────────
     // Resources that have workflow endpoints attached (see apps/api/src/lib/workflow.js).
     workflowResources: ['risks', 'ncr', 'supplier-evals'],
+    documentOpsSummary: null,
+    documentOpsSummaryLoading: false,
 
     // ─── Methods ─────────────────────────────────────────────────────────
 
     // ─── Document workflow ─────────────────────────────────────────────
+    async loadDocumentOpsSummary() {
+      if (!this.can?.('documents', 'read')) return;
+      this.documentOpsSummaryLoading = true;
+      try {
+        this.documentOpsSummary = await this.api('GET', '/documents/dashboard-summary');
+      } catch (e) {
+        console.warn('[documents] dashboard summary failed:', e);
+        this.documentOpsSummary = null;
+      } finally {
+        this.documentOpsSummaryLoading = false;
+      }
+    },
+    documentHealthTone(value) {
+      const n = Number(value || 0);
+      if (n === 0) return 'bg-emerald-50 border-emerald-100 text-emerald-700';
+      if (n <= 3) return 'bg-amber-50 border-amber-100 text-amber-700';
+      return 'bg-rose-50 border-rose-100 text-rose-700';
+    },
+    documentAttentionClass(severity) {
+      return ({
+        danger: 'bg-rose-50 text-rose-700 border-rose-100',
+        warning: 'bg-amber-50 text-amber-700 border-amber-100',
+        info: 'bg-blue-50 text-blue-700 border-blue-100',
+      })[severity] || 'bg-slate-50 text-slate-600 border-slate-100';
+    },
     async approveDoc(item, publish) {
       const action = publish ? 'نشر' : 'اعتماد';
       if (!confirm(`تأكيد ${action} الوثيقة "${item.title}"؟`)) return;

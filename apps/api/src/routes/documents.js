@@ -76,7 +76,7 @@ const upload = multer({
 // حالة الوثيقة + قواعد الاعتماد/النشر نُقلت إلى services/documentApproval.js
 // (ISO 7.5.3 — مصدر حقيقة واحد).
 
-const router = crudRouter({
+const crudRoutes = crudRouter({
   model: 'document',
   resource: 'documents',
   codePrefix: 'DOC',
@@ -112,6 +112,102 @@ const router = crudRouter({
     return guardDocumentUpdate(data, req.params.id);
   },
 });
+
+const router = Router();
+
+function pushDocumentAttention(map, doc, reason, severity = 'warning') {
+  if (!doc?.id) return;
+  const key = `${doc.id}:${reason}`;
+  if (map.has(key)) return;
+  map.set(key, {
+    id: doc.id,
+    code: doc.code,
+    title: doc.title,
+    category: doc.category,
+    status: doc.status,
+    reason,
+    severity,
+    reviewDate: doc.reviewDate,
+    isoClause: doc.isoClause,
+    governing: doc.governing,
+    approvalReference: doc.approvalReference,
+    publicationUrl: doc.publicationUrl,
+  });
+}
+
+// GET /dashboard-summary - تشغيل ضبط الوثائق: ما الذي يحتاج اعتماداً أو نشرًا أو مراجعة؟
+router.get('/dashboard-summary', requireAction('documents', 'read'), asyncHandler(async (_req, res) => {
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 86400000);
+
+  const docs = await prisma.document.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      code: true,
+      title: true,
+      category: true,
+      status: true,
+      governing: true,
+      approvalReference: true,
+      approvalAuthority: true,
+      publicationUrl: true,
+      sourceSystem: true,
+      isoClause: true,
+      reviewDate: true,
+      isPublic: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: { select: { versions: true, acks: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  const active = docs.filter((d) => d.status !== 'OBSOLETE');
+  const attention = new Map();
+  const count = (predicate) => active.filter(predicate).length;
+
+  const overdueReview = active.filter((d) => d.status === 'PUBLISHED' && d.reviewDate && d.reviewDate < now);
+  const dueSoonReview = active.filter((d) => d.status === 'PUBLISHED' && d.reviewDate && d.reviewDate >= now && d.reviewDate <= soon);
+  const approvedNotPublished = active.filter((d) => d.status === 'APPROVED');
+  const underReview = active.filter((d) => d.status === 'UNDER_REVIEW');
+  const missingIso = active.filter((d) => !d.isoClause);
+  const missingReviewDate = active.filter((d) => d.governing && !d.reviewDate);
+  const governingMissingApproval = active.filter((d) => d.governing && !d.approvalReference);
+  const missingVersion = active.filter((d) => !d._count?.versions);
+  const publicMissingUrl = active.filter((d) => d.isPublic && !d.publicationUrl);
+
+  overdueReview.forEach((d) => pushDocumentAttention(attention, d, 'مراجعة الوثيقة متأخرة', 'danger'));
+  approvedNotPublished.forEach((d) => pushDocumentAttention(attention, d, 'معتمدة ولم تنشر بعد', 'warning'));
+  underReview.forEach((d) => pushDocumentAttention(attention, d, 'قيد المراجعة وتحتاج إنهاء قرار', 'info'));
+  governingMissingApproval.forEach((d) => pushDocumentAttention(attention, d, 'وثيقة حاكمة بلا رقم قرار/مرجع اعتماد', 'danger'));
+  missingReviewDate.forEach((d) => pushDocumentAttention(attention, d, 'وثيقة حاكمة بلا تاريخ مراجعة قادم', 'warning'));
+  missingIso.slice(0, 8).forEach((d) => pushDocumentAttention(attention, d, 'لا يوجد ربط ببند ISO', 'warning'));
+  missingVersion.forEach((d) => pushDocumentAttention(attention, d, 'لا يوجد ملف إصدار مرفوع', 'danger'));
+  publicMissingUrl.forEach((d) => pushDocumentAttention(attention, d, 'محددة كمنشورة للعامة بلا رابط نشر', 'warning'));
+
+  res.json({
+    ok: true,
+    summary: {
+      total: active.length,
+      draft: count((d) => d.status === 'DRAFT'),
+      underReview: underReview.length,
+      approved: approvedNotPublished.length,
+      published: count((d) => d.status === 'PUBLISHED'),
+      governing: count((d) => d.governing),
+      dueSoonReview: dueSoonReview.length,
+      overdueReview: overdueReview.length,
+      missingIso: missingIso.length,
+      missingReviewDate: missingReviewDate.length,
+      governingMissingApproval: governingMissingApproval.length,
+      missingVersion: missingVersion.length,
+      publicMissingUrl: publicMissingUrl.length,
+    },
+    attention: Array.from(attention.values()).slice(0, 12),
+  });
+}));
+
+router.use(crudRoutes);
 
 // POST /:id/approve — اعتماد رسمي (مع خيار publish)
 router.post('/:id/approve', requireAction('documents', 'approve'), asyncHandler(async (req, res) => {

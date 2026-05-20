@@ -2341,6 +2341,7 @@ function app() {
         this.items = r.items || [];
         this.totalItems = r.total || 0;
         if (this.page === 'ackDocuments') await this.loadAckOpsSummary?.();
+        if (this.page === 'documents') await this.loadDocumentOpsSummary?.();
       } catch (e) {
         this.items = [];
         this.totalItems = 0;
