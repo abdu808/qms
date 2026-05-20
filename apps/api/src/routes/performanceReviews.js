@@ -45,6 +45,9 @@ async function loadReviewForUpdate(req) {
       id: true,
       employeeId: true,
       reviewerId: true,
+      period: true,
+      periodStart: true,
+      periodEnd: true,
       status: true,
       ...Object.fromEntries(DIMENSIONS.map(k => [k, true])),
     },
@@ -60,6 +63,29 @@ async function loadReviewForUpdate(req) {
 function assertSeparationOfDuty(employeeId, reviewerId) {
   if (employeeId && reviewerId && employeeId === reviewerId) {
     throw BadRequest('Employee cannot review themselves');
+  }
+}
+
+function validateReviewPeriod(data = {}) {
+  if (!data.period) throw BadRequest('فترة التقييم مطلوبة');
+  const start = data.periodStart ? new Date(data.periodStart) : null;
+  const end = data.periodEnd ? new Date(data.periodEnd) : null;
+  if (!start || Number.isNaN(start.getTime())) throw BadRequest('بداية فترة التقييم مطلوبة وصحيحة');
+  if (!end || Number.isNaN(end.getTime())) throw BadRequest('نهاية فترة التقييم مطلوبة وصحيحة');
+  if (end.getTime() < start.getTime()) throw BadRequest('نهاية فترة التقييم يجب أن تكون بعد بدايتها');
+}
+
+function assertReviewReadyForEmployee(item) {
+  validateReviewPeriod(item);
+  if (!item.employeeId || !item.reviewerId) {
+    throw BadRequest('يجب تحديد الموظف والمقيّم قبل إرسال التقييم');
+  }
+  const missing = DIMENSIONS.filter(k => {
+    const v = Number(item[k]);
+    return !Number.isFinite(v) || v < 1 || v > 5;
+  });
+  if (missing.length) {
+    throw BadRequest('لا يمكن إرسال التقييم للموظف قبل تعبئة جميع درجات التقييم من 1 إلى 5');
   }
 }
 
@@ -170,10 +196,15 @@ const base = crudRouter({
   searchFields: ['code', 'period', 'strengths', 'areasToImprove'],
   allowedSortFields: ['createdAt', 'periodEnd', 'status', 'overallRating'],
   allowedFilters: ['status', 'employeeId', 'reviewerId', 'period'],
+  include: {
+    employee: { select: { id: true, name: true, email: true, departmentId: true, role: true } },
+    reviewer: { select: { id: true, name: true, email: true, departmentId: true, role: true } },
+  },
   beforeCreate: async (data, req) => {
     if (!isPrivilegedReviewer(req.user)) data.reviewerId = req.user.sub;
     if (!data.reviewerId) data.reviewerId = req.user.sub;
     data.reviewerId = await assertReviewHierarchy(data, req);
+    validateReviewPeriod(data);
     data = normalize(data);
     return data;
   },
@@ -181,6 +212,7 @@ const base = crudRouter({
     const existing = await loadReviewForUpdate(req);
     const reviewerId = await assertReviewHierarchy(data, req, existing);
     if (data.reviewerId !== undefined) data.reviewerId = reviewerId;
+    validateReviewPeriod({ ...existing, ...data });
     data = normalize(data, { partial: true });
     if (DIMENSIONS.some(k => k in data)) {
       const merged = { ...existing, ...data };
@@ -204,6 +236,7 @@ router.post('/:id/submit-to-employee',
     const item = await prisma.performanceReview.findUnique({ where: { id: req.params.id, deletedAt: null } });
     if (!item) throw NotFound('التقييم غير موجود');
     if (item.status !== 'DRAFT') throw BadRequest('يمكن إرسال المسودات فقط');
+    assertReviewReadyForEmployee(item);
     if (item.reviewerId !== req.user.sub && !can(req.user, 'performance-reviews', 'delete')) {
       throw Forbidden('فقط المُقيِّم أو QM يمكنه إرسال التقييم');
     }

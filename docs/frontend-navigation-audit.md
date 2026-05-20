@@ -1,6 +1,6 @@
 # فحص ترابط واجهة النظام
 
-آخر تحديث: 2026-05-20T20:32:43.085Z
+آخر تحديث: 2026-05-20T21:06:45.579Z
 
 ## الخلاصة
 
@@ -34,8 +34,8 @@
 | --- | --- | --- |
 | SUPER_ADMIN | ALL | ALL_ITEMS |
 | QUALITY_MANAGER | 61 | myWork, dashboard, monthlyReadiness, iso-readiness, isoRequirements, dataHealth, operationalReports, reportBuilder, qualityScope, organizationalChart, swot, interestedParties, processes, qualityPolicy, ackDocuments, myAcknowledgments, acknowledgmentsMatrix, strategicPlans, axes, indicators, annualTargets, planMap, strategicGoals, initiatives, fundingSources, fundingPlans, planVersions, operationalActivities, kpiTracking, myKpi, kpiFollowUp, follow-up-tasks, risks, changeRequests, documents, training, competence, performanceReviews, communication, beneficiaries, donations, programs, suppliers, managementReview, audits, auditChecklists, surveys, complaints, slaBoard, progressReports, ncr, capa, improvementProjects, consultant, aiSettings, integrationsSettings, users, departments, audit-log, dataImport, userGuide |
-| COMMITTEE_MEMBER | 53 | myWork, dashboard, iso-readiness, isoRequirements, dataHealth, operationalReports, reportBuilder, qualityScope, organizationalChart, swot, interestedParties, processes, qualityPolicy, ackDocuments, myAcknowledgments, acknowledgmentsMatrix, strategicPlans, axes, indicators, annualTargets, planMap, strategicGoals, initiatives, fundingSources, fundingPlans, operationalActivities, kpiTracking, myKpi, kpiFollowUp, follow-up-tasks, risks, changeRequests, documents, training, competence, performanceReviews, communication, beneficiaries, donations, programs, suppliers, managementReview, audits, auditChecklists, surveys, complaints, slaBoard, progressReports, ncr, capa, improvementProjects, consultant, userGuide |
-| DEPT_MANAGER | 25 | myWork, users, qualityScope, organizationalChart, qualityPolicy, ackDocuments, myAcknowledgments, operationalActivities, kpiTracking, myKpi, kpiFollowUp, follow-up-tasks, risks, documents, training, competence, performanceReviews, communication, complaints, slaBoard, progressReports, ncr, capa, improvementProjects, userGuide |
+| COMMITTEE_MEMBER | 49 | myWork, iso-readiness, isoRequirements, reportBuilder, qualityScope, organizationalChart, swot, interestedParties, processes, qualityPolicy, ackDocuments, myAcknowledgments, acknowledgmentsMatrix, strategicPlans, axes, indicators, annualTargets, planMap, strategicGoals, initiatives, fundingSources, fundingPlans, operationalActivities, kpiTracking, myKpi, kpiFollowUp, follow-up-tasks, risks, changeRequests, documents, training, competence, performanceReviews, communication, beneficiaries, donations, programs, suppliers, audits, auditChecklists, surveys, complaints, slaBoard, progressReports, ncr, capa, improvementProjects, consultant, userGuide |
+| DEPT_MANAGER | 24 | myWork, qualityScope, organizationalChart, qualityPolicy, ackDocuments, myAcknowledgments, operationalActivities, kpiTracking, myKpi, kpiFollowUp, follow-up-tasks, risks, documents, training, competence, performanceReviews, communication, complaints, slaBoard, progressReports, ncr, capa, improvementProjects, userGuide |
 | EMPLOYEE | 7 | myKpi, myWork, myAcknowledgments, documents, complaints, ncr, userGuide |
 | GUEST_AUDITOR | 18 | auditorDashboard, iso-readiness, isoRequirements, planMap, strategicGoals, operationalActivities, kpiTracking, risks, qualityScope, organizationalChart, qualityPolicy, documents, managementReview, audits, auditChecklists, surveys, complaints, ncr |
 

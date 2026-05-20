@@ -13,11 +13,17 @@ const TARGET_LABELS = {
   PARTNER: 'الشركاء',
 };
 
+function isSurveyPubliclyOpen(survey) {
+  return survey?.active === true
+    && survey?.isPublic === true
+    && ['READY', 'IN_PROGRESS'].includes(String(survey?.executionStatus || '').toUpperCase());
+}
+
 // GET /survey/:id - render public survey form
 router.get('/:id', asyncHandler(async (req, res) => {
   const survey = await prisma.survey.findUnique({ where: { id: req.params.id } });
   if (!survey) return res.status(404).send(errorPage('الاستبيان غير موجود'));
-  if (!survey.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
+  if (!isSurveyPubliclyOpen(survey)) return res.status(410).send(errorPage('هذا الاستبيان غير متاح حالياً'));
 
   const questions = parseQuestions(survey.questionsJson);
   res.send(formPage(survey, questions));
@@ -27,7 +33,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 router.post('/:id', asyncHandler(async (req, res) => {
   const survey = await prisma.survey.findUnique({ where: { id: req.params.id } });
   if (!survey) return res.status(404).send(errorPage('الاستبيان غير موجود'));
-  if (!survey.active) return res.status(410).send(errorPage('هذا الاستبيان مغلق حالياً'));
+  if (!isSurveyPubliclyOpen(survey)) return res.status(410).send(errorPage('هذا الاستبيان غير متاح حالياً'));
 
   const questions = parseQuestions(survey.questionsJson);
 

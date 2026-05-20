@@ -67,7 +67,6 @@ export function activityScopeWhere(user) {
     return {
       OR: [
         { ownerId: user.sub },
-        { deptId: user.departmentId || '___no_department___' },
       ],
     };
   }

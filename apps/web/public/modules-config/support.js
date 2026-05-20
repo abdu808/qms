@@ -235,6 +235,8 @@ window.QMS_MODULES_SUPPORT = {
     ],
     cols: [
       { key: 'code', label: 'الرمز' },
+      { key: 'employee.name', label: 'الموظف' },
+      { key: 'reviewer.name', label: 'المقيّم' },
       { key: 'period', label: 'الفترة' },
       { key: 'overallRating', label: 'المعدل' },
       { key: 'grade', label: 'التقدير' },
@@ -316,7 +318,6 @@ window.QMS_MODULES_SUPPORT = {
       { key: 'areasToImprove',  label: 'مجالات التحسين',    type: 'textarea' },
       { key: 'goalsNextPeriod', label: 'أهداف الفترة القادمة', type: 'textarea' },
       { key: 'developmentPlan', label: 'خطة التطوير والتدريب', type: 'textarea' },
-      { key: 'employeeComments',label: 'تعليق الموظف',       type: 'textarea', hint: 'يكتبه الموظف عند الاستلام والتوقيع. لا يُستخدم كدرجة ثانية، بل كتوضيح وإقرار وخطة دعم.' },
     ],
   },
 };

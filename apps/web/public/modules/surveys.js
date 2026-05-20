@@ -10,10 +10,10 @@
     surveysList: [],
     surveyModal: {
       open: false, mode: 'create', id: null,
-      title: '', target: 'BENEFICIARY', period: '', active: true,
+      title: '', target: 'BENEFICIARY', period: '', active: false,
       executionStatus: 'DRAFT', channel: 'LINK',
       plannedStartAt: '', plannedEndAt: '', targetResponses: '',
-      audienceNote: '', ownerId: '', isPublic: true,
+      audienceNote: '', ownerId: '', isPublic: false,
       questions: [],
     },
     surveySummary: { open: false, data: null, survey: null },
@@ -708,8 +708,8 @@
         title: selected.data.title,
         target: selected.data.target,
         period: selected.data.period,
-        active: true,
-        isPublic: true,
+        active: false,
+        isPublic: false,
         executionStatus: 'READY',
         channel: 'LINK',
         targetResponses: this.surveyDefaultTargetResponses(selected.data.target),
@@ -722,10 +722,10 @@
     openSurveyCreate() {
       this.surveyModal = {
         open: true, mode: 'create', id: null,
-        title: '', target: 'BENEFICIARY', period: '', active: true,
+        title: '', target: 'BENEFICIARY', period: '', active: false,
         executionStatus: 'DRAFT', channel: 'LINK',
         plannedStartAt: '', plannedEndAt: '', targetResponses: 30,
-        audienceNote: '', ownerId: '', isPublic: true,
+        audienceNote: '', ownerId: '', isPublic: false,
         questions: [
           this.normalizeSurveyQuestionForBuilder({ key: 'overall', label: 'ما تقييمك العام للتجربة؟', type: 'rating', required: true, metricType: 'SATISFACTION', contributesToScore: true }, 0),
           this.normalizeSurveyQuestionForBuilder({ key: 'improvement', label: 'ما أهم ملاحظة أو اقتراح للتحسين؟', type: 'text', required: false, metricType: 'IMPROVEMENT', contributesToScore: false }, 1),
@@ -775,6 +775,26 @@
       if (!m.title?.trim()) return alert('أدخل عنوان الاستبيان');
       if (!m.questions.length) return alert('أضف سؤالاً واحداً على الأقل');
       if (m.questions.length > 50) return alert('الحد الأقصى 50 سؤالاً');
+      const targetResponses = m.targetResponses === '' || m.targetResponses == null ? null : Number(m.targetResponses);
+      if (targetResponses != null && (!Number.isInteger(targetResponses) || targetResponses < 1)) {
+        return alert('عدد الردود المستهدف يجب أن يكون رقماً صحيحاً أكبر من صفر');
+      }
+      if (m.plannedStartAt && m.plannedEndAt && new Date(m.plannedEndAt).getTime() < new Date(m.plannedStartAt).getTime()) {
+        return alert('تاريخ إغلاق الاستبيان يجب أن يكون بعد تاريخ البداية');
+      }
+      if (m.responses > 0 && m.mode === 'edit') {
+        const original = (this.surveysList || []).find(s => s.id === m.id);
+        const originalQuestions = (() => {
+          try {
+            return JSON.stringify((JSON.parse(original?.questionsJson || '[]') || [])
+              .map((q, i) => this.prepareSurveyQuestionForSave(this.normalizeSurveyQuestionForBuilder(q, i), i)));
+          } catch { return '[]'; }
+        })();
+        const currentQuestions = JSON.stringify(m.questions.map((q, i) => this.prepareSurveyQuestionForSave(q, i)));
+        if (originalQuestions !== currentQuestions) {
+          return alert('لا يمكن تعديل أسئلة استبيان يحتوي على ردود — انسخه كاستبيان جديد وعدّل النسخة');
+        }
+      }
       const keys = new Set();
       for (const [i, q] of m.questions.entries()) {
         if (!q.key?.trim()) return alert(`السؤال رقم ${i + 1}: المعرّف (key) مطلوب`);
@@ -792,7 +812,7 @@
         channel: m.channel || 'LINK',
         plannedStartAt: m.plannedStartAt || null,
         plannedEndAt: m.plannedEndAt || null,
-        targetResponses: m.targetResponses === '' || m.targetResponses == null ? null : Number(m.targetResponses),
+        targetResponses,
         audienceNote: m.audienceNote || null,
         ownerId: m.ownerId || null,
         questionsJson: JSON.stringify(questions),

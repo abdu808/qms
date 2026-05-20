@@ -170,7 +170,7 @@ export const MATRIX = {
 
   // ── Phase 9: تقارير HTML قابلة للطباعة ─────────────────────────────────────
   // Read restricted to managers+ — printable reports may aggregate sensitive cross-dept data.
-  'reports':         { read: MANAGER_UP, create: SA,          update: SA,         delete: SA    },
+  'reports':         { read: COMMITTEE_UP, create: SA,        update: SA,         delete: SA    },
 };
 
 /**

@@ -135,7 +135,7 @@ function asNullableInt(value, fieldName) {
   if (value === undefined) return undefined;
   if (value === null || value === '') return null;
   const n = Number(value);
-  if (!Number.isInteger(n) || n < 0) throw BadRequest(`${fieldName} يجب أن يكون رقماً صحيحاً موجباً`);
+  if (!Number.isInteger(n) || n < 1) throw BadRequest(`${fieldName} يجب أن يكون رقماً صحيحاً أكبر من صفر`);
   return n;
 }
 
@@ -179,6 +179,18 @@ function cleanSurveyPayload(body, { create = false } = {}) {
   if (plannedEndAt !== undefined) data.plannedEndAt = plannedEndAt;
   const targetResponses = asNullableInt(body.targetResponses, 'عدد الردود المستهدف');
   if (targetResponses !== undefined) data.targetResponses = targetResponses;
+
+  const start = data.plannedStartAt;
+  const end = data.plannedEndAt;
+  if (start && end && end.getTime() < start.getTime()) {
+    throw BadRequest('تاريخ إغلاق الاستبيان يجب أن يكون بعد تاريخ البداية');
+  }
+
+  if (create) {
+    if (data.active === undefined) data.active = false;
+    if (data.isPublic === undefined) data.isPublic = false;
+    if (data.executionStatus === undefined) data.executionStatus = 'DRAFT';
+  }
 
   return data;
 }
@@ -225,6 +237,16 @@ router.post('/', requireAction('surveys', 'create'), asyncHandler(async (req, re
 // UPDATE
 router.put('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
   const data = cleanSurveyPayload(req.body);
+  if (data.questionsJson !== undefined) {
+    const existing = await prisma.survey.findUnique({
+      where: { id: req.params.id },
+      select: { responses: true },
+    });
+    if (!existing) throw NotFound();
+    if ((existing.responses || 0) > 0) {
+      throw BadRequest('لا يمكن تعديل أسئلة استبيان يحتوي على ردود — انسخه كاستبيان جديد وعدّل النسخة');
+    }
+  }
   let item = await prisma.survey.update({ where: { id: req.params.id }, data });
   if (data.questionsJson !== undefined) item = await recalculateSurveyAggregate(item.id, data.questionsJson);
   res.json({ ok: true, item });
@@ -232,6 +254,16 @@ router.put('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, 
 
 router.patch('/:id', requireAction('surveys', 'update'), asyncHandler(async (req, res) => {
   const data = cleanSurveyPayload(req.body);
+  if (data.questionsJson !== undefined) {
+    const existing = await prisma.survey.findUnique({
+      where: { id: req.params.id },
+      select: { responses: true },
+    });
+    if (!existing) throw NotFound();
+    if ((existing.responses || 0) > 0) {
+      throw BadRequest('لا يمكن تعديل أسئلة استبيان يحتوي على ردود — انسخه كاستبيان جديد وعدّل النسخة');
+    }
+  }
   let item = await prisma.survey.update({ where: { id: req.params.id }, data });
   if (data.questionsJson !== undefined) item = await recalculateSurveyAggregate(item.id, data.questionsJson);
   res.json({ ok: true, item });

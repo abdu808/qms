@@ -280,6 +280,8 @@ function app() {
     currentPage: 1,
     perPage: 20,
     totalItems: 0,
+    listLoading: false,
+    listError: '',
 
     // Filter
     filterStatus: '',
@@ -616,7 +618,7 @@ function app() {
           'userGuide',
         ],
         COMMITTEE_MEMBER: [
-          'myWork','dashboard','iso-readiness','isoRequirements','dataHealth','operationalReports','reportBuilder',
+          'myWork','iso-readiness','isoRequirements','reportBuilder',
           'qualityScope','organizationalChart','swot','interestedParties','processes','qualityPolicy','ackDocuments',
           'myAcknowledgments','acknowledgmentsMatrix',
           'strategicPlans','axes','indicators','annualTargets','planMap','strategicGoals','initiatives',
@@ -624,14 +626,13 @@ function app() {
           'changeRequests',
           'documents','training','competence','performanceReviews','communication',
           'beneficiaries','donations','programs','suppliers',
-          'managementReview','audits','auditChecklists','surveys','complaints','slaBoard','progressReports',
+          'audits','auditChecklists','surveys','complaints','slaBoard','progressReports',
           'ncr','capa','improvementProjects',
           'consultant',  // عضو اللجنة يستطيع استخدام المستشار للمراجعة
           'userGuide',
         ],
         DEPT_MANAGER: [
           'myWork',
-          'users',
           'qualityScope','organizationalChart','qualityPolicy','ackDocuments','myAcknowledgments',
           'operationalActivities','kpiTracking','myKpi','kpiFollowUp','follow-up-tasks','risks',
           'documents','training','competence','performanceReviews','communication',
@@ -705,7 +706,7 @@ function app() {
       const role = this.user?.role;
       switch (role) {
         case 'GUEST_AUDITOR':    return 'auditorDashboard'; // لوحة قراءة محدودة
-        case 'EMPLOYEE':         return 'myKpi';            // واجهة إدخال هادئة ومباشرة للموظف
+        case 'EMPLOYEE':         return 'myWork';           // واجهة هادئة: ما المطلوب اليوم؟
         case 'DEPT_MANAGER':     return 'myWork';           // مركز قرارات القسم
         case 'QUALITY_MANAGER':  return 'myWork';           // مركز قيادة الجودة
         case 'COMMITTEE_MEMBER': return 'myWork';           // ملخص القرارات والمراجعة
@@ -951,12 +952,12 @@ function app() {
         ],
         DEPT_MANAGER: [
           { id: 'guided-today', title: 'قرارات اليوم', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp', 'slaBoard'] },
-          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['users', 'myKpi', 'kpiTracking', 'progressReports'] },
+          { id: 'guided-team', title: 'تنفيذ القسم', icon: '📋', iso: '', color: 'sky', items: ['myKpi', 'kpiTracking', 'progressReports'] },
           { id: 'guided-quality', title: 'جودة القسم', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'risks'] },
         ],
         COMMITTEE_MEMBER: [
           { id: 'guided-today', title: 'ما يحتاج مراجعتك', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'kpiFollowUp'] },
-          { id: 'guided-assurance', title: 'جاهزية وامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'dataHealth', 'progressReports'] },
+          { id: 'guided-assurance', title: 'جاهزية وامتثال', icon: '📋', iso: '', color: 'sky', items: ['iso-readiness', 'isoRequirements', 'progressReports'] },
           { id: 'guided-quality', title: 'جودة وتحسين', icon: '🛠️', iso: '', color: 'slate', items: ['ncr', 'capa', 'risks', 'audits'] },
           { id: 'guided-help', title: 'المساعدة', icon: '📖', iso: '', color: 'slate', items: ['userGuide'] },
         ],
@@ -1112,7 +1113,8 @@ function app() {
         .split('\n')
         .map(s => s.trim())
         .find(Boolean) || fallback;
-      this.toasts.push({ id, msg: safeMsg.slice(0, 180), type });
+      const limit = type === 'error' ? 320 : 180;
+      this.toasts.push({ id, msg: safeMsg.slice(0, limit), type });
       setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, duration);
     },
 
@@ -2330,6 +2332,8 @@ function app() {
     async loadList(page = null) {
       if (!this.currentModule) return;
       if (page !== null) this.currentPage = page;
+      this.listLoading = true;
+      this.listError = '';
       this.items = [];          // UI-BSC-001: تنظيف فوري — لا بيانات قديمة تظهر عند الانتقال
       this.totalItems = 0;
       const params = new URLSearchParams();
@@ -2349,7 +2353,11 @@ function app() {
       } catch (e) {
         this.items = [];
         this.totalItems = 0;
+        this.listError = e.message || 'تعذر تحميل بيانات الصفحة';
+        this.toast(this.listError, 'error');
         console.error('[loadList]', this.currentModule.endpoint, e.message);
+      } finally {
+        this.listLoading = false;
       }
     },
 
@@ -2765,7 +2773,7 @@ function app() {
     roleLabel(r) {
       return ({
         SUPER_ADMIN: 'مسؤول النظام', QUALITY_MANAGER: 'مدير الجودة',
-        COMMITTEE_MEMBER: 'عضو لجنة جودة', DEPT_MANAGER: 'مسؤول قسم',
+        COMMITTEE_MEMBER: 'عضو لجنة جودة', DEPT_MANAGER: 'رئيس قسم',
         EMPLOYEE: 'موظف', GUEST_AUDITOR: 'مدقق ضيف',
       })[r] || r;
     },
