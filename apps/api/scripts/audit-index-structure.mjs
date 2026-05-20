@@ -136,6 +136,18 @@ const completedTemplatePlan = [
   ['userGuide', 'user-guide-page.js'],
   ['aiSettings modal', 'ai-settings-modal.js'],
   ['reviewSnapshot modal', 'review-snapshot-modal.js'],
+
+  ['genericList', 'generic-list-page.js'],
+  ['acknowledgmentsPages', 'acknowledgments-pages.js'],
+  ['dataHealthReport', 'data-health-report-page.js'],
+  ['reportBuilder', 'report-builder-page.js'],
+  ['supplierEval modal', 'supplier-eval-modal.js'],
+  ['documentVersions modal', 'document-versions-modal.js'],
+  ['trainingRecords modal', 'training-records-modal.js'],
+  ['surveyBuilder modal', 'survey-builder-modal.js'],
+  ['mainCrud modal', 'main-crud-modal.js'],
+  ['commandPalette modal', 'command-palette-modal.js'],
+  ['ackLinks modal', 'ack-links-modal.js'],
 ];
 
 const completedMoves = completedTemplatePlan
