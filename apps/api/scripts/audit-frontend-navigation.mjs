@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const appJsPath = path.join(repoRoot, 'apps', 'web', 'public', 'app.js');
 const htmlPath = path.join(repoRoot, 'apps', 'web', 'public', 'index.html');
+const templatesDir = path.join(repoRoot, 'apps', 'web', 'public', 'modules', 'templates');
 const writeReport = process.argv.includes('--write-report');
 
 function read(file) {
@@ -15,6 +16,13 @@ function read(file) {
 
 const appSource = read(appJsPath);
 const htmlSource = read(htmlPath);
+const templateSources = fs.existsSync(templatesDir)
+  ? fs.readdirSync(templatesDir)
+    .filter(name => name.endsWith('.js'))
+    .map(name => read(path.join(templatesDir, name)))
+    .join('\n')
+  : '';
+const viewSource = `${htmlSource}\n${templateSources}`;
 
 function lineOf(source, index) {
   return source.slice(0, index).split(/\r?\n/).length;
@@ -90,7 +98,7 @@ function extractHomePages() {
 
 function extractGotoRefs() {
   const refs = [];
-  const combined = `${appSource}\n${htmlSource}`;
+  const combined = `${appSource}\n${viewSource}`;
   const patterns = [
     /goto\(\s*'([^']+)'/g,
     /goToResource\(\s*'([^']+)'/g,
@@ -105,8 +113,8 @@ function extractGotoRefs() {
 
 function extractRenderedPages() {
   const ids = [];
-  for (const match of htmlSource.matchAll(/page\s*={2,3}\s*'([^']+)'/g)) ids.push(match[1]);
-  for (const match of htmlSource.matchAll(/page\s+===\s+'([^']+)'/g)) ids.push(match[1]);
+  for (const match of viewSource.matchAll(/page\s*={2,3}\s*'([^']+)'/g)) ids.push(match[1]);
+  for (const match of viewSource.matchAll(/page\s+===\s+'([^']+)'/g)) ids.push(match[1]);
   return uniqueSorted(ids);
 }
 

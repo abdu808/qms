@@ -121,21 +121,33 @@ const summary = {
   largeBlocks: largeBlocks.length,
 };
 
+const extractedTemplates = fs.existsSync(path.join(repoRoot, 'apps', 'web', 'public', 'modules', 'templates'))
+  ? fs.readdirSync(path.join(repoRoot, 'apps', 'web', 'public', 'modules', 'templates')).filter(name => name.endsWith('.js'))
+  : [];
+
+const completedMoves = [
+  {
+    item: 'consultant',
+    status: extractedTemplates.includes('consultant-page.js') ? 'مفصول' : 'داخل index',
+    file: extractedTemplates.includes('consultant-page.js') ? '/modules/templates/consultant-page.js' : '',
+  },
+].filter(item => item.status === 'مفصول');
+
 const recommendedFirstMoves = [
   {
     priority: 1,
-    item: 'consultant',
-    reason: 'صفحة مستقلة كبيرة وفيها منطق رفع ملفات ومحادثة، وفصلها يقلل ضجيج index بدون لمس باقي النظام.',
-  },
-  {
-    priority: 2,
     item: 'progressReports',
     reason: 'صفحة عمل كاملة بتبويبات ولوحات، مناسبة للفصل كجزء واحد واضح.',
   },
   {
-    priority: 3,
+    priority: 2,
     item: 'portalAdmin',
     reason: 'تبويب مستقل بإدارة محتوى وواجهات داخلية، فصله منخفض المخاطر نسبياً.',
+  },
+  {
+    priority: 3,
+    item: 'integrationsSettings',
+    reason: 'صفحة طويلة لكنها مستقلة وظيفياً، وفصلها يساعد عند تطوير التنبيهات والتكاملات.',
   },
   {
     priority: 4,
@@ -183,6 +195,16 @@ function writeMarkdownReport() {
     `- أقسام/مودالات معنونة: ${summary.markedSections}`,
     `- معرفات HTML مكررة: ${summary.duplicateIds}`,
     `- كتل كبيرة فوق 250 سطر: ${summary.largeBlocks}`,
+    '',
+    '## ما تم فصله',
+    '',
+    completedMoves.length
+      ? mdTable(completedMoves, [
+        { label: 'الجزء', value: r => r.item },
+        { label: 'الحالة', value: r => r.status },
+        { label: 'الملف', value: r => r.file },
+      ])
+      : '- لا توجد أجزاء مفصولة بعد.',
     '',
     '## أكبر كتل الصفحات',
     '',
