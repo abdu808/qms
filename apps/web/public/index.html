@@ -6,7 +6,7 @@
 <title>نظام إدارة الجودة - جمعية البر بصبيا</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🕊️%3C/text%3E%3C/svg%3E" />
 <!-- Tailwind CSS — مُولَّد أثناء البناء (build-time purged + minified) بدلاً من CDN -->
-<link rel="stylesheet" href="/tailwind.css?v=2026-05-21b">
+<link rel="stylesheet" href="/tailwind.css?v=2026-05-21c">
 <!-- Alpine + Chart.js مثبَّتان على إصدار محدَّد + SRI (integrity) — إن اختُرقت CDN
      سيرفض المتصفح تنفيذ JS معدَّل. crossorigin="anonymous" ضروري لفحص التكامل. -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"
@@ -121,10 +121,10 @@
                 <span class="text-[10px] text-amber-500 font-semibold mr-auto" x-text="favoriteItems().length"></span>
               </div>
               <template x-for="id in favoriteItems()" :key="'fav-'+id">
-                <div @click="goto(id); sidebarOpen=false" role="button" tabindex="0"
-                     @keydown.enter="goto(id); sidebarOpen=false"
+                <button type="button" @click="goto(id); sidebarOpen=false"
                      :class="page===id ? 'bg-brand-500 text-white font-semibold shadow-md' : 'hover:bg-amber-100/60 text-gray-700'"
-                     class="group w-full cursor-pointer text-right px-2 py-1.5 rounded-lg flex items-center gap-2 transition">
+                     class="group w-full cursor-pointer text-right px-2 py-1.5 rounded-lg flex items-center gap-2 transition"
+                     :data-page="id">
                   <span x-text="getMenuItem(id)?.icon" class="flex-shrink-0 text-sm"></span>
                   <span x-text="getMenuItem(id)?.label" class="flex-1 truncate text-[13px]"></span>
                   <template x-if="badgeFor(id)">
@@ -134,7 +134,7 @@
                   <span @click="toggleFavorite(id, $event)"
                         :class="page===id ? 'text-white/90 hover:text-white' : 'text-amber-400 hover:text-amber-500'"
                         class="text-sm cursor-pointer select-none" title="إزالة من المفضلة">★</span>
-                </div>
+                </button>
               </template>
             </div>
           </template>
@@ -177,10 +177,10 @@
                        class="absolute top-1 bottom-1 right-3 w-[2px] rounded-full opacity-40"></div>
 
                   <template x-for="id in groupVisibleItems(group)" :key="group.id+'-'+id">
-                    <div @click="goto(id); sidebarOpen=false" role="button" tabindex="0"
-                         @keydown.enter="goto(id); sidebarOpen=false"
+                    <button type="button" @click="goto(id); sidebarOpen=false"
                          :class="page===id ? 'bg-brand-500 text-white font-semibold shadow-md ring-1 ring-brand-300' : 'hover:bg-gray-50 text-gray-700'"
-                         class="group/item relative w-full cursor-pointer text-right pr-5 pl-2 py-1.5 rounded-lg mb-0.5 flex items-center gap-2 transition">
+                         class="group/item relative w-full cursor-pointer text-right pr-5 pl-2 py-1.5 rounded-lg mb-0.5 flex items-center gap-2 transition"
+                         :data-page="id">
 
                       <!-- نقطة اتصال بالخط الجانبي -->
                       <div :class="page===id ? 'bg-white' : groupTheme(group.color).dot"
@@ -204,7 +204,7 @@
                             class="text-xs cursor-pointer select-none transition"
                             x-text="isFavorite(id) ? '★' : '☆'"
                             :title="isFavorite(id) ? 'إزالة من المفضلة' : 'إضافة للمفضلة'"></span>
-                    </div>
+                    </button>
                   </template>
                 </div>
               </div>
@@ -1755,79 +1755,79 @@
     </div>
   </template>
 
-<script src="/modules/kpi-common.js?v=2026-05-21b"></script>
-<script src="/modules/i18n.js?v=2026-05-21b"></script>
-<script src="/modules/inbox.js?v=2026-05-21b"></script>
-<script src="/modules/kpi-quickentry.js?v=2026-05-21b"></script>
-<script src="/modules/kpi-bulk.js?v=2026-05-21b"></script>
-<script src="/modules/data-import.js?v=2026-05-21b"></script>
-<script src="/modules/portal-admin.js?v=2026-05-21b"></script>
-<script src="/modules/operational-reports.js?v=2026-05-21b"></script>
-<script src="/modules/sla-board.js?v=2026-05-21b"></script>
-<script src="/modules/document-workflow.js?v=2026-05-21b"></script>
-<script src="/modules/training.js?v=2026-05-21b"></script>
-<script src="/modules/document-versions.js?v=2026-05-21b"></script>
-<script src="/modules/wizard.js?v=2026-05-21b"></script>
-<script src="/modules/detail-shell.js?v=2026-05-21b"></script>
-<script src="/modules/surveys.js?v=2026-05-21b"></script>
-<script src="/modules/report-builder.js?v=2026-05-21b"></script>
-<script src="/modules/supplier-eval.js?v=2026-05-21b"></script>
-<script src="/modules/beneficiary.js?v=2026-05-21b"></script>
-<script src="/modules/live-alerts.js?v=2026-05-21b"></script>
-<script src="/modules/signatures.js?v=2026-05-21b"></script>
-<script src="/modules/notifications.js?v=2026-05-21b"></script>
-<script src="/modules/ack-documents.js?v=2026-05-21b"></script>
-<script src="/modules/policy-ack.js?v=2026-05-21b"></script>
-<script src="/modules/plan-map.js?v=2026-05-21b"></script>
-<script src="/modules/swot.js?v=2026-05-21b"></script>
-<script src="/modules/my-kpi.js?v=2026-05-21b"></script>
-<script src="/modules/kpi-tracking.js?v=2026-05-21b"></script>
-<script src="/modules/kpi-followup.js?v=2026-05-21b"></script>
-<script src="/modules/quick-actions.js?v=2026-05-21b"></script>
-<script src="/modules/webhook-settings.js?v=2026-05-21b"></script>
-<script src="/modules/integrations.js?v=2026-05-21b"></script>
-<script src="/modules/ai-settings.js?v=2026-05-21b"></script>
-<script src="/modules/consultant.js?v=2026-05-21b"></script>
-<script src="/modules/progress-reports.js?v=2026-05-21b"></script>
-<script src="/modules/exec-dashboard.js?v=2026-05-21b"></script>
-<script src="/modules/dept-dashboard.js?v=2026-05-21b"></script>
-<script src="/modules/quality-dashboard.js?v=2026-05-21b"></script>
-<script src="/modules/capa.js?v=2026-05-21b"></script>
-<script src="/modules/templates/consultant-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/ai-settings-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/integrations-settings-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/kpi-tracking-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/my-work-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/plan-map-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/portal-admin-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/progress-reports-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/review-snapshot-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/user-guide-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/generic-list-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/acknowledgments-pages.js?v=2026-05-21b"></script>
-<script src="/modules/templates/data-health-report-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/report-builder-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/supplier-eval-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/document-versions-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/training-records-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/survey-builder-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/main-crud-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/command-palette-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/ack-links-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/auditor-dashboard-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/ai-control-center-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/dashboard-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/my-kpi-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/kpi-followup-page.js?v=2026-05-21b"></script>
-<script src="/modules/templates/integration-support-modals.js?v=2026-05-21b"></script>
-<script src="/modules/templates/my-kpi-entry-modal.js?v=2026-05-21b"></script>
-<script src="/modules/templates/supplier-beneficiary-survey-modals.js?v=2026-05-21b"></script>
-<script src="/modules/templates/notifications-and-system-modals.js?v=2026-05-21b"></script>
-<script src="/modules-config/context.js?v=2026-05-21b"></script>
-<script src="/modules-config/planning.js?v=2026-05-21b"></script>
-<script src="/modules-config/support.js?v=2026-05-21b"></script>
-<script src="/modules-config/operation.js?v=2026-05-21b"></script>
-<script src="/modules-config/evaluation.js?v=2026-05-21b"></script>
-<script src="/app.js?v=2026-05-21b"></script>
+<script src="/modules/kpi-common.js?v=2026-05-21c"></script>
+<script src="/modules/i18n.js?v=2026-05-21c"></script>
+<script src="/modules/inbox.js?v=2026-05-21c"></script>
+<script src="/modules/kpi-quickentry.js?v=2026-05-21c"></script>
+<script src="/modules/kpi-bulk.js?v=2026-05-21c"></script>
+<script src="/modules/data-import.js?v=2026-05-21c"></script>
+<script src="/modules/portal-admin.js?v=2026-05-21c"></script>
+<script src="/modules/operational-reports.js?v=2026-05-21c"></script>
+<script src="/modules/sla-board.js?v=2026-05-21c"></script>
+<script src="/modules/document-workflow.js?v=2026-05-21c"></script>
+<script src="/modules/training.js?v=2026-05-21c"></script>
+<script src="/modules/document-versions.js?v=2026-05-21c"></script>
+<script src="/modules/wizard.js?v=2026-05-21c"></script>
+<script src="/modules/detail-shell.js?v=2026-05-21c"></script>
+<script src="/modules/surveys.js?v=2026-05-21c"></script>
+<script src="/modules/report-builder.js?v=2026-05-21c"></script>
+<script src="/modules/supplier-eval.js?v=2026-05-21c"></script>
+<script src="/modules/beneficiary.js?v=2026-05-21c"></script>
+<script src="/modules/live-alerts.js?v=2026-05-21c"></script>
+<script src="/modules/signatures.js?v=2026-05-21c"></script>
+<script src="/modules/notifications.js?v=2026-05-21c"></script>
+<script src="/modules/ack-documents.js?v=2026-05-21c"></script>
+<script src="/modules/policy-ack.js?v=2026-05-21c"></script>
+<script src="/modules/plan-map.js?v=2026-05-21c"></script>
+<script src="/modules/swot.js?v=2026-05-21c"></script>
+<script src="/modules/my-kpi.js?v=2026-05-21c"></script>
+<script src="/modules/kpi-tracking.js?v=2026-05-21c"></script>
+<script src="/modules/kpi-followup.js?v=2026-05-21c"></script>
+<script src="/modules/quick-actions.js?v=2026-05-21c"></script>
+<script src="/modules/webhook-settings.js?v=2026-05-21c"></script>
+<script src="/modules/integrations.js?v=2026-05-21c"></script>
+<script src="/modules/ai-settings.js?v=2026-05-21c"></script>
+<script src="/modules/consultant.js?v=2026-05-21c"></script>
+<script src="/modules/progress-reports.js?v=2026-05-21c"></script>
+<script src="/modules/exec-dashboard.js?v=2026-05-21c"></script>
+<script src="/modules/dept-dashboard.js?v=2026-05-21c"></script>
+<script src="/modules/quality-dashboard.js?v=2026-05-21c"></script>
+<script src="/modules/capa.js?v=2026-05-21c"></script>
+<script src="/modules/templates/consultant-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/ai-settings-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/integrations-settings-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/kpi-tracking-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/my-work-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/plan-map-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/portal-admin-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/progress-reports-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/review-snapshot-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/user-guide-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/generic-list-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/acknowledgments-pages.js?v=2026-05-21c"></script>
+<script src="/modules/templates/data-health-report-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/report-builder-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/supplier-eval-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/document-versions-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/training-records-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/survey-builder-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/main-crud-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/command-palette-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/ack-links-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/auditor-dashboard-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/ai-control-center-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/dashboard-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/my-kpi-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/kpi-followup-page.js?v=2026-05-21c"></script>
+<script src="/modules/templates/integration-support-modals.js?v=2026-05-21c"></script>
+<script src="/modules/templates/my-kpi-entry-modal.js?v=2026-05-21c"></script>
+<script src="/modules/templates/supplier-beneficiary-survey-modals.js?v=2026-05-21c"></script>
+<script src="/modules/templates/notifications-and-system-modals.js?v=2026-05-21c"></script>
+<script src="/modules-config/context.js?v=2026-05-21c"></script>
+<script src="/modules-config/planning.js?v=2026-05-21c"></script>
+<script src="/modules-config/support.js?v=2026-05-21c"></script>
+<script src="/modules-config/operation.js?v=2026-05-21c"></script>
+<script src="/modules-config/evaluation.js?v=2026-05-21c"></script>
+<script src="/app.js?v=2026-05-21c"></script>
 </body>
 </html>
