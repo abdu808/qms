@@ -1180,6 +1180,12 @@ function app() {
     // wizardSteps/showWizard/closeWizard/wizardGoto — moved to modules/wizard.js (window.QmsWizard)
 
     // ------ lifecycle ------
+    _requestTemplateMount() {
+      [0, 50, 250].forEach((delay) => {
+        setTimeout(() => window.dispatchEvent(new Event('qms:templates:mount')), delay);
+      });
+    },
+
     async init() {
       // ── تحويل window.alert إلى toast ─────────────────────────────
       window._qmsApp = this;
@@ -1217,6 +1223,7 @@ function app() {
           this.token = data.token;
           const me = await this.api('GET', '/auth/me');
           this.user = me.user;
+          this._requestTemplateMount();
           await this._loadUserUiPreferences();
           this._consultEnsureUserScope?.();
           if (!this.isReadOnly()) {
@@ -1247,6 +1254,7 @@ function app() {
         const r = await this.api('POST', '/auth/login', this.loginForm, false);
         const previousConsultUser = this._consultUserStorageId?.() || '';
         this.token = r.token; this.user = r.user;
+        this._requestTemplateMount();
         await this._loadUserUiPreferences();
         const nextConsultUser = this._consultUserStorageId?.() || '';
         if (previousConsultUser && nextConsultUser && previousConsultUser !== nextConsultUser) {

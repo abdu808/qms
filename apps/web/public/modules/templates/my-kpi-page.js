@@ -4,15 +4,41 @@
 
   function mount() {
     const host = document.getElementById('my-kpi-page-host');
-    if (!host || host.dataset.templateMounted === '1') return;
+    if (!host) return false;
+    if (host.dataset.templateMounted === '1') return true;
     host.innerHTML = html;
     host.dataset.templateMounted = '1';
     if (window.Alpine?.initTree) window.Alpine.initTree(host);
+    return true;
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount, { once: true });
-  } else {
-    mount();
+  function scheduleMount() {
+    if (mount()) return;
+
+    let attempts = 0;
+    const retry = () => {
+      attempts += 1;
+      if (mount()) return;
+      if (attempts < 50) window.setTimeout(retry, 100);
+    };
+    window.setTimeout(retry, 0);
+
+    const root = document.body || document.documentElement;
+    if (root && window.MutationObserver) {
+      const observer = new MutationObserver(() => {
+        if (mount()) observer.disconnect();
+      });
+      observer.observe(root, { childList: true, subtree: true });
+      window.setTimeout(() => observer.disconnect(), 20000);
+    }
   }
+
+  window.addEventListener('qms:templates:mount', scheduleMount);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scheduleMount, { once: true });
+  } else {
+    scheduleMount();
+  }
+
 })();
