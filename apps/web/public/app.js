@@ -47,6 +47,8 @@ const PERMISSIONS = {
   signatures:       { read:_ANY, create:_EMPLOYEE_UP, update:_QM_UP, delete:_SA },
   'audit-log':      { read:_QM_UP, create:_SA, update:_SA, delete:_SA },
   'report-builder': { read:_COMMITTEE_UP, create:_QM_UP, update:_QM_UP, delete:_SA, approve:_QM_UP },
+  'operational-reports': { read:_QM_UP },
+  'data-health':     { read:_QM_UP },
   'eval-tokens':    { read:_MANAGER_UP, create:_MANAGER_UP, update:_QM_UP, delete:_QM_UP },
   'performance-reviews': { read:_MANAGER_UP, create:_MANAGER_UP, update:_MANAGER_UP, delete:_QM_UP },
   'improvement-projects': { read:_ANY, create:_EMPLOYEE_UP, update:_MANAGER_UP, delete:_QM_UP },
@@ -77,7 +79,7 @@ const PERMISSIONS = {
   'notification-templates': { read:_QM_UP, update:_QM_UP },
   'template-library': { read:_QM_UP },
   'monthly-readiness': { read:_QM_UP },
-  reports:          { read:_MANAGER_UP, create:_SA, update:_SA, delete:_SA },
+  reports:          { read:_COMMITTEE_UP, create:_SA, update:_SA, delete:_SA },
 };
 
 // Module endpoint → resource key resolver (handles cases where endpoint ≠ resource string)
@@ -99,7 +101,7 @@ function _resourceKey(resource) {
     kpiFollowUp: 'kpi-followups',
     kpiFollowups: 'kpi-followups',
     reportBuilder: 'report-builder',
-    operationalReports: 'reports',
+    operationalReports: 'operational-reports',
     improvementProjects: 'improvement-projects',
     auditChecklists: 'audit-checklists',
     ackDocuments: 'ack-documents',
