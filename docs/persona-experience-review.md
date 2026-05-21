@@ -37,7 +37,7 @@
 ### رئيس قسم
 
 - الغرض: يرى قسمه وفريقه ومؤشراته وحالات الجودة التي تخصه، لا بيانات المؤسسة كلها.
-- الصفحات الموجهة: myWork، kpiFollowUp، slaBoard، users، myKpi، kpiTracking، progressReports، complaints، ncr، risks
+- الصفحات الموجهة: myWork، kpiFollowUp، slaBoard، myKpi، kpiTracking، progressReports، complaints، ncr، risks
 - الملاحظات: لا توجد ملاحظات حرجة أو رئيسية.
 
 ### مدير الجودة

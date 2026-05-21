@@ -1,6 +1,6 @@
 # مصفوفة عرض الأدوار والصلاحيات
 
-آخر تحديث: 2026-05-20
+آخر تحديث: 2026-05-21
 
 هذا الملف مرجع تشغيلي سريع لما يجب أن يظهر لكل دور في واجهة النظام. يتم توليده من تعريفات الواجهة الحالية في `apps/web/public/app.js`، ويُراجع عبر `npm run audit:roles`.
 
@@ -43,7 +43,6 @@
 - إنجازي اليوم `myWork`
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
 - لوحة SLA (الشكاوى/NCR) `slaBoard`
-- المستخدمون `users`
 - قراءات KPI المطلوبة مني `myKpi`
 - متابعة الأداء `kpiTracking`
 - تقرير الإنجاز الشهري `progressReports`
@@ -53,7 +52,6 @@
 
 **النطاق الكامل المسموح:**
 - إنجازي اليوم `myWork`
-- المستخدمون `users`
 - نطاق نظام الجودة `qualityScope`
 - الهيكل التنظيمي `organizationalChart`
 - سياسة الجودة `qualityPolicy`
@@ -63,6 +61,7 @@
 - متابعة الأداء `kpiTracking`
 - قراءات KPI المطلوبة مني `myKpi`
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
+- مهام المتابعة `follow-up-tasks`
 - المخاطر والفرص `risks`
 - الوثائق والسجلات `documents`
 - التدريب `training`
@@ -86,7 +85,6 @@
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
 - جاهزية الأيزو `iso-readiness`
 - متطلبات ISO `isoRequirements`
-- صحة البيانات المؤسسية `dataHealth`
 - تقرير الإنجاز الشهري `progressReports`
 - بلّغ عدم مطابقة `ncr`
 - الإجراءات التصحيحية (CAPA) `capa`
@@ -96,11 +94,8 @@
 
 **النطاق الكامل المسموح:**
 - إنجازي اليوم `myWork`
-- لوحة المعلومات `dashboard`
 - جاهزية الأيزو `iso-readiness`
 - متطلبات ISO `isoRequirements`
-- صحة البيانات المؤسسية `dataHealth`
-- الحالات الحرجة `operationalReports`
 - منشئ التقارير `reportBuilder`
 - نطاق نظام الجودة `qualityScope`
 - الهيكل التنظيمي `organizationalChart`
@@ -124,6 +119,7 @@
 - متابعة الأداء `kpiTracking`
 - قراءات KPI المطلوبة مني `myKpi`
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
+- مهام المتابعة `follow-up-tasks`
 - المخاطر والفرص `risks`
 - طلبات التعديل `changeRequests`
 - الوثائق والسجلات `documents`
@@ -135,7 +131,6 @@
 - التبرعات `donations`
 - البرامج `programs`
 - الموردون `suppliers`
-- جدولة مراجعة إدارية `managementReview`
 - التدقيق الداخلي `audits`
 - قوالب التدقيق `auditChecklists`
 - استبيانات الرضا `surveys`
@@ -202,6 +197,7 @@
 - متابعة الأداء `kpiTracking`
 - قراءات KPI المطلوبة مني `myKpi`
 - سجل متابعة الإدخالات المتأخرة `kpiFollowUp`
+- مهام المتابعة `follow-up-tasks`
 - المخاطر والفرص `risks`
 - طلبات التعديل `changeRequests`
 - الوثائق والسجلات `documents`
@@ -253,7 +249,9 @@
 - التدقيق الداخلي `audits`
 - استبيانات الرضا `surveys`
 - خريطة ترابط الخطة `planMap`
+- الخطط الاستراتيجية `strategicPlans`
 - الأهداف الاستراتيجية `strategicGoals`
+- الخطة التشغيلية `operationalActivities`
 - متابعة الأداء `kpiTracking`
 - تقرير الإنجاز الشهري `progressReports`
 - التكاملات والتنبيهات `integrationsSettings`
@@ -290,7 +288,6 @@
       "myWork",
       "kpiFollowUp",
       "slaBoard",
-      "users",
       "myKpi",
       "kpiTracking",
       "progressReports",
@@ -303,7 +300,6 @@
       "kpiFollowUp",
       "iso-readiness",
       "isoRequirements",
-      "dataHealth",
       "progressReports",
       "ncr",
       "capa",
@@ -346,7 +342,9 @@
       "audits",
       "surveys",
       "planMap",
+      "strategicPlans",
       "strategicGoals",
+      "operationalActivities",
       "kpiTracking",
       "progressReports",
       "integrationsSettings",

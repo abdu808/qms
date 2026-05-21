@@ -1,12 +1,12 @@
 # جرد بنية index.html
 
-آخر تحديث: 2026-05-20T20:05:56.486Z
+آخر تحديث: 2026-05-21T21:39:50.643Z
 
 ## الخلاصة
 
-- الحجم: 123.6 KB
-- عدد الأسطر: 1823
-- x-show: 97
+- الحجم: 124.1 KB
+- عدد الأسطر: 1834
+- x-show: 98
 - x-if: 22
 - x-for: 40
 - كتل صفحات صريحة داخل الملف: 10
@@ -55,16 +55,16 @@
 
 | الصفحة | النوع | من سطر | إلى سطر | عدد الأسطر |
 | --- | --- | --- | --- | --- |
-| surveys | inline-or-generic | 1276 | 1486 | 211 |
-| monthlyReadiness | inline-or-generic | 806 | 954 | 149 |
-| isoRequirements | inline-or-generic | 664 | 803 | 140 |
-| slaBoard | inline-or-generic | 526 | 661 | 136 |
-| organizationalChart | inline-or-generic | 1026 | 1132 | 107 |
-| operationalReports | inline-or-generic | 418 | 523 | 106 |
-| qualityScope | inline-or-generic | 1135 | 1209 | 75 |
-| audit-log | inline-or-generic | 1489 | 1561 | 73 |
-| templateLibrary | inline-or-generic | 957 | 1023 | 67 |
-| iso-readiness | inline-or-generic | 1212 | 1273 | 62 |
+| surveys | inline-or-generic | 1283 | 1493 | 211 |
+| monthlyReadiness | inline-or-generic | 813 | 961 | 149 |
+| isoRequirements | inline-or-generic | 671 | 810 | 140 |
+| slaBoard | inline-or-generic | 533 | 668 | 136 |
+| organizationalChart | inline-or-generic | 1033 | 1139 | 107 |
+| operationalReports | inline-or-generic | 425 | 530 | 106 |
+| qualityScope | inline-or-generic | 1142 | 1216 | 75 |
+| audit-log | inline-or-generic | 1496 | 1568 | 73 |
+| templateLibrary | inline-or-generic | 964 | 1030 | 67 |
+| iso-readiness | inline-or-generic | 1219 | 1280 | 62 |
 
 ## المرشحون الآمنون للفصل
 
@@ -77,92 +77,92 @@
 | # | السطر | الملف |
 | --- | --- | --- |
 | 1 | 15 | https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js |
-| 2 | 1747 | /modules/kpi-common.js?v=2026-05-20a |
-| 3 | 1748 | /modules/i18n.js?v=2026-05-20a |
-| 4 | 1749 | /modules/inbox.js?v=2026-05-20a |
-| 5 | 1750 | /modules/kpi-quickentry.js?v=2026-05-20a |
-| 6 | 1751 | /modules/kpi-bulk.js?v=2026-05-20a |
-| 7 | 1752 | /modules/data-import.js?v=2026-05-20a |
-| 8 | 1753 | /modules/portal-admin.js?v=2026-05-20a |
-| 9 | 1754 | /modules/operational-reports.js?v=2026-05-20a |
-| 10 | 1755 | /modules/sla-board.js?v=2026-05-20a |
-| 11 | 1756 | /modules/document-workflow.js?v=2026-05-20a |
-| 12 | 1757 | /modules/training.js?v=2026-05-20a |
-| 13 | 1758 | /modules/document-versions.js?v=2026-05-20a |
-| 14 | 1759 | /modules/wizard.js?v=2026-05-20a |
-| 15 | 1760 | /modules/detail-shell.js?v=2026-05-20a |
-| 16 | 1761 | /modules/surveys.js?v=2026-05-20a |
-| 17 | 1762 | /modules/report-builder.js?v=2026-05-20a |
-| 18 | 1763 | /modules/supplier-eval.js?v=2026-05-20a |
-| 19 | 1764 | /modules/beneficiary.js?v=2026-05-20a |
-| 20 | 1765 | /modules/live-alerts.js?v=2026-05-20a |
-| 21 | 1766 | /modules/signatures.js?v=2026-05-20a |
-| 22 | 1767 | /modules/notifications.js?v=2026-05-20a |
-| 23 | 1768 | /modules/ack-documents.js?v=2026-05-20a |
-| 24 | 1769 | /modules/policy-ack.js?v=2026-05-20a |
-| 25 | 1770 | /modules/plan-map.js?v=2026-05-20a |
-| 26 | 1771 | /modules/swot.js?v=2026-05-20a |
-| 27 | 1772 | /modules/my-kpi.js?v=2026-05-20a |
-| 28 | 1773 | /modules/kpi-tracking.js?v=2026-05-20a |
-| 29 | 1774 | /modules/kpi-followup.js?v=2026-05-20a |
-| 30 | 1775 | /modules/quick-actions.js?v=2026-05-20a |
-| 31 | 1776 | /modules/webhook-settings.js?v=2026-05-20a |
-| 32 | 1777 | /modules/integrations.js?v=2026-05-20a |
-| 33 | 1778 | /modules/ai-settings.js?v=2026-05-20a |
-| 34 | 1779 | /modules/consultant.js?v=2026-05-20a |
-| 35 | 1780 | /modules/progress-reports.js?v=2026-05-20a |
-| 36 | 1781 | /modules/exec-dashboard.js?v=2026-05-20a |
-| 37 | 1782 | /modules/dept-dashboard.js?v=2026-05-20a |
-| 38 | 1783 | /modules/quality-dashboard.js?v=2026-05-20a |
-| 39 | 1784 | /modules/capa.js?v=2026-05-20a |
-| 40 | 1785 | /modules/templates/consultant-page.js?v=2026-05-20a |
-| 41 | 1786 | /modules/templates/ai-settings-modal.js?v=2026-05-20a |
-| 42 | 1787 | /modules/templates/integrations-settings-page.js?v=2026-05-20a |
-| 43 | 1788 | /modules/templates/kpi-tracking-page.js?v=2026-05-20a |
-| 44 | 1789 | /modules/templates/my-work-page.js?v=2026-05-20a |
-| 45 | 1790 | /modules/templates/plan-map-page.js?v=2026-05-20a |
-| 46 | 1791 | /modules/templates/portal-admin-page.js?v=2026-05-20a |
-| 47 | 1792 | /modules/templates/progress-reports-page.js?v=2026-05-20a |
-| 48 | 1793 | /modules/templates/review-snapshot-modal.js?v=2026-05-20a |
-| 49 | 1794 | /modules/templates/user-guide-page.js?v=2026-05-20a |
-| 50 | 1795 | /modules/templates/generic-list-page.js?v=2026-05-20a |
-| 51 | 1796 | /modules/templates/acknowledgments-pages.js?v=2026-05-20a |
-| 52 | 1797 | /modules/templates/data-health-report-page.js?v=2026-05-20a |
-| 53 | 1798 | /modules/templates/report-builder-page.js?v=2026-05-20a |
-| 54 | 1799 | /modules/templates/supplier-eval-modal.js?v=2026-05-20a |
-| 55 | 1800 | /modules/templates/document-versions-modal.js?v=2026-05-20a |
-| 56 | 1801 | /modules/templates/training-records-modal.js?v=2026-05-20a |
-| 57 | 1802 | /modules/templates/survey-builder-modal.js?v=2026-05-20a |
-| 58 | 1803 | /modules/templates/main-crud-modal.js?v=2026-05-20a |
-| 59 | 1804 | /modules/templates/command-palette-modal.js?v=2026-05-20a |
-| 60 | 1805 | /modules/templates/ack-links-modal.js?v=2026-05-20a |
-| 61 | 1806 | /modules/templates/auditor-dashboard-page.js?v=2026-05-20a |
-| 62 | 1807 | /modules/templates/ai-control-center-page.js?v=2026-05-20a |
-| 63 | 1808 | /modules/templates/dashboard-page.js?v=2026-05-20a |
-| 64 | 1809 | /modules/templates/my-kpi-page.js?v=2026-05-20a |
-| 65 | 1810 | /modules/templates/kpi-followup-page.js?v=2026-05-20a |
-| 66 | 1811 | /modules/templates/integration-support-modals.js?v=2026-05-20a |
-| 67 | 1812 | /modules/templates/my-kpi-entry-modal.js?v=2026-05-20a |
-| 68 | 1813 | /modules/templates/supplier-beneficiary-survey-modals.js?v=2026-05-20a |
-| 69 | 1814 | /modules/templates/notifications-and-system-modals.js?v=2026-05-20a |
-| 70 | 1815 | /modules-config/context.js?v=2026-05-20a |
-| 71 | 1816 | /modules-config/planning.js?v=2026-05-20a |
-| 72 | 1817 | /modules-config/support.js?v=2026-05-20a |
-| 73 | 1818 | /modules-config/operation.js?v=2026-05-20a |
-| 74 | 1819 | /modules-config/evaluation.js?v=2026-05-20a |
-| 75 | 1820 | /app.js?v=2026-05-20a |
+| 2 | 1758 | /modules/kpi-common.js?v=2026-05-22a |
+| 3 | 1759 | /modules/i18n.js?v=2026-05-22a |
+| 4 | 1760 | /modules/inbox.js?v=2026-05-22a |
+| 5 | 1761 | /modules/kpi-quickentry.js?v=2026-05-22a |
+| 6 | 1762 | /modules/kpi-bulk.js?v=2026-05-22a |
+| 7 | 1763 | /modules/data-import.js?v=2026-05-22a |
+| 8 | 1764 | /modules/portal-admin.js?v=2026-05-22a |
+| 9 | 1765 | /modules/operational-reports.js?v=2026-05-22a |
+| 10 | 1766 | /modules/sla-board.js?v=2026-05-22a |
+| 11 | 1767 | /modules/document-workflow.js?v=2026-05-22a |
+| 12 | 1768 | /modules/training.js?v=2026-05-22a |
+| 13 | 1769 | /modules/document-versions.js?v=2026-05-22a |
+| 14 | 1770 | /modules/wizard.js?v=2026-05-22a |
+| 15 | 1771 | /modules/detail-shell.js?v=2026-05-22a |
+| 16 | 1772 | /modules/surveys.js?v=2026-05-22a |
+| 17 | 1773 | /modules/report-builder.js?v=2026-05-22a |
+| 18 | 1774 | /modules/supplier-eval.js?v=2026-05-22a |
+| 19 | 1775 | /modules/beneficiary.js?v=2026-05-22a |
+| 20 | 1776 | /modules/live-alerts.js?v=2026-05-22a |
+| 21 | 1777 | /modules/signatures.js?v=2026-05-22a |
+| 22 | 1778 | /modules/notifications.js?v=2026-05-22a |
+| 23 | 1779 | /modules/ack-documents.js?v=2026-05-22a |
+| 24 | 1780 | /modules/policy-ack.js?v=2026-05-22a |
+| 25 | 1781 | /modules/plan-map.js?v=2026-05-22a |
+| 26 | 1782 | /modules/swot.js?v=2026-05-22a |
+| 27 | 1783 | /modules/my-kpi.js?v=2026-05-22a |
+| 28 | 1784 | /modules/kpi-tracking.js?v=2026-05-22a |
+| 29 | 1785 | /modules/kpi-followup.js?v=2026-05-22a |
+| 30 | 1786 | /modules/quick-actions.js?v=2026-05-22a |
+| 31 | 1787 | /modules/webhook-settings.js?v=2026-05-22a |
+| 32 | 1788 | /modules/integrations.js?v=2026-05-22a |
+| 33 | 1789 | /modules/ai-settings.js?v=2026-05-22a |
+| 34 | 1790 | /modules/consultant.js?v=2026-05-22a |
+| 35 | 1791 | /modules/progress-reports.js?v=2026-05-22a |
+| 36 | 1792 | /modules/exec-dashboard.js?v=2026-05-22a |
+| 37 | 1793 | /modules/dept-dashboard.js?v=2026-05-22a |
+| 38 | 1794 | /modules/quality-dashboard.js?v=2026-05-22a |
+| 39 | 1795 | /modules/capa.js?v=2026-05-22a |
+| 40 | 1796 | /modules/templates/consultant-page.js?v=2026-05-22a |
+| 41 | 1797 | /modules/templates/ai-settings-modal.js?v=2026-05-22a |
+| 42 | 1798 | /modules/templates/integrations-settings-page.js?v=2026-05-22a |
+| 43 | 1799 | /modules/templates/kpi-tracking-page.js?v=2026-05-22a |
+| 44 | 1800 | /modules/templates/my-work-page.js?v=2026-05-22a |
+| 45 | 1801 | /modules/templates/plan-map-page.js?v=2026-05-22a |
+| 46 | 1802 | /modules/templates/portal-admin-page.js?v=2026-05-22a |
+| 47 | 1803 | /modules/templates/progress-reports-page.js?v=2026-05-22a |
+| 48 | 1804 | /modules/templates/review-snapshot-modal.js?v=2026-05-22a |
+| 49 | 1805 | /modules/templates/user-guide-page.js?v=2026-05-22a |
+| 50 | 1806 | /modules/templates/generic-list-page.js?v=2026-05-22a |
+| 51 | 1807 | /modules/templates/acknowledgments-pages.js?v=2026-05-22a |
+| 52 | 1808 | /modules/templates/data-health-report-page.js?v=2026-05-22a |
+| 53 | 1809 | /modules/templates/report-builder-page.js?v=2026-05-22a |
+| 54 | 1810 | /modules/templates/supplier-eval-modal.js?v=2026-05-22a |
+| 55 | 1811 | /modules/templates/document-versions-modal.js?v=2026-05-22a |
+| 56 | 1812 | /modules/templates/training-records-modal.js?v=2026-05-22a |
+| 57 | 1813 | /modules/templates/survey-builder-modal.js?v=2026-05-22a |
+| 58 | 1814 | /modules/templates/main-crud-modal.js?v=2026-05-22a |
+| 59 | 1815 | /modules/templates/command-palette-modal.js?v=2026-05-22a |
+| 60 | 1816 | /modules/templates/ack-links-modal.js?v=2026-05-22a |
+| 61 | 1817 | /modules/templates/auditor-dashboard-page.js?v=2026-05-22a |
+| 62 | 1818 | /modules/templates/ai-control-center-page.js?v=2026-05-22a |
+| 63 | 1819 | /modules/templates/dashboard-page.js?v=2026-05-22a |
+| 64 | 1820 | /modules/templates/my-kpi-page.js?v=2026-05-22a |
+| 65 | 1821 | /modules/templates/kpi-followup-page.js?v=2026-05-22a |
+| 66 | 1822 | /modules/templates/integration-support-modals.js?v=2026-05-22a |
+| 67 | 1823 | /modules/templates/my-kpi-entry-modal.js?v=2026-05-22a |
+| 68 | 1824 | /modules/templates/supplier-beneficiary-survey-modals.js?v=2026-05-22a |
+| 69 | 1825 | /modules/templates/notifications-and-system-modals.js?v=2026-05-22a |
+| 70 | 1826 | /modules-config/context.js?v=2026-05-22a |
+| 71 | 1827 | /modules-config/planning.js?v=2026-05-22a |
+| 72 | 1828 | /modules-config/support.js?v=2026-05-22a |
+| 73 | 1829 | /modules-config/operation.js?v=2026-05-22a |
+| 74 | 1830 | /modules-config/evaluation.js?v=2026-05-22a |
+| 75 | 1831 | /app.js?v=2026-05-22a |
 
 ## الأقسام والمودالات المعنونة
 
 | السطر | الوسم |
 | --- | --- |
 | 225 | اختصارات لوحة المفاتيح |
-| 250 | MAIN (offset by sidebar width + gap; scrolls independently) |
-| 271 | ISO 9.1.3: لقطة صحة النظام الحيّة — للمديرين فقط |
-| 387 | ═══ لوحة مراقب الجودة (GUEST_AUDITOR) ══════════════════ |
-| 394 | ════ مركز قيادة AI ════ |
-| 1690 | Review step |
-| 1744 | ── Management Review Smart Snapshot Modal (لوحة المراجعة الذكية) ── |
+| 257 | MAIN (offset by sidebar width + gap; scrolls independently) |
+| 278 | ISO 9.1.3: لقطة صحة النظام الحيّة — للمديرين فقط |
+| 394 | ═══ لوحة مراقب الجودة (GUEST_AUDITOR) ══════════════════ |
+| 401 | ════ مركز قيادة AI ════ |
+| 1697 | Review step |
+| 1751 | ── Management Review Smart Snapshot Modal (لوحة المراجعة الذكية) ── |
 
 ## معرفات HTML مكررة
 
