@@ -971,7 +971,7 @@ function app() {
           { id: 'guided-today', title: 'قرار ومتابعة', icon: '✅', iso: '', color: 'emerald', items: ['myWork', 'dashboard', 'kpiFollowUp', 'dataHealth'] },
           { id: 'guided-ready', title: 'جاهزية ISO', icon: '📋', iso: '', color: 'sky', items: ['monthlyReadiness', 'iso-readiness', 'isoRequirements', 'templateLibrary'] },
           { id: 'guided-quality', title: 'حالات الجودة', icon: '🛠️', iso: '', color: 'slate', items: ['complaints', 'ncr', 'capa', 'risks', 'managementReview', 'audits', 'surveys'] },
-          { id: 'guided-plan', title: 'الخطة والأداء', icon: '🎯', iso: '', color: 'slate', items: ['planMap', 'strategicGoals', 'kpiTracking', 'progressReports'] },
+          { id: 'guided-plan', title: 'الخطة والأداء', icon: '🎯', iso: '', color: 'slate', items: ['planMap', 'strategicPlans', 'strategicGoals', 'operationalActivities', 'kpiTracking', 'progressReports'] },
           { id: 'guided-admin', title: 'الإدارة والإعدادات', icon: '⚙️', iso: '', color: 'gray', items: ['integrationsSettings', 'aiSettings', 'users', 'departments', 'audit-log'] },
         ],
       };
@@ -1042,6 +1042,26 @@ function app() {
       if (this.isGroupCollapsed(gid)) this.collapsedGroups = this.collapsedGroups.filter(x => x !== gid);
       else this.collapsedGroups.push(gid);
       this._setUserLocalJson('collapsed_groups', this.collapsedGroups);
+    },
+    _ensureMenuGroupOpenForPage(id) {
+      const group = this.visibleMenuGroups().find(g => Array.isArray(g.items) && g.items.includes(id));
+      if (!group || !this.isGroupCollapsed(group.id)) return;
+      this.collapsedGroups = this.collapsedGroups.filter(x => x !== group.id);
+      this._setUserLocalJson('collapsed_groups', this.collapsedGroups);
+    },
+    async resetInterfaceState() {
+      const defaultFavorites = ['beneficiaries', 'donations', 'complaints'];
+      this.sidebarSearch = '';
+      this.favorites = defaultFavorites;
+      this.collapsedGroups = ['settings'];
+      this.uiMode = this.canUseAdvancedMode() ? 'advanced' : 'guided';
+      this.swotViewMode = 'matrix';
+      this._writeUserLocalUiSnapshot();
+      try {
+        await this.api('PUT', '/user-preferences', { preferences: this._currentUiPreferenceSnapshot() });
+      } catch {}
+      this.toast?.('تمت إعادة ضبط الواجهة وفتح القوائم الأساسية', 'success');
+      await this.goto(this.homePageForRole());
     },
     isFavorite(id) { return this.favorites.includes(id); },
     toggleFavorite(id, e) {
@@ -1446,6 +1466,8 @@ function app() {
         }
       }
       this.page = id;
+      this.sidebarSearch = '';
+      this._ensureMenuGroupOpenForPage(id);
       if (!options.skipHash && typeof window !== 'undefined') {
         const nextHash = `#/${id}`;
         if (window.location.hash !== nextHash) {
