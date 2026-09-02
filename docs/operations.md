@@ -145,10 +145,15 @@ docker exec -it <container-name> npx prisma migrate deploy
 **الأعراض:** Container يُعاد تشغيله باستمرار، أو Coolify يُبلِّغ عن OOM.
 
 **الخطوات:**
-1. تحقق من استخدام الذاكرة: Coolify ← **Metrics**.
-2. ابحث عن memory leak في السجلات: `docker logs ... | grep -i "heap\|memory"`.
-3. أعِد التشغيل مؤقتاً: Coolify ← **Restart**.
-4. راجع الاستعلامات الثقيلة في Neon ← **Monitoring**.
+1. شغّل تقرير الاستهلاك: `./apps/api/scripts/container-usage.sh qms` (على سيرفر Coolify)
+   أو `cd /app && ./scripts/container-usage.sh` (من Coolify Terminal).
+2. تحقق من استخدام الذاكرة: Coolify ← **Metrics**.
+3. ابحث عن memory leak في السجلات: `docker logs ... | grep -i "heap\|memory"`.
+4. أعِد التشغيل مؤقتاً: Coolify ← **Restart**.
+5. راجع الاستعلامات الثقيلة في Neon ← **Monitoring**.
+
+> التفاصيل الكاملة (قراءة `docker stats`، حدود الموارد، تنظيف القرص):
+> [`container-consumption.md`](./container-consumption.md).
 
 ### 6.4 فشل تخزين الملفات
 
